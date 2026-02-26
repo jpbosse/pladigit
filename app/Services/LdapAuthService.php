@@ -61,7 +61,7 @@ class LdapAuthService
             }
  
             // Authentifier l'utilisateur avec son propre mot de passe
-            $conn->auth()->attempt($ldapUser['dn'][0], $password, $bindAsUser = true);
+            $conn->auth()->attempt($ldapUser['dn'], $password, $bindAsUser = true);
  
             // Synchroniser le compte dans la base tenant
             return $this->syncUser($ldapUser);
@@ -86,7 +86,7 @@ class LdapAuthService
             ['email' => $email],
             [
                 'name'           => $ldapEntry['cn'][0] ?? $email,
-                'ldap_dn'        => $ldapEntry['dn'][0],
+                'ldap_dn'        => $ldapEntry['dn'] ?? null,
                 'ldap_synced_at' => now(),
                 'department'     => $ldapEntry['department'][0] ?? null,
                 'status'         => 'active',
