@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         stopOnFailure="false">
+ 
+    <testsuites>
+        <!-- Tests Phase 1 — Socle -->
+        <testsuite name="Phase1-Auth">
+            <directory>tests/Feature/Auth</directory>
+            <directory>tests/Unit</directory>
+        </testsuite>
+ 
+        <!-- Tests Phase 2 — 2FA + LDAP -->
+        <testsuite name="Phase2-Auth">
+            <directory>tests/Feature/Auth</directory>
+        </testsuite>
+ 
+        <!-- Suite complète -->
+        <testsuite name="All">
+            <directory>tests/Feature</directory>
+            <directory>tests/Unit</directory>
+        </testsuite>
+    </testsuites>
+ 
+    <!-- Couverture de code — exclure les fichiers non testables -->
+    <coverage>
+        <report>
+            <clover outputFile="build/logs/clover.xml"/>
+            <html outputDirectory="build/coverage"/>
+            <text outputFile="php://stdout" showUncoveredFiles="true"/>
+        </report>
+    </coverage>
+ 
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+ 
+    <php>
+        <env name="APP_ENV"          value="testing"/>
+        <env name="BCRYPT_ROUNDS"    value="4"/>
+        <env name="CACHE_STORE"      value="array"/>
+        <env name="SESSION_DRIVER"   value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="MAIL_MAILER"      value="array"/>
+        <env name="DB_CONNECTION"    value="sqlite"/>
+        <env name="DB_DATABASE"      value=":memory:"/>
+    </php>
+</phpunit>
