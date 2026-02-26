@@ -29,7 +29,7 @@ return new class extends Migration
             $table->timestamp('ldap_synced_at')->nullable();
  
             // 2FA (Phase 2)
-            $table->string('totp_secret_enc')->nullable()
+            $table->text('totp_secret_enc')->nullable()
                   ->comment('Secret TOTP chiffré AES-256');
             $table->boolean('totp_enabled')->default(false);
             $table->text('totp_backup_code_enc')->nullable();
