@@ -90,13 +90,23 @@ class LoginController extends Controller
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
  
-        // 5. Si 2FA activé → rediriger vers vérification TOTP (Phase 2)
+/*        // 5. Si 2FA activé → rediriger vers vérification TOTP (Phase 2)
+        \Log::info('2FA check', ['totp_enabled' => $user->totp_enabled, 'user_id' => $user->id]);
         if ($user->totp_enabled) {
             session(['2fa_user_id' => $user->id]);
             Auth::logout();
             return redirect()->route('2fa.challenge');
         }
- 
+ */
+// 5. Si 2FA activé → rediriger vers vérification TOTP
+if ($user->totp_enabled) {
+    Auth::logout();
+    $request->session()->put('2fa_user_id', $user->id);
+    \Log::info('2FA redirect', ['session_id' => session()->getId(), '2fa_user_id' => session('2fa_user_id')]);
+    return redirect()->route('2fa.challenge');
+}
+
+
         // 6. Changement de mot de passe forcé
         if ($user->force_pwd_change) {
             return redirect()->route('password.change.forced');

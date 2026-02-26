@@ -54,7 +54,7 @@ class TwoFactorService
      */
     public function enable(User $user, string $plainSecret, string $code): bool
     {
-        if (! $this->google2fa->verifyKey($plainSecret, $code)) {
+        if (! $this->google2fa->verifyKey($plainSecret, $code,4)) {
             return false;
         }
  
@@ -74,7 +74,7 @@ class TwoFactorService
     /**
      * Vérifie un code TOTP ou un code de secours.
      */
-    public function verify(User $user, string $code): bool
+ /*   public function verify(User $user, string $code): bool
     {
         if (! $user->totp_enabled || ! $user->totp_secret_enc) {
             return false;
@@ -83,13 +83,36 @@ class TwoFactorService
         $plainSecret = Crypt::decryptString($user->totp_secret_enc);
  
         // Vérification du code TOTP (fenêtre de 1 → ±30 secondes)
-        if ($this->google2fa->verifyKey($plainSecret, $code, 1)) {
+        if ($this->google2fa->verifyKey($plainSecret, $code, 4)) {
             return true;
         }
  
         // Vérification d'un code de secours
         return $this->verifyBackupCode($user, $code);
+    } */
+
+public function verify(User $user, string $code): bool
+{
+    if (! $user->totp_enabled || ! $user->totp_secret_enc) {
+        \Log::error('2FA verify — secret manquant', ['user_id' => $user->id, 'enabled' => $user->totp_enabled]);
+        return false;
     }
+
+    $plainSecret = Crypt::decryptString($user->totp_secret_enc);
+    
+    \Log::info('2FA verify', [
+        'user_id'     => $user->id,
+        'secret_len'  => strlen($plainSecret),
+        'code'        => $code,
+        'valid'       => $this->google2fa->verifyKey($plainSecret, $code, 4),
+    ]);
+
+    if ($this->google2fa->verifyKey($plainSecret, $code, 4)) {
+        return true;
+    }
+
+    return $this->verifyBackupCode($user, $code);
+}
  
     /**
      * Vérifie et consomme un code de secours (usage unique).
