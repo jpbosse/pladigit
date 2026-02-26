@@ -30,6 +30,8 @@ public function getConnectionName()
         'totp_enabled', 'force_pwd_change', 'created_by',
         'last_login_at', 'last_login_ip', 'login_attempts',
         'locked_until', 'ldap_synced_at',
+        'totp_enabled', 'force_pwd_change', 'created_by',
+        'totp_secret_enc', 'totp_backup_code_enc',
     ];
  
     protected $hidden = [
