@@ -33,7 +33,7 @@ class OrganizationController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'alpha_dash', 'unique:organizations'],
-            'plan' => ['required', 'in:free,starter,standard,enterprise'],
+            'plan' => ['required', 'in:communautaire,assistance,enterprise'],
         ]);
         $validated['db_name'] = Organization::dbNameFromSlug($validated['slug']);
         $validated['max_users'] = $this->maxUsersFromPlan($validated['plan']);
@@ -68,7 +68,7 @@ class OrganizationController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'plan' => ['required', 'in:free,starter,standard,enterprise'],
+            'plan' => ['required', 'in:communautaire,assistance,enterprise'],
             'status' => ['required', 'in:active,suspended,pending'],
         ]);
         $validated['max_users'] = $this->maxUsersFromPlan($validated['plan']);
@@ -121,11 +121,10 @@ class OrganizationController extends Controller
     private function maxUsersFromPlan(string $plan): int
     {
         return match ($plan) {
-            'free' => 5,
-            'starter' => 50,
-            'standard' => 200,
-            'enterprise' => 9999,
-            default => 50,
+            'communautaire' => 9999,
+            'assistance'    => 200,
+            'enterprise'    => 9999,
+            default         => 9999,
         };
     }
 }
