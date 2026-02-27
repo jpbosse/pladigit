@@ -18,6 +18,9 @@
         .nav-links a{font-size:0.9rem;font-weight:500;color:var(--grey);text-decoration:none;transition:color 0.2s}
         .nav-links a:hover{color:var(--navy)}
         .btn-nav{background:var(--navy)!important;color:white!important;padding:0.5rem 1.25rem;border-radius:4px;font-weight:600!important}
+        .btn-source{background:transparent;color:var(--navy)!important;padding:0.5rem 1.25rem;border-radius:4px;font-weight:600;border:1px solid rgba(30,58,95,0.3);font-size:0.85rem;text-decoration:none;transition:all 0.2s;display:flex;align-items:center;gap:0.4rem}
+        .btn-source::before{content:"⌥"}
+        .btn-source:hover{background:var(--light);border-color:var(--navy)}
         .hero{min-height:100vh;background:var(--navy);display:flex;align-items:center;position:relative;overflow:hidden;padding-top:64px}
         .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 70% 50%,rgba(196,151,42,0.08) 0%,transparent 70%)}
         .hero-grid{position:absolute;inset:0;opacity:0.04;background-image:linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:60px 60px}
@@ -128,6 +131,7 @@
             <a href="#fonctionnalites">Fonctionnalités</a>
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
+            <a href="https://github.com/aevamagique/pladigit" target="_blank" class="btn-source">Source</a>
             <a href="{{ url('/login') }}" class="btn-nav">Connexion</a>
         </div>
     </div>
@@ -195,6 +199,7 @@
                 <div class="module-card-icon">{{ $m['icon'] }}</div>
                 <div class="module-card-name">{{ $m['name'] }}</div>
                 <p class="module-card-desc">{{ $m['desc'] }}</p>
+            </div>
             @endforeach
         </div>
     </div>
