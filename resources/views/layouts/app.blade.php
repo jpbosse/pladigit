@@ -26,6 +26,12 @@
             </span>
             <div class="flex items-center gap-4">
                 <span class="text-white text-sm">{{ Auth::user()?->name }}</span>
+			@if(Auth::user()?->role === 'admin')
+				<a href="{{ route('admin.users.index') }}"
+				   class="text-white text-sm hover:underline">
+					    ⚙ Admin
+				</a>
+			@endif
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
                     <button type="submit" class="text-white text-sm hover:underline">
