@@ -33,11 +33,10 @@ class OrganizationController extends Controller
             'name'      => ['required', 'string', 'max:255'],
             'slug'      => ['required', 'alpha_dash', 'unique:organizations'],
             'plan'      => ['required', 'in:free,starter,standard,enterprise'],
-            'max_users' => ['required', 'integer', 'min:1'],
         ]);
+	$validated['db_name']   = Organization::dbNameFromSlug($validated['slug']);
+	$org = Organization::create($validated);
 
-        $validated['db_name'] = Organization::dbNameFromSlug($validated['slug']);
-        $org = Organization::create($validated);
         $this->provisioning->provisionTenant($org);
 
         return redirect()
@@ -67,10 +66,8 @@ class OrganizationController extends Controller
         $validated = $request->validate([
             'name'      => ['required', 'string', 'max:255'],
             'plan'      => ['required', 'in:free,starter,standard,enterprise'],
-            'max_users' => ['required', 'integer', 'min:1'],
             'status'    => ['required', 'in:active,suspended,pending'],
         ]);
-
         $organization->update($validated);
 
         return redirect()
@@ -114,4 +111,15 @@ class OrganizationController extends Controller
             ->route('super-admin.organizations.show', $organization)
             ->with('success', "Administrateur {$request->email} créé.");
     }
+
+	private function maxUsersFromPlan(string $plan): int
+	{
+	    return match($plan) {
+        	'free'       => 5,
+	        'starter'    => 50,
+	        'standard'   => 200,
+	        'enterprise' => 9999,
+	        default      => 50,
+    	   };
+	}
 }
