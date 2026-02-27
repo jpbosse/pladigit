@@ -3,6 +3,7 @@
 namespace App\Models\Tenant;
  
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
  
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notifiable;
  */
 class User extends Authenticatable
 {
-    use SoftDeletes, Notifiable;
+    use HasFactory, SoftDeletes, Notifiable;
  
 
 public function getConnectionName()
