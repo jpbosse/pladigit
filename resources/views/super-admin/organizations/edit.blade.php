@@ -28,13 +28,21 @@
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Plan</label>
-                    <select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                        @foreach(['free','starter','standard','enterprise'] as $plan)
-                        <option value="{{ $plan }}" {{ $organization->plan === $plan ? 'selected' : '' }}>
-                            {{ ucfirst($plan) }}
-                        </option>
-                        @endforeach
-                    </select>
+		<select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+		    @foreach([
+		        'free'       => 'Free — 5 utilisateurs',
+		        'starter'    => 'Starter — 50 utilisateurs',
+		        'standard'   => 'Standard — 200 utilisateurs',
+		        'enterprise' => 'Enterprise — illimité',
+		    ] as $value => $label)
+		    <option value="{{ $value }}" {{ $organization->plan === $value ? 'selected' : '' }}>
+		        {{ $label }}
+		    </option>
+		    @endforeach
+		</select>
+
+
+
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Max utilisateurs</label>
