@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.super-admin')
 @section('title', 'Super Administration — Organisations')
  
 @section('content')
@@ -34,7 +34,16 @@
             <tbody class="divide-y divide-gray-100">
                 @forelse($orgs as $org)
                 <tr class="hover:bg-gray-50">
-                    <td class="px-4 py-3 font-medium text-gray-800">{{ $org->name }}</td>
+		<td class="px-4 py-3 font-medium text-gray-800">
+		    <a href="{{ route('super-admin.organizations.show', $org) }}" 
+		       class="hover:underline" style="color: #1E3A5F;">
+		        {{ $org->name }}
+		    </a>
+		</td>
+
+
+
+
                     <td class="px-4 py-3 font-mono text-sm text-gray-500">{{ $org->slug }}</td>
                     <td class="px-4 py-3 text-sm">
                         <span class="px-2 py-1 rounded-full text-xs font-medium
