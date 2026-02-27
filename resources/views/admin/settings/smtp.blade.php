@@ -52,13 +52,13 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Adresse expéditeur</label>
                     <input type="email" name="smtp_from_address" value="{{ old('smtp_from_address', $org->smtp_from_address) }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                           placeholder="noreply@mairie.fr">
+                           placeholder="noreply@cc-ile-noirmoutier.fr">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Nom expéditeur</label>
                     <input type="text" name="smtp_from_name" value="{{ old('smtp_from_name', $org->smtp_from_name) }}"
                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                           placeholder="Mairie de Soullans">
+                           placeholder="Communauté de Communes de l'île de Noirmoutier">
                 </div>
             </div>
 
