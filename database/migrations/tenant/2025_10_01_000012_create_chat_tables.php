@@ -1,17 +1,24 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function connection() { return 'tenant'; }
-    public function up(): void {
+return new class extends Migration
+{
+    public function connection()
+    {
+        return 'tenant';
+    }
+
+    public function up(): void
+    {
         Schema::connection('tenant')->create('chat_channels', function (Blueprint $table) {
             $table->id();
             $table->foreignId('created_by')->constrained('users')->onDelete('restrict');
             $table->string('name', 100);
             $table->text('description')->nullable();
-            $table->enum('type', ['public','private','direct'])->default('public');
+            $table->enum('type', ['public', 'private', 'direct'])->default('public');
             $table->boolean('is_archived')->default(false);
             $table->timestamps();
         });
@@ -40,7 +47,9 @@ return new class extends Migration {
             $table->index('channel_id');
         });
     }
-    public function down(): void {
+
+    public function down(): void
+    {
         Schema::connection('tenant')->dropIfExists('chat_messages');
         Schema::connection('tenant')->dropIfExists('chat_members');
         Schema::connection('tenant')->dropIfExists('chat_channels');

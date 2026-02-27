@@ -12,25 +12,26 @@ class SettingsController extends Controller
     public function ldap()
     {
         $settings = TenantSettings::sole();
+
         return view('admin.settings.ldap', compact('settings'));
     }
 
     public function updateLdap(Request $request)
     {
         $validated = $request->validate([
-            'ldap_host'    => ['nullable', 'string', 'max:255'],
-            'ldap_port'    => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'ldap_host' => ['nullable', 'string', 'max:255'],
+            'ldap_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'ldap_base_dn' => ['nullable', 'string', 'max:500'],
             'ldap_bind_dn' => ['nullable', 'string', 'max:500'],
-            'ldap_password'=> ['nullable', 'string'],
+            'ldap_password' => ['nullable', 'string'],
             'ldap_use_tls' => ['boolean'],
         ]);
 
         $settings = TenantSettings::sole();
 
         $data = [
-            'ldap_host'    => $validated['ldap_host'],
-            'ldap_port'    => $validated['ldap_port'] ?? 636,
+            'ldap_host' => $validated['ldap_host'],
+            'ldap_port' => $validated['ldap_port'] ?? 636,
             'ldap_base_dn' => $validated['ldap_base_dn'],
             'ldap_bind_dn' => $validated['ldap_bind_dn'],
             'ldap_use_tls' => $request->boolean('ldap_use_tls'),
@@ -49,7 +50,7 @@ class SettingsController extends Controller
     {
         try {
             $settings = TenantSettings::sole();
-            $service  = app(\App\Services\LdapAuthService::class);
+            $service = app(\App\Services\LdapAuthService::class);
 
             if (! $settings->ldap_host) {
                 return response()->json(['ok' => false, 'message' => 'LDAP non configuré.']);
@@ -58,13 +59,13 @@ class SettingsController extends Controller
             // Test de connexion simple
             $password = Crypt::decryptString($settings->ldap_bind_password_enc);
             $conn = new \LdapRecord\Connection([
-                'hosts'    => [$settings->ldap_host],
-                'port'     => $settings->ldap_port ?? 636,
-                'base_dn'  => $settings->ldap_base_dn,
+                'hosts' => [$settings->ldap_host],
+                'port' => $settings->ldap_port ?? 636,
+                'base_dn' => $settings->ldap_base_dn,
                 'username' => $settings->ldap_bind_dn,
                 'password' => $password,
-                'use_tls'  => (bool) $settings->ldap_use_tls,
-                'timeout'  => 5,
+                'use_tls' => (bool) $settings->ldap_use_tls,
+                'timeout' => 5,
             ]);
             $conn->connect();
 
@@ -77,28 +78,29 @@ class SettingsController extends Controller
     public function smtp()
     {
         $org = app(\App\Services\TenantManager::class)->current();
+
         return view('admin.settings.smtp', compact('org'));
     }
 
     public function updateSmtp(Request $request)
     {
         $validated = $request->validate([
-            'smtp_host'         => ['nullable', 'string', 'max:255'],
-            'smtp_port'         => ['nullable', 'integer'],
-            'smtp_user'         => ['nullable', 'string', 'max:255'],
-            'smtp_password'     => ['nullable', 'string'],
+            'smtp_host' => ['nullable', 'string', 'max:255'],
+            'smtp_port' => ['nullable', 'integer'],
+            'smtp_user' => ['nullable', 'string', 'max:255'],
+            'smtp_password' => ['nullable', 'string'],
             'smtp_from_address' => ['nullable', 'email'],
-            'smtp_from_name'    => ['nullable', 'string', 'max:255'],
+            'smtp_from_name' => ['nullable', 'string', 'max:255'],
         ]);
 
         $org = app(\App\Services\TenantManager::class)->current();
 
         $data = [
-            'smtp_host'         => $validated['smtp_host'],
-            'smtp_port'         => $validated['smtp_port'] ?? 587,
-            'smtp_user'         => $validated['smtp_user'],
+            'smtp_host' => $validated['smtp_host'],
+            'smtp_port' => $validated['smtp_port'] ?? 587,
+            'smtp_user' => $validated['smtp_user'],
             'smtp_from_address' => $validated['smtp_from_address'],
-            'smtp_from_name'    => $validated['smtp_from_name'],
+            'smtp_from_name' => $validated['smtp_from_name'],
         ];
 
         if ($request->filled('smtp_password')) {

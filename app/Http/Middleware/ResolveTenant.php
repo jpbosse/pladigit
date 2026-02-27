@@ -2,10 +2,10 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Platform\Organization;
 use App\Services\TenantManager;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class ResolveTenant
 {
@@ -20,12 +20,12 @@ class ResolveTenant
             // pour éviter que Laravel recharge un User depuis une connexion sans base
             config(['auth.defaults.guard' => 'null_guard']);
             config(['auth.guards.null_guard' => [
-                'driver'   => 'session',
+                'driver' => 'session',
                 'provider' => 'null_provider',
             ]]);
             config(['auth.providers.null_provider' => [
                 'driver' => 'eloquent',
-                'model'  => App\Models\Platform\Organization::class,
+                'model' => Organization::class,
             ]]);
         }
 

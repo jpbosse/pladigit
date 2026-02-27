@@ -15,19 +15,19 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'email'    => ['required', 'email'],
+            'email' => ['required', 'email'],
             'password' => ['required'],
         ]);
 
-	if (
-	    $request->email    !== env('SUPER_ADMIN_EMAIL') ||
-	    ! \Illuminate\Support\Facades\Hash::check($request->password, env('SUPER_ADMIN_PASSWORD_HASH'))
-	) {
-	    return back()->withErrors(['email' => 'Identifiants incorrects.']);
-	}
+        if (
+            $request->email !== config('superadmin.email') ||
+            ! \Illuminate\Support\Facades\Hash::check($request->password, config('superadmin.password_hash'))
+        ) {
+            return back()->withErrors(['email' => 'Identifiants incorrects.']);
+        }
 
         session([
-            'super_admin_email'    => $request->email,
+            'super_admin_email' => $request->email,
             'super_admin_verified' => true,
         ]);
 
@@ -37,6 +37,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->session()->forget(['super_admin_email', 'super_admin_verified']);
+
         return redirect()->route('super-admin.login');
     }
 }
