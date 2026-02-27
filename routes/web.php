@@ -5,6 +5,16 @@ use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 
+
+// ── Page d'accueil publique ───────────────────────────────
+Route::get('/', function () {
+    return view('welcome');
+})->name('home');
+
+Route::post('/contact', [App\Http\Controllers\ContactController::class, 'send'])
+     ->name('contact.send');
+
+
 // ── Super Admin — Login (sans middleware) ──────────────────
 Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
     ->name('super-admin.login');
@@ -24,6 +34,13 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');
         Route::post('organizations/{organization}/create-admin', [OrganizationController::class, 'createAdmin'])->name('organizations.create-admin');
     });
+
+// ── Page d'accueil publique ──────────────────────────────────
+Route::get('/', function () {
+    return view('welcome');
+})->name('home');
+
+Route::post('/contact', [App\Http\Controllers\ContactController::class, 'send'])->name('contact.send');
 
 // ── Routes Tenant ──────────────────────────────────────────
 Route::middleware('tenant')->group(function () {
