@@ -32,23 +32,14 @@
  
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Plan *</label>
-                <select name="plan" required
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                               focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    @foreach(['free', 'starter', 'standard', 'enterprise'] as $plan)
-                    <option value="{{ $plan }}" {{ old('plan') === $plan ? 'selected' : '' }}>
-                        {{ Str::ucfirst($plan) }}
-                    </option>
-                    @endforeach
-                </select>
+		<select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+		    <option value="free">Free — 5 utilisateurs</option>
+		    <option value="starter" selected>Starter — 50 utilisateurs</option>
+		    <option value="standard">Standard — 200 utilisateurs</option>
+		    <option value="enterprise">Enterprise — illimité</option>
+		</select>
             </div>
  
-            <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre max d'utilisateurs *</label>
-                <input type="number" name="max_users" value="{{ old('max_users', 50) }}" required min="1"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
-                              focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
  
             <div class="flex gap-3">
                 <button type="submit"
