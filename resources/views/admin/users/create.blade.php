@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Nouvel utilisateur')
 
-@section('content')
-<div class="max-w-2xl mx-auto px-4 py-6">
+@section('admin-content')
+
 
     <div class="text-sm text-gray-500 mb-4">
         <a href="{{ route('admin.users.index') }}" class="hover:underline">Utilisateurs</a>

@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Configuration LDAP')
 
-@section('content')
-<div class="max-w-2xl mx-auto px-4 py-6">
+@section('admin-content')
+
 
     <h1 class="text-2xl font-bold text-gray-800 mb-6">Configuration LDAP / Active Directory</h1>
 
