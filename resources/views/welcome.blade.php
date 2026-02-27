@@ -64,7 +64,7 @@
         .pricing .section-title{color:white}
         .pricing .section-subtitle{color:rgba(255,255,255,0.6)}
         .pricing .section-label{color:var(--gold2)}
-        .plans-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1.5rem;margin-top:3rem}
+        .plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
         .plan-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:2rem;transition:all 0.2s}
         .plan-card.featured{background:white;border-color:white}
         .plan-name{font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:0.75rem}
@@ -195,7 +195,6 @@
                 <div class="module-card-icon">{{ $m['icon'] }}</div>
                 <div class="module-card-name">{{ $m['name'] }}</div>
                 <p class="module-card-desc">{{ $m['desc'] }}</p>
-            </div>
             @endforeach
         </div>
     </div>
@@ -209,7 +208,50 @@
             <p class="section-subtitle">Tous les plans incluent le socle d'authentification, la gestion des utilisateurs et l'hébergement sécurisé.</p>
         </div>
         <div class="plans-grid">
-            @php $plans = [['name'=>'Free','price'=>'0 €','period'=>'/ mois','users'=>'5 utilisateurs','features'=>['Socle auth + 2FA','Gestion utilisateurs','1 organisation','Support communautaire'],'featured'=>false],['name'=>'Starter','price'=>'49 €','period'=>'/ mois','users'=>'50 utilisateurs','features'=>['Tout Free inclus','LDAP / Active Directory','GED + Photothèque','Support email'],'featured'=>true],['name'=>'Standard','price'=>'149 €','period'=>'/ mois','users'=>'200 utilisateurs','features'=>['Tout Starter inclus','Tous les modules','Personnalisation avancée','Support prioritaire'],'featured'=>false],['name'=>'Enterprise','price'=>'Sur devis','period'=>'','users'=>'Illimité','features'=>['Tout Standard inclus','Hébergement dédié','SLA garanti','Support téléphonique'],'featured'=>false]]; @endphp
+	@php $plans = [
+    [
+        'name'     => 'Communautaire',
+        'price'    => '0 €',
+        'period'   => '/ mois',
+        'users'    => 'Utilisateurs illimités',
+        'features' => [
+            'Tous les modules inclus',
+            'Authentification LDAP + 2FA',
+            'Multi-organisations',
+            'Auto-hébergé — vos serveurs',
+            'Code source AGPL-3.0',
+        ],
+        'featured' => false,
+    ],
+    [
+        'name'     => 'Assistance',
+        'price'    => '150 €',
+        'period'   => '/ mois',
+        'users'    => '200 utilisateurs',
+        'features' => [
+            'Tout Communautaire inclus',
+            'Personnalisation visuelle et fonctionnelle',
+            'Support dédié par email et téléphone',
+            'Formation des utilisateurs et administrateurs',
+            'Maintenance et mises à jour incluses',
+        ],
+        'featured' => true,
+    ],
+    [
+        'name'     => 'Enterprise',
+        'price'    => 'Sur devis',
+        'period'   => '',
+        'users'    => 'Illimité',
+        'features' => [
+            'Tout Assistance inclus',
+            'Hébergement dédié',
+            'SLA garanti',
+            'Support téléphonique prioritaire',
+            'Développements sur mesure',
+        ],
+        'featured' => false,
+    ],
+]; @endphp
             @foreach($plans as $plan)
             <div class="plan-card {{ $plan['featured'] ? 'featured' : '' }} fade-up">
                 <div class="plan-name">{{ $plan['name'] }}</div>
@@ -245,7 +287,13 @@
                     </div>
                     <div class="form-group"><label class="form-label">Organisation *</label><input type="text" name="organization" class="form-input" required placeholder="Communauté de Communes de l'île de Noirmoutier"></div>
                     <div class="form-group"><label class="form-label">Email professionnel *</label><input type="email" name="email" class="form-input" required placeholder="m.dupont@collectivite.fr"></div>
-                    <div class="form-group"><label class="form-label">Plan souhaité</label><select name="plan" class="form-select"><option value="">-- Choisir --</option><option>Free — 5 utilisateurs</option><option>Starter — 50 utilisateurs</option><option>Standard — 200 utilisateurs</option><option>Enterprise — Illimité</option></select></div>
+                    <div class="form-group"><label class="form-label">Plan souhaité</label><select name="plan" class="form-select">
+<option value="">-- Choisir --
+<option value="">-- Choisir --</option>
+<option>Communautaire — Gratuit</option>
+<option>Assistance — 150 € / mois</option>
+<option>Enterprise — Sur devis</option>
+</select></div>
                     <div class="form-group"><label class="form-label">Message</label><textarea name="message" class="form-textarea" placeholder="Décrivez votre besoin..."></textarea></div>
                     <button type="submit" class="btn-submit">Envoyer la demande</button>
                 </form>
