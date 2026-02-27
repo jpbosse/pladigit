@@ -1,17 +1,24 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function connection() { return 'tenant'; }
-    public function up(): void {
+return new class extends Migration
+{
+    public function connection()
+    {
+        return 'tenant';
+    }
+
+    public function up(): void
+    {
         Schema::connection('tenant')->create('surveys', function (Blueprint $table) {
             $table->id();
             $table->foreignId('created_by')->constrained('users')->onDelete('restrict');
             $table->string('title', 255);
             $table->text('description')->nullable();
-            $table->enum('status', ['draft','active','closed','archived'])->default('draft');
+            $table->enum('status', ['draft', 'active', 'closed', 'archived'])->default('draft');
             $table->boolean('anonymous')->default(false);
             $table->boolean('allow_multiple_responses')->default(false);
             $table->timestamp('opens_at')->nullable();
@@ -24,7 +31,7 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('survey_id')->constrained()->onDelete('cascade');
             $table->string('label', 500);
-            $table->enum('type', ['text','textarea','radio','checkbox','select','rating','date','file'])->default('text');
+            $table->enum('type', ['text', 'textarea', 'radio', 'checkbox', 'select', 'rating', 'date', 'file'])->default('text');
             $table->json('options')->nullable();
             $table->boolean('required')->default(false);
             $table->unsignedSmallInteger('sort_order')->default(0);
@@ -54,7 +61,9 @@ return new class extends Migration {
             $table->index('question_id');
         });
     }
-    public function down(): void {
+
+    public function down(): void
+    {
         Schema::connection('tenant')->dropIfExists('survey_answers');
         Schema::connection('tenant')->dropIfExists('survey_responses');
         Schema::connection('tenant')->dropIfExists('survey_questions');

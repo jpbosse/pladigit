@@ -22,7 +22,7 @@ class CheckSuperAdmin
         }
 
         // 2. Rate limiting — 5 tentatives par minute par IP
-        $key = 'super-admin:' . $request->ip();
+        $key = 'super-admin:'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 5)) {
             $seconds = RateLimiter::availableIn($key);
             abort(429, "Trop de tentatives. Réessayez dans {$seconds} secondes.");
@@ -30,10 +30,10 @@ class CheckSuperAdmin
         RateLimiter::hit($key, 60);
 
         // 3. Vérification session
-        $email    = session('super_admin_email');
+        $email = session('super_admin_email');
         $verified = session('super_admin_verified');
 
-        if (! $verified || $email !== env('SUPER_ADMIN_EMAIL')) {
+        if (! $verified || $email !== config('superadmin.email')) {
             return redirect()->route('super-admin.login');
         }
 

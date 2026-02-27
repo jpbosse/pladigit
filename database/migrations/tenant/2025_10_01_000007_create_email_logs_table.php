@@ -1,18 +1,25 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function connection() { return 'tenant'; }
-    public function up(): void {
+return new class extends Migration
+{
+    public function connection()
+    {
+        return 'tenant';
+    }
+
+    public function up(): void
+    {
         Schema::connection('tenant')->create('email_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->string('to_address', 255);
             $table->string('subject', 500);
             $table->string('type', 100);
-            $table->enum('status', ['queued','sent','failed','bounced'])->default('queued');
+            $table->enum('status', ['queued', 'sent', 'failed', 'bounced'])->default('queued');
             $table->string('mailer_id', 255)->nullable();
             $table->text('error_msg')->nullable();
             $table->timestamp('sent_at')->nullable();
@@ -22,5 +29,9 @@ return new class extends Migration {
             $table->index('type');
         });
     }
-    public function down(): void { Schema::connection('tenant')->dropIfExists('email_logs'); }
+
+    public function down(): void
+    {
+        Schema::connection('tenant')->dropIfExists('email_logs');
+    }
 };
