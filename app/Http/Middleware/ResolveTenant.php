@@ -10,18 +10,19 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 class ResolveTenant
 {
     public function __construct(private TenantManager $tenantManager) {}
- 
+
     public function handle(Request $request, Closure $next): mixed
-    {
-        try {
-            $this->tenantManager->resolveFromRequest($request->getHost());
-        } catch (ModelNotFoundException) {
-            // Tenant non trouvé — on continue sans bloquer
-            // Le middleware 'tenant' sur les routes bloquera si nécessaire
-        } catch (\Throwable) {
-            // Pas de base configurée — on continue
-        }
- 
-        return $next($request);
-    }
+	{
+	    try {
+	        $this->tenantManager->resolveFromRequest($request->getHost());
+	    } catch (\Throwable) {
+	        // Pas de tenant — on déconnecte silencieusement pour éviter
+	        // que Laravel recharge un User depuis une connexion sans base
+	        \Illuminate\Support\Facades\Auth::forgetGuards();
+	        config(['auth.defaults.guard' => 'super-admin']);
+	    }
+
+	    return $next($request);
+	}
+
 }
