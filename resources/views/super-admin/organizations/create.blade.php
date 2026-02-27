@@ -1,4 +1,4 @@
-@extends('layouts.app')
+@extends('layouts.super-admin')
 @section('title', 'Nouvelle organisation')
  
 @section('content')

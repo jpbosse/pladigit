@@ -25,6 +25,7 @@ Route::prefix('super-admin')
     Route::post('organizations/{organization}/suspend',
                 [OrganizationController::class, 'suspend'])
          ->name('organizations.suspend');
+    Route::post('organizations/{organization}/create-admin', [OrganizationController::class, 'createAdmin'])->name('organizations.create-admin');
     Route::post('organizations/{organization}/activate',
                 [OrganizationController::class, 'activate'])
          ->name('organizations.activate');
