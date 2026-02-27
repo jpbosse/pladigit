@@ -19,12 +19,12 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        if (
-            $request->email    !== env('SUPER_ADMIN_EMAIL') ||
-            $request->password !== env('SUPER_ADMIN_PASSWORD')
-        ) {
-            return back()->withErrors(['email' => 'Identifiants incorrects.']);
-        }
+	if (
+	    $request->email    !== env('SUPER_ADMIN_EMAIL') ||
+	    ! \Illuminate\Support\Facades\Hash::check($request->password, env('SUPER_ADMIN_PASSWORD_HASH'))
+	) {
+	    return back()->withErrors(['email' => 'Identifiants incorrects.']);
+	}
 
         session([
             'super_admin_email'    => $request->email,
