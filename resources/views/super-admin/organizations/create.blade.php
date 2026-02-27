@@ -15,7 +15,7 @@
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
                               focus:outline-none focus:ring-2 focus:ring-blue-500
                               @error('name') border-red-400 @enderror"
-                       placeholder="Mairie d'Olonne-sur-Mer">
+                       placeholder="Communauté de Communes de l'île de Noirmoutier">
                 @error('name')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
  
@@ -25,7 +25,7 @@
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono
                               focus:outline-none focus:ring-2 focus:ring-blue-500
                               @error('slug') border-red-400 @enderror"
-                       placeholder="mairie-olonne">
+                       placeholder="cc-ile-noirmoutier">
                 <p class="text-xs text-gray-400 mt-1">Lettres minuscules, chiffres et tirets uniquement.</p>
                 @error('slug')<p class="text-red-600 text-xs mt-1">{{ $message }}</p>@enderror
             </div>
