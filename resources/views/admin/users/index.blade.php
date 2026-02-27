@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Gestion des utilisateurs')
 
-@section('content')
-<div class="max-w-6xl mx-auto px-4 py-6">
+@section('admin-content')
+
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-gray-800">Utilisateurs</h1>
