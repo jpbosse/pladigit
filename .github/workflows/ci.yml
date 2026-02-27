@@ -55,6 +55,17 @@ jobs:
           sed -i 's/DB_USERNAME=.*/DB_USERNAME=pladigit/' .env
           sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=pladigit_test/' .env
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer les dépendances NPM
+        run: npm ci
+
+      - name: Compiler les assets
+        run: npm run build
+
       - name: Créer la base tenant de test
         run: |
           mysql -h 127.0.0.1 -u root -proot -e "
