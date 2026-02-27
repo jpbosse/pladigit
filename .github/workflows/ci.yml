@@ -65,6 +65,13 @@ jobs:
 
       - name: Migrer la base platform
         run: php artisan migrate --database=mysql --path=database/migrations/platform --force
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: pladigit_testing
+          DB_USERNAME: root
+          DB_PASSWORD: root
 
       - name: Lancer les tests
         run: php artisan test --stop-on-failure
