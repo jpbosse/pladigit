@@ -1,0 +1,35 @@
+name: Déploiement Production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Déployer sur le serveur
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Déploiement via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd /var/www/pladigit
+            git pull origin main
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            php8.4 artisan config:clear
+            php8.4 artisan route:clear
+            php8.4 artisan view:clear
+            php8.4 artisan config:cache
+            php8.4 artisan route:cache
+            php8.4 artisan view:cache
+            php8.4 artisan migrate --force
+            sudo systemctl reload php8.4-fpm
+            sudo systemctl reload apache2
+            echo "Déploiement terminé — $(date)"

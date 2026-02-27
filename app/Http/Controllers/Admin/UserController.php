@@ -12,6 +12,7 @@ class UserController extends Controller
     public function index()
     {
         $users = User::orderBy('name')->paginate(25);
+
         return view('admin.users.index', compact('users'));
     }
 
@@ -23,20 +24,20 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'     => ['required', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'unique:tenant.users'],
-            'role'     => ['required', 'in:admin,president,dgs,resp_direction,resp_service,user'],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:tenant.users'],
+            'role' => ['required', 'in:admin,president,dgs,resp_direction,resp_service,user'],
             'password' => ['required', 'min:8', 'confirmed'],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
 
         User::create([
-            'name'          => $validated['name'],
-            'email'         => $validated['email'],
-            'role'          => $validated['role'],
-            'department'    => $validated['department'] ?? null,
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'role' => $validated['role'],
+            'department' => $validated['department'] ?? null,
             'password_hash' => Hash::make($validated['password']),
-            'status'        => 'active',
+            'status' => 'active',
         ]);
 
         return redirect()
@@ -52,9 +53,9 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
-            'role'       => ['required', 'in:admin,president,dgs,resp_direction,resp_service,user'],
-            'status'     => ['required', 'in:active,inactive,locked'],
+            'name' => ['required', 'string', 'max:255'],
+            'role' => ['required', 'in:admin,president,dgs,resp_direction,resp_service,user'],
+            'status' => ['required', 'in:active,inactive,locked'],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -85,8 +86,8 @@ class UserController extends Controller
     {
         $password = \Illuminate\Support\Str::random(12);
         $user->update([
-            'password_hash'      => Hash::make($password),
-            'force_pwd_change'   => true,
+            'password_hash' => Hash::make($password),
+            'force_pwd_change' => true,
         ]);
 
         return back()->with('success', "Nouveau mot de passe : {$password} (à communiquer à l'utilisateur)");

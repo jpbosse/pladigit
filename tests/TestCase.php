@@ -20,32 +20,32 @@ abstract class TestCase extends BaseTestCase
 
         // Configurer la connexion tenant vers la base de test
         config(['database.connections.tenant' => [
-            'driver'    => 'mysql',
-            'host'      => '127.0.0.1',
-            'port'      => '3306',
-            'database'  => 'pladigit_testing_tenant',
-            'username'  => env('DB_USERNAME', 'pladigit'),
-            'password'  => env('DB_PASSWORD', 'Bsg75&Ncc1701'),
-            'charset'   => 'utf8mb4',
+            'driver' => 'mysql',
+            'host' => '127.0.0.1',
+            'port' => '3306',
+            'database' => 'pladigit_testing_tenant',
+            'username' => env('DB_USERNAME', 'pladigit'),
+            'password' => env('DB_PASSWORD', 'Bsg75&Ncc1701'),
+            'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
         ]]);
 
         // Migrer la base tenant de test
         $this->artisan('migrate', [
             '--database' => 'tenant',
-            '--path'     => 'database/migrations/tenant',
-            '--force'    => true,
+            '--path' => 'database/migrations/tenant',
+            '--force' => true,
         ]);
 
         // Simuler un tenant actif
         $org = new \App\Models\Platform\Organization([
-            'id'         => 1,
-            'name'       => 'Test Org',
-            'slug'       => 'test',
-            'db_name'    => 'pladigit_testing_tenant',
-            'status'     => 'active',
-            'plan'       => 'starter',
-            'max_users'  => 50,
+            'id' => 1,
+            'name' => 'Test Org',
+            'slug' => 'test',
+            'db_name' => 'pladigit_testing_tenant',
+            'status' => 'active',
+            'plan' => 'starter',
+            'max_users' => 50,
             'primary_color' => '#1E3A5F',
         ]);
 

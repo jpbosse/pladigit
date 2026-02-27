@@ -1,9 +1,9 @@
 <?php
- 
+
 namespace App\Models\Tenant;
- 
+
 use Illuminate\Database\Eloquent\Model;
- 
+
 /**
  * Paramètres de configuration du tenant.
  * Table singleton (une seule ligne par base tenant).
@@ -11,10 +11,11 @@ use Illuminate\Database\Eloquent\Model;
 class TenantSettings extends Model
 {
     protected $connection = 'tenant';
+
     protected $table = 'tenant_settings';
- 
+
     public $timestamps = false;
- 
+
     protected $fillable = [
         'pwd_min_length', 'pwd_require_uppercase', 'pwd_require_number',
         'pwd_require_special', 'pwd_validity_days', 'pwd_history_count',
@@ -25,13 +26,13 @@ class TenantSettings extends Model
         'maintenance_window_day', 'maintenance_window_start', 'maintenance_window_end',
         'updated_at',
     ];
- 
+
     protected $casts = [
         'pwd_require_uppercase' => 'boolean',
-        'pwd_require_number'    => 'boolean',
-        'pwd_require_special'   => 'boolean',
-        'force_2fa'             => 'boolean',
-        'ldap_use_tls'          => 'boolean',
-        'updated_at'            => 'datetime',
+        'pwd_require_number' => 'boolean',
+        'pwd_require_special' => 'boolean',
+        'force_2fa' => 'boolean',
+        'ldap_use_tls' => 'boolean',
+        'updated_at' => 'datetime',
     ];
 }
