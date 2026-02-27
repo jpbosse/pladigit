@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Configuration SMTP')
 
-@section('content')
-<div class="max-w-2xl mx-auto px-4 py-6">
+@section('admin-content')
+
 
     <h1 class="text-2xl font-bold text-gray-800 mb-2">Configuration SMTP</h1>
     <p class="text-sm text-gray-500 mb-6">Laisser vide pour utiliser le serveur SMTP mutualisé de Les Bézots.</p>
