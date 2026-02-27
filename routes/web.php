@@ -5,6 +5,14 @@ use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 use Illuminate\Support\Facades\Route;
+
+// Super Admin — Login (sans middleware)
+Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
+     ->name('super-admin.login');
+Route::post('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])
+     ->name('super-admin.login.post');
+Route::post('super-admin/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])
+     ->name('super-admin.logout');
  
 // ── Routes Super-Admin (pas de middleware tenant) ─────────
 Route::prefix('super-admin')

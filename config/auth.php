@@ -21,7 +21,7 @@ return [
         // Guard super-admin — utilise les credentials .env
         'super-admin' => [
             'driver'   => 'session',
-            'provider' => 'super_admin_users',
+            'provider' => 'tenant_users',
         ],
  
         'api' => [
@@ -36,6 +36,9 @@ return [
             'driver' => 'eloquent',
             'model'  => App\Models\Tenant\User::class,
         ],
+	'super_admin_users' => [
+	    'driver' => 'array',
+	],
     ],
  
     'passwords' => [
