@@ -122,9 +122,9 @@ class OrganizationController extends Controller
     {
         return match ($plan) {
             'communautaire' => 9999,
-            'assistance'    => 200,
-            'enterprise'    => 9999,
-            default         => 9999,
+            'assistance' => 200,
+            'enterprise' => 9999,
+            default => 9999,
         };
     }
 }

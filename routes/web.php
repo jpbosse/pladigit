@@ -5,15 +5,13 @@ use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 
-
 // ── Page d'accueil publique ───────────────────────────────
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
 Route::post('/contact', [App\Http\Controllers\ContactController::class, 'send'])
-     ->name('contact.send');
-
+    ->name('contact.send');
 
 // ── Super Admin — Login (sans middleware) ──────────────────
 Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
