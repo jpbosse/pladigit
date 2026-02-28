@@ -85,6 +85,11 @@ Route::middleware('tenant')->group(function () {
             // Paramètres SMTP
             Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
             Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
+
+            // Personnalisation
+            Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
+            Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
+
         });
 
         // ── Zone DGS et plus ──────────────────────────────
