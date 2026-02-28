@@ -38,7 +38,9 @@ return new class extends Migration
                 $table->text('ldap_bind_password_enc')->nullable()
                     ->comment('Chiffré AES-256');
                 $table->boolean('ldap_use_tls')->default(true);
+		$table->boolean('ldap_use_ssl')->default(true);
                 $table->unsignedTinyInteger('ldap_sync_interval_hours')->default(24);
+
 
                 // Fenêtre de maintenance
                 $table->unsignedTinyInteger('maintenance_window_day')

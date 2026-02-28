@@ -24,11 +24,69 @@ class LdapAuthService
             'base_dn' => $settings->ldap_base_dn,
             'username' => $settings->ldap_bind_dn,
             'password' => $bindPassword,
-            'use_ssl' => false,
+            'use_ssl' => (bool) $settings->ldap_use_ssl,
             'use_tls' => (bool) $settings->ldap_use_tls,
             'timeout' => 5,
         ]);
     }
+
+
+
+	/**
+	 * Récupère le rôle depuis les groupes LDAP de l'utilisateur.
+	 */
+	private function resolveRole(Connection $conn, string $userDn, string $baseDn): string
+	{
+	    $roleMap = [
+	        'admin'          => 'admin',
+	        'president'      => 'president',
+	        'dgs'            => 'dgs',
+	        'resp_direction' => 'resp_direction',
+	        'resp_service'   => 'resp_service',
+	        'user'           => 'user',
+	    ];
+
+	    $groups = $conn->query()
+	        ->setDn('ou=groups,' . $baseDn)
+	        ->whereEquals('objectClass', 'groupOfNames')
+	        ->whereContains('member', $userDn)
+	        ->get();
+
+	    foreach ($groups as $group) {
+	        $cn = $group['cn'][0] ?? null;
+	        if ($cn && isset($roleMap[$cn])) {
+	            return $roleMap[$cn];
+	        }
+	    }
+
+	    return 'user';
+	}
+
+	public function syncUser(array $ldapEntry, ?Connection $conn = null, ?string $baseDn = null): User
+	{
+	    $email = $ldapEntry['mail'][0] ?? null;
+	    if (! $email) {
+	        throw new \RuntimeException('L\'entrée LDAP ne possède pas d\'email.');
+	    }
+
+	    $role = 'user';
+	    if ($conn && $baseDn && isset($ldapEntry['dn'])) {
+	        $role = $this->resolveRole($conn, $ldapEntry['dn'], $baseDn);
+	    }
+
+	    return User::updateOrCreate(
+	        ['email' => $email],
+	        [
+	            'name'           => $ldapEntry['cn'][0] ?? $email,
+	            'ldap_dn'        => $ldapEntry['dn'] ?? null,
+	            'ldap_synced_at' => now(),
+	            'status'         => 'active',
+	            'password_hash'  => null,
+	            'role'           => $role,
+	        ]
+	    );
+	}
+
 
     public function authenticate(string $email, string $password): ?User
     {
@@ -58,59 +116,43 @@ class LdapAuthService
 
             $conn->auth()->attempt($ldapUser['dn'], $password, $bindAsUser = true);
 
-            return $this->syncUser($ldapUser);
+	    return $this->syncUser($ldapUser, $conn, $settings->ldap_base_dn);
+
+
 
         } catch (BindException) {
             return null;
         }
     }
 
-    public function syncUser(array $ldapEntry): User
-    {
-        $email = $ldapEntry['mail'][0] ?? null;
+	public function syncAllUsers(): void
+	{
+	    if (! app(\App\Services\TenantManager::class)->hasTenant()) {
+	        return;
+	    }
 
-        if (! $email) {
-            throw new \RuntimeException('L\'entrée LDAP ne possède pas d\'email.');
-        }
+	    $settings = TenantSettings::sole();
 
-        return User::updateOrCreate(
-            ['email' => $email],
-            [
-                'name' => $ldapEntry['cn'][0] ?? $email,
-                'ldap_dn' => $ldapEntry['dn'] ?? null,
-                'ldap_synced_at' => now(),
-                'status' => 'active',
-                'password_hash' => null,
-            ]
-        );
-    }
+	    if (! $settings->ldap_host) {
+	        return;
+    	}
 
-    public function syncAllUsers(): void
-    {
-        if (! app(\App\Services\TenantManager::class)->hasTenant()) {
-            return;
-        }
+	    $conn = $this->buildConnection($settings);
+	    $conn->connect();
 
-        $settings = TenantSettings::sole();
-        if (! $settings->ldap_host) {
-            return;
-        }
+	    $ldapUsers = $conn->query()
+	        ->setDn($settings->ldap_base_dn)
+	        ->whereHas('mail')
+	        ->get();
 
-        $conn = $this->buildConnection($settings);
-        $conn->connect();
+	    foreach ($ldapUsers as $ldapEntry) {
+	        $this->syncUser($ldapEntry, $conn, $settings->ldap_base_dn);
+	    }
 
-        $ldapUsers = $conn->query()
-            ->setDn($settings->ldap_base_dn)
-            ->whereHas('mail')
-            ->get();
+	    $activeLdapDns = array_column($ldapUsers, 'dn');
+	    User::whereNotNull('ldap_dn')
+	        ->whereNotIn('ldap_dn', $activeLdapDns)
+	        ->update(['status' => 'locked']);
+	}
 
-        foreach ($ldapUsers as $ldapEntry) {
-            $this->syncUser($ldapEntry);
-        }
-
-        $activeLdapDns = array_column($ldapUsers, 'dn');
-        User::whereNotNull('ldap_dn')
-            ->whereNotIn('ldap_dn', $activeLdapDns)
-            ->update(['status' => 'locked']);
-    }
 }
