@@ -111,4 +111,40 @@ class SettingsController extends Controller
 
         return back()->with('success', 'Configuration SMTP enregistrée.');
     }
+
+    public function branding()
+    {
+        $org = app(\App\Services\TenantManager::class)->current();
+
+        return view('admin.settings.branding', compact('org'));
+    }
+
+    public function updateBranding(Request $request)
+    {
+        $validated = $request->validate([
+            'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'logo' => ['nullable', 'image', 'mimes:png,jpg,svg', 'max:2048'],
+            'login_bg' => ['nullable', 'image', 'mimes:png,jpg', 'max:4096'],
+        ]);
+
+        $org = app(\App\Services\TenantManager::class)->current();
+
+        $data = [];
+
+        if (isset($validated['primary_color'])) {
+            $data['primary_color'] = $validated['primary_color'];
+        }
+
+        if ($request->hasFile('logo')) {
+            $data['logo_path'] = $request->file('logo')->store("orgs/{$org->slug}/branding", 'public');
+        }
+
+        if ($request->hasFile('login_bg')) {
+            $data['login_bg_path'] = $request->file('login_bg')->store("orgs/{$org->slug}/branding", 'public');
+        }
+
+        $org->update($data);
+
+        return back()->with('success', 'Personnalisation sauvegardée.');
+    }
 }
