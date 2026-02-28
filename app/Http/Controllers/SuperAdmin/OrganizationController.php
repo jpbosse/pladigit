@@ -142,6 +142,36 @@ class OrganizationController extends Controller
             ->with('success', 'Configuration SMTP sauvegardée.');
     }
 
+    public function updateLdap(Request $request, Organization $organization)
+    {
+        $validated = $request->validate([
+            'ldap_host' => ['nullable', 'string', 'max:255'],
+            'ldap_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'ldap_base_dn' => ['nullable', 'string', 'max:500'],
+            'ldap_bind_dn' => ['nullable', 'string', 'max:500'],
+            'ldap_bind_password' => ['nullable', 'string', 'max:255'],
+            'ldap_use_ssl' => ['boolean'],
+            'ldap_use_tls' => ['boolean'],
+            'ldap_sync_interval_hours' => ['nullable', 'integer', 'min:1', 'max:168'],
+        ]);
+
+        $this->tenantManager->connectTo($organization);
+
+        $settings = \App\Models\Tenant\TenantSettings::first() ?? new \App\Models\Tenant\TenantSettings;
+
+        $data = collect($validated)->except('ldap_bind_password')->toArray();
+
+        if (filled($request->ldap_bind_password)) {
+            $data['ldap_bind_password_enc'] = \Illuminate\Support\Facades\Crypt::encryptString($request->ldap_bind_password);
+        }
+
+        $settings->fill($data)->save();
+
+        return redirect()
+            ->route('super-admin.organizations.show', $organization)
+            ->with('success', 'Configuration LDAP sauvegardée.');
+    }
+
     private function maxUsersFromPlan(string $plan): int
     {
         return match ($plan) {
