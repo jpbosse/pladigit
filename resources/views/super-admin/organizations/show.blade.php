@@ -148,5 +148,63 @@
 	</div>
 
 
+{{-- Configuration LDAP --}}
+<div class="bg-white rounded-xl shadow p-6 mt-6">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Configuration LDAP / Active Directory</h2>
+    <form method="POST" action="{{ route('super-admin.organizations.update-ldap', $organization) }}">
+        @csrf
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Serveur LDAP</label>
+                <input type="text" name="ldap_host" value="{{ old('ldap_host') }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                       placeholder="ldap.mondomaine.fr">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                <input type="number" name="ldap_port" value="{{ old('ldap_port', 636) }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Base DN</label>
+                <input type="text" name="ldap_base_dn" value="{{ old('ldap_base_dn') }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                       placeholder="dc=mondomaine,dc=fr">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Bind DN</label>
+                <input type="text" name="ldap_bind_dn" value="{{ old('ldap_bind_dn') }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                       placeholder="cn=admin,dc=mondomaine,dc=fr">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                <input type="password" name="ldap_bind_password" placeholder="Laisser vide pour ne pas modifier"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Intervalle synchro (heures)</label>
+                <input type="number" name="ldap_sync_interval_hours" value="{{ old('ldap_sync_interval_hours', 24) }}"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+            </div>
+        </div>
+        <div class="flex gap-6 mb-4">
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="ldap_use_ssl" value="1" checked>
+                Utiliser SSL (LDAPS port 636)
+            </label>
+            <label class="flex items-center gap-2 text-sm text-gray-700">
+                <input type="checkbox" name="ldap_use_tls" value="1">
+                Utiliser TLS (STARTTLS port 389)
+            </label>
+        </div>
+        <button type="submit"
+                class="px-6 py-2 rounded-lg text-white text-sm font-medium"
+                style="background-color: #1E3A5F;">
+            Sauvegarder LDAP
+        </button>
+    </form>
+</div>
+
 </div>
 @endsection

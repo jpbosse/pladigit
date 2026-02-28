@@ -32,6 +32,7 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');
         Route::post('organizations/{organization}/create-admin', [OrganizationController::class, 'createAdmin'])->name('organizations.create-admin');
         Route::post('organizations/{organization}/smtp', [OrganizationController::class, 'updateSmtp'])->name('organizations.update-smtp');
+        Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
     });
 
 // ── Page d'accueil publique ──────────────────────────────────
