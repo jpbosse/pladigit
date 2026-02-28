@@ -131,7 +131,7 @@
             <a href="#fonctionnalites">Fonctionnalités</a>
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
-            <a href="https://github.com/aevamagique/pladigit" target="_blank" class="btn-source">Source</a>
+            <a href="https://github.com/jpbosse/pladigit" target="_blank" class="btn-source">Source</a>
             <a href="{{ url('/login') }}" class="btn-nav">Connexion</a>
         </div>
     </div>
