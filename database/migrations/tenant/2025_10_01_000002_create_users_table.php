@@ -18,8 +18,8 @@ return new class extends Migration
                 $table->string('password_hash')->nullable()
                     ->comment('NULL si authentification LDAP uniquement');
                 $table->enum('role', [
-                  'admin', 'president', 'dgs',
-                  'resp_direction', 'resp_service', 'user',
+                    'admin', 'president', 'dgs',
+                    'resp_direction', 'resp_service', 'user',
                 ])->default('user');
                 $table->enum('status', ['active', 'inactive', 'locked'])->default('active');
 
