@@ -118,6 +118,30 @@ class OrganizationController extends Controller
             ->with('success', "Administrateur {$request->email} créé.");
     }
 
+    public function updateSmtp(Request $request, Organization $organization)
+    {
+        $validated = $request->validate([
+            'smtp_host' => ['nullable', 'string', 'max:255'],
+            'smtp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'smtp_user' => ['nullable', 'string', 'max:255'],
+            'smtp_password' => ['nullable', 'string', 'max:255'],
+            'smtp_from_address' => ['nullable', 'email', 'max:255'],
+            'smtp_from_name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $data = collect($validated)->except('smtp_password')->toArray();
+
+        if (filled($request->smtp_password)) {
+            $data['smtp_password_enc'] = \Illuminate\Support\Facades\Crypt::encryptString($request->smtp_password);
+        }
+
+        $organization->update($data);
+
+        return redirect()
+            ->route('super-admin.organizations.show', $organization)
+            ->with('success', 'Configuration SMTP sauvegardée.');
+    }
+
     private function maxUsersFromPlan(string $plan): int
     {
         return match ($plan) {

@@ -101,5 +101,52 @@
             </button>
         </form>
     </div>
+
+{{-- Configuration SMTP --}}
+	<div class="bg-white rounded-xl shadow p-6 mt-6">
+	    <h2 class="text-lg font-semibold text-gray-800 mb-4">Configuration SMTP</h2>
+	    <form method="POST" action="{{ route('super-admin.organizations.update-smtp', $organization) }}">
+	        @csrf
+	        <div class="grid grid-cols-2 gap-4 mb-4">
+	            <div>
+	                <label class="block text-sm font-medium text-gray-700 mb-1">Serveur SMTP</label>
+	                <input type="text" name="smtp_host" value="{{ old('smtp_host', $organization->smtp_host) }}"
+	                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        	    </div>
+	            <div>
+	                <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
+	                <input type="number" name="smtp_port" value="{{ old('smtp_port', $organization->smtp_port ?? 587) }}"
+	                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        	    </div>
+	            <div>
+        	        <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur</label>
+                	<input type="text" name="smtp_user" value="{{ old('smtp_user', $organization->smtp_user) }}"
+	                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        	    </div>
+	            <div>
+        	        <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                	<input type="password" name="smtp_password" placeholder="Laisser vide pour ne pas modifier"
+	                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+        	    </div>
+	            <div>
+        	        <label class="block text-sm font-medium text-gray-700 mb-1">Adresse expéditeur</label>
+                	<input type="email" name="smtp_from_address" value="{{ old('smtp_from_address', $organization->smtp_from_address) }}"
+                       		class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+	            </div>
+        	    <div>
+                	<label class="block text-sm font-medium text-gray-700 mb-1">Nom expéditeur</label>
+	                <input type="text" name="smtp_from_name" value="{{ old('smtp_from_name', $organization->smtp_from_name) }}"
+        	               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+	            </div>
+	        </div>
+	        <button type="submit"
+	                class="px-6 py-2 rounded-lg text-white text-sm font-medium"
+	                style="background-color: #1E3A5F;">
+	            Sauvegarder SMTP
+	        </button>
+	    </form>
+	</div>
+
+
 </div>
 @endsection
