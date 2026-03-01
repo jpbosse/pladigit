@@ -57,6 +57,10 @@ Route::middleware('tenant')->group(function () {
     // Zone authentifiée
     Route::middleware('auth')->group(function () {
 
+        // Changement de mot de passe forcé
+        Route::get('/password/change', [App\Http\Controllers\Auth\PasswordChangeController::class, 'showForced'])->name('password.change.forced');
+        Route::post('/password/change', [App\Http\Controllers\Auth\PasswordChangeController::class, 'updateForced'])->name('password.change.forced.update');
+
         // 2FA — gestion depuis le profil
         Route::get('/2fa/setup', [TwoFactorController::class, 'setup'])->name('2fa.setup');
         Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm'])->name('2fa.confirm');
