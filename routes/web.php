@@ -35,13 +35,6 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
     });
 
-// ── Page d'accueil publique ──────────────────────────────────
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
-
-Route::post('/contact', [App\Http\Controllers\ContactController::class, 'send'])->name('contact.send');
-
 // ── Routes Tenant ──────────────────────────────────────────
 Route::middleware('tenant')->group(function () {
 
@@ -50,14 +43,17 @@ Route::middleware('tenant')->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-    // 2FA
+    // 2FA — Challenge login
+    // throttle:5,10 = 5 tentatives max par tranche de 10 minutes par IP
     Route::get('/2fa/challenge', [TwoFactorController::class, 'challenge'])->name('2fa.challenge');
-    Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])->name('2fa.verify');
+    Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])
+        ->middleware('throttle:5,10')
+        ->name('2fa.verify');
 
-    // Zone authentifiée
-    Route::middleware('auth')->group(function () {
+    // Zone authentifiée — force-pwd-change appliqué sur TOUTES les routes auth
+    Route::middleware(['auth', 'force-pwd-change'])->group(function () {
 
-        // Changement de mot de passe forcé
+        // Changement de mot de passe forcé — accessible même avec force_pwd_change=1
         Route::get('/password/change', [App\Http\Controllers\Auth\PasswordChangeController::class, 'showForced'])->name('password.change.forced');
         Route::post('/password/change', [App\Http\Controllers\Auth\PasswordChangeController::class, 'updateForced'])->name('password.change.forced.update');
 
@@ -81,19 +77,19 @@ Route::middleware('tenant')->group(function () {
             Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
             Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('users.reset-password');
 
-            /*            // Paramètres LDAP
-                        Route::get('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'ldap'])->name('settings.ldap');
-                        Route::put('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'updateLdap'])->name('settings.ldap.update');
-                        Route::get('settings/ldap/test', [App\Http\Controllers\Admin\SettingsController::class, 'testLdap'])->name('settings.ldap.test');
+            /*
+             * Paramètres LDAP et SMTP — à décommenter en Phase 2 (§18.1)
+             *
+             * Route::get('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'ldap'])->name('settings.ldap');
+             * Route::put('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'updateLdap'])->name('settings.ldap.update');
+             * Route::get('settings/ldap/test', [App\Http\Controllers\Admin\SettingsController::class, 'testLdap'])->name('settings.ldap.test');
+             * Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
+             * Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
+             */
 
-                        // Paramètres SMTP
-                        Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
-                        Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
-            */
             // Personnalisation
             Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
             Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
-
         });
 
         // ── Zone DGS et plus ──────────────────────────────
