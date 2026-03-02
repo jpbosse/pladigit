@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSuperAdmin;
+use App\Http\Middleware\ForcePwdChange;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -20,9 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
         // Alias personnalisés
         $middleware->alias([
-            'tenant' => ResolveTenant::class,
-            'role' => CheckRole::class,
-            'super-admin' => CheckSuperAdmin::class,
+            'tenant'           => ResolveTenant::class,
+            'role'             => CheckRole::class,
+            'super-admin'      => CheckSuperAdmin::class,
+            'force-pwd-change' => ForcePwdChange::class,  // §17.2 — CDC
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

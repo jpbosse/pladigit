@@ -2,6 +2,8 @@
 
 namespace App\Models\Tenant;
 
+use Database\Factories\Tenant\TenantSettingsFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -10,6 +12,9 @@ use Illuminate\Database\Eloquent\Model;
  */
 class TenantSettings extends Model
 {
+    /** @use HasFactory<TenantSettingsFactory> */
+    use HasFactory;
+
     protected $connection = 'tenant';
 
     protected $table = 'tenant_settings';
@@ -30,11 +35,16 @@ class TenantSettings extends Model
 
     protected $casts = [
         'pwd_require_uppercase' => 'boolean',
-        'pwd_require_number' => 'boolean',
-        'pwd_require_special' => 'boolean',
-        'force_2fa' => 'boolean',
-        'ldap_use_tls' => 'boolean',
-        'updated_at' => 'datetime',
-        'ldap_use_ssl' => 'boolean',
+        'pwd_require_number'    => 'boolean',
+        'pwd_require_special'   => 'boolean',
+        'force_2fa'             => 'boolean',
+        'ldap_use_tls'          => 'boolean',
+        'ldap_use_ssl'          => 'boolean',
+        'updated_at'            => 'datetime',
     ];
+
+    protected static function newFactory(): TenantSettingsFactory
+    {
+        return TenantSettingsFactory::new();
+    }
 }
