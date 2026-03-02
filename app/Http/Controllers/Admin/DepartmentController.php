@@ -29,8 +29,8 @@ class DepartmentController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'      => ['required', 'string', 'max:255'],
-            'type'      => ['required', 'in:direction,service'],
+            'name' => ['required', 'string', 'max:255'],
+            'type' => ['required', 'in:direction,service'],
             'parent_id' => ['nullable', 'exists:tenant.departments,id'],
         ]);
 
@@ -39,16 +39,16 @@ class DepartmentController extends Controller
         }
 
         $dept = Department::on('tenant')->create([
-            'name'       => $request->name,
-            'type'       => $request->type,
-            'parent_id'  => $request->type === 'service' ? $request->parent_id : null,
+            'name' => $request->name,
+            'type' => $request->type,
+            'parent_id' => $request->type === 'service' ? $request->parent_id : null,
             'created_by' => auth()->id(),
         ]);
 
         $this->audit->log('department.created', auth()->user(), [
             'department_id' => $dept->id,
-            'name'          => $dept->name,
-            'type'          => $dept->type,
+            'name' => $dept->name,
+            'type' => $dept->type,
         ]);
 
         return back()->with('success', ucfirst($dept->type).' « '.$dept->name.' » créé(e).');
@@ -57,21 +57,21 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $request->validate([
-            'name'      => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'parent_id' => ['nullable', 'exists:tenant.departments,id'],
         ]);
 
         $old = $department->only(['name', 'parent_id']);
 
         $department->update([
-            'name'      => $request->name,
+            'name' => $request->name,
             'parent_id' => $department->isService() ? $request->parent_id : null,
         ]);
 
         $this->audit->log('department.updated', auth()->user(), [
             'department_id' => $department->id,
-            'old'           => $old,
-            'new'           => $department->only(['name', 'parent_id']),
+            'old' => $old,
+            'new' => $department->only(['name', 'parent_id']),
         ]);
 
         return back()->with('success', 'Nom mis à jour.');
@@ -94,8 +94,8 @@ class DepartmentController extends Controller
 
         $this->audit->log('department.deleted', auth()->user(), [
             'department_id' => $department->id,
-            'name'          => $department->name,
-            'type'          => $department->type,
+            'name' => $department->name,
+            'type' => $department->type,
         ]);
 
         $department->delete();

@@ -62,14 +62,14 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at'  => 'datetime',
-        'last_login_at'      => 'datetime',
-        'locked_until'       => 'datetime',
-        'ldap_synced_at'     => 'datetime',
+        'email_verified_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'locked_until' => 'datetime',
+        'ldap_synced_at' => 'datetime',
         'password_changed_at' => 'datetime',
-        'totp_enabled'       => 'boolean',
-        'force_pwd_change'   => 'boolean',
-        'password_history'   => 'array',
+        'totp_enabled' => 'boolean',
+        'force_pwd_change' => 'boolean',
+        'password_history' => 'array',
     ];
 
     // Laravel attend 'password' par défaut — on remplace
@@ -86,8 +86,8 @@ class User extends Authenticatable
     public function departments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'user_department')
-                    ->withPivot('is_manager')
-                    ->withTimestamps();
+            ->withPivot('is_manager')
+            ->withTimestamps();
     }
 
     /**
@@ -96,9 +96,9 @@ class User extends Authenticatable
     public function managedDepartments(): BelongsToMany
     {
         return $this->belongsToMany(Department::class, 'user_department')
-                    ->withPivot('is_manager')
-                    ->wherePivot('is_manager', true)
-                    ->withTimestamps();
+            ->withPivot('is_manager')
+            ->wherePivot('is_manager', true)
+            ->withTimestamps();
     }
 
     /**
@@ -125,30 +125,30 @@ class User extends Authenticatable
         // Resp. de direction : ses directions + tous les services enfants
         if ($role === UserRole::RESP_DIRECTION) {
             $directionIds = $this->managedDepartments()
-                                 ->where('type', 'direction')
-                                 ->pluck('departments.id');
+                ->where('type', 'direction')
+                ->pluck('departments.id');
 
             $serviceIds = Department::on('tenant')
-                                    ->where('type', 'service')
-                                    ->whereIn('parent_id', $directionIds)
-                                    ->pluck('id');
+                ->where('type', 'service')
+                ->whereIn('parent_id', $directionIds)
+                ->pluck('id');
 
             $allDeptIds = $directionIds->merge($serviceIds);
 
             return User::on('tenant')
-                       ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $allDeptIds))
-                       ->get();
+                ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $allDeptIds))
+                ->get();
         }
 
         // Resp. de service : membres de ses services
         if ($role === UserRole::RESP_SERVICE) {
             $serviceIds = $this->managedDepartments()
-                               ->where('type', 'service')
-                               ->pluck('departments.id');
+                ->where('type', 'service')
+                ->pluck('departments.id');
 
             return User::on('tenant')
-                       ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $serviceIds))
-                       ->get();
+                ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $serviceIds))
+                ->get();
         }
 
         // Utilisateur simple : lui-même uniquement
@@ -167,7 +167,7 @@ class User extends Authenticatable
      */
     public function hasRoleAtLeast(string $minRole): bool
     {
-        $userRole     = UserRole::tryFrom($this->role ?? '');
+        $userRole = UserRole::tryFrom($this->role ?? '');
         $requiredRole = UserRole::tryFrom($minRole);
 
         if (! $userRole || ! $requiredRole) {

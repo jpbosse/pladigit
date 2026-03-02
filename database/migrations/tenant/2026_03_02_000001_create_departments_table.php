@@ -27,9 +27,9 @@ return new class extends Migration
             $table->string('name');
             $table->enum('type', ['direction', 'service']);
             $table->foreignId('parent_id')
-                  ->nullable()
-                  ->constrained('departments')
-                  ->nullOnDelete();
+                ->nullable()
+                ->constrained('departments')
+                ->nullOnDelete();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
             $table->softDeletes();

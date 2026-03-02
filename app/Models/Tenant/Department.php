@@ -42,8 +42,8 @@ class Department extends Model
     public function members(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_department')
-                    ->withPivot('is_manager')
-                    ->withTimestamps();
+            ->withPivot('is_manager')
+            ->withTimestamps();
     }
 
     /**
@@ -52,9 +52,9 @@ class Department extends Model
     public function managers(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_department')
-                    ->withPivot('is_manager')
-                    ->wherePivot('is_manager', true)
-                    ->withTimestamps();
+            ->withPivot('is_manager')
+            ->wherePivot('is_manager', true)
+            ->withTimestamps();
     }
 
     /**
@@ -63,9 +63,9 @@ class Department extends Model
     public function agents(): BelongsToMany
     {
         return $this->belongsToMany(User::class, 'user_department')
-                    ->withPivot('is_manager')
-                    ->wherePivot('is_manager', false)
-                    ->withTimestamps();
+            ->withPivot('is_manager')
+            ->wherePivot('is_manager', false)
+            ->withTimestamps();
     }
 
     /**
