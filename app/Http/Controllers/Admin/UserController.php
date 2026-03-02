@@ -39,9 +39,9 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
-            'email'      => ['required', 'email', 'unique:tenant.users'],
-            'role'       => ['required', UserRole::rule()],
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:tenant.users'],
+            'role' => ['required', UserRole::rule()],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -54,19 +54,19 @@ class UserController extends Controller
         }
 
         $user = User::create([
-            'name'             => $request->name,
-            'email'            => $request->email,
-            'role'             => $request->role,
-            'department'       => $request->department,
-            'password_hash'    => Hash::make($request->password),
-            'status'           => 'active',
+            'name' => $request->name,
+            'email' => $request->email,
+            'role' => $request->role,
+            'department' => $request->department,
+            'password_hash' => Hash::make($request->password),
+            'status' => 'active',
             'force_pwd_change' => true, // L'utilisateur devra changer son mot de passe à la 1ère connexion
         ]);
 
         $this->audit->log('user.created', auth()->user(), [
             'model_type' => User::class,
-            'model_id'   => $user->id,
-            'new'        => ['email' => $user->email, 'role' => $user->role],
+            'model_id' => $user->id,
+            'new' => ['email' => $user->email, 'role' => $user->role],
         ]);
 
         return redirect()
@@ -82,17 +82,17 @@ class UserController extends Controller
     public function update(Request $request, User $user)
     {
         $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
-            'role'       => ['required', UserRole::rule()],
+            'name' => ['required', 'string', 'max:255'],
+            'role' => ['required', UserRole::rule()],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
 
         $old = $user->only(['name', 'role', 'status', 'department']);
 
         $user->update([
-            'name'       => $request->name,
-            'role'       => $request->role,
-            'status'     => $request->status,
+            'name' => $request->name,
+            'role' => $request->role,
+            'status' => $request->status,
             'department' => $request->department,
         ]);
 
@@ -112,9 +112,9 @@ class UserController extends Controller
 
         $this->audit->log('user.updated', auth()->user(), [
             'model_type' => User::class,
-            'model_id'   => $user->id,
-            'old'        => $old,
-            'new'        => $user->only(['name', 'role', 'status', 'department']),
+            'model_id' => $user->id,
+            'old' => $old,
+            'new' => $user->only(['name', 'role', 'status', 'department']),
         ]);
 
         return redirect()
@@ -132,7 +132,7 @@ class UserController extends Controller
 
         $this->audit->log('user.deactivated', auth()->user(), [
             'model_type' => User::class,
-            'model_id'   => $user->id,
+            'model_id' => $user->id,
         ]);
 
         return back()->with('success', "Utilisateur {$user->email} désactivé.");
@@ -142,13 +142,13 @@ class UserController extends Controller
     {
         $password = \Illuminate\Support\Str::random(12);
         $user->update([
-            'password_hash'    => Hash::make($password),
+            'password_hash' => Hash::make($password),
             'force_pwd_change' => true,
         ]);
 
         $this->audit->log('user.password_reset', auth()->user(), [
             'model_type' => User::class,
-            'model_id'   => $user->id,
+            'model_id' => $user->id,
         ]);
 
         // ⚠ TODO §17.4 — Remplacer par un e-mail d'invitation (Phase 2)

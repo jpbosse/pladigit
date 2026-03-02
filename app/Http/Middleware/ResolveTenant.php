@@ -23,12 +23,12 @@ class ResolveTenant
         } catch (\Throwable) {
             config(['auth.defaults.guard' => 'null_guard']);
             config(['auth.guards.null_guard' => [
-                'driver'   => 'session',
+                'driver' => 'session',
                 'provider' => 'null_provider',
             ]]);
             config(['auth.providers.null_provider' => [
                 'driver' => 'eloquent',
-                'model'  => Organization::class,
+                'model' => Organization::class,
             ]]);
         }
 
