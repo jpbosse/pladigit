@@ -42,6 +42,7 @@ Route::middleware('tenant')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login']);
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    Route::post('/profile/backup-codes', [App\Http\Controllers\ProfileController::class, 'regenerateBackupCodes'])->name('profile.regenerate-backup-codes');
 
     // 2FA — Challenge login
     // throttle:5,10 = 5 tentatives max par tranche de 10 minutes par IP
@@ -61,6 +62,11 @@ Route::middleware('tenant')->group(function () {
         Route::get('/2fa/setup', [TwoFactorController::class, 'setup'])->name('2fa.setup');
         Route::post('/2fa/confirm', [TwoFactorController::class, 'confirm'])->name('2fa.confirm');
         Route::post('/2fa/disable', [TwoFactorController::class, 'disable'])->name('2fa.disable');
+
+	// Profil utilisateur (§18.4)
+	Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
+	Route::patch('/profile/info', [App\Http\Controllers\ProfileController::class, 'updateInfo'])->name('profile.update-info');
+	Route::patch('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');
 
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
