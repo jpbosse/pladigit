@@ -109,7 +109,7 @@ class User extends Authenticatable
      * - resp_service   → membres de ses services uniquement
      * - user           → lui-même uniquement
      */
-    public function visibleUsers(): \Illuminate\Database\Eloquent\Collection
+    public function visibleUsers(): \Illuminate\Support\Collection
     {
         $role = UserRole::tryFrom($this->role ?? '');
 
