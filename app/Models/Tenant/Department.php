@@ -71,6 +71,7 @@ class Department extends Model
     /**
      * La direction parente (pour un service).
      */
+    /** @return BelongsTo<Department, Department> */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'parent_id');
@@ -115,7 +116,7 @@ class Department extends Model
     public function fullLabel(): string
     {
         if ($this->isService() && $this->parent) {
-            return $this->parent->name.' — '.$this->name;
+            return $this->parent->name.' — '.$this->name; /** @var Department $parent */
         }
 
         return $this->name;
