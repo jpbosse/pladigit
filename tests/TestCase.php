@@ -23,12 +23,10 @@ abstract class TestCase extends BaseTestCase
         $dbPassword = env('DB_PASSWORD', '');
         $dbTenant   = 'pladigit_testing_tenant';
 
-        // Créer la base tenant via la connexion platform explicite
         DB::connection('mysql')->statement(
             "CREATE DATABASE IF NOT EXISTS `{$dbTenant}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
         );
 
-        // Configurer la connexion 'tenant'
         config(['database.connections.tenant' => [
             'driver'    => 'mysql',
             'host'      => $dbHost,
@@ -43,14 +41,12 @@ abstract class TestCase extends BaseTestCase
         DB::purge('tenant');
         DB::reconnect('tenant');
 
-        // migrate:fresh sur tenant uniquement
         $this->artisan('migrate:fresh', [
             '--database' => 'tenant',
             '--path'     => 'database/migrations/tenant',
             '--force'    => true,
         ]);
 
-        // Simuler un tenant actif
         $org = new Organization([
             'id'            => 1,
             'name'          => 'Test Org',
@@ -63,18 +59,5 @@ abstract class TestCase extends BaseTestCase
         ]);
 
         app(TenantManager::class)->connectTo($org);
-    }
-
-    /**
-     * Désactive RefreshDatabase sur la connexion par défaut (platform).
-     * Chaque test reçoit une base tenant fraîche via setUpTenantDatabase().
-     */
-    protected function beginDatabaseTransaction(): void
-    {
-        // On ne démarre pas de transaction sur platform — uniquement sur tenant
-        DB::connection('tenant')->beginTransaction();
-        $this->beforeApplicationDestroyed(function () {
-            DB::connection('tenant')->rollBack();
-        });
     }
 }
