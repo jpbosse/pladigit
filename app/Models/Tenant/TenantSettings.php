@@ -35,12 +35,12 @@ class TenantSettings extends Model
 
     protected $casts = [
         'pwd_require_uppercase' => 'boolean',
-        'pwd_require_number'    => 'boolean',
-        'pwd_require_special'   => 'boolean',
-        'force_2fa'             => 'boolean',
-        'ldap_use_tls'          => 'boolean',
-        'ldap_use_ssl'          => 'boolean',
-        'updated_at'            => 'datetime',
+        'pwd_require_number' => 'boolean',
+        'pwd_require_special' => 'boolean',
+        'force_2fa' => 'boolean',
+        'ldap_use_tls' => 'boolean',
+        'ldap_use_ssl' => 'boolean',
+        'updated_at' => 'datetime',
     ];
 
     protected static function newFactory(): TenantSettingsFactory

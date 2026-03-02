@@ -26,14 +26,14 @@ class ProfileController extends Controller
      */
     public function show()
     {
-        $user     = Auth::user();
+        $user = Auth::user();
         $settings = TenantSettings::sole();
 
         // Nombre de codes de secours restants
         $backupCodesCount = null;
         if ($user->totp_enabled && $user->totp_backup_code_enc) {
             try {
-                $codes            = json_decode(Crypt::decryptString($user->totp_backup_code_enc), true);
+                $codes = json_decode(Crypt::decryptString($user->totp_backup_code_enc), true);
                 $backupCodesCount = count($codes ?? []);
             } catch (\Throwable) {
                 $backupCodesCount = 0;
@@ -43,14 +43,14 @@ class ProfileController extends Controller
         // Date d'expiration du mot de passe
         $passwordExpiresIn = null;
         if ($settings->pwd_validity_days && $user->password_changed_at) {
-            $expiresAt         = $user->password_changed_at->addDays($settings->pwd_validity_days);
+            $expiresAt = $user->password_changed_at->addDays($settings->pwd_validity_days);
             $passwordExpiresIn = now()->diffInDays($expiresAt, false); // négatif si expiré
         }
 
         return view('profile.show', [
-            'user'              => $user,
-            'settings'          => $settings,
-            'backupCodesCount'  => $backupCodesCount,
+            'user' => $user,
+            'settings' => $settings,
+            'backupCodesCount' => $backupCodesCount,
             'passwordExpiresIn' => $passwordExpiresIn,
         ]);
     }
@@ -61,15 +61,15 @@ class ProfileController extends Controller
     public function updateInfo(Request $request)
     {
         $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:255'],
         ]);
 
         $user = Auth::user();
-        $old  = $user->only(['name', 'department']);
+        $old = $user->only(['name', 'department']);
 
         $user->update([
-            'name'       => $request->name,
+            'name' => $request->name,
             'department' => $request->department,
         ]);
 
@@ -88,7 +88,7 @@ class ProfileController extends Controller
     {
         $request->validate([
             'current_password' => ['required', 'string'],
-            'password'         => ['required', 'string', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed'],
         ]);
 
         $user = Auth::user();
@@ -97,8 +97,8 @@ class ProfileController extends Controller
             return back()->withErrors(['current_password' => 'Mot de passe actuel incorrect.']);
         }
 
-        $history      = $user->password_history ?? [];
-        $history[]    = $user->password_hash;
+        $history = $user->password_history ?? [];
+        $history[] = $user->password_hash;
         $policyErrors = $this->policy->validate($request->password, $history);
 
         if (! empty($policyErrors)) {
@@ -134,7 +134,7 @@ class ProfileController extends Controller
         $user->update([
             'totp_backup_code_enc' => Crypt::encryptString(
                 json_encode(array_map(
-                    fn($c) => hash('sha256', $c),
+                    fn ($c) => hash('sha256', $c),
                     $codes
                 ))
             ),
@@ -154,9 +154,10 @@ class ProfileController extends Controller
         $codes = [];
         for ($i = 0; $i < $count; $i++) {
             $codes[] = strtoupper(substr(bin2hex(random_bytes(3)), 0, 5))
-                     . '-'
-                     . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+                     .'-'
+                     .strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
         }
+
         return $codes;
     }
 }

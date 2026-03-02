@@ -17,7 +17,6 @@ use Tests\TestCase;
  */
 class PasswordPolicyTest extends TestCase
 {
-
     private PasswordPolicyService $policy;
 
     protected function setUp(): void
@@ -43,7 +42,7 @@ class PasswordPolicyTest extends TestCase
     public function test_mot_de_passe_sans_majuscule_est_refuse(): void
     {
         TenantSettings::factory()->create([
-            'pwd_min_length'        => 8,
+            'pwd_min_length' => 8,
             'pwd_require_uppercase' => true,
         ]);
 
@@ -55,7 +54,7 @@ class PasswordPolicyTest extends TestCase
     public function test_mot_de_passe_sans_chiffre_est_refuse(): void
     {
         TenantSettings::factory()->create([
-            'pwd_min_length'     => 8,
+            'pwd_min_length' => 8,
             'pwd_require_number' => true,
         ]);
 
@@ -67,7 +66,7 @@ class PasswordPolicyTest extends TestCase
     public function test_mot_de_passe_sans_special_est_refuse(): void
     {
         TenantSettings::factory()->create([
-            'pwd_min_length'      => 8,
+            'pwd_min_length' => 8,
             'pwd_require_special' => true,
         ]);
 
@@ -79,10 +78,10 @@ class PasswordPolicyTest extends TestCase
     public function test_mot_de_passe_valide_passe(): void
     {
         TenantSettings::factory()->create([
-            'pwd_min_length'        => 8,
+            'pwd_min_length' => 8,
             'pwd_require_uppercase' => true,
-            'pwd_require_number'    => true,
-            'pwd_require_special'   => true,
+            'pwd_require_number' => true,
+            'pwd_require_special' => true,
         ]);
 
         $errors = $this->policy->validate('Valid1!ok');
@@ -93,12 +92,12 @@ class PasswordPolicyTest extends TestCase
     public function test_mot_de_passe_deja_utilise_est_refuse(): void
     {
         TenantSettings::factory()->create([
-            'pwd_min_length'    => 8,
+            'pwd_min_length' => 8,
             'pwd_history_count' => 5,
         ]);
 
         $oldHash = Hash::make('AncienMdp1!');
-        $errors  = $this->policy->validate('AncienMdp1!', [$oldHash]);
+        $errors = $this->policy->validate('AncienMdp1!', [$oldHash]);
 
         $this->assertNotEmpty($errors);
     }
@@ -106,12 +105,12 @@ class PasswordPolicyTest extends TestCase
     public function test_update_password_met_a_jour_historique(): void
     {
         TenantSettings::factory()->create([
-            'pwd_min_length'    => 8,
+            'pwd_min_length' => 8,
             'pwd_history_count' => 5,
         ]);
 
         $user = User::factory()->create([
-            'password_hash'    => Hash::make('AncienMdp1!'),
+            'password_hash' => Hash::make('AncienMdp1!'),
             'password_history' => [],
         ]);
 

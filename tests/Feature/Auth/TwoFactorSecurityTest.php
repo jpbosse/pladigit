@@ -19,17 +19,16 @@ use Tests\TestCase;
  */
 class TwoFactorSecurityTest extends TestCase
 {
-
     // ── Helpers ───────────────────────────────────────────
 
     private function makeUserWith2FA(): array
     {
         $google2fa = new Google2FA;
-        $secret    = $google2fa->generateSecretKey(32);
-        $code      = $google2fa->getCurrentOtp($secret);
+        $secret = $google2fa->generateSecretKey(32);
+        $code = $google2fa->getCurrentOtp($secret);
 
         $user = User::factory()->create([
-            'totp_enabled'    => true,
+            'totp_enabled' => true,
             'totp_secret_enc' => Crypt::encryptString($secret),
         ]);
 
@@ -92,8 +91,8 @@ class TwoFactorSecurityTest extends TestCase
     public function test_secret_setup_absent_des_logs_confirm(): void
     {
         $google2fa = new Google2FA;
-        $secret    = $google2fa->generateSecretKey(32);
-        $code      = $google2fa->getCurrentOtp($secret);
+        $secret = $google2fa->generateSecretKey(32);
+        $code = $google2fa->getCurrentOtp($secret);
 
         $user = User::factory()->create(['totp_enabled' => false]);
 
@@ -182,7 +181,7 @@ class TwoFactorSecurityTest extends TestCase
     public function test_verify_retourne_false_si_2fa_desactive(): void
     {
         $user = User::factory()->create([
-            'totp_enabled'    => false,
+            'totp_enabled' => false,
             'totp_secret_enc' => null,
         ]);
 
@@ -195,13 +194,13 @@ class TwoFactorSecurityTest extends TestCase
      */
     public function test_code_de_secours_usage_unique(): void
     {
-        $google2fa  = new Google2FA;
-        $secret     = $google2fa->generateSecretKey(32);
+        $google2fa = new Google2FA;
+        $secret = $google2fa->generateSecretKey(32);
         $backupCode = strtoupper('ABCD1234');
 
         $user = User::factory()->create([
-            'totp_enabled'         => true,
-            'totp_secret_enc'      => Crypt::encryptString($secret),
+            'totp_enabled' => true,
+            'totp_secret_enc' => Crypt::encryptString($secret),
             'totp_backup_code_enc' => Crypt::encryptString(
                 json_encode([hash('sha256', $backupCode)])
             ),

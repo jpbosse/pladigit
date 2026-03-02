@@ -9,17 +9,17 @@ use Tests\TestCase;
 
 class ForcePwdChangeAndPolicyTest extends TestCase
 {
-
     private function settings(): TenantSettings
     {
         TenantSettings::truncate();
+
         return TenantSettings::factory()->create([
-            'pwd_min_length'        => 12,
+            'pwd_min_length' => 12,
             'pwd_require_uppercase' => true,
-            'pwd_require_number'    => true,
-            'pwd_require_special'   => true,
-            'pwd_history_count'     => 5,
-            'login_max_attempts'    => 10,
+            'pwd_require_number' => true,
+            'pwd_require_special' => true,
+            'pwd_history_count' => 5,
+            'login_max_attempts' => 10,
             'login_lockout_minutes' => 15,
         ]);
     }
@@ -27,9 +27,9 @@ class ForcePwdChangeAndPolicyTest extends TestCase
     private function adminUser(): User
     {
         return User::factory()->create([
-            'role'             => 'admin',
-            'status'           => 'active',
-            'password_hash'    => Hash::make('AdminPass!123'),
+            'role' => 'admin',
+            'status' => 'active',
+            'password_hash' => Hash::make('AdminPass!123'),
             'force_pwd_change' => false,
         ]);
     }
@@ -57,12 +57,12 @@ class ForcePwdChangeAndPolicyTest extends TestCase
         $this->settings();
         $user = User::factory()->create([
             'force_pwd_change' => true,
-            'status'           => 'active',
-            'password_hash'    => Hash::make('OldPassword!1'),
+            'status' => 'active',
+            'password_hash' => Hash::make('OldPassword!1'),
         ]);
         $this->actingAs($user)->post(route('password.change.forced.update'), [
-            'current_password'      => 'OldPassword!1',
-            'password'              => 'NewSecurePass!9',
+            'current_password' => 'OldPassword!1',
+            'password' => 'NewSecurePass!9',
             'password_confirmation' => 'NewSecurePass!9',
         ]);
         $user->refresh();
@@ -112,7 +112,7 @@ class ForcePwdChangeAndPolicyTest extends TestCase
     public function test_modification_mot_de_passe_trop_court_rejete(): void
     {
         $this->settings();
-        $admin  = $this->adminUser();
+        $admin = $this->adminUser();
         $target = User::factory()->create(['status' => 'active']);
         $this->actingAs($admin)->put(route('admin.users.update', $target), [
             'name' => $target->name, 'role' => $target->role, 'status' => 'active',
@@ -123,7 +123,7 @@ class ForcePwdChangeAndPolicyTest extends TestCase
     public function test_modification_sans_mot_de_passe_passe(): void
     {
         $this->settings();
-        $admin  = $this->adminUser();
+        $admin = $this->adminUser();
         $target = User::factory()->create(['status' => 'active', 'role' => 'user']);
         $this->actingAs($admin)->put(route('admin.users.update', $target), [
             'name' => 'Nouveau Nom', 'role' => 'user', 'status' => 'active',

@@ -23,7 +23,7 @@ class TwoFactorController extends Controller
 
     public function setup(Request $request)
     {
-        $user  = Auth::user();
+        $user = Auth::user();
         $setup = $this->twoFactor->generateSetup($user);
 
         // Stocker le secret temporairement en session (pas encore en base)
@@ -31,7 +31,7 @@ class TwoFactorController extends Controller
 
         return view('auth.2fa.setup', [
             'qr_code' => $setup['qr_code'],
-            'secret'  => $setup['secret'],
+            'secret' => $setup['secret'],
         ]);
     }
 
@@ -40,11 +40,11 @@ class TwoFactorController extends Controller
         $request->validate(['code' => ['required', 'digits:6']]);
 
         $secret = session('2fa_setup_secret');
-        $user   = Auth::user();
+        $user = Auth::user();
 
         // Log de contexte sans le secret ni le code
         Log::info('2FA — tentative de confirmation d\'activation', [
-            'user_id'    => $user->id,
+            'user_id' => $user->id,
             'has_secret' => ! empty($secret),
         ]);
 
@@ -81,10 +81,10 @@ class TwoFactorController extends Controller
 
         // Log de contexte — sans le code saisi
         Log::info('2FA — tentative verify', [
-            'user_id'      => $userId,
-            'found'        => $user !== null,
+            'user_id' => $userId,
+            'found' => $user !== null,
             'totp_enabled' => $user?->totp_enabled,
-            'has_secret'   => ! empty($user?->totp_secret_enc),
+            'has_secret' => ! empty($user?->totp_secret_enc),
         ]);
 
         if (! $this->twoFactor->verify($user, $request->code)) {
