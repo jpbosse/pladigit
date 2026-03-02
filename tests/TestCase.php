@@ -2,6 +2,8 @@
 
 namespace Tests;
 
+use App\Models\Platform\Organization;
+use App\Services\TenantManager;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 
@@ -15,40 +17,64 @@ abstract class TestCase extends BaseTestCase
 
     protected function setUpTenantDatabase(): void
     {
-        // Créer la base de test tenant si elle n'existe pas
-        DB::statement('CREATE DATABASE IF NOT EXISTS `pladigit_testing_tenant` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        $dbHost     = env('DB_HOST', '127.0.0.1');
+        $dbPort     = env('DB_PORT', '3306');
+        $dbUsername = env('DB_USERNAME', 'pladigit');
+        $dbPassword = env('DB_PASSWORD', '');
+        $dbTenant   = 'pladigit_testing_tenant';
 
-        // Configurer la connexion tenant vers la base de test
+        // Créer la base tenant via la connexion platform explicite
+        DB::connection('mysql')->statement(
+            "CREATE DATABASE IF NOT EXISTS `{$dbTenant}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        );
+
+        // Configurer la connexion 'tenant'
         config(['database.connections.tenant' => [
-            'driver' => 'mysql',
-            'host' => '127.0.0.1',
-            'port' => '3306',
-            'database' => 'pladigit_testing_tenant',
-            'username' => env('DB_USERNAME', 'pladigit'),
-            'password' => env('DB_PASSWORD', 'Bsg75&Ncc1701'),
-            'charset' => 'utf8mb4',
+            'driver'    => 'mysql',
+            'host'      => $dbHost,
+            'port'      => $dbPort,
+            'database'  => $dbTenant,
+            'username'  => $dbUsername,
+            'password'  => $dbPassword,
+            'charset'   => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
         ]]);
 
-        // Migrer la base tenant de test
-        $this->artisan('migrate', [
+        DB::purge('tenant');
+        DB::reconnect('tenant');
+
+        // migrate:fresh sur tenant uniquement
+        $this->artisan('migrate:fresh', [
             '--database' => 'tenant',
-            '--path' => 'database/migrations/tenant',
-            '--force' => true,
+            '--path'     => 'database/migrations/tenant',
+            '--force'    => true,
         ]);
 
         // Simuler un tenant actif
-        $org = new \App\Models\Platform\Organization([
-            'id' => 1,
-            'name' => 'Test Org',
-            'slug' => 'test',
-            'db_name' => 'pladigit_testing_tenant',
-            'status' => 'active',
-            'plan' => 'starter',
-            'max_users' => 50,
+        $org = new Organization([
+            'id'            => 1,
+            'name'          => 'Test Org',
+            'slug'          => 'test',
+            'db_name'       => $dbTenant,
+            'status'        => 'active',
+            'plan'          => 'starter',
+            'max_users'     => 50,
             'primary_color' => '#1E3A5F',
         ]);
 
-        app(\App\Services\TenantManager::class)->connectTo($org);
+        app(TenantManager::class)->connectTo($org);
+    }
+
+    /**
+     * Désactive RefreshDatabase sur la connexion par défaut (platform).
+     * Chaque test reçoit une base tenant fraîche via setUpTenantDatabase().
+     */
+    protected function beginDatabaseTransaction(): void
+    {
+        // On ne démarre pas de transaction sur platform — uniquement sur tenant
+        DB::connection('tenant')->beginTransaction();
+        $this->beforeApplicationDestroyed(function () {
+            DB::connection('tenant')->rollBack();
+        });
     }
 }
