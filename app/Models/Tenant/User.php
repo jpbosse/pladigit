@@ -90,7 +90,7 @@ class User extends Authenticatable
      */
     public function hasRoleAtLeast(string $minRole): bool
     {
-        $userRole = $this->role instanceof UserRole ? $this->role : UserRole::tryFrom($this->role ?? '');
+        $userRole = UserRole::tryFrom($this->role ?? '');
         $requiredRole = UserRole::tryFrom($minRole);
 
         if (! $userRole || ! $requiredRole) {

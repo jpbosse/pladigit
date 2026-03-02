@@ -28,7 +28,7 @@ class CheckRole
         foreach ($allowedRoles as $role) {
             $requiredRole = UserRole::tryFrom($role);
 
-            if ($userRole && $requiredRole && $userRole->atLeast($requiredRole)) {
+            if ($requiredRole && $userRole->atLeast($requiredRole)) {
                 return $next($request);
             }
         }
