@@ -4,6 +4,7 @@ namespace App\Models\Tenant;
 
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -22,7 +23,7 @@ class User extends Authenticatable
         // Identité
         'name',
         'email',
-        'department',
+        'department',   // Conservé pour rétrocompatibilité (string libre)
         'avatar_path',
         'created_by',
 
@@ -61,20 +62,97 @@ class User extends Authenticatable
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'last_login_at' => 'datetime',
-        'locked_until' => 'datetime',
-        'ldap_synced_at' => 'datetime',
+        'email_verified_at'  => 'datetime',
+        'last_login_at'      => 'datetime',
+        'locked_until'       => 'datetime',
+        'ldap_synced_at'     => 'datetime',
         'password_changed_at' => 'datetime',
-        'totp_enabled' => 'boolean',
-        'force_pwd_change' => 'boolean',
-        'password_history' => 'array',
+        'totp_enabled'       => 'boolean',
+        'force_pwd_change'   => 'boolean',
+        'password_history'   => 'array',
     ];
 
     // Laravel attend 'password' par défaut — on remplace
     public function getAuthPassword(): string
     {
         return $this->password_hash ?? '';
+    }
+
+    // ── Relations départements ────────────────────────────────
+
+    /**
+     * Tous les départements (directions + services) auxquels l'utilisateur appartient.
+     */
+    public function departments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'user_department')
+                    ->withPivot('is_manager')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Départements où l'utilisateur est responsable (is_manager = true).
+     */
+    public function managedDepartments(): BelongsToMany
+    {
+        return $this->belongsToMany(Department::class, 'user_department')
+                    ->withPivot('is_manager')
+                    ->wherePivot('is_manager', true)
+                    ->withTimestamps();
+    }
+
+    /**
+     * Retourne tous les utilisateurs visibles par cet utilisateur selon son rôle.
+     *
+     * - admin / president / dgs → tous les utilisateurs
+     * - resp_direction → membres de ses directions ET de leurs services enfants
+     * - resp_service   → membres de ses services uniquement
+     * - user           → lui-même uniquement
+     */
+    public function visibleUsers(): \Illuminate\Database\Eloquent\Collection
+    {
+        $role = UserRole::tryFrom($this->role ?? '');
+
+        if (! $role) {
+            return collect([$this]);
+        }
+
+        // Admin, président, DGS voient tout
+        if ($role->atLeast(UserRole::DGS)) {
+            return User::on('tenant')->where('id', '!=', null)->get();
+        }
+
+        // Resp. de direction : ses directions + tous les services enfants
+        if ($role === UserRole::RESP_DIRECTION) {
+            $directionIds = $this->managedDepartments()
+                                 ->where('type', 'direction')
+                                 ->pluck('departments.id');
+
+            $serviceIds = Department::on('tenant')
+                                    ->where('type', 'service')
+                                    ->whereIn('parent_id', $directionIds)
+                                    ->pluck('id');
+
+            $allDeptIds = $directionIds->merge($serviceIds);
+
+            return User::on('tenant')
+                       ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $allDeptIds))
+                       ->get();
+        }
+
+        // Resp. de service : membres de ses services
+        if ($role === UserRole::RESP_SERVICE) {
+            $serviceIds = $this->managedDepartments()
+                               ->where('type', 'service')
+                               ->pluck('departments.id');
+
+            return User::on('tenant')
+                       ->whereHas('departments', fn ($q) => $q->whereIn('departments.id', $serviceIds))
+                       ->get();
+        }
+
+        // Utilisateur simple : lui-même uniquement
+        return collect([$this]);
     }
 
     // ── Helpers rôles ─────────────────────────────────────
@@ -86,11 +164,10 @@ class User extends Authenticatable
 
     /**
      * Retourne true si l'utilisateur a au moins le rôle $minRole.
-     * Ex : $user->hasRoleAtLeast('dgs')
      */
     public function hasRoleAtLeast(string $minRole): bool
     {
-        $userRole = UserRole::tryFrom($this->role ?? '');
+        $userRole     = UserRole::tryFrom($this->role ?? '');
         $requiredRole = UserRole::tryFrom($minRole);
 
         if (! $userRole || ! $requiredRole) {

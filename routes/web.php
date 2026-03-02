@@ -21,6 +21,7 @@ Route::post('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController
 Route::post('super-admin/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])
     ->name('super-admin.logout');
 
+
 // ── Routes Super-Admin ─────────────────────────────────────
 Route::prefix('super-admin')
     ->name('super-admin.')
@@ -82,6 +83,10 @@ Route::middleware('tenant')->group(function () {
             Route::put('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
             Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
             Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('users.reset-password');
+
+	Route::resource('departments', App\Http\Controllers\Admin\DepartmentController::class)
+	     ->only(['index', 'store', 'update', 'destroy'])
+	     ->names('departments');
 
             /*
              * Paramètres LDAP et SMTP — à décommenter en Phase 2 (§18.1)
