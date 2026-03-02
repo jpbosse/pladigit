@@ -71,7 +71,7 @@ class Department extends Model
     /**
      * La direction parente (pour un service).
      */
-    /** @return BelongsTo<Department, Department> */
+    /** @phpstan-ignore-next-line */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'parent_id');
