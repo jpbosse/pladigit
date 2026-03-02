@@ -4,7 +4,6 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Tenant\User;
 use App\Services\TwoFactorService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use PragmaRX\Google2FA\Google2FA;
@@ -20,7 +19,6 @@ use Tests\TestCase;
  */
 class TwoFactorSecurityTest extends TestCase
 {
-    use RefreshDatabase;
 
     // ── Helpers ───────────────────────────────────────────
 
