@@ -19,25 +19,25 @@ namespace App\Enums;
  */
 enum UserRole: string
 {
-    case ADMIN           = 'admin';
-    case PRESIDENT       = 'president';
-    case DGS             = 'dgs';
-    case RESP_DIRECTION  = 'resp_direction';
-    case RESP_SERVICE    = 'resp_service';
-    case USER            = 'user';
+    case ADMIN = 'admin';
+    case PRESIDENT = 'president';
+    case DGS = 'dgs';
+    case RESP_DIRECTION = 'resp_direction';
+    case RESP_SERVICE = 'resp_service';
+    case USER = 'user';
 
     /**
      * Niveau hiérarchique — plus bas = plus de droits.
      */
     public function level(): int
     {
-        return match($this) {
-            self::ADMIN          => 1,
-            self::PRESIDENT      => 2,
-            self::DGS            => 3,
+        return match ($this) {
+            self::ADMIN => 1,
+            self::PRESIDENT => 2,
+            self::DGS => 3,
             self::RESP_DIRECTION => 4,
-            self::RESP_SERVICE   => 5,
-            self::USER           => 6,
+            self::RESP_SERVICE => 5,
+            self::USER => 6,
         };
     }
 
@@ -46,13 +46,13 @@ enum UserRole: string
      */
     public function label(): string
     {
-        return match($this) {
-            self::ADMIN          => 'Administrateur',
-            self::PRESIDENT      => 'Président',
-            self::DGS            => 'Directeur Général des Services',
+        return match ($this) {
+            self::ADMIN => 'Administrateur',
+            self::PRESIDENT => 'Président',
+            self::DGS => 'Directeur Général des Services',
             self::RESP_DIRECTION => 'Responsable de Direction',
-            self::RESP_SERVICE   => 'Responsable de Service',
-            self::USER           => 'Utilisateur',
+            self::RESP_SERVICE => 'Responsable de Service',
+            self::USER => 'Utilisateur',
         };
     }
 
@@ -80,7 +80,7 @@ enum UserRole: string
      */
     public static function rule(): string
     {
-        return 'in:' . implode(',', self::values());
+        return 'in:'.implode(',', self::values());
     }
 
     /**
@@ -92,7 +92,7 @@ enum UserRole: string
         foreach (self::cases() as $case) {
             $options[$case->value] = $case->label();
         }
+
         return $options;
     }
 }
-

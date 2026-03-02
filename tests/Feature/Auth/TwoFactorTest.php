@@ -8,7 +8,6 @@ use Tests\TestCase;
 
 class TwoFactorTest extends TestCase
 {
-
     public function test_activation_2fa_avec_code_valide(): void
     {
         $user = User::factory()->create();

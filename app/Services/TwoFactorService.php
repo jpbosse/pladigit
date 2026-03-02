@@ -87,7 +87,7 @@ class TwoFactorService
     {
         // Log de contexte — sans jamais inclure le code ni le secret
         Log::info('2FA — tentative de vérification', [
-            'user_id'    => $user->id,
+            'user_id' => $user->id,
             'totp_enabled' => $user->totp_enabled,
             'has_secret' => ! empty($user->totp_secret_enc),
         ]);
@@ -106,7 +106,7 @@ class TwoFactorService
         // Log du résultat uniquement — pas du code, pas du secret
         Log::info('2FA — résultat vérification TOTP', [
             'user_id' => $user->id,
-            'valid'   => $valid,
+            'valid' => $valid,
         ]);
 
         if ($valid) {
@@ -148,7 +148,7 @@ class TwoFactorService
         ]);
 
         Log::info('2FA — code de secours consommé', [
-            'user_id'        => $user->id,
+            'user_id' => $user->id,
             'remaining_codes' => count($hashedCodes),
         ]);
 
@@ -161,8 +161,8 @@ class TwoFactorService
     public function disable(User $user): void
     {
         $user->update([
-            'totp_secret_enc'      => null,
-            'totp_enabled'         => false,
+            'totp_secret_enc' => null,
+            'totp_enabled' => false,
             'totp_backup_code_enc' => null,
         ]);
     }
