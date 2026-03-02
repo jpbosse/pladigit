@@ -84,7 +84,7 @@ class TwoFactorController extends Controller
             'user_id' => $userId,
             'found' => $user !== null,
             'totp_enabled' => $user?->totp_enabled,
-            'has_secret' => ! empty($user?->totp_secret_enc),
+            'has_secret' => ! empty($user->totp_secret_enc),
         ]);
 
         if (! $this->twoFactor->verify($user, $request->code)) {
