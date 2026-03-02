@@ -69,7 +69,7 @@
         <div class="bg-white rounded-xl shadow p-4 border-l-4" style="border-color: var(--color-primary, #1E3A5F);">
             <p class="text-xs text-gray-400 uppercase font-medium">Rôle</p>
             <p class="text-lg font-semibold text-gray-800 mt-1">
-                {{ Str::title(str_replace('_', ' ', Auth::user()->role)) }}
+                {{ App\Enums\UserRole::tryFrom(Auth::user()->role)?->label() ?? Auth::user()->role }}
             </p>
             @if(Auth::user()->department)
             <p class="text-xs text-gray-400 mt-1">{{ Auth::user()->department }}</p>

@@ -19,7 +19,7 @@
         <div>
             <h1 class="text-2xl font-bold text-gray-800">{{ $user->name }}</h1>
             <p class="text-sm text-gray-500">
-                {{ Str::title(str_replace('_', ' ', $user->role)) }}
+                {{ App\Enums\UserRole::tryFrom($user->role)?->label() ?? $user->role }}
                 @if($user->department)
                     — {{ $user->department }}
                 @endif
@@ -104,7 +104,7 @@
 
             <div class="flex items-center justify-between">
                 <div class="text-xs text-gray-400">
-                    Rôle : <span class="font-medium text-gray-600">{{ Str::title(str_replace('_', ' ', $user->role)) }}</span>
+                    Rôle : <span class="font-medium text-gray-600">{{ App\Enums\UserRole::tryFrom($user->role)?->label() ?? $user->role }}</span>
                     — modifiable uniquement par un administrateur
                 </div>
                 <button type="submit"
