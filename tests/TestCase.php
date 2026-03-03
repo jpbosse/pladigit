@@ -53,8 +53,8 @@ abstract class TestCase extends BaseTestCase
             'slug' => 'test',
             'db_name' => $dbTenant,
             'status' => 'active',
-            'plan' => 'starter',
-            'max_users' => 50,
+            'plan' => 'communautaire',
+            'max_users' => 200,
             'primary_color' => '#1E3A5F',
         ]);
 

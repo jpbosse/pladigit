@@ -1,0 +1,60 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    protected $connection = 'mysql';
+
+    public function up(): void
+    {
+        // Étape 1 : Migrer les anciennes valeurs vers les nouvelles
+        // free + starter  -> communautaire
+        // standard        -> assistance
+        // enterprise      -> enterprise (inchangé)
+        DB::connection($this->connection)
+            ->table('organizations')
+            ->whereIn('plan', ['free', 'starter'])
+            ->update(['plan' => 'communautaire']);
+
+        DB::connection($this->connection)
+            ->table('organizations')
+            ->where('plan', 'standard')
+            ->update(['plan' => 'assistance']);
+
+        // Étape 2 : Modifier l'enum pour n'accepter que les nouvelles valeurs
+        Schema::connection($this->connection)
+            ->table('organizations', function (Blueprint $table) {
+                $table->enum('plan', ['communautaire', 'assistance', 'enterprise'])
+                    ->default('communautaire')
+                    ->change();
+            });
+    }
+
+    public function down(): void
+    {
+        // Retour aux anciennes valeurs si rollback
+        DB::connection($this->connection)
+            ->table('organizations')
+            ->where('plan', 'communautaire')
+            ->update(['plan' => 'starter']);
+
+        DB::connection($this->connection)
+            ->table('organizations')
+            ->where('plan', 'assistance')
+            ->update(['plan' => 'standard']);
+
+        Schema::connection($this->connection)
+            ->table('organizations', function (Blueprint $table) {
+                $table->enum('plan', ['free', 'starter', 'standard', 'enterprise'])
+                    ->default('starter')
+                    ->change();
+            });
+    }
+};
+
+
+
