@@ -27,7 +27,7 @@ class ProfileController extends Controller
     public function show()
     {
         $user = Auth::user();
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
 
         // Nombre de codes de secours restants
         $backupCodesCount = null;
