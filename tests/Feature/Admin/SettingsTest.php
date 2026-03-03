@@ -22,7 +22,7 @@ class SettingsTest extends TestCase
         parent::setUp();
 
         $this->admin = User::factory()->create([
-            'role'   => 'admin',
+            'role' => 'admin',
             'status' => 'active',
         ]);
     }
@@ -80,7 +80,7 @@ class SettingsTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.settings.branding.update'), [
                 'primary_color' => '#1E3A5F',
-                'logo'          => UploadedFile::fake()->image('logo.png', 200, 200),
+                'logo' => UploadedFile::fake()->image('logo.png', 200, 200),
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
