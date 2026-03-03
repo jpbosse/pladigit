@@ -119,7 +119,7 @@ class LoginController extends Controller
 
     private function handleFailedAttempt(User $user): void
     {
-        $settings = \App\Models\Tenant\TenantSettings::sole();
+        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
         $attempts = $user->login_attempts + 1;
 
         $update = ['login_attempts' => $attempts];

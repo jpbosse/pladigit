@@ -48,8 +48,8 @@
                     <td class="px-4 py-3 text-sm">
                         <span class="px-2 py-1 rounded-full text-xs font-medium
                             {{ $org->plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
-                               ($org->plan === 'standard' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
-                            {{ Str::ucfirst($org->plan) }}
+                               ($org->plan === 'assistance' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
+                            {{ ['communautaire'=>'Communautaire','assistance'=>'Assistance','enterprise'=>'Enterprise'][$org->plan] ?? ucfirst($org->plan) }}
                         </span>
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-600">— / {{ $org->max_users }}</td>
@@ -57,7 +57,7 @@
                         <span class="px-2 py-1 rounded-full text-xs font-medium
                             {{ $org->status === 'active' ? 'bg-green-100 text-green-700' :
                                ($org->status === 'suspended' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700') }}">
-                            {{ Str::ucfirst($org->status) }}
+                            {{ ['active'=>'Actif','suspended'=>'Suspendu','pending'=>'En attente','archived'=>'Archivé'][$org->status] ?? ucfirst($org->status) }}
                         </span>
                     </td>
                     <td class="px-4 py-3 text-sm space-x-2">

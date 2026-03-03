@@ -11,7 +11,7 @@ class SettingsController extends Controller
 {
     public function ldap()
     {
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
 
         return view('admin.settings.ldap', compact('settings'));
     }
@@ -27,7 +27,7 @@ class SettingsController extends Controller
             'ldap_use_tls' => ['boolean'],
         ]);
 
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
 
         $data = [
             'ldap_host' => $validated['ldap_host'],
@@ -49,7 +49,7 @@ class SettingsController extends Controller
     public function testLdap()
     {
         try {
-            $settings = TenantSettings::sole();
+            $settings = TenantSettings::firstOrCreate([]);
             $service = app(\App\Services\LdapAuthService::class);
 
             if (! $settings->ldap_host) {
