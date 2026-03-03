@@ -22,7 +22,7 @@ class DepartmentTest extends TestCase
         parent::setUp();
 
         $this->admin = User::factory()->create([
-            'role'   => 'admin',
+            'role' => 'admin',
             'status' => 'active',
         ]);
     }
@@ -90,8 +90,8 @@ class DepartmentTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertTenantHas('departments', [
-            'name'      => 'Direction des Services Techniques',
-            'type'      => 'direction',
+            'name' => 'Direction des Services Techniques',
+            'type' => 'direction',
             'parent_id' => null,
         ]);
     }
@@ -123,16 +123,16 @@ class DepartmentTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post(route('admin.departments.store'), [
-                'name'      => 'Service Voirie',
-                'type'      => 'service',
+                'name' => 'Service Voirie',
+                'type' => 'service',
                 'parent_id' => $direction->id,
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
 
         $this->assertTenantHas('departments', [
-            'name'      => 'Service Voirie',
-            'type'      => 'service',
+            'name' => 'Service Voirie',
+            'type' => 'service',
             'parent_id' => $direction->id,
         ]);
     }
@@ -141,8 +141,8 @@ class DepartmentTest extends TestCase
     {
         $this->actingAs($this->admin)
             ->post(route('admin.departments.store'), [
-                'name'      => 'Service Voirie',
-                'type'      => 'service',
+                'name' => 'Service Voirie',
+                'type' => 'service',
                 'parent_id' => null,
             ])
             ->assertSessionHasErrors('parent_id');
@@ -154,8 +154,8 @@ class DepartmentTest extends TestCase
     {
         $this->actingAs($this->admin)
             ->post(route('admin.departments.store'), [
-                'name'      => 'Service Voirie',
-                'type'      => 'service',
+                'name' => 'Service Voirie',
+                'type' => 'service',
                 'parent_id' => 9999,
             ])
             ->assertSessionHasErrors('parent_id');
@@ -178,11 +178,11 @@ class DepartmentTest extends TestCase
     public function test_admin_peut_renommer_un_service(): void
     {
         $direction = Department::factory()->direction()->create();
-        $service   = Department::factory()->service($direction->id)->create(['name' => 'Ancien']);
+        $service = Department::factory()->service($direction->id)->create(['name' => 'Ancien']);
 
         $this->actingAs($this->admin)
             ->put(route('admin.departments.update', $service), [
-                'name'      => 'Nouveau',
+                'name' => 'Nouveau',
                 'parent_id' => $direction->id,
             ])
             ->assertRedirect();
@@ -218,7 +218,7 @@ class DepartmentTest extends TestCase
     public function test_admin_peut_supprimer_service_vide(): void
     {
         $direction = Department::factory()->direction()->create();
-        $service   = Department::factory()->service($direction->id)->create();
+        $service = Department::factory()->service($direction->id)->create();
 
         $this->actingAs($this->admin)
             ->delete(route('admin.departments.destroy', $service))
@@ -243,7 +243,7 @@ class DepartmentTest extends TestCase
     public function test_suppression_département_avec_membres_refusée(): void
     {
         $direction = Department::factory()->direction()->create();
-        $member    = User::factory()->create(['role' => 'user', 'status' => 'active']);
+        $member = User::factory()->create(['role' => 'user', 'status' => 'active']);
         $direction->members()->attach($member->id, ['is_manager' => false]);
 
         $this->actingAs($this->admin)
