@@ -92,7 +92,7 @@ class LdapAuthService
             return null;
         }
 
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
 
         if (! $settings->ldap_host) {
             return null;
@@ -126,7 +126,7 @@ class LdapAuthService
             return;
         }
 
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
 
         if (! $settings->ldap_host) {
             return;

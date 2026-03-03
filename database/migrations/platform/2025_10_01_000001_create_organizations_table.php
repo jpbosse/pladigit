@@ -32,8 +32,8 @@ return new class extends Migration
                 $table->string('smtp_from_name')->nullable();
                 $table->string('timezone', 63)->default('Europe/Paris');
                 $table->string('locale', 10)->default('fr_FR');
-                $table->enum('plan', ['free', 'starter', 'standard', 'enterprise'])
-                    ->default('starter');
+                $table->enum('plan', ['communautaire', 'assistance', 'enterprise'])
+                    ->default('communautaire');
                 $table->date('trial_ends_at')->nullable();
                 $table->date('contract_signed_at')->nullable();
                 $table->text('notes')->nullable();
