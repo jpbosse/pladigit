@@ -70,8 +70,9 @@ class Department extends Model
 
     /**
      * La direction parente (pour un service).
+     *
+     * @return BelongsTo<Department, $this>
      */
-    /** @phpstan-ignore-next-line */
     public function parent(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'parent_id');
@@ -115,8 +116,10 @@ class Department extends Model
      */
     public function fullLabel(): string
     {
-        if ($this->isService() && $this->parent) {
-            return $this->parent->name.' — '.$this->name; /** @var Department $parent */
+        /** @var Department|null $parent */
+        $parent = $this->parent;
+        if ($this->isService() && $parent instanceof Department) {
+            return $parent->name.' — '.$this->name;
         }
 
         return $this->name;
