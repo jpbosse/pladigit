@@ -23,7 +23,7 @@ class UserTest extends TestCase
         parent::setUp();
 
         $this->admin = User::factory()->create([
-            'role'   => 'admin',
+            'role' => 'admin',
             'status' => 'active',
         ]);
     }
@@ -54,16 +54,14 @@ class UserTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
+    public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
+    {
+        $user = User::factory()->create(['role' => 'user', 'status' => 'active']);
 
-public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
-{
-    $user = User::factory()->create(['role' => 'user', 'status' => 'active']);
-
-    $this->actingAs($user)
-        ->get(route('admin.users.index'))
-        ->assertStatus(403);
-}
-
+        $this->actingAs($user)
+            ->get(route('admin.users.index'))
+            ->assertStatus(403);
+    }
 
     public function test_admin_peut_voir_la_liste(): void
     {
@@ -79,9 +77,9 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
     {
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
-                'name'     => 'Jean Dupont',
-                'email'    => 'jean.dupont@test.fr',
-                'role'     => 'user',
+                'name' => 'Jean Dupont',
+                'email' => 'jean.dupont@test.fr',
+                'role' => 'user',
                 'password' => 'MotDePasse!123',
             ])
             ->assertRedirect(route('admin.users.index'))
@@ -89,7 +87,7 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
 
         $this->assertTenantHas('users', [
             'email' => 'jean.dupont@test.fr',
-            'role'  => 'user',
+            'role' => 'user',
         ]);
     }
 
@@ -99,9 +97,9 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
 
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
-                'name'     => 'Jean Dupont 2',
-                'email'    => 'jean.dupont@test.fr',
-                'role'     => 'user',
+                'name' => 'Jean Dupont 2',
+                'email' => 'jean.dupont@test.fr',
+                'role' => 'user',
                 'password' => 'MotDePasse!123',
             ])
             ->assertSessionHasErrors('email');
@@ -111,9 +109,9 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
     {
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
-                'name'     => '',
-                'email'    => 'test@test.fr',
-                'role'     => 'user',
+                'name' => '',
+                'email' => 'test@test.fr',
+                'role' => 'user',
                 'password' => 'MotDePasse!123',
             ])
             ->assertSessionHasErrors('name');
@@ -123,9 +121,9 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
     {
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
-                'name'     => 'Jean Dupont',
-                'email'    => 'jean@test.fr',
-                'role'     => 'superpower',
+                'name' => 'Jean Dupont',
+                'email' => 'jean@test.fr',
+                'role' => 'superpower',
                 'password' => 'MotDePasse!123',
             ])
             ->assertSessionHasErrors('role');
@@ -135,14 +133,14 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
     {
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
-                'name'     => 'Jean Dupont',
-                'email'    => 'jean.dupont@test.fr',
-                'role'     => 'user',
+                'name' => 'Jean Dupont',
+                'email' => 'jean.dupont@test.fr',
+                'role' => 'user',
                 'password' => 'MotDePasse!123',
             ]);
 
         $this->assertTenantHas('users', [
-            'email'            => 'jean.dupont@test.fr',
+            'email' => 'jean.dupont@test.fr',
             'force_pwd_change' => 1,
         ]);
     }
@@ -155,8 +153,8 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
 
         $this->actingAs($this->admin)
             ->put(route('admin.users.update', $user), [
-                'name'   => 'Nouveau Nom',
-                'role'   => 'user',
+                'name' => 'Nouveau Nom',
+                'role' => 'user',
                 'status' => 'active',
             ])
             ->assertRedirect(route('admin.users.index'))
@@ -171,8 +169,8 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
 
         $this->actingAs($this->admin)
             ->put(route('admin.users.update', $user), [
-                'name'   => $user->name,
-                'role'   => $user->role,
+                'name' => $user->name,
+                'role' => $user->role,
                 'status' => 'inactive',
             ])
             ->assertRedirect();
@@ -186,8 +184,8 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
 
         $this->actingAs($this->admin)
             ->put(route('admin.users.update', $user), [
-                'name'   => $user->name,
-                'role'   => $user->role,
+                'name' => $user->name,
+                'role' => $user->role,
                 'status' => 'banni',
             ])
             ->assertSessionHasErrors('status');
@@ -239,19 +237,19 @@ public function test_utilisateur_simple_ne_peut_pas_accéder_à_la_liste(): void
     public function test_admin_peut_affecter_un_département_à_un_utilisateur(): void
     {
         $direction = Department::factory()->direction()->create();
-        $user      = User::factory()->create(['role' => 'user']);
+        $user = User::factory()->create(['role' => 'user']);
 
         $this->actingAs($this->admin)
             ->put(route('admin.users.update', $user), [
-                'name'           => $user->name,
-                'role'           => 'user',
-                'status'         => 'active',
+                'name' => $user->name,
+                'role' => 'user',
+                'status' => 'active',
                 'department_ids' => [$direction->id],
             ])
             ->assertRedirect();
 
         $this->assertTenantHas('user_department', [
-            'user_id'       => $user->id,
+            'user_id' => $user->id,
             'department_id' => $direction->id,
         ]);
     }
