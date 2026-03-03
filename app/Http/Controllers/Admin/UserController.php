@@ -10,6 +10,7 @@ use App\Services\AuditService;
 use App\Services\PasswordPolicyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 /**
  * Gestion des utilisateurs par l'Admin Organisation.
@@ -32,7 +33,6 @@ class UserController extends Controller
         $currentUser = auth()->user();
         $role = UserRole::tryFrom($currentUser->role ?? '');
 
-        // Périmètre visible selon le rôle
         if ($role && $role->atLeast(UserRole::DGS)) {
             $users = User::on('tenant')->orderBy('name')->paginate(25);
         } elseif ($role === UserRole::RESP_DIRECTION) {
@@ -63,13 +63,23 @@ class UserController extends Controller
             'email' => ['required', 'email', 'unique:tenant.users'],
             'role' => ['required', UserRole::rule()],
             'department_ids' => ['nullable', 'array'],
-            'department_ids.*' => ['exists:tenant.departments,id'],
             'new_department_name' => ['nullable', 'string', 'max:255'],
             'new_department_type' => ['nullable', 'in:direction,service'],
-            'new_department_parent_id' => ['nullable', 'exists:tenant.departments,id'],
         ]);
 
-        // Appliquer la politique de mot de passe du tenant (§17.1)
+        // Valider les départements manuellement sur la connexion tenant
+        foreach ($request->department_ids ?? [] as $deptId) {
+            if (! Department::on('tenant')->where('id', $deptId)->exists()) {
+                return back()->withErrors(['department_ids' => 'Un département sélectionné est invalide.'])->withInput();
+            }
+        }
+
+        if ($request->filled('new_department_parent_id')) {
+            if (! Department::on('tenant')->where('id', $request->new_department_parent_id)->exists()) {
+                return back()->withErrors(['new_department_parent_id' => 'La direction parente est invalide.'])->withInput();
+            }
+        }
+
         $policyErrors = $this->policy->validate($request->password ?? '');
         if (! empty($policyErrors)) {
             return back()->withErrors(['password' => $policyErrors])->withInput();
@@ -85,7 +95,6 @@ class UserController extends Controller
             'created_by' => auth()->id(),
         ]);
 
-        // Créer un nouveau département si demandé
         if ($request->filled('new_department_name') && $request->filled('new_department_type')) {
             $newDept = Department::on('tenant')->create([
                 'name' => $request->new_department_name,
@@ -99,7 +108,6 @@ class UserController extends Controller
             ]);
         }
 
-        // Affecter aux départements
         if ($request->department_ids) {
             $userRole = UserRole::tryFrom($request->role);
             $isManager = $userRole && in_array($userRole, [UserRole::RESP_DIRECTION, UserRole::RESP_SERVICE]);
@@ -118,7 +126,7 @@ class UserController extends Controller
         ]);
 
         return redirect()->route('admin.users.index')
-            ->with('success', "Utilisateur {$user->email} créé.");
+            ->with('success', "Utilisateur {$user->email} créé. Il devra changer son mot de passe à la première connexion.");
     }
 
     public function edit(User $user)
@@ -137,11 +145,22 @@ class UserController extends Controller
             'role' => ['required', UserRole::rule()],
             'status' => ['required', 'in:active,inactive,locked'],
             'department_ids' => ['nullable', 'array'],
-            'department_ids.*' => ['exists:tenant.departments,id'],
             'new_department_name' => ['nullable', 'string', 'max:255'],
             'new_department_type' => ['nullable', 'in:direction,service'],
-            'new_department_parent_id' => ['nullable', 'exists:tenant.departments,id'],
         ]);
+
+        // Valider les départements manuellement sur la connexion tenant
+        foreach ($request->department_ids ?? [] as $deptId) {
+            if (! Department::on('tenant')->where('id', $deptId)->exists()) {
+                return back()->withErrors(['department_ids' => 'Un département sélectionné est invalide.'])->withInput();
+            }
+        }
+
+        if ($request->filled('new_department_parent_id')) {
+            if (! Department::on('tenant')->where('id', $request->new_department_parent_id)->exists()) {
+                return back()->withErrors(['new_department_parent_id' => 'La direction parente est invalide.'])->withInput();
+            }
+        }
 
         $old = $user->only(['name', 'role', 'status']);
 
@@ -151,7 +170,6 @@ class UserController extends Controller
             'status' => $request->status,
         ]);
 
-        // Changement de mot de passe optionnel
         if ($request->filled('password')) {
             $request->validate(['password' => ['string', 'confirmed']]);
             $policyErrors = $this->policy->validate($request->password);
@@ -161,7 +179,6 @@ class UserController extends Controller
             $this->policy->updatePassword($user, $request->password);
         }
 
-        // Créer un nouveau département si demandé
         if ($request->filled('new_department_name') && $request->filled('new_department_type')) {
             $newDept = Department::on('tenant')->create([
                 'name' => $request->new_department_name,
@@ -175,7 +192,6 @@ class UserController extends Controller
             ]);
         }
 
-        // Resynchroniser les départements
         $userRole = UserRole::tryFrom($request->role);
         $isManager = $userRole && in_array($userRole, [UserRole::RESP_DIRECTION, UserRole::RESP_SERVICE]);
 
@@ -214,7 +230,8 @@ class UserController extends Controller
 
     public function resetPassword(User $user)
     {
-        $password = \Illuminate\Support\Str::random(12);
+        $password = Str::random(12);
+
         $user->update([
             'password_hash' => Hash::make($password),
             'force_pwd_change' => true,
@@ -225,7 +242,9 @@ class UserController extends Controller
             'model_id' => $user->id,
         ]);
 
-        // ⚠ TODO §17.4 — Remplacer par un e-mail d'invitation (Phase 2)
-        return back()->with('success', "Nouveau mot de passe : {$password} (à communiquer à l'utilisateur)");
+        // Mot de passe stocké en session flash (jamais en base ni en log)
+        // TODO §17.4 — Remplacer par un e-mail d'invitation
+        return back()->with('temp_password', $password)
+            ->with('success', "Mot de passe réinitialisé. Communiquez-le à l'utilisateur.");
     }
 }
