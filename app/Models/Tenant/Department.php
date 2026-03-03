@@ -39,6 +39,8 @@ class Department extends Model
 
     /**
      * Tous les utilisateurs membres de ce département (via pivot).
+     *
+     * @return BelongsToMany<User, $this>
      */
     public function members(): BelongsToMany
     {
@@ -49,6 +51,8 @@ class Department extends Model
 
     /**
      * Uniquement les responsables (is_manager = true).
+     *
+     * @return BelongsToMany<User, $this>
      */
     public function managers(): BelongsToMany
     {
@@ -60,6 +64,8 @@ class Department extends Model
 
     /**
      * Uniquement les agents (is_manager = false).
+     *
+     * @return BelongsToMany<User, $this>
      */
     public function agents(): BelongsToMany
     {
@@ -81,6 +87,8 @@ class Department extends Model
 
     /**
      * Les services enfants (pour une direction).
+     *
+     * @return HasMany<Department, $this>
      */
     public function children(): HasMany
     {
