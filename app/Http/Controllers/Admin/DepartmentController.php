@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Department;
+use App\Models\Tenant\User;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 
@@ -23,20 +24,20 @@ class DepartmentController extends Controller
             ->orderBy('name')
             ->get();
 
-        $departmentsJson = $directions->map(function ($d) {
+        $departmentsJson = $directions->map(function (Department $d): array {
             return [
                 'id' => $d->id,
                 'name' => $d->name,
                 'type' => 'direction',
-                'members' => $d->members->map(function ($m) {
+                'members' => $d->members->map(function (User $m): array {
                     return ['id' => $m->id, 'name' => $m->name, 'is_manager' => (bool) ($m->pivot->is_manager ?? false)];
                 })->values(),
-                'children' => $d->children->map(function ($s) {
+                'children' => $d->children->map(function (Department $s): array {
                     return [
                         'id' => $s->id,
                         'name' => $s->name,
                         'type' => 'service',
-                        'members' => $s->members->map(function ($m) {
+                        'members' => $s->members->map(function (User $m): array {
                             return ['id' => $m->id, 'name' => $m->name, 'is_manager' => (bool) ($m->pivot->is_manager ?? false)];
                         })->values(),
                     ];
@@ -121,7 +122,7 @@ class DepartmentController extends Controller
 
         if ($department->isDirection() && $department->children()->count() > 0) {
             return back()->withErrors([
-                'delete' => 'Impossible de supprimer cette direction : elle contient des services. Supprimez-les d\'abord.',
+                'delete' => "Impossible de supprimer cette direction : elle contient des services. Supprimez-les d'abord.",
             ]);
         }
 
