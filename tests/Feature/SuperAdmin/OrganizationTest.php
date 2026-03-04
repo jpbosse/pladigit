@@ -11,10 +11,19 @@ use Tests\TestCase;
  */
 class OrganizationTest extends TestCase
 {
-    use DatabaseTransactions;
+use DatabaseTransactions;
+protected $connectionsToTransact = ['mysql'];
+
+protected function setUpPlatformDatabase(): void
+{
+    $this->artisan('migrate', [
+        '--database' => 'mysql',
+        '--path'     => 'database/migrations/platform',
+        '--force'    => true,
+    ]);
+}
 
     protected $connectionsToTransact = ['mysql'];
-
     // ── Helpers ────────────────────────────────────────────────────────
 
     private function actingAsSuperAdmin()
