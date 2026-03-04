@@ -25,12 +25,6 @@ class OrganizationTest extends TestCase
         ]);
     }
 
-    protected function tearDown(): void
-    {
-        \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->delete();
-        parent::tearDown();
-    }
-
     // ── Accès ──────────────────────────────────────────────────────────
 
     public function test_invité_ne_peut_pas_accéder_au_super_admin(): void
