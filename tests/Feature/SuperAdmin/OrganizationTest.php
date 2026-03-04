@@ -36,6 +36,14 @@ protected function setUp(): void
 }
 
 
+protected function tearDown(): void
+{
+    \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->whereNotIn('slug', ['demo', 'test', 'ccnoirmoutier'])->delete();
+    parent::tearDown();
+}
+
+
+
     private function actingAsSuperAdmin()
     {
         return $this->withSession([
