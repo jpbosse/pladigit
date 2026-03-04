@@ -25,6 +25,17 @@ protected function setUpPlatformDatabase(): void
 
     // ── Helpers ────────────────────────────────────────────────────────
 
+
+protected function setUp(): void
+{
+    parent::setUp();
+
+    $this->mock(\App\Services\TenantProvisioningService::class, function ($mock) {
+        $mock->shouldReceive('provisionTenant')->andReturn(true);
+    });
+}
+
+
     private function actingAsSuperAdmin()
     {
         return $this->withSession([
