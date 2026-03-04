@@ -19,15 +19,15 @@ class OrganizationFactory extends Factory
         $slug = Str::slug($name).'-'.$this->faker->unique()->randomNumber(4);
 
         return [
-            'name'          => 'Commune de '.$name,
-            'slug'          => $slug,
-            'db_name'       => 'pladigit_'.$slug,
-            'status'        => 'active',
-            'plan'          => 'communautaire',
-            'max_users'     => 9999,
+            'name' => 'Commune de '.$name,
+            'slug' => $slug,
+            'db_name' => 'pladigit_'.$slug,
+            'status' => 'active',
+            'plan' => 'communautaire',
+            'max_users' => 9999,
             'primary_color' => '#1E3A5F',
-            'timezone'      => 'Europe/Paris',
-            'locale'        => 'fr_FR',
+            'timezone' => 'Europe/Paris',
+            'locale' => 'fr_FR',
         ];
     }
 
