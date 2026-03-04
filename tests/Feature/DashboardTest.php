@@ -14,6 +14,7 @@ class DashboardTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private User $user;
 
     protected function setUp(): void
@@ -21,12 +22,12 @@ class DashboardTest extends TestCase
         parent::setUp();
 
         $this->admin = User::factory()->create([
-            'role'   => 'admin',
+            'role' => 'admin',
             'status' => 'active',
         ]);
 
         $this->user = User::factory()->create([
-            'role'   => 'user',
+            'role' => 'user',
             'status' => 'active',
         ]);
     }
@@ -94,22 +95,21 @@ class DashboardTest extends TestCase
 
     // ── Valeurs correctes ──────────────────────────────────────────────
 
-public function test_total_users_est_correct(): void
-{
-    $response = $this->actingAs($this->admin)
-        ->get(route('dashboard'));
+    public function test_total_users_est_correct(): void
+    {
+        $response = $this->actingAs($this->admin)
+            ->get(route('dashboard'));
 
-    $response->assertViewHas('totalUsers', fn($v) => is_int($v) && $v >= 2);
-}
+        $response->assertViewHas('totalUsers', fn ($v) => is_int($v) && $v >= 2);
+    }
 
-public function test_active_users_est_correct(): void
-{
-    User::factory()->create(['status' => 'inactive']);
+    public function test_active_users_est_correct(): void
+    {
+        User::factory()->create(['status' => 'inactive']);
 
-    $response = $this->actingAs($this->admin)
-        ->get(route('dashboard'));
+        $response = $this->actingAs($this->admin)
+            ->get(route('dashboard'));
 
-    $response->assertViewHas('activeUsers', fn($v) => is_int($v) && $v >= 2);
-}
-
+        $response->assertViewHas('activeUsers', fn ($v) => is_int($v) && $v >= 2);
+    }
 }

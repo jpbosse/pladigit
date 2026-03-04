@@ -11,25 +11,25 @@ use Tests\TestCase;
  */
 class OrganizationTest extends TestCase
 {
-	use DatabaseTransactions;
-	protected $connectionsToTransact = ['mysql'];
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = ['mysql'];
 
     // ── Helpers ────────────────────────────────────────────────────────
 
-private function actingAsSuperAdmin()
-{
-    return $this->withSession([
-        'super_admin_email'    => config('superadmin.email'),
-        'super_admin_verified' => true,
-    ]);
-}
+    private function actingAsSuperAdmin()
+    {
+        return $this->withSession([
+            'super_admin_email' => config('superadmin.email'),
+            'super_admin_verified' => true,
+        ]);
+    }
 
-protected function tearDown(): void
-{
-    \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->delete();
-    parent::tearDown();
-}
-
+    protected function tearDown(): void
+    {
+        \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->delete();
+        parent::tearDown();
+    }
 
     // ── Accès ──────────────────────────────────────────────────────────
 
@@ -112,7 +112,7 @@ protected function tearDown(): void
             ]);
 
         $this->assertDatabaseHas('organizations', [
-            'slug'      => 'commune-test',
+            'slug' => 'commune-test',
             'max_users' => 9999,
         ]);
     }
@@ -127,7 +127,7 @@ protected function tearDown(): void
             ]);
 
         $this->assertDatabaseHas('organizations', [
-            'slug'      => 'commune-assistance',
+            'slug' => 'commune-assistance',
             'max_users' => 200,
         ]);
     }
@@ -140,15 +140,15 @@ protected function tearDown(): void
 
         $this->actingAsSuperAdmin()
             ->put(route('super-admin.organizations.update', $org), [
-                'name'   => 'Nouveau nom',
-                'plan'   => 'assistance',
+                'name' => 'Nouveau nom',
+                'plan' => 'assistance',
                 'status' => 'active',
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
 
         $this->assertDatabaseHas('organizations', [
-            'id'   => $org->id,
+            'id' => $org->id,
             'name' => 'Nouveau nom',
             'plan' => 'assistance',
         ]);
@@ -160,8 +160,8 @@ protected function tearDown(): void
 
         $this->actingAsSuperAdmin()
             ->put(route('super-admin.organizations.update', $org), [
-                'name'   => $org->name,
-                'plan'   => $org->plan,
+                'name' => $org->name,
+                'plan' => $org->plan,
                 'status' => 'banni',
             ])
             ->assertSessionHasErrors('status');
