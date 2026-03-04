@@ -23,7 +23,6 @@ protected function setUpPlatformDatabase(): void
     ]);
 }
 
-    protected $connectionsToTransact = ['mysql'];
     // ── Helpers ────────────────────────────────────────────────────────
 
     private function actingAsSuperAdmin()
