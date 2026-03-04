@@ -11,38 +11,35 @@ use Tests\TestCase;
  */
 class OrganizationTest extends TestCase
 {
-use DatabaseTransactions;
-protected $connectionsToTransact = ['mysql'];
+    use DatabaseTransactions;
 
-protected function setUpPlatformDatabase(): void
-{
-    $this->artisan('migrate', [
-        '--database' => 'mysql',
-        '--path'     => 'database/migrations/platform',
-        '--force'    => true,
-    ]);
-}
+    protected $connectionsToTransact = ['mysql'];
+
+    protected function setUpPlatformDatabase(): void
+    {
+        $this->artisan('migrate', [
+            '--database' => 'mysql',
+            '--path' => 'database/migrations/platform',
+            '--force' => true,
+        ]);
+    }
 
     // ── Helpers ────────────────────────────────────────────────────────
 
+    protected function setUp(): void
+    {
+        parent::setUp();
 
-protected function setUp(): void
-{
-    parent::setUp();
+        $this->mock(\App\Services\TenantProvisioningService::class, function ($mock) {
+            $mock->shouldReceive('provisionTenant')->andReturn(true);
+        });
+    }
 
-    $this->mock(\App\Services\TenantProvisioningService::class, function ($mock) {
-        $mock->shouldReceive('provisionTenant')->andReturn(true);
-    });
-}
-
-
-protected function tearDown(): void
-{
-    \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->whereNotIn('slug', ['demo', 'test', 'ccnoirmoutier'])->delete();
-    parent::tearDown();
-}
-
-
+    protected function tearDown(): void
+    {
+        \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->whereNotIn('slug', ['demo', 'test', 'ccnoirmoutier'])->delete();
+        parent::tearDown();
+    }
 
     private function actingAsSuperAdmin()
     {
