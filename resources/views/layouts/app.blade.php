@@ -26,18 +26,13 @@
                 {{ app(App\Services\TenantManager::class)->current()?->name ?? config('app.name') }}
             </span>
             <div class="flex items-center gap-4">
-
-		<a href="{{ route('profile.show') }}" class="text-white text-sm hover:underline opacity-80">
-		    Mon profil
-		</a>
-
-		<span class="text-white text-sm">{{ Auth::user()?->name }}</span>
-			@if(Auth::user()?->role === 'admin')
-				<a href="{{ route('admin.users.index') }}"
-				   class="text-white text-sm hover:underline opacity-80">
-					⚙ Admin
+                <a href="{{ route('media.albums.index') }}" class="text-white text-sm hover:underline opacity-80">📷 Photothèque</a>
+                @if(Auth::user()?->role === 'admin')
+                <a href="{{ route('admin.users.index') }}" class="text-white text-sm hover:underline opacity-80">⚙ Admin</a>
+                @endif
+                <a href="{{ route('profile.show') }}" class="text-white text-sm hover:underline opacity-80">Mon profil</a>
+                <span class="text-white text-sm">{{ Auth::user()?->name }}</span>
 				</a>
-			@endif
 
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf

@@ -6,7 +6,7 @@
     <title>Pladigit — Plateforme de Digitalisation pour Collectivités</title>
     <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
-        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}.hidden{display:none!important}
         :root{--navy:#1E3A5F;--navy2:#162D4A;--gold:#C4972A;--gold2:#E8B84B;--light:#F4F6F9;--grey:#6B7A8D;--white:#FFFFFF;--text:#1A2332}
         html{scroll-behavior:smooth}
         body{font-family:'Source Sans 3',sans-serif;color:var(--text);background:var(--white);overflow-x:hidden}
@@ -132,7 +132,40 @@
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
             <a href="https://github.com/jpbosse/pladigit" target="_blank" class="btn-source">Source</a>
-            <a href="{{ url('/login') }}" class="btn-nav">Connexion</a>
+            <div style="position:relative">
+                <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="btn-nav" style="cursor:pointer;border:none">Connexion ▾</button>
+                <div class="hidden" id="org-dropdown" style="position:absolute;right:0;top:44px;background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200">
+                    <p style="font-size:0.75rem;color:#374151;margin-bottom:8px;font-weight:600">Identifiant de votre organisation :</p>
+                    <div style="display:flex;gap:6px">
+                        <input id="org-input" type="text" placeholder="ex: mairie-soullans" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('org-btn').click()">
+                        <button id="org-btn" onclick="checkOrg()" style="padding:6px 12px;background:#1E3A5F;color:white;border:none;border-radius:4px;font-size:0.85rem;cursor:pointer;font-weight:600">→</button>
+                    </div>
+                    <p id="org-error" style="font-size:0.75rem;color:#dc2626;margin-top:8px;display:none">❌ Organisation introuvable. Vérifiez votre identifiant.</p>
+                    <p id="org-loading" style="font-size:0.75rem;color:#6b7280;margin-top:8px;display:none">⏳ Vérification...</p>
+                    <p style="font-size:0.7rem;color:#9ca3af;margin-top:8px">Fourni par votre administrateur.</p>
+                </div>
+            </div>
+            <script>
+            function checkOrg() {
+                var v = document.getElementById('org-input').value.trim();
+                if (!v) return;
+                document.getElementById('org-error').style.display = 'none';
+                document.getElementById('org-loading').style.display = 'block';
+                document.getElementById('org-btn').disabled = true;
+                fetch('/check-org-ajax/' + v)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.exists) {
+                            window.location.href = '/check-org/' + v;
+                        } else {
+                            document.getElementById('org-loading').style.display = 'none';
+                            document.getElementById('org-error').style.display = 'block';
+                            document.getElementById('org-btn').disabled = false;
+                        }
+                    });
+            }
+            </script>
+            </div>
         </div>
     </div>
 </nav>
