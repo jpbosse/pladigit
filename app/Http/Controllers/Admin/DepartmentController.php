@@ -48,6 +48,42 @@ class DepartmentController extends Controller
         return view('admin.departments.index', compact('directions', 'departmentsJson'));
     }
 
+
+    public function organigramme()
+    {
+        // Charge toutes les directions avec leurs enfants (services ET sous-directions)
+        $all = Department::on('tenant')
+            ->directions()
+            ->with([
+                'children.members',
+                'children.managers',
+                'children.children.members',
+                'children.children.managers',
+                'members',
+                'managers',
+            ])
+            ->withCount('members')
+            ->orderBy('name')
+            ->get();
+
+        // Détecte la DGS
+        $dgs = $all->first(fn($d) =>
+            str_contains(strtolower($d->name), 'dgs') ||
+            str_contains(strtolower($d->name), 'direction générale')
+        );
+
+        // Directions racines (sans parent) sauf la DGS
+        $directions = $all->filter(fn($d) =>
+            is_null($d->parent_id) && (!$dgs || $d->id !== $dgs->id)
+        )->values();
+
+        // Sous-directions rattachées à la DGS (via parent_id)
+        $subDirections = $dgs
+            ? $all->filter(fn($d) => $d->parent_id === $dgs->id)->values()
+            : collect();
+
+        return view('admin.departments.organigramme', compact('directions', 'dgs', 'subDirections'));
+    }
     public function store(Request $request)
     {
         $request->validate([
@@ -59,7 +95,9 @@ class DepartmentController extends Controller
             if (! $request->parent_id) {
                 return back()->withErrors(['parent_id' => 'Un service doit appartenir à une direction.']);
             }
+        }
 
+        if ($request->parent_id) {
             $parentExists = Department::on('tenant')->where('id', $request->parent_id)->exists();
             if (! $parentExists) {
                 return back()->withErrors(['parent_id' => 'La direction parente sélectionnée est invalide.']);
@@ -69,7 +107,7 @@ class DepartmentController extends Controller
         $dept = Department::on('tenant')->create([
             'name' => $request->name,
             'type' => $request->type,
-            'parent_id' => $request->type === 'service' ? $request->parent_id : null,
+            'parent_id' => $request->parent_id ?: null,
             'created_by' => auth()->id(),
         ]);
 
