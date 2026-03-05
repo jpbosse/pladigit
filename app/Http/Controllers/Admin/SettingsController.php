@@ -147,4 +147,22 @@ class SettingsController extends Controller
 
         return back()->with('success', 'Personnalisation sauvegardée.');
     }
+
+    public function media()
+    {
+        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        return view('admin.settings.media', compact('settings'));
+    }
+
+    public function updateMedia(Request $request)
+    {
+        $validated = $request->validate([
+            'media_default_cols' => ['required', 'integer', 'in:1,2,3,4,6'],
+        ]);
+
+        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $settings->update($validated);
+
+        return back()->with('success', 'Paramètres photothèque sauvegardés.');
+    }
 }

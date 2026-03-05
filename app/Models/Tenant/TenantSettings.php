@@ -30,6 +30,7 @@ class TenantSettings extends Model
         'ldap_host', 'ldap_port', 'ldap_base_dn', 'ldap_bind_dn',
         'ldap_bind_password_enc', 'ldap_use_tls', 'ldap_use_ssl', 'ldap_sync_interval_hours',
         'maintenance_window_day', 'maintenance_window_start', 'maintenance_window_end',
+        'media_default_cols',
         'updated_at',
     ];
 
