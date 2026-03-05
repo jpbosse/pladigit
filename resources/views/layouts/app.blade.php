@@ -266,7 +266,7 @@
 </html>
 
 @auth
-@if(!Auth::user()->totp_enabled)
+@if(!Auth::user()->totp_enabled && !request()->routeIs('profile.show') && !request()->routeIs('2fa.setup') && !request()->routeIs('2fa.challenge') && !request()->routeIs('2fa.verify'))
 <div id="2fa-popup" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
     <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.2);position:relative">
         <div style="text-align:center;margin-bottom:1.5rem">
@@ -283,7 +283,7 @@
             </ol>
         </div>
         <div style="display:flex;gap:10px">
-            <a href="{{ route('profile.show') }}" style="flex:1;display:block;text-align:center;padding:0.65rem;border-radius:8px;background:var(--color-primary,#1E3A5F);color:white;font-size:0.85rem;font-weight:600;text-decoration:none">
+            <a href="{{ route('2fa.setup') }}" style="flex:1;display:block;text-align:center;padding:0.65rem;border-radius:8px;background:var(--color-primary,#1E3A5F);color:white;font-size:0.85rem;font-weight:600;text-decoration:none">
                 Activer maintenant
             </a>
             <button onclick="document.getElementById('2fa-popup').style.display='none';localStorage.setItem('2fa_dismissed',Date.now())" style="flex:1;padding:0.65rem;border-radius:8px;background:#f3f4f6;border:none;color:#6b7280;font-size:0.85rem;font-weight:500;cursor:pointer">
