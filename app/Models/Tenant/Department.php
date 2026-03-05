@@ -31,8 +31,17 @@ class Department extends Model
     protected $fillable = [
         'name',
         'type',
+        'label',
+        'color',
+        'is_transversal',
+        'sort_order',
         'parent_id',
         'created_by',
+    ];
+
+    protected $casts = [
+        'is_transversal' => 'boolean',
+        'sort_order'     => 'integer',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -80,7 +89,7 @@ class Department extends Model
      *
      * @return BelongsTo<Department, $this>
      */
-    public function parent(): BelongsTo
+    public function parentDept(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'parent_id');
     }
@@ -92,7 +101,36 @@ class Department extends Model
      */
     public function children(): HasMany
     {
-        return $this->hasMany(Department::class, 'parent_id');
+        return $this->hasMany(Department::class, 'parent_id')->orderBy('name');
+    }
+
+    public function allChildren(): HasMany
+    {
+        return $this->children()->with('allChildren.members', 'allChildren.managers');
+    }
+
+    public function ancestors(): array
+    {
+        $ancestors = [];
+        $current   = $this->parent;
+        while ($current) {
+            array_unshift($ancestors, $current);
+            $current = $current->parent;
+        }
+        return $ancestors;
+    }
+
+    // Couleur par défaut selon le label
+    public function getColorAttribute($value): string
+    {
+        if ($value) return $value;
+        return match(strtolower($this->label ?? $this->type ?? '')) {
+            'pôle', 'pole'      => '#7c3aed',
+            'direction'         => '#1e40af',
+            'service'           => '#0369a1',
+            'bureau', 'cellule' => '#0891b2',
+            default             => '#475569',
+        };
     }
 
     // ── Scopes ───────────────────────────────────────────────
