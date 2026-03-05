@@ -41,7 +41,7 @@ class Department extends Model
 
     protected $casts = [
         'is_transversal' => 'boolean',
-        'sort_order'     => 'integer',
+        'sort_order' => 'integer',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -112,24 +112,28 @@ class Department extends Model
     public function ancestors(): array
     {
         $ancestors = [];
-        $current   = $this->parent;
+        $current = $this->parent;
         while ($current) {
             array_unshift($ancestors, $current);
             $current = $current->parent;
         }
+
         return $ancestors;
     }
 
     // Couleur par défaut selon le label
     public function getColorAttribute($value): string
     {
-        if ($value) return $value;
-        return match(strtolower($this->label ?? $this->type ?? '')) {
-            'pôle', 'pole'      => '#7c3aed',
-            'direction'         => '#1e40af',
-            'service'           => '#0369a1',
+        if ($value) {
+            return $value;
+        }
+
+        return match (strtolower($this->label ?? $this->type ?? '')) {
+            'pôle', 'pole' => '#7c3aed',
+            'direction' => '#1e40af',
+            'service' => '#0369a1',
             'bureau', 'cellule' => '#0891b2',
-            default             => '#475569',
+            default => '#475569',
         };
     }
 

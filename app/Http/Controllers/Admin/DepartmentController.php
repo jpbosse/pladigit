@@ -48,7 +48,6 @@ class DepartmentController extends Controller
         return view('admin.departments.index', compact('directions', 'departmentsJson'));
     }
 
-
     public function organigramme()
     {
         // Charge toutes les directions avec leurs enfants (services ET sous-directions)
@@ -67,23 +66,22 @@ class DepartmentController extends Controller
             ->get();
 
         // Détecte la DGS
-        $dgs = $all->first(fn($d) =>
-            str_contains(strtolower($d->name), 'dgs') ||
+        $dgs = $all->first(fn ($d) => str_contains(strtolower($d->name), 'dgs') ||
             str_contains(strtolower($d->name), 'direction générale')
         );
 
         // Directions racines (sans parent) sauf la DGS
-        $directions = $all->filter(fn($d) =>
-            is_null($d->parent_id) && (!$dgs || $d->id !== $dgs->id)
+        $directions = $all->filter(fn ($d) => is_null($d->parent_id) && (! $dgs || $d->id !== $dgs->id)
         )->values();
 
         // Sous-directions rattachées à la DGS (via parent_id)
         $subDirections = $dgs
-            ? $all->filter(fn($d) => $d->parent_id === $dgs->id)->values()
+            ? $all->filter(fn ($d) => $d->parent_id === $dgs->id)->values()
             : collect();
 
         return view('admin.departments.organigramme', compact('directions', 'dgs', 'subDirections'));
     }
+
     public function store(Request $request)
     {
         $request->validate([
