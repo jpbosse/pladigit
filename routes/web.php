@@ -99,6 +99,7 @@ Route::middleware('tenant')->group(function () {
             Route::resource('departments', App\Http\Controllers\Admin\DepartmentController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->names('departments');
+            Route::get('departments/organigramme', [App\Http\Controllers\Admin\DepartmentController::class, 'organigramme'])->name('admin.departments.organigramme');
 
             /*
              * Paramètres LDAP et SMTP — à décommenter en Phase 2 (§18.1)

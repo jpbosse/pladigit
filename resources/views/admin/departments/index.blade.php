@@ -10,6 +10,13 @@
             <h1 class="text-2xl font-bold text-gray-800">Directions & Services</h1>
             <p class="text-sm text-gray-500 mt-1">Structure organisationnelle du tenant</p>
         </div>
+        <a href="{{ route('admin.admin.departments.organigramme') }}" target="_blank"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
+           style="background-color: var(--color-primary, #1E3A5F);">
+            🖨 Organigramme
+        </a>
+        <div class="hidden">
+        </div>
     </div>
 
     {{-- Compteurs --}}
@@ -177,6 +184,16 @@
                 <input type="text" name="name" placeholder="Nom de la direction"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-200"
                        required>
+                <div class="mb-3">
+                    <label class="block text-xs text-gray-500 mb-1">Direction parente (optionnel)</label>
+                    <select name="parent_id"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        <option value="">— Aucune (direction racine) —</option>
+                        @foreach($directions as $dir)
+                            <option value="{{ $dir->id }}">{{ $dir->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <button type="submit"
                         class="w-full py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
                         style="background-color: #1E3A5F;">
