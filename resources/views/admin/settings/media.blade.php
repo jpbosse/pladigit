@@ -16,7 +16,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('settings.media.update') }}" class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
+    <form method="POST" action="{{ route('admin.settings.media.update') }}" class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         @csrf @method('PUT')
 
         <div class="mb-6">
@@ -28,7 +28,7 @@
             </p>
 
             <div class="flex gap-3">
-                @foreach([1 => '1 colonne', 2 => '2 colonnes', 3 => '3 colonnes', 4 => '4 colonnes', 6 => '6 colonnes'] as $val => $label)
+                @foreach([1 => '1 colonne', 2 => '2 colonnes', 3 => '3 colonnes', 4 => '4 colonnes', 5 => '5 colonnes', 6 => '6 colonnes'] as $val => $label)
                     <label class="flex flex-col items-center gap-2 cursor-pointer">
                         <input type="radio" name="media_default_cols" value="{{ $val }}"
                                {{ ($settings->media_default_cols ?? 3) == $val ? 'checked' : '' }}

@@ -157,7 +157,7 @@ class SettingsController extends Controller
     public function updateMedia(Request $request)
     {
         $validated = $request->validate([
-            'media_default_cols' => ['required', 'integer', 'in:1,2,3,4,6'],
+            'media_default_cols' => ['required', 'integer', 'in:1,2,3,4,5,6'],
         ]);
 
         $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
