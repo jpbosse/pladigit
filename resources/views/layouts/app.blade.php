@@ -264,3 +264,41 @@
 
 </body>
 </html>
+
+@auth
+@if(!Auth::user()->totp_enabled)
+<div id="2fa-popup" style="position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)">
+    <div style="background:white;border-radius:16px;padding:2rem;max-width:440px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,0.2);position:relative">
+        <div style="text-align:center;margin-bottom:1.5rem">
+            <div style="font-size:3rem;margin-bottom:0.75rem">🔐</div>
+            <h2 style="font-size:1.2rem;font-weight:700;color:#111827;margin-bottom:0.5rem">Sécurisez votre compte</h2>
+            <p style="font-size:0.875rem;color:#6b7280;line-height:1.6">La double authentification (2FA) n'est pas activée sur votre compte. Elle protège votre accès même si votre mot de passe est compromis.</p>
+        </div>
+        <div style="background:#f9fafb;border-radius:10px;padding:1rem;margin-bottom:1.5rem">
+            <p style="font-size:0.8rem;font-weight:600;color:#374151;margin-bottom:0.75rem">Comment l'activer :</p>
+            <ol style="font-size:0.8rem;color:#6b7280;line-height:1.8;padding-left:1.25rem">
+                <li>Installez <strong>Google Authenticator</strong>, <strong>Microsoft Authenticator</strong> ou <strong>Aegis</strong> sur votre téléphone</li>
+                <li>Allez dans <strong>Mon profil → Sécurité</strong></li>
+                <li>Scannez le QR code et entrez le code à 6 chiffres</li>
+            </ol>
+        </div>
+        <div style="display:flex;gap:10px">
+            <a href="{{ route('profile.show') }}" style="flex:1;display:block;text-align:center;padding:0.65rem;border-radius:8px;background:var(--color-primary,#1E3A5F);color:white;font-size:0.85rem;font-weight:600;text-decoration:none">
+                Activer maintenant
+            </a>
+            <button onclick="document.getElementById('2fa-popup').style.display='none';localStorage.setItem('2fa_dismissed',Date.now())" style="flex:1;padding:0.65rem;border-radius:8px;background:#f3f4f6;border:none;color:#6b7280;font-size:0.85rem;font-weight:500;cursor:pointer">
+                Me le rappeler plus tard
+            </button>
+        </div>
+        <p style="font-size:0.7rem;color:#d1d5db;text-align:center;margin-top:1rem">Ce message s'affichera à chaque connexion tant que le 2FA n'est pas activé.</p>
+    </div>
+</div>
+<script>
+// Ne pas afficher si déjà fermé il y a moins de 24h
+var dismissed = localStorage.getItem('2fa_dismissed');
+if (dismissed && Date.now() - parseInt(dismissed) < 86400000) {
+    document.getElementById('2fa-popup').style.display = 'none';
+}
+</script>
+@endif
+@endauth
