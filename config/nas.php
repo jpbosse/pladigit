@@ -49,7 +49,7 @@ return [
     */
     'sync' => [
         'mtime_check_interval_minutes' => 60,   // Niveau 1 — léger
-        'sha256_check_hour'            => 23,    // Niveau 2 — quotidien à 23h30
-        'sha256_check_minute'          => 30,
+        'sha256_check_hour' => 23,    // Niveau 2 — quotidien à 23h30
+        'sha256_check_minute' => 30,
     ],
 ];

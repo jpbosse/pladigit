@@ -35,7 +35,7 @@ class MediaShareLink extends Model
     ];
 
     protected $casts = [
-        'expires_at'     => 'datetime',
+        'expires_at' => 'datetime',
         'allow_download' => 'boolean',
     ];
 
@@ -70,7 +70,7 @@ class MediaShareLink extends Model
     {
         return $query->where(function ($q) {
             $q->whereNull('expires_at')
-              ->orWhere('expires_at', '>', now());
+                ->orWhere('expires_at', '>', now());
         });
     }
 
@@ -110,7 +110,7 @@ class MediaShareLink extends Model
      * Génère un nouveau lien de partage signé.
      *
      * @param  int|null  $expiresInDays  null = pas d'expiration
-     * @param  string|null  $password    null = pas de mot de passe
+     * @param  string|null  $password  null = pas de mot de passe
      */
     public static function generate(
         MediaAlbum $album,
@@ -120,10 +120,10 @@ class MediaShareLink extends Model
         ?string $password = null
     ): self {
         return self::create([
-            'album_id'      => $album->id,
-            'created_by'    => $user->id,
-            'token'         => Str::random(64),
-            'expires_at'    => $expiresInDays ? now()->addDays($expiresInDays) : null,
+            'album_id' => $album->id,
+            'created_by' => $user->id,
+            'token' => Str::random(64),
+            'expires_at' => $expiresInDays ? now()->addDays($expiresInDays) : null,
             'allow_download' => $allowDownload,
             'password_hash' => $password ? password_hash($password, PASSWORD_BCRYPT) : null,
         ]);

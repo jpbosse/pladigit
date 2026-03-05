@@ -57,11 +57,11 @@ class LocalNasDriver implements NasConnectorInterface
             $relativePath = ltrim($directory.'/'.$item->getFilename(), '/');
 
             $entries[] = [
-                'name'  => $item->getFilename(),
-                'path'  => $relativePath,
-                'size'  => $item->isFile() ? (int) $item->getSize() : 0,
+                'name' => $item->getFilename(),
+                'path' => $relativePath,
+                'size' => $item->isFile() ? (int) $item->getSize() : 0,
                 'mtime' => (int) $item->getMTime(),
-                'type'  => $item->isDir() ? 'dir' : 'file',
+                'type' => $item->isDir() ? 'dir' : 'file',
             ];
         }
 

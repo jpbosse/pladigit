@@ -12,15 +12,17 @@ Route::get('/', function () {
 
 Route::post('/contact', [App\Http\Controllers\ContactController::class, 'send'])
     ->name('contact.send');
-Route::get('check-org/{slug}', function($slug) {
+Route::get('check-org/{slug}', function ($slug) {
     $exists = \DB::table('organizations')->where('slug', $slug)->exists();
     if ($exists) {
         return redirect()->away('http://'.$slug.'.pladigit.fr/login');
     }
+
     return back()->withErrors(['org' => 'Organisation introuvable. Vérifiez votre identifiant.']);
 })->name('check.org');
-Route::get('check-org-ajax/{slug}', function($slug) {
+Route::get('check-org-ajax/{slug}', function ($slug) {
     $exists = \DB::table('organizations')->where('slug', $slug)->exists();
+
     return response()->json(['exists' => $exists]);
 });
 

@@ -3,7 +3,6 @@
 namespace App\Services\Nas;
 
 use App\Models\Tenant\TenantSettings;
-use Illuminate\Support\Facades\Crypt;
 use RuntimeException;
 
 /**
@@ -32,8 +31,8 @@ class NasManager
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings),
-            'sftp'  => $this->makeSftpDriver($settings),
-            'smb'   => $this->makeSmbDriver($settings),
+            'sftp' => $this->makeSftpDriver($settings),
+            'smb' => $this->makeSmbDriver($settings),
             default => throw new RuntimeException("Driver NAS inconnu : {$driver}"),
         };
     }

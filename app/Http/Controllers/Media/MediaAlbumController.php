@@ -30,7 +30,7 @@ class MediaAlbumController extends Controller
     public function index()
     {
         /** @var User $user */
-        $user   = auth()->user();
+        $user = auth()->user();
         $albums = MediaAlbum::visibleFor($user)
             ->withCount('items')
             ->orderByDesc('created_at')
@@ -53,9 +53,9 @@ class MediaAlbumController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'visibility'  => ['required', 'in:public,restricted,private'],
+            'visibility' => ['required', 'in:public,restricted,private'],
         ]);
 
         /** @var User $user */
@@ -68,8 +68,8 @@ class MediaAlbumController extends Controller
 
         $this->audit->log('media.album.created', $user, [
             'model_type' => MediaAlbum::class,
-            'model_id'   => $album->id,
-            'new'        => ['name' => $album->name, 'visibility' => $album->visibility],
+            'model_id' => $album->id,
+            'new' => ['name' => $album->name, 'visibility' => $album->visibility],
         ]);
 
         return redirect()
@@ -111,22 +111,22 @@ class MediaAlbumController extends Controller
     public function update(Request $request, MediaAlbum $album)
     {
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'visibility'  => ['required', 'in:public,restricted,private'],
+            'visibility' => ['required', 'in:public,restricted,private'],
         ]);
 
         /** @var User $user */
         $user = auth()->user();
-        $old  = $album->only(['name', 'description', 'visibility']);
+        $old = $album->only(['name', 'description', 'visibility']);
 
         $album->update($validated);
 
         $this->audit->log('media.album.updated', $user, [
             'model_type' => MediaAlbum::class,
-            'model_id'   => $album->id,
-            'old'        => $old,
-            'new'        => $album->only(['name', 'description', 'visibility']),
+            'model_id' => $album->id,
+            'old' => $old,
+            'new' => $album->only(['name', 'description', 'visibility']),
         ]);
 
         return redirect()
@@ -144,8 +144,8 @@ class MediaAlbumController extends Controller
 
         $this->audit->log('media.album.deleted', $user, [
             'model_type' => MediaAlbum::class,
-            'model_id'   => $album->id,
-            'old'        => ['name' => $album->name],
+            'model_id' => $album->id,
+            'old' => ['name' => $album->name],
         ]);
 
         $album->delete();
@@ -163,15 +163,15 @@ class MediaAlbumController extends Controller
     {
         try {
             $nas = $this->nasManager->driver();
-            $ok  = $nas->testConnection();
+            $ok = $nas->testConnection();
 
             return response()->json([
-                'ok'      => $ok,
+                'ok' => $ok,
                 'message' => $ok ? 'Connexion NAS établie.' : 'Connexion NAS échouée.',
             ]);
         } catch (\Throwable $e) {
             return response()->json([
-                'ok'      => false,
+                'ok' => false,
                 'message' => 'Erreur : '.$e->getMessage(),
             ], 500);
         }
@@ -185,10 +185,10 @@ class MediaAlbumController extends Controller
     private function authorizeView(MediaAlbum $album, User $user): void
     {
         $visible = match ($album->visibility) {
-            'public'     => true,
+            'public' => true,
             'restricted' => true,
-            'private'    => $album->created_by === $user->id,
-            default      => false,
+            'private' => $album->created_by === $user->id,
+            default => false,
         };
 
         if (! $visible) {

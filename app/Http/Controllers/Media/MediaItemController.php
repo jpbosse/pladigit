@@ -33,14 +33,14 @@ class MediaItemController extends Controller
     public function store(Request $request, MediaAlbum $album)
     {
         $request->validate([
-            'files'   => ['required', 'array', 'min:1', 'max:20'],
+            'files' => ['required', 'array', 'min:1', 'max:20'],
             'files.*' => ['file', 'max:204800'], // 200 Mo par fichier
         ]);
 
         /** @var User $user */
-        $user    = auth()->user();
+        $user = auth()->user();
         $success = 0;
-        $errors  = [];
+        $errors = [];
 
         foreach ($request->file('files', []) as $file) {
             try {
@@ -108,13 +108,13 @@ class MediaItemController extends Controller
         $this->assertBelongsToAlbum($item, $album);
 
         try {
-            $nas      = app(\App\Services\Nas\NasManager::class)->driver();
+            $nas = app(\App\Services\Nas\NasManager::class)->driver();
             $contents = $nas->readFile($item->file_path);
 
             return response($contents, 200, [
-                'Content-Type'        => $item->mime_type,
+                'Content-Type' => $item->mime_type,
                 'Content-Disposition' => 'attachment; filename="'.$item->file_name.'"',
-                'Content-Length'      => strlen($contents),
+                'Content-Length' => strlen($contents),
             ]);
         } catch (\RuntimeException $e) {
             abort(404, 'Fichier introuvable sur le NAS : '.$e->getMessage());
@@ -130,7 +130,7 @@ class MediaItemController extends Controller
         $this->assertBelongsToAlbum($item, $album);
 
         try {
-            $nas  = app(\App\Services\Nas\NasManager::class)->driver();
+            $nas = app(\App\Services\Nas\NasManager::class)->driver();
             $path = ($type === 'thumb' && $item->thumb_path)
                 ? $item->thumb_path
                 : $item->file_path;
@@ -138,7 +138,7 @@ class MediaItemController extends Controller
             $contents = $nas->readFile($path);
 
             return response($contents, 200, [
-                'Content-Type'  => $item->mime_type,
+                'Content-Type' => $item->mime_type,
                 'Cache-Control' => 'public, max-age=86400',
             ]);
         } catch (\RuntimeException $e) {

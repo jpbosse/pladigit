@@ -151,6 +151,7 @@ class SettingsController extends Controller
     public function media()
     {
         $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+
         return view('admin.settings.media', compact('settings'));
     }
 

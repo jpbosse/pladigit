@@ -27,7 +27,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->post(route('media.albums.store'), [
-            'name'       => 'Album Fête de la Musique 2026',
+            'name' => 'Album Fête de la Musique 2026',
             'description' => 'Photos de la fête.',
             'visibility' => 'restricted',
         ]);
@@ -35,7 +35,7 @@ class MediaAlbumTest extends TestCase
         $response->assertRedirect();
 
         $this->assertDatabaseHas('media_albums', [
-            'name'       => 'Album Fête de la Musique 2026',
+            'name' => 'Album Fête de la Musique 2026',
             'created_by' => $user->id,
             'visibility' => 'restricted',
         ], 'tenant');
@@ -47,7 +47,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->post(route('media.albums.store'), [
-            'name'       => '',
+            'name' => '',
             'visibility' => 'public',
         ]);
 
@@ -60,7 +60,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($user);
 
         $response = $this->post(route('media.albums.store'), [
-            'name'       => 'Test',
+            'name' => 'Test',
             'visibility' => 'invalide',
         ]);
 
@@ -77,7 +77,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($user);
 
         MediaAlbum::create([
-            'name'       => 'Album Public Test',
+            'name' => 'Album Public Test',
             'visibility' => 'public',
             'created_by' => $user->id,
         ]);
@@ -94,7 +94,7 @@ class MediaAlbumTest extends TestCase
         $other = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Public',
+            'name' => 'Album Public',
             'visibility' => 'public',
             'created_by' => $owner->id,
         ]);
@@ -102,8 +102,8 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($other);
 
         $this->get(route('media.albums.show', $album))
-             ->assertOk()
-             ->assertSee('Album Public');
+            ->assertOk()
+            ->assertSee('Album Public');
     }
 
     public function test_un_album_prive_nest_pas_visible_par_un_autre_utilisateur(): void
@@ -112,7 +112,7 @@ class MediaAlbumTest extends TestCase
         $other = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Privé',
+            'name' => 'Album Privé',
             'visibility' => 'private',
             'created_by' => $owner->id,
         ]);
@@ -120,7 +120,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($other);
 
         $this->get(route('media.albums.show', $album))
-             ->assertForbidden();
+            ->assertForbidden();
     }
 
     public function test_un_album_prive_est_visible_par_son_createur(): void
@@ -128,7 +128,7 @@ class MediaAlbumTest extends TestCase
         $owner = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Mon Album Privé',
+            'name' => 'Mon Album Privé',
             'visibility' => 'private',
             'created_by' => $owner->id,
         ]);
@@ -136,8 +136,8 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($owner);
 
         $this->get(route('media.albums.show', $album))
-             ->assertOk()
-             ->assertSee('Mon Album Privé');
+            ->assertOk()
+            ->assertSee('Mon Album Privé');
     }
 
     public function test_un_album_restreint_est_visible_par_les_membres(): void
@@ -146,7 +146,7 @@ class MediaAlbumTest extends TestCase
         $member = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Restreint',
+            'name' => 'Album Restreint',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
@@ -154,7 +154,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($member);
 
         $this->get(route('media.albums.show', $album))
-             ->assertOk();
+            ->assertOk();
     }
 
     // =========================================================================
@@ -165,7 +165,7 @@ class MediaAlbumTest extends TestCase
     {
         $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Ancien Nom',
+            'name' => 'Ancien Nom',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -173,13 +173,13 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($user);
 
         $this->put(route('media.albums.update', $album), [
-            'name'       => 'Nouveau Nom',
+            'name' => 'Nouveau Nom',
             'visibility' => 'public',
         ])->assertRedirect(route('media.albums.show', $album));
 
         $this->assertDatabaseHas('media_albums', [
-            'id'         => $album->id,
-            'name'       => 'Nouveau Nom',
+            'id' => $album->id,
+            'name' => 'Nouveau Nom',
             'visibility' => 'public',
         ], 'tenant');
     }
@@ -192,7 +192,7 @@ class MediaAlbumTest extends TestCase
     {
         $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Album à supprimer',
+            'name' => 'Album à supprimer',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -200,7 +200,7 @@ class MediaAlbumTest extends TestCase
         $this->actingAs($user);
 
         $this->delete(route('media.albums.destroy', $album))
-             ->assertRedirect(route('media.albums.index'));
+            ->assertRedirect(route('media.albums.index'));
 
         // Soft delete : l'enregistrement existe toujours en base mais deleted_at est renseigné
         $this->assertSoftDeleted('media_albums', ['id' => $album->id], 'tenant');
@@ -216,6 +216,6 @@ class MediaAlbumTest extends TestCase
     public function test_un_visiteur_non_authentifie_est_redirige(): void
     {
         $this->get(route('media.albums.index'))
-             ->assertRedirect(route('login'));
+            ->assertRedirect(route('login'));
     }
 }
