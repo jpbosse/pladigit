@@ -83,18 +83,17 @@ class MediaAlbum extends Model
      * Albums restreints ou publics (exclus les albums privés d'autres users).
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @param  User  $user
      */
     public function scopeVisibleFor($query, User $user)
     {
         return $query->where(function ($q) use ($user) {
             $q->where('visibility', 'public')
-              ->orWhere('visibility', 'restricted')
-              ->orWhere(function ($q2) use ($user) {
-                  // Albums privés : uniquement les siens
-                  $q2->where('visibility', 'private')
-                     ->where('created_by', $user->id);
-              });
+                ->orWhere('visibility', 'restricted')
+                ->orWhere(function ($q2) use ($user) {
+                    // Albums privés : uniquement les siens
+                    $q2->where('visibility', 'private')
+                        ->where('created_by', $user->id);
+                });
         });
     }
 
@@ -116,10 +115,10 @@ class MediaAlbum extends Model
     public function visibilityLabel(): string
     {
         return match ($this->visibility) {
-            'public'     => 'Public',
+            'public' => 'Public',
             'restricted' => 'Restreint',
-            'private'    => 'Privé',
-            default      => $this->visibility,
+            'private' => 'Privé',
+            default => $this->visibility,
         };
     }
 }

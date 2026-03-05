@@ -9,7 +9,6 @@ use App\Services\MediaService;
 use App\Services\Nas\LocalNasDriver;
 use App\Services\Nas\NasManager;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -37,18 +36,19 @@ class MediaServiceTest extends TestCase
 
         // Rebinder NasManager sur le driver local avec ce dossier
         $this->app->bind(NasManager::class, function () {
-            $manager = new NasManager();
+            $manager = new NasManager;
             // Surcharge du driver via le conteneur
             $this->app->bind(\App\Services\Nas\NasConnectorInterface::class, function () {
                 return new LocalNasDriver($this->nasRoot);
             });
+
             return $manager;
         });
 
         // Configurer le driver local dans la config
         config([
             'nas.default_driver' => 'local',
-            'nas.local_path'     => $this->nasRoot,
+            'nas.local_path' => $this->nasRoot,
         ]);
     }
 
@@ -65,7 +65,7 @@ class MediaServiceTest extends TestCase
 
     public function test_local_driver_test_connection_cree_le_dossier_si_absent(): void
     {
-        $path   = sys_get_temp_dir().'/nas_test_'.uniqid();
+        $path = sys_get_temp_dir().'/nas_test_'.uniqid();
         $driver = new LocalNasDriver($path);
 
         $this->assertTrue($driver->testConnection());
@@ -86,13 +86,13 @@ class MediaServiceTest extends TestCase
 
     public function test_local_driver_sha256(): void
     {
-        $driver   = new LocalNasDriver($this->nasRoot);
+        $driver = new LocalNasDriver($this->nasRoot);
         $contents = 'contenu test sha256';
 
         $driver->writeFile('sha256test.txt', $contents);
 
         $expected = hash('sha256', $contents);
-        $actual   = $driver->sha256('sha256test.txt');
+        $actual = $driver->sha256('sha256test.txt');
 
         $this->assertSame($expected, $actual);
     }
@@ -129,7 +129,7 @@ class MediaServiceTest extends TestCase
 
         $this->expectException(\RuntimeException::class);
 
-        $driver->readFile("../../etc/passwd");
+        $driver->readFile('../../etc/passwd');
     }
 
     // =========================================================================
@@ -138,9 +138,9 @@ class MediaServiceTest extends TestCase
 
     public function test_upload_image_jpeg_cree_un_media_item(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Test Upload',
+            'name' => 'Test Upload',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -149,7 +149,7 @@ class MediaServiceTest extends TestCase
 
         /** @var MediaService $service */
         $service = app(MediaService::class);
-        $item    = $service->upload($file, $album, $user);
+        $item = $service->upload($file, $album, $user);
 
         $this->assertInstanceOf(MediaItem::class, $item);
         $this->assertSame('photo.jpg', $item->file_name);
@@ -161,9 +161,9 @@ class MediaServiceTest extends TestCase
 
     public function test_upload_refuse_extension_interdite(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Test Extension',
+            'name' => 'Test Extension',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -181,9 +181,9 @@ class MediaServiceTest extends TestCase
 
     public function test_upload_detecte_doublon_sha256(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Test Doublon',
+            'name' => 'Test Doublon',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -209,9 +209,9 @@ class MediaServiceTest extends TestCase
 
     public function test_sync_by_mtime_ingere_les_nouveaux_fichiers(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Sync Test',
+            'name' => 'Sync Test',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -224,7 +224,7 @@ class MediaServiceTest extends TestCase
 
         /** @var MediaService $service */
         $service = app(MediaService::class);
-        $result  = $service->syncByMtime($album, 'photos');
+        $result = $service->syncByMtime($album, 'photos');
 
         $this->assertSame(3, $result['added']);
         $this->assertSame(0, $result['skipped']);
@@ -233,9 +233,9 @@ class MediaServiceTest extends TestCase
 
     public function test_sync_by_mtime_ne_duplique_pas_les_fichiers_existants(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Sync No Dupe',
+            'name' => 'Sync No Dupe',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);

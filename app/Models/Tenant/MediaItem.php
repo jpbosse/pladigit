@@ -43,10 +43,10 @@ class MediaItem extends Model
     ];
 
     protected $casts = [
-        'exif_data'       => 'array',
+        'exif_data' => 'array',
         'file_size_bytes' => 'integer',
-        'width_px'        => 'integer',
-        'height_px'       => 'integer',
+        'width_px' => 'integer',
+        'height_px' => 'integer',
     ];
 
     // ── Relations ────────────────────────────────────────────

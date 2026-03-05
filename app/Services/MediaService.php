@@ -30,18 +30,18 @@ class MediaService
      * @var array<string, string>
      */
     private const ALLOWED_EXTENSIONS = [
-        'jpg'  => 'image/jpeg',
+        'jpg' => 'image/jpeg',
         'jpeg' => 'image/jpeg',
-        'png'  => 'image/png',
+        'png' => 'image/png',
         'webp' => 'image/webp',
-        'gif'  => 'image/gif',
+        'gif' => 'image/gif',
         'tiff' => 'image/tiff',
-        'tif'  => 'image/tiff',
-        'mp4'  => 'video/mp4',
-        'mov'  => 'video/quicktime',
-        'avi'  => 'video/x-msvideo',
-        'mkv'  => 'video/x-matroska',
-        'pdf'  => 'application/pdf',
+        'tif' => 'image/tiff',
+        'mp4' => 'video/mp4',
+        'mov' => 'video/quicktime',
+        'avi' => 'video/x-msvideo',
+        'mkv' => 'video/x-matroska',
+        'pdf' => 'application/pdf',
     ];
 
     /** Taille max des miniatures en pixels. */
@@ -65,9 +65,9 @@ class MediaService
     {
         $this->assertAllowed($file);
 
-        $nas        = $this->nasManager->driver();
-        $nasPath    = $this->buildNasPath($album, $file->getClientOriginalName());
-        $contents   = file_get_contents($file->getRealPath());
+        $nas = $this->nasManager->driver();
+        $nasPath = $this->buildNasPath($album, $file->getClientOriginalName());
+        $contents = file_get_contents($file->getRealPath());
 
         if ($contents === false) {
             throw new RuntimeException('Impossible de lire le fichier uploadé.');
@@ -103,24 +103,24 @@ class MediaService
         [$width, $height] = $this->getImageDimensions($file->getRealPath(), $file->getMimeType() ?? '');
 
         $item = MediaItem::create([
-            'album_id'        => $album->id,
-            'uploaded_by'     => $uploader->id,
-            'file_name'       => $file->getClientOriginalName(),
-            'file_path'       => $nasPath,
-            'thumb_path'      => $thumbPath,
-            'mime_type'       => $file->getMimeType() ?? 'application/octet-stream',
+            'album_id' => $album->id,
+            'uploaded_by' => $uploader->id,
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $nasPath,
+            'thumb_path' => $thumbPath,
+            'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
             'file_size_bytes' => strlen($contents),
-            'width_px'        => $width,
-            'height_px'       => $height,
-            'exif_data'       => $exifData ?: null,
-            'sha256_hash'     => $sha256,
-            'caption'         => null,
+            'width_px' => $width,
+            'height_px' => $height,
+            'exif_data' => $exifData ?: null,
+            'sha256_hash' => $sha256,
+            'caption' => null,
         ]);
 
         $this->auditService->log('media.upload', $uploader, [
             'model_type' => MediaItem::class,
-            'model_id'   => $item->id,
-            'new'        => ['file_name' => $item->file_name, 'album_id' => $album->id],
+            'model_id' => $item->id,
+            'new' => ['file_name' => $item->file_name, 'album_id' => $album->id],
         ]);
 
         return $item;
@@ -138,7 +138,7 @@ class MediaService
      */
     public function syncByMtime(MediaAlbum $album, string $nasDirectory = ''): array
     {
-        $nas   = $this->nasManager->driver();
+        $nas = $this->nasManager->driver();
         $files = $nas->listFiles($nasDirectory);
         $added = 0;
         $skipped = 0;
@@ -150,6 +150,7 @@ class MediaService
 
             if (! $this->isExtensionAllowed($entry['name'])) {
                 $skipped++;
+
                 continue;
             }
 
@@ -165,6 +166,7 @@ class MediaService
                     ]);
                 }
                 $skipped++;
+
                 continue;
             }
 
@@ -184,8 +186,8 @@ class MediaService
      */
     public function syncBySha256(MediaAlbum $album, string $nasDirectory = ''): array
     {
-        $nas     = $this->nasManager->driver();
-        $files   = $nas->listFiles($nasDirectory);
+        $nas = $this->nasManager->driver();
+        $files = $nas->listFiles($nasDirectory);
         $updated = 0;
         $unchanged = 0;
 
@@ -207,8 +209,8 @@ class MediaService
             if ($existing->sha256_hash !== $currentHash) {
                 $existing->update(['sha256_hash' => $currentHash]);
                 Log::info('MediaService::syncBySha256 — hash modifié', [
-                    'path'     => $entry['path'],
-                    'item_id'  => $existing->id,
+                    'path' => $entry['path'],
+                    'item_id' => $existing->id,
                 ]);
                 $updated++;
             } else {
@@ -245,6 +247,7 @@ class MediaService
 
             if ($thumb === false) {
                 imagedestroy($src);
+
                 return null;
             }
 
@@ -272,9 +275,10 @@ class MediaService
             return $thumbPath;
         } catch (\Throwable $e) {
             Log::warning('MediaService::generateThumbnail — échec', [
-                'path'  => $originalPath,
+                'path' => $originalPath,
                 'error' => $e->getMessage(),
             ]);
+
             return null;
         }
     }
@@ -322,10 +326,10 @@ class MediaService
      */
     private function buildNasPath(MediaAlbum $album, string $originalName): string
     {
-        $date      = now()->format('Y/m');
-        $safe      = Str::slug(pathinfo($originalName, PATHINFO_FILENAME));
-        $ext       = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
-        $unique    = Str::random(8);
+        $date = now()->format('Y/m');
+        $safe = Str::slug(pathinfo($originalName, PATHINFO_FILENAME));
+        $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        $unique = Str::random(8);
 
         return "albums/{$album->id}/{$date}/{$safe}-{$unique}.{$ext}";
     }
@@ -336,7 +340,7 @@ class MediaService
      */
     private function buildThumbPath(string $originalPath): string
     {
-        $dir  = dirname($originalPath);
+        $dir = dirname($originalPath);
         $base = pathinfo($originalPath, PATHINFO_FILENAME);
 
         return "{$dir}/thumbs/{$base}_thumb.jpg";
@@ -369,22 +373,22 @@ class MediaService
      */
     private function ingestNasFile(array $entry, MediaAlbum $album, NasConnectorInterface $nas): void
     {
-        $ext      = strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION));
+        $ext = strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION));
         $mimeType = self::ALLOWED_EXTENSIONS[$ext] ?? 'application/octet-stream';
 
         MediaItem::create([
-            'album_id'        => $album->id,
-            'uploaded_by'     => $album->created_by,
-            'file_name'       => $entry['name'],
-            'file_path'       => $entry['path'],
-            'thumb_path'      => null,
-            'mime_type'       => $mimeType,
+            'album_id' => $album->id,
+            'uploaded_by' => $album->created_by,
+            'file_name' => $entry['name'],
+            'file_path' => $entry['path'],
+            'thumb_path' => null,
+            'mime_type' => $mimeType,
             'file_size_bytes' => $entry['size'],
-            'width_px'        => null,
-            'height_px'       => null,
-            'exif_data'       => null,
-            'caption'         => null,
-            'sha256_hash'     => null, // Calculé lors de la sync SHA-256
+            'width_px' => null,
+            'height_px' => null,
+            'exif_data' => null,
+            'caption' => null,
+            'sha256_hash' => null, // Calculé lors de la sync SHA-256
         ]);
     }
 
@@ -474,8 +478,10 @@ class MediaService
                 $value = array_map(function ($v) {
                     if (is_string($v) && str_contains($v, '/')) {
                         [$num, $den] = explode('/', $v);
+
                         return $den != 0 ? (float) $num / (float) $den : 0.0;
                     }
+
                     return is_scalar($v) ? $v : null;
                 }, $value);
                 $value = array_filter($value, fn ($v) => $v !== null);
