@@ -11,6 +11,9 @@
             <h1 class="text-2xl font-bold text-gray-800">📷 Photothèque</h1>
             <p class="text-sm text-gray-500 mt-1">{{ $albums->total() }} album(s)</p>
         </div>
+        @if(Auth::user()?->role === 'admin')
+        <a href="{{ route('admin.settings.media') }}" class="text-sm text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-2 rounded-lg bg-white mr-2">⚙ Paramètres</a>
+        @endif
         <a href="{{ route('media.albums.create') }}"
            class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
            style="background-color: var(--color-primary, #1E3A5F);">
