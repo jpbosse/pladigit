@@ -20,7 +20,9 @@ class ResolveTenant
 
         try {
             $this->tenantManager->resolveFromRequest($request->getHost());
-        } catch (\Throwable) {
+            \Log::info('ResolveTenant OK', ['host' => $request->getHost()]);
+        } catch (\Throwable $e) {
+            \Log::error('ResolveTenant FAIL', ['host' => $request->getHost(), 'error' => $e->getMessage()]);
             config(['auth.defaults.guard' => 'null_guard']);
             config(['auth.guards.null_guard' => [
                 'driver' => 'session',

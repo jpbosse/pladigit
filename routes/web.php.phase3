@@ -100,8 +100,6 @@ Route::middleware('tenant')->group(function () {
             // Personnalisation
             Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
             Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
-            Route::get('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'media'])->name('settings.media');
-            Route::put('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'updateMedia'])->name('settings.media.update');
         });
 
         // ── Photothèque — accessible à tous les authentifiés ──
