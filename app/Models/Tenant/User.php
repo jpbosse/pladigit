@@ -51,6 +51,9 @@ class User extends Authenticatable
         // LDAP
         'ldap_dn',
         'ldap_synced_at',
+	'media_cols',
+
+
     ];
 
     protected $hidden = [
@@ -70,6 +73,7 @@ class User extends Authenticatable
         'totp_enabled' => 'boolean',
         'force_pwd_change' => 'boolean',
         'password_history' => 'array',
+	'media_cols' => 'integer',
     ];
 
     // Laravel attend 'password' par défaut — on remplace

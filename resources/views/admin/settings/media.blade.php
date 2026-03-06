@@ -1,8 +1,8 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 
 @section('title', 'Paramètres Photothèque')
 
-@section('content')
+@section('admin-content')
 <div class="max-w-2xl mx-auto px-4">
 
     <div class="mb-6">

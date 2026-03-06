@@ -47,6 +47,7 @@
         flex-direction: column;
         justify-content: flex-end;
         padding: 10px;
+	pointer-events: none;
     }
     .media-card:hover .overlay { opacity: 1; }
 
@@ -76,6 +77,7 @@
         transition: background 0.15s;
         text-decoration: none;
         cursor: pointer;
+	pointer-events: auto;
     }
     .media-card .btn-action:hover { background: rgba(255,255,255,0.35); }
     .media-card .btn-action.danger:hover { background: rgba(239,68,68,0.7); }
@@ -175,7 +177,7 @@
 
 @section('content')
 <div class="max-w-7xl mx-auto px-4"
-     x-data="albumPage('{{ route('media.items.store', $album) }}', '{{ csrf_token() }}')"
+     x-data="albumPage('{{ route('media.items.store', $album) }}', '{{ csrf_token() }}', {{ $userCols }}, '{{ route('media.prefs.cols') }}')"
      @dragover.prevent="dragging = true"
      @dragleave.prevent="dragging = false"
      @drop.prevent="handleDrop($event)">

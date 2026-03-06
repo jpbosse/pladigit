@@ -92,9 +92,12 @@ class MediaAlbumController extends Controller
             ->paginate(48);
 
         $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
-        $defaultCols = $settings->media_default_cols ?? 3;
 
-        return view('media.albums.show', compact('album', 'items', 'defaultCols'));
+	$defaultCols = $settings->media_default_cols ?? 3;
+	$userCols = auth()->user()->media_cols ?: $defaultCols;
+	return view('media.albums.show', compact('album', 'items', 'defaultCols', 'userCols'));
+
+
     }
 
     /**
