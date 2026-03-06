@@ -1,44 +1,42 @@
 @extends('layouts.admin')
-@section('title', 'Directions & Services')
+@section('title', 'Hiérarchie organisationnelle')
 
 @section('admin-content')
 
-{{-- ── En-tête + compteurs ─────────────────────────────────────────── --}}
+{{-- ── En-tête ─────────────────────────────────────────────────────── --}}
 <div class="mb-6">
-    <div class="flex justify-between items-start">
+    <div class="flex justify-between items-start flex-wrap gap-3">
         <div>
-            <h1 class="text-2xl font-bold text-gray-800">Directions & Services</h1>
-            <p class="text-sm text-gray-500 mt-1">Structure organisationnelle du tenant</p>
+            <h1 class="text-2xl font-bold text-gray-800">Hiérarchie organisationnelle</h1>
+            <p class="text-sm text-gray-500 mt-1">Structure libre — Directions, Services, Pôles, Bureaux…</p>
         </div>
-        <a href="{{ route('admin.admin.departments.organigramme') }}" target="_blank"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium"
+        <a href="{{ route('admin.departments.organigramme') }}" target="_blank"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
            style="background-color: var(--color-primary, #1E3A5F);">
-            🖨 Organigramme
+            🗂 Organigramme
         </a>
-        <div class="hidden">
-        </div>
     </div>
 
     {{-- Compteurs --}}
     <div class="grid grid-cols-3 gap-4 mt-4">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: #EFF6FF;">🏢</div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-blue-50">🏢</div>
             <div>
-                <p class="text-2xl font-bold text-gray-800">{{ $directions->count() }}</p>
-                <p class="text-xs text-gray-500">Direction(s)</p>
+                <p class="text-2xl font-bold text-gray-800">{{ $stats['roots'] }}</p>
+                <p class="text-xs text-gray-500">Entité(s) racine</p>
             </div>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: #F0FDF4;">📂</div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-green-50">📂</div>
             <div>
-                <p class="text-2xl font-bold text-gray-800">{{ $directions->sum(fn($d) => $d->children->count()) }}</p>
-                <p class="text-xs text-gray-500">Service(s)</p>
+                <p class="text-2xl font-bold text-gray-800">{{ $stats['total'] }}</p>
+                <p class="text-xs text-gray-500">Total entités</p>
             </div>
         </div>
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl" style="background-color: #FFF7ED;">👥</div>
+            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-orange-50">👥</div>
             <div>
-                <p class="text-2xl font-bold text-gray-800">{{ $directions->sum('members_count') }}</p>
+                <p class="text-2xl font-bold text-gray-800">{{ $stats['members'] }}</p>
                 <p class="text-xs text-gray-500">Membre(s) total</p>
             </div>
         </div>
@@ -64,201 +62,232 @@
 {{-- ── Contenu principal ────────────────────────────────────────────── --}}
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-    {{-- Colonne gauche : arborescence --}}
-    <div class="lg:col-span-2 space-y-4">
-        @forelse($directions as $direction)
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    {{-- ── Colonne gauche : arborescence accordéon ─────────────────── --}}
+    <div class="lg:col-span-2 space-y-1">
 
-            {{-- En-tête direction --}}
-            <div class="px-5 py-4 flex justify-between items-center"
-                 style="background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); border-bottom: 1px solid #BFDBFE;">
-                <div class="flex items-center gap-3">
-                    <div class="w-9 h-9 rounded-lg bg-white shadow-sm flex items-center justify-center text-lg">🏢</div>
-                    <div>
-                        <p class="font-semibold text-gray-800">{{ $direction->name }}</p>
-                        <div class="flex items-center gap-2 mt-0.5">
-                            <span class="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                                👥 {{ $direction->members_count }} membre(s)
-                            </span>
-                            @if($direction->managers->count())
-                                <span class="text-xs text-gray-500">
-                                    Resp. : {{ $direction->managers->pluck('name')->join(', ') }}
-                                </span>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="openMembersModal({{ $direction->id }}, '{{ addslashes($direction->name) }}')"
-                            class="text-xs px-3 py-1.5 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-50 font-medium transition">
-                        👥 Membres
-                    </button>
-                    <button onclick="openEditModal('direction', {{ $direction->id }}, '{{ addslashes($direction->name) }}', null)"
-                            class="text-xs px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium transition">
-                        ✏️ Renommer
-                    </button>
-                    <form method="POST" action="{{ route('admin.departments.destroy', $direction) }}"
-                          onsubmit="return confirm('Supprimer la direction ?')">
-                        @csrf @method('DELETE')
-                        <button type="submit"
-                                class="text-xs px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-500 hover:bg-red-50 font-medium transition">
-                            🗑 Supprimer
-                        </button>
-                    </form>
-                </div>
-            </div>
-
-            {{-- Services --}}
-            @if($direction->children->count())
-            <div class="divide-y divide-gray-50">
-                @foreach($direction->children as $service)
-                <div class="px-5 py-3 flex justify-between items-center hover:bg-gray-50 transition group"
-                     style="padding-left: 2.5rem;">
-                    <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-2">
-                            <div class="w-4 h-px bg-gray-200"></div>
-                            <div class="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-sm">📂</div>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-gray-700">{{ $service->name }}</p>
-                            <div class="flex items-center gap-2 mt-0.5">
-                                <span class="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                                    👥 {{ $service->members->count() }} membre(s)
-                                </span>
-                                @if($service->managers->count())
-                                    <span class="text-xs text-gray-400">
-                                        Resp. : {{ $service->managers->pluck('name')->join(', ') }}
-                                    </span>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
-                        <button onclick="openMembersModal({{ $service->id }}, '{{ addslashes($service->name) }}')"
-                                class="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-medium transition">
-                            👥 Membres
-                        </button>
-                        <button onclick="openEditModal('service', {{ $service->id }}, '{{ addslashes($service->name) }}', {{ $direction->id }})"
-                                class="text-xs px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-medium transition">
-                            ✏️
-                        </button>
-                        <form method="POST" action="{{ route('admin.departments.destroy', $service) }}"
-                              onsubmit="return confirm('Supprimer ce service ?')">
-                            @csrf @method('DELETE')
-                            <button type="submit"
-                                    class="text-xs px-2.5 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 font-medium transition">
-                                🗑
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                @endforeach
-            </div>
-            @else
-            <div class="px-10 py-4 flex items-center gap-2 text-xs text-gray-400 italic">
-                <div class="w-4 h-px bg-gray-200"></div>
-                Aucun service dans cette direction.
-            </div>
-            @endif
-
+        {{-- Bouton tout déplier / replier --}}
+        @if($roots->count())
+        <div class="flex justify-end mb-2">
+            <button onclick="toggleAll()" id="toggleAllBtn"
+                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition">
+                ▼ Tout déplier
+            </button>
         </div>
+        @endif
+
+        @forelse($roots as $root)
+            @include('admin.departments.partials.dept-node-admin', ['node' => $root, 'depth' => 0, 'allDepts' => $allDepts])
         @empty
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-            <p class="text-5xl mb-3">🏢</p>
-            <p class="text-sm font-medium text-gray-500">Aucune direction créée.</p>
-            <p class="text-xs mt-1">Commencez par créer une direction dans le formulaire.</p>
-        </div>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
+                <p class="text-5xl mb-3">🏢</p>
+                <p class="text-sm font-medium text-gray-500">Aucune entité créée.</p>
+                <p class="text-xs mt-1">Commencez par créer une entité racine dans le formulaire.</p>
+            </div>
         @endforelse
     </div>
 
-    {{-- Colonne droite : formulaires --}}
+    {{-- ── Colonne droite : formulaire création ─────────────────────── --}}
     <div class="space-y-4">
-
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b flex items-center gap-2">
-                <span>🏢</span> Nouvelle direction
+            <h2 class="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b flex items-center gap-2">
+                <span>➕</span> Nouvelle entité
             </h2>
-            <form method="POST" action="{{ route('admin.departments.store') }}">
+            <form method="POST" action="{{ route('admin.departments.store') }}" class="space-y-3">
                 @csrf
-                <input type="hidden" name="type" value="direction">
-                <input type="text" name="name" placeholder="Nom de la direction"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       required>
-                <div class="mb-3">
-                    <label class="block text-xs text-gray-500 mb-1">Direction parente (optionnel)</label>
+
+                {{-- Nom --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Nom <span class="text-red-500">*</span></label>
+                    <input type="text" name="name"
+                           value="{{ old('name') }}"
+                           placeholder="Ex : Direction des Finances"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                           required>
+                </div>
+
+                {{-- Label libre --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Type / Label</label>
+                    <div class="flex gap-2">
+                        <select id="labelPreset" onchange="applyLabelPreset(this)"
+                                class="border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 flex-shrink-0">
+                            <option value="">Choisir…</option>
+                            <option value="Direction">Direction</option>
+                            <option value="Service">Service</option>
+                            <option value="Pôle">Pôle</option>
+                            <option value="Bureau">Bureau</option>
+                            <option value="Cellule">Cellule</option>
+                            <option value="Délégation">Délégation</option>
+                            <option value="Unité">Unité</option>
+                        </select>
+                        <input type="text" name="label" id="labelInput"
+                               value="{{ old('label') }}"
+                               placeholder="ou saisie libre…"
+                               maxlength="100"
+                               class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">Affiché dans l'organigramme sous le nom.</p>
+                </div>
+
+                {{-- Couleur --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Couleur (optionnel)</label>
+                    <div class="flex items-center gap-2">
+                        <input type="color" name="color"
+                               value="{{ old('color', '#1E3A5F') }}"
+                               class="w-10 h-9 rounded border border-gray-300 cursor-pointer p-0.5">
+                        <span class="text-xs text-gray-400">Appliquée sur le nœud de l'organigramme.</span>
+                    </div>
+                </div>
+
+                {{-- Rattaché à --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Rattaché à (optionnel)</label>
                     <select name="parent_id"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                        <option value="">— Aucune (direction racine) —</option>
-                        @foreach($directions as $dir)
-                            <option value="{{ $dir->id }}">{{ $dir->name }}</option>
+                        <option value="">— Aucun (entité racine) —</option>
+                        @foreach($allDepts as $dept)
+                            <option value="{{ $dept->id }}" {{ old('parent_id') == $dept->id ? 'selected' : '' }}>
+                                {{ str_repeat('  ', $dept->depth ?? 0) }}{{ $dept->label ? '[' . $dept->label . '] ' : '' }}{{ $dept->name }}
+                            </option>
                         @endforeach
                     </select>
                 </div>
+
+                {{-- Transversal --}}
+                <div class="flex items-center gap-2">
+                    <input type="hidden" name="is_transversal" value="0">
+                    <input type="checkbox" name="is_transversal" id="isTransversal" value="1"
+                           {{ old('is_transversal') ? 'checked' : '' }}
+                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                    <label for="isTransversal" class="text-xs text-gray-600">
+                        Entité transversale
+                        <span class="text-gray-400">(hors hiérarchie stricte)</span>
+                    </label>
+                </div>
+
+                {{-- Ordre --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Ordre d'affichage</label>
+                    <input type="number" name="sort_order"
+                           value="{{ old('sort_order', 0) }}"
+                           min="0" max="999"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                </div>
+
                 <button type="submit"
-                        class="w-full py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
+                        class="w-full py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 transition mt-1"
                         style="background-color: #1E3A5F;">
-                    Créer la direction
+                    Créer l'entité
                 </button>
             </form>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 class="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b flex items-center gap-2">
-                <span>📂</span> Nouveau service
-            </h2>
-            <form method="POST" action="{{ route('admin.departments.store') }}">
-                @csrf
-                <input type="hidden" name="type" value="service">
-                <div class="mb-3">
-                    <label class="block text-xs text-gray-500 mb-1">Direction parente</label>
-                    <select name="parent_id"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                            required>
-                        <option value="">— Choisir une direction —</option>
-                        @foreach($directions as $dir)
-                            <option value="{{ $dir->id }}">{{ $dir->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <input type="text" name="name" placeholder="Nom du service"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       required>
-                <button type="submit"
-                        class="w-full py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
-                        style="background-color: #1E3A5F;">
-                    Créer le service
-                </button>
-            </form>
-        </div>
-
+        {{-- Info --}}
         <div class="bg-gray-50 rounded-xl border border-gray-100 p-4 text-xs text-gray-500 space-y-1">
-            <p class="font-medium text-gray-600 mb-2">ℹ️ Règles</p>
-            <p>• Un service doit appartenir à une direction.</p>
-            <p>• Impossible de supprimer une direction contenant des services.</p>
-            <p>• Impossible de supprimer un département avec des membres.</p>
+            <p class="font-medium text-gray-600 mb-2">ℹ️ Liberté de structure</p>
+            <p>• Créez n'importe quelle hiérarchie : Pôle → Direction → Service → Bureau.</p>
+            <p>• Aucune restriction sur le type ou la profondeur.</p>
+            <p>• Un nœud transversal est affiché avec un marqueur visuel distinct.</p>
+            <p>• Impossible de supprimer un nœud avec des membres ou des enfants.</p>
         </div>
-
     </div>
+
 </div>
 
-{{-- Modal renommer --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- Modal modification                                             --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
 <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm mx-4">
-        <h3 class="text-base font-semibold text-gray-800 mb-4" id="editModalTitle">Renommer</h3>
-        <form method="POST" id="editForm">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center px-6 py-4 border-b">
+            <h3 class="text-base font-semibold text-gray-800">Modifier l'entité</h3>
+            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        <form method="POST" id="editForm" class="px-6 py-5 space-y-4">
             @csrf @method('PUT')
-            <input type="hidden" name="parent_id" id="editParentId">
-            <input type="text" name="name" id="editName"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-200"
-                   required>
-            <div class="flex gap-3">
+
+            {{-- Nom --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Nom <span class="text-red-500">*</span></label>
+                <input type="text" name="name" id="editName"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                       required>
+            </div>
+
+            {{-- Label --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Type / Label</label>
+                <div class="flex gap-2">
+                    <select onchange="applyLabelPresetEdit(this)"
+                            class="border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 flex-shrink-0">
+                        <option value="">Choisir…</option>
+                        <option value="Direction">Direction</option>
+                        <option value="Service">Service</option>
+                        <option value="Pôle">Pôle</option>
+                        <option value="Bureau">Bureau</option>
+                        <option value="Cellule">Cellule</option>
+                        <option value="Délégation">Délégation</option>
+                        <option value="Unité">Unité</option>
+                    </select>
+                    <input type="text" name="label" id="editLabel"
+                           maxlength="100"
+                           placeholder="ou saisie libre…"
+                           class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                </div>
+            </div>
+
+            {{-- Couleur --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Couleur</label>
+                <div class="flex items-center gap-2">
+                    <input type="color" name="color" id="editColor"
+                           class="w-10 h-9 rounded border border-gray-300 cursor-pointer p-0.5">
+                    <button type="button" onclick="document.getElementById('editColor').value='#1E3A5F'"
+                            class="text-xs text-gray-400 hover:text-gray-600 underline">
+                        Réinitialiser
+                    </button>
+                </div>
+            </div>
+
+            {{-- Rattaché à --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Rattaché à</label>
+                <select name="parent_id" id="editParentId"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    <option value="">— Aucun (entité racine) —</option>
+                    @foreach($allDepts as $dept)
+                        <option value="{{ $dept->id }}">
+                            {{ $dept->label ? '[' . $dept->label . '] ' : '' }}{{ $dept->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            {{-- Transversal --}}
+            <div class="flex items-center gap-2">
+                <input type="hidden" name="is_transversal" value="0">
+                <input type="checkbox" name="is_transversal" id="editTransversal" value="1"
+                       class="w-4 h-4 rounded border-gray-300 text-blue-600">
+                <label for="editTransversal" class="text-xs text-gray-600">Entité transversale</label>
+            </div>
+
+            {{-- Ordre --}}
+            <div>
+                <label class="block text-xs font-medium text-gray-600 mb-1">Ordre d'affichage</label>
+                <input type="number" name="sort_order" id="editSortOrder"
+                       min="0" max="999"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+            </div>
+
+            <div class="flex gap-3 pt-2">
                 <button type="submit"
-                        class="flex-1 py-2 rounded-lg text-white text-sm font-medium"
+                        class="flex-1 py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
                         style="background-color: #1E3A5F;">
                     Enregistrer
                 </button>
                 <button type="button" onclick="closeEditModal()"
-                        class="flex-1 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50">
+                        class="flex-1 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition">
                     Annuler
                 </button>
             </div>
@@ -266,35 +295,68 @@
     </div>
 </div>
 
-{{-- Modal membres --}}
-<div id="membersModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-base font-semibold text-gray-800" id="membersModalTitle">Membres</h3>
-            <button onclick="closeMembersModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-        </div>
-        <div id="membersModalContent" class="text-sm text-gray-600 min-h-16 max-h-80 overflow-y-auto"></div>
-        <div class="flex justify-end mt-4 pt-4 border-t">
-            <button onclick="closeMembersModal()"
-                    class="px-4 py-2 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50">
-                Fermer
-            </button>
-        </div>
-    </div>
-</div>
-
+{{-- ═══════════════════════════════════════════════════════════════ --}}
+{{-- Scripts                                                        --}}
+{{-- ═══════════════════════════════════════════════════════════════ --}}
 <script>
-function openEditModal(type, id, name, parentId) {
-    document.getElementById('editModalTitle').textContent =
-        'Renommer ' + (type === 'direction' ? 'la direction' : 'le service');
+// ─── Présélection label depuis le select (formulaire création) ────────
+function applyLabelPreset(select) {
+    if (select.value) {
+        document.getElementById('labelInput').value = select.value;
+    }
+}
+function applyLabelPresetEdit(select) {
+    if (select.value) {
+        document.getElementById('editLabel').value = select.value;
+    }
+}
+
+// ─── Modal modification ───────────────────────────────────────────────
+function openEditModal(id, name, label, color, parentId, isTransversal, sortOrder) {
     document.getElementById('editForm').action = '/admin/departments/' + id;
-    document.getElementById('editName').value = name;
-    document.getElementById('editParentId').value = parentId || '';
+    document.getElementById('editName').value        = name || '';
+    document.getElementById('editLabel').value       = label || '';
+    document.getElementById('editColor').value       = color || '#1E3A5F';
+    document.getElementById('editSortOrder').value   = sortOrder || 0;
+    document.getElementById('editTransversal').checked = !!isTransversal;
+
+    const parentSelect = document.getElementById('editParentId');
+    parentSelect.value = parentId || '';
+
     document.getElementById('editModal').classList.remove('hidden');
     setTimeout(() => document.getElementById('editName').focus(), 50);
 }
+
 function closeEditModal() {
     document.getElementById('editModal').classList.add('hidden');
 }
 
-const departmentsData = {!! json_encode($departmentsJson) !!};
+// Fermeture au clic sur le fond
+document.getElementById('editModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditModal();
+});
+
+// ─── Accordéon — tout déplier / replier ──────────────────────────────
+let allExpanded = false;
+function toggleAll() {
+    allExpanded = !allExpanded;
+    document.querySelectorAll('.dept-children').forEach(el => {
+        el.style.display = allExpanded ? 'block' : 'none';
+    });
+    document.querySelectorAll('.dept-toggle').forEach(el => {
+        el.textContent = allExpanded ? '▼' : '▶';
+    });
+    document.getElementById('toggleAllBtn').textContent =
+        allExpanded ? '▲ Tout replier' : '▼ Tout déplier';
+}
+
+function toggleNode(btn) {
+    const children = btn.closest('.dept-header').nextElementSibling;
+    if (!children || !children.classList.contains('dept-children')) return;
+    const isOpen = children.style.display !== 'none';
+    children.style.display = isOpen ? 'none' : 'block';
+    btn.textContent = isOpen ? '▶' : '▼';
+}
+</script>
+
+@endsection

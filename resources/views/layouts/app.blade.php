@@ -253,10 +253,6 @@
            class="nav-item {{ str_starts_with($currentRoute, 'admin.') ? 'active' : '' }}">
             <span class="nav-icon">⚙️</span> Administration
         </a>
-        <a href="{{ route('admin.departments.index') }}"
-           class="nav-item {{ str_starts_with($currentRoute, 'admin.departments') ? 'active' : '' }}">
-            <span class="nav-icon">🏢</span> Hiérarchie
-        </a>
         @endif
     </nav>
     @endauth

@@ -1,7 +1,7 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Personnalisation')
 
-@section('content')
+@section('admin-content')
 <div class="max-w-2xl mx-auto px-4 py-6">
 
     <h1 class="text-2xl font-bold text-gray-800 mb-6">Personnalisation</h1>

@@ -1,19 +1,28 @@
 import Alpine from 'alpinejs';
-
 window.Alpine = Alpine;
 
-Alpine.data('albumPage', (uploadUrl, csrfToken) => {
-    const STORAGE_KEY = 'pladigit_media_cols';
+Alpine.data('albumPage', (uploadUrl, csrfToken, defaultCols = 3, saveColsUrl = '') => {
     return {
         dragging: false,
         uploading: false,
         progress: 0,
         statusText: '',
-        cols: parseInt(localStorage.getItem(STORAGE_KEY) || '3'),
+        cols: defaultCols,
 
         setCols(n) {
             this.cols = n;
-            localStorage.setItem(STORAGE_KEY, n);
+            // Sauvegarder en base via AJAX
+            if (saveColsUrl) {
+                fetch(saveColsUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body: JSON.stringify({ cols: n }),
+                }).catch(() => {}); // Silencieux en cas d'erreur réseau
+            }
         },
 
         handleDrop(event) {
@@ -34,6 +43,7 @@ Alpine.data('albumPage', (uploadUrl, csrfToken) => {
             this.uploading = true;
             this.progress = 0;
             this.statusText = `Upload de ${files.length} fichier(s)…`;
+
             const xhr = new XMLHttpRequest();
             xhr.upload.addEventListener('progress', (e) => {
                 if (e.lengthComputable) {

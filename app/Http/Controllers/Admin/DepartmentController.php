@@ -9,167 +9,194 @@ use App\Services\AuditService;
 use Illuminate\Http\Request;
 
 /**
- * Gestion des directions et services par l'Admin Organisation.
+ * Gestion des entités organisationnelles (Directions, Services, Pôles, Bureaux…)
+ * Structure libre : pas de contrainte direction|service — l'admin définit
+ * librement le label, la hiérarchie et les options de chaque nœud.
  */
 class DepartmentController extends Controller
 {
     public function __construct(private AuditService $audit) {}
 
+    // ─────────────────────────────────────────────────────────────
+    //  INDEX
+    // ─────────────────────────────────────────────────────────────
+
     public function index()
     {
-        $directions = Department::on('tenant')
-            ->directions()
-            ->with(['children.members', 'managers'])
+        // Tous les nœuds racines (sans parent), triés par sort_order puis name
+        $roots = Department::on('tenant')
+            ->whereNull('parent_id')
+            ->with(['allChildren.members', 'allChildren.managers', 'members', 'managers'])
             ->withCount('members')
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
 
-        $departmentsJson = $directions->map(function (Department $d): array {
-            return [
-                'id' => $d->id,
-                'name' => $d->name,
-                'type' => 'direction',
-                'members' => $d->members->map(function (User $m): array {
-                    return ['id' => $m->id, 'name' => $m->name, 'is_manager' => (bool) ($m->pivot->is_manager ?? false)];
-                })->values(),
-                'children' => $d->children->map(function (Department $s): array {
-                    return [
-                        'id' => $s->id,
-                        'name' => $s->name,
-                        'type' => 'service',
-                        'members' => $s->members->map(function (User $m): array {
-                            return ['id' => $m->id, 'name' => $m->name, 'is_manager' => (bool) ($m->pivot->is_manager ?? false)];
-                        })->values(),
-                    ];
-                })->values(),
-            ];
-        })->values();
+        // Tous les départements (pour le sélecteur "Rattaché à")
+        $allDepts = Department::on('tenant')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get();
 
-        return view('admin.departments.index', compact('directions', 'departmentsJson'));
+        // Statistiques pour les compteurs
+        $stats = [
+            'total'   => Department::on('tenant')->count(),
+            'roots'   => $roots->count(),
+            'members' => Department::on('tenant')->withCount('members')->get()->sum('members_count'),
+        ];
+
+        return view('admin.departments.index', compact('roots', 'allDepts', 'stats'));
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  ORGANIGRAMME
+    // ─────────────────────────────────────────────────────────────
 
     public function organigramme()
     {
-        // Charge toutes les directions avec leurs enfants (services ET sous-directions)
-        $all = Department::on('tenant')
-            ->directions()
+        $roots = Department::on('tenant')
+            ->whereNull('parent_id')
             ->with([
-                'children.members',
-                'children.managers',
-                'children.children.members',
-                'children.children.managers',
+                'allChildren.members',
+                'allChildren.managers',
                 'members',
                 'managers',
             ])
             ->withCount('members')
+            ->orderBy('sort_order')
             ->orderBy('name')
             ->get();
 
-        // Détecte la DGS
-        $dgs = $all->first(fn ($d) => str_contains(strtolower($d->name), 'dgs') ||
-            str_contains(strtolower($d->name), 'direction générale')
-        );
-
-        // Directions racines (sans parent) sauf la DGS
-        $directions = $all->filter(fn ($d) => is_null($d->parent_id) && (! $dgs || $d->id !== $dgs->id)
-        )->values();
-
-        // Sous-directions rattachées à la DGS (via parent_id)
-        $subDirections = $dgs
-            ? $all->filter(fn ($d) => $d->parent_id === $dgs->id)->values()
-            : collect();
-
-        return view('admin.departments.organigramme', compact('directions', 'dgs', 'subDirections'));
+        return view('admin.departments.organigramme', compact('roots'));
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  STORE
+    // ─────────────────────────────────────────────────────────────
 
     public function store(Request $request)
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:direction,service'],
+        $data = $request->validate([
+            'name'           => ['required', 'string', 'max:255'],
+            'label'          => ['nullable', 'string', 'max:100'],
+            'color'          => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'parent_id'      => ['nullable', 'integer'],
+            'is_transversal' => ['nullable', 'boolean'],
+            'sort_order'     => ['nullable', 'integer', 'min:0'],
         ]);
 
-        if ($request->type === 'service') {
-            if (! $request->parent_id) {
-                return back()->withErrors(['parent_id' => 'Un service doit appartenir à une direction.']);
-            }
-        }
-
-        if ($request->parent_id) {
-            $parentExists = Department::on('tenant')->where('id', $request->parent_id)->exists();
+        // Vérification souple : si parent_id fourni, il doit exister
+        if (! empty($data['parent_id'])) {
+            $parentExists = Department::on('tenant')->where('id', $data['parent_id'])->exists();
             if (! $parentExists) {
-                return back()->withErrors(['parent_id' => 'La direction parente sélectionnée est invalide.']);
+                return back()
+                    ->withInput()
+                    ->withErrors(['parent_id' => 'Le nœud parent sélectionné est invalide.']);
             }
+        } else {
+            $data['parent_id'] = null;
         }
 
-        $dept = Department::on('tenant')->create([
-            'name' => $request->name,
-            'type' => $request->type,
-            'parent_id' => $request->parent_id ?: null,
-            'created_by' => auth()->id(),
-        ]);
+        // Dérive le type legacy pour compatibilité (direction si racine, service sinon)
+        $data['type']           = empty($data['parent_id']) ? 'direction' : 'service';
+        $data['is_transversal'] = (bool) ($data['is_transversal'] ?? false);
+        $data['sort_order']     = (int) ($data['sort_order'] ?? 0);
+        $data['created_by']     = auth()->id();
+
+        $dept = Department::on('tenant')->create($data);
 
         $this->audit->log('department.created', auth()->user(), [
             'department_id' => $dept->id,
-            'name' => $dept->name,
-            'type' => $dept->type,
+            'name'          => $dept->name,
+            'label'         => $dept->label,
+            'parent_id'     => $dept->parent_id,
         ]);
 
-        return back()->with('success', ucfirst($dept->type).' « '.$dept->name.' » créé(e).');
+        $displayLabel = $dept->label ?: ($dept->parent_id ? 'Entité' : 'Entité racine');
+
+        return back()->with('success', "{$displayLabel} « {$dept->name} » créé(e).");
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  UPDATE
+    // ─────────────────────────────────────────────────────────────
 
     public function update(Request $request, Department $department)
     {
-        $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+        $data = $request->validate([
+            'name'           => ['required', 'string', 'max:255'],
+            'label'          => ['nullable', 'string', 'max:100'],
+            'color'          => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'parent_id'      => ['nullable', 'integer'],
+            'is_transversal' => ['nullable', 'boolean'],
+            'sort_order'     => ['nullable', 'integer', 'min:0'],
         ]);
 
-        if ($department->isService() && $request->parent_id) {
-            $parentExists = Department::on('tenant')->where('id', $request->parent_id)->exists();
-            if (! $parentExists) {
-                return back()->withErrors(['parent_id' => 'La direction parente sélectionnée est invalide.']);
+        // Vérifie que le parent existe si fourni
+        if (! empty($data['parent_id'])) {
+            // Anti-boucle : on ne peut pas se rattacher à soi-même ou à un descendant
+            if ((int) $data['parent_id'] === $department->id) {
+                return back()->withErrors(['parent_id' => 'Un nœud ne peut pas être son propre parent.']);
             }
+            $parentExists = Department::on('tenant')->where('id', $data['parent_id'])->exists();
+            if (! $parentExists) {
+                return back()->withErrors(['parent_id' => 'Le nœud parent sélectionné est invalide.']);
+            }
+        } else {
+            $data['parent_id'] = null;
         }
 
-        $old = $department->only(['name', 'parent_id']);
+        // Recalcule le type legacy
+        $data['type']           = empty($data['parent_id']) ? 'direction' : 'service';
+        $data['is_transversal'] = (bool) ($data['is_transversal'] ?? false);
+        $data['sort_order']     = (int) ($data['sort_order'] ?? 0);
 
-        $department->update([
-            'name' => $request->name,
-            'parent_id' => $department->isService() ? $request->parent_id : null,
-        ]);
+        // Efface la couleur si envoyée vide
+        if (empty($data['color'])) {
+            $data['color'] = null;
+        }
+
+        $old = $department->only(['name', 'label', 'color', 'parent_id', 'is_transversal', 'sort_order']);
+
+        $department->update($data);
 
         $this->audit->log('department.updated', auth()->user(), [
             'department_id' => $department->id,
-            'old' => $old,
-            'new' => $department->only(['name', 'parent_id']),
+            'old'           => $old,
+            'new'           => $department->only(['name', 'label', 'color', 'parent_id', 'is_transversal', 'sort_order']),
         ]);
 
-        return back()->with('success', 'Nom mis à jour.');
+        return back()->with('success', '« ' . $department->name . ' » mis à jour.');
     }
+
+    // ─────────────────────────────────────────────────────────────
+    //  DESTROY
+    // ─────────────────────────────────────────────────────────────
 
     public function destroy(Department $department)
     {
-        if ($department->members()->count() > 0) {
+        $membersCount = $department->members()->count();
+        if ($membersCount > 0) {
             return back()->withErrors([
-                'delete' => 'Impossible de supprimer « '.$department->name.' » : '
-                    .$department->members()->count().' membre(s) y sont affectés.',
+                'delete' => "Impossible de supprimer « {$department->name} » : {$membersCount} membre(s) y sont affectés.",
             ]);
         }
 
-        if ($department->isDirection() && $department->children()->count() > 0) {
+        $childrenCount = $department->children()->count();
+        if ($childrenCount > 0) {
             return back()->withErrors([
-                'delete' => "Impossible de supprimer cette direction : elle contient des services. Supprimez-les d'abord.",
+                'delete' => "Impossible de supprimer « {$department->name} » : elle contient {$childrenCount} entité(s) enfant(s). Supprimez-les d'abord.",
             ]);
         }
 
         $this->audit->log('department.deleted', auth()->user(), [
             'department_id' => $department->id,
-            'name' => $department->name,
-            'type' => $department->type,
+            'name'          => $department->name,
+            'label'         => $department->label,
         ]);
 
         $department->delete();
 
-        return back()->with('success', ucfirst($department->type).' supprimé(e).');
+        return back()->with('success', '« ' . $department->name . ' » supprimé(e).');
     }
 }

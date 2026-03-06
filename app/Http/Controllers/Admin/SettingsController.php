@@ -56,7 +56,6 @@ class SettingsController extends Controller
                 return response()->json(['ok' => false, 'message' => 'LDAP non configuré.']);
             }
 
-            // Test de connexion simple
             $password = Crypt::decryptString($settings->ldap_bind_password_enc);
             $conn = new \LdapRecord\Connection([
                 'hosts' => [$settings->ldap_host],
@@ -150,7 +149,7 @@ class SettingsController extends Controller
 
     public function media()
     {
-        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $settings = TenantSettings::firstOrCreate([]);
 
         return view('admin.settings.media', compact('settings'));
     }
@@ -158,12 +157,67 @@ class SettingsController extends Controller
     public function updateMedia(Request $request)
     {
         $validated = $request->validate([
-            'media_default_cols' => ['required', 'integer', 'in:1,2,3,4,5,6'],
+            'media_default_cols' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $settings = TenantSettings::firstOrCreate([]);
         $settings->update($validated);
 
         return back()->with('success', 'Paramètres photothèque sauvegardés.');
     }
+
+    public function nas()
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        return view('admin.settings.nas', compact('settings'));
+    }
+
+    public function updateNas(Request $request)
+    {
+	$validated = $request->validate([
+	    'nas_photo_driver'                  => ['required', 'in:local,sftp,smb'],
+	    'nas_photo_local_path'              => ['nullable', 'string', 'max:500'],
+	    'nas_photo_host'                    => ['nullable', 'string', 'max:255'],
+	    'nas_photo_port'                    => ['nullable', 'integer', 'min:1', 'max:65535'],
+	    'nas_photo_username'                => ['nullable', 'string', 'max:255'],
+	    'nas_photo_password'                => ['nullable', 'string', 'max:255'],
+	    'nas_photo_root_path'               => ['nullable', 'string', 'max:500'],
+	    'nas_photo_sync_interval_minutes'   => ['required', 'integer', 'min:15', 'max:1440'],
+	]);
+
+        $settings = TenantSettings::firstOrCreate([]);
+
+        $data = collect($validated)->except('nas_photo_password')->toArray();
+
+        if (filled($request->nas_password)) {
+            $data['nas_photo_password_enc'] = Crypt::encryptString($request->nas_photo_password);
+        }
+
+        $settings->update($data);
+
+        return back()->with('success', 'Configuration NAS sauvegardée.');
+    }
+
+public function syncNas(Request $request)
+{
+    $deep = (bool) $request->input('deep', false);
+    
+    $args = ['--deep' => $deep];
+    
+    // Récupère le slug depuis le sous-domaine
+    $host = request()->getHost();
+    $slug = explode('.', $host)[0];
+    if ($slug && $slug !== 'www') {
+        $args['--tenant'] = $slug;
+    }
+    
+    $exitCode = \Artisan::call('nas:sync', $args);
+
+    return response()->json([
+        'ok'      => $exitCode === 0,
+        'message' => $exitCode === 0 ? 'Synchronisation terminée.' : 'Erreur lors de la synchronisation.',
+    ]);
+}
+
 }
