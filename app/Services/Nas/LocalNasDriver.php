@@ -39,39 +39,40 @@ class LocalNasDriver implements NasConnectorInterface
      *
      * @return array<int, array{name: string, path: string, size: int, mtime: int, type: string}>
      */
-public function listFiles(string $directory): array
-{
-    $fullPath = $this->resolve($directory);
-    if (! is_dir($fullPath)) {
-        return [];
-    }
-    $entries = [];
-    $iterator = new \RecursiveIteratorIterator(
-        new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
-        \RecursiveIteratorIterator::LEAVES_ONLY
-    );
-    foreach ($iterator as $item) {
-        if (! $item->isFile()) {
-
-// Exclure les dossiers thumbs
-if (str_contains($item->getRealPath(), DIRECTORY_SEPARATOR . 'thumbs' . DIRECTORY_SEPARATOR)) {
-    continue;
-}
-
-            continue;
+    public function listFiles(string $directory): array
+    {
+        $fullPath = $this->resolve($directory);
+        if (! is_dir($fullPath)) {
+            return [];
         }
-        $absolutePath = $item->getRealPath();
-        $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
-        $entries[] = [
-            'name'  => $item->getFilename(),
-            'path'  => $relativePath,
-            'size'  => (int) $item->getSize(),
-            'mtime' => (int) $item->getMTime(),
-            'type'  => 'file',
-        ];
+        $entries = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($iterator as $item) {
+            if (! $item->isFile()) {
+
+                // Exclure les dossiers thumbs
+                if (str_contains($item->getRealPath(), DIRECTORY_SEPARATOR.'thumbs'.DIRECTORY_SEPARATOR)) {
+                    continue;
+                }
+
+                continue;
+            }
+            $absolutePath = $item->getRealPath();
+            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
+            $entries[] = [
+                'name' => $item->getFilename(),
+                'path' => $relativePath,
+                'size' => (int) $item->getSize(),
+                'mtime' => (int) $item->getMTime(),
+                'type' => 'file',
+            ];
+        }
+
+        return $entries;
     }
-    return $entries;
-}
 
     /**
      * Lit le contenu binaire d'un fichier.

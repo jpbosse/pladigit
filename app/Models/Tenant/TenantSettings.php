@@ -16,7 +16,9 @@ class TenantSettings extends Model
     use HasFactory;
 
     protected $connection = 'tenant';
+
     protected $table = 'tenant_settings';
+
     public $timestamps = false;
 
     /** @var list<string> */
@@ -60,21 +62,21 @@ class TenantSettings extends Model
     ];
 
     protected $casts = [
-        'pwd_require_uppercase'            => 'boolean',
-        'pwd_require_number'               => 'boolean',
-        'pwd_require_special'              => 'boolean',
-        'force_2fa'                        => 'boolean',
-        'ldap_use_tls'                     => 'boolean',
-        'ldap_use_ssl'                     => 'boolean',
+        'pwd_require_uppercase' => 'boolean',
+        'pwd_require_number' => 'boolean',
+        'pwd_require_special' => 'boolean',
+        'force_2fa' => 'boolean',
+        'ldap_use_tls' => 'boolean',
+        'ldap_use_ssl' => 'boolean',
         // NAS Photothèque
-        'nas_photo_port'                   => 'integer',
-        'nas_photo_sync_interval_minutes'  => 'integer',
-        'nas_photo_last_sync_at'           => 'datetime',
+        'nas_photo_port' => 'integer',
+        'nas_photo_sync_interval_minutes' => 'integer',
+        'nas_photo_last_sync_at' => 'datetime',
         // NAS GED
-        'nas_ged_port'                     => 'integer',
-        'nas_ged_sync_interval_minutes'    => 'integer',
-        'nas_ged_last_sync_at'             => 'datetime',
-        'updated_at'                       => 'datetime',
+        'nas_ged_port' => 'integer',
+        'nas_ged_sync_interval_minutes' => 'integer',
+        'nas_ged_last_sync_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // ─────────────────────────────────────────────────────────────
@@ -85,8 +87,8 @@ class TenantSettings extends Model
     {
         return match ($this->nas_photo_driver ?? 'local') {
             'local' => 'Local (développement)',
-            'sftp'  => 'SFTP (Linux / NAS)',
-            'smb'   => 'SMB/CIFS (Windows / NAS)',
+            'sftp' => 'SFTP (Linux / NAS)',
+            'smb' => 'SMB/CIFS (Windows / NAS)',
             default => $this->nas_photo_driver ?? 'local',
         };
     }
@@ -94,7 +96,10 @@ class TenantSettings extends Model
     public function nasPhotoIsConfigured(): bool
     {
         $driver = $this->nas_photo_driver ?? 'local';
-        if ($driver === 'local') return true;
+        if ($driver === 'local') {
+            return true;
+        }
+
         return ! empty($this->nas_photo_host) && ! empty($this->nas_photo_username);
     }
 
@@ -106,8 +111,8 @@ class TenantSettings extends Model
     {
         return match ($this->nas_ged_driver ?? 'local') {
             'local' => 'Local (développement)',
-            'sftp'  => 'SFTP (Linux / NAS)',
-            'smb'   => 'SMB/CIFS (Windows / NAS)',
+            'sftp' => 'SFTP (Linux / NAS)',
+            'smb' => 'SMB/CIFS (Windows / NAS)',
             default => $this->nas_ged_driver ?? 'local',
         };
     }
@@ -115,7 +120,10 @@ class TenantSettings extends Model
     public function nasGedIsConfigured(): bool
     {
         $driver = $this->nas_ged_driver ?? 'local';
-        if ($driver === 'local') return true;
+        if ($driver === 'local') {
+            return true;
+        }
+
         return ! empty($this->nas_ged_host) && ! empty($this->nas_ged_username);
     }
 
@@ -124,8 +132,14 @@ class TenantSettings extends Model
     // ─────────────────────────────────────────────────────────────
 
     /** @deprecated Utiliser nas_photo_driver */
-    public function nasDriverLabel(): string { return $this->nasPhotoDriverLabel(); }
+    public function nasDriverLabel(): string
+    {
+        return $this->nasPhotoDriverLabel();
+    }
 
     /** @deprecated Utiliser nasPhotoIsConfigured() */
-    public function nasIsConfigured(): bool { return $this->nasPhotoIsConfigured(); }
+    public function nasIsConfigured(): bool
+    {
+        return $this->nasPhotoIsConfigured();
+    }
 }

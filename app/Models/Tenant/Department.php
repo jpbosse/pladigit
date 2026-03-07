@@ -109,18 +109,17 @@ class Department extends Model
         return $this->children()->with('allChildren.members', 'allChildren.managers');
     }
 
+    public function ancestors(): array
+    {
+        $ancestors = [];
+        $current = $this->parentDept;
+        while ($current) {
+            array_unshift($ancestors, $current);
+            $current = $current->parentDept;
+        }
 
-public function ancestors(): array
-{
-    $ancestors = [];
-    $current = $this->parentDept;
-    while ($current) {
-        array_unshift($ancestors, $current);
-        $current = $current->parentDept;
+        return $ancestors;
     }
-    return $ancestors;
-}
-
 
     // Couleur par défaut selon le label
     public function getColorAttribute($value): string

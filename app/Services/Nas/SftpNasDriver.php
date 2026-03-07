@@ -13,6 +13,7 @@ use RuntimeException;
 class SftpNasDriver implements NasConnectorInterface
 {
     private mixed $connection = null;
+
     private mixed $sftp = null;
 
     public function __construct(
@@ -31,6 +32,7 @@ class SftpNasDriver implements NasConnectorInterface
     {
         try {
             $this->connect();
+
             return true;
         } catch (\Throwable) {
             return false;
@@ -53,18 +55,20 @@ class SftpNasDriver implements NasConnectorInterface
 
         $entries = [];
         while (($file = readdir($handle)) !== false) {
-            if ($file === '.' || $file === '..') continue;
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
 
-            $filePath = ltrim($directory . '/' . $file, '/');
+            $filePath = ltrim($directory.'/'.$file, '/');
             $fullFilePath = $this->resolve($filePath);
             $stat = @ssh2_sftp_stat($sftp, $fullFilePath);
 
             $entries[] = [
-                'name'  => $file,
-                'path'  => $filePath,
-                'size'  => (int) ($stat['size'] ?? 0),
+                'name' => $file,
+                'path' => $filePath,
+                'size' => (int) ($stat['size'] ?? 0),
                 'mtime' => (int) ($stat['mtime'] ?? 0),
-                'type'  => isset($stat['mode']) && ($stat['mode'] & 0040000) ? 'dir' : 'file',
+                'type' => isset($stat['mode']) && ($stat['mode'] & 0040000) ? 'dir' : 'file',
             ];
         }
         closedir($handle);
@@ -101,6 +105,7 @@ class SftpNasDriver implements NasConnectorInterface
     {
         $sftp = $this->getSftp();
         $fullPath = $this->resolve($path);
+
         return @ssh2_sftp_stat($sftp, $fullPath) !== false;
     }
 
@@ -128,6 +133,7 @@ class SftpNasDriver implements NasConnectorInterface
     {
         $sftp = $this->getSftp();
         $stat = @ssh2_sftp_stat($sftp, $this->resolve($path));
+
         return (int) ($stat['mtime'] ?? 0);
     }
 
@@ -135,6 +141,7 @@ class SftpNasDriver implements NasConnectorInterface
     {
         $sftp = $this->getSftp();
         $stat = @ssh2_sftp_stat($sftp, $this->resolve($path));
+
         return (int) ($stat['size'] ?? 0);
     }
 
@@ -144,7 +151,9 @@ class SftpNasDriver implements NasConnectorInterface
 
     private function connect(): void
     {
-        if ($this->connection !== null) return;
+        if ($this->connection !== null) {
+            return;
+        }
 
         if (! function_exists('ssh2_connect')) {
             throw new RuntimeException(
@@ -173,6 +182,7 @@ class SftpNasDriver implements NasConnectorInterface
     private function getSftp(): mixed
     {
         $this->connect();
+
         return $this->sftp;
     }
 
@@ -181,12 +191,15 @@ class SftpNasDriver implements NasConnectorInterface
         $safe = str_replace(['..', '\\'], ['', '/'], $relativePath);
         $safe = ltrim($safe, '/');
         $root = rtrim($this->rootPath, '/');
-        return $root . '/' . $safe;
+
+        return $root.'/'.$safe;
     }
 
     private function mkdirRecursive(mixed $sftp, string $path): void
     {
-        if (@ssh2_sftp_stat($sftp, $path) !== false) return;
+        if (@ssh2_sftp_stat($sftp, $path) !== false) {
+            return;
+        }
 
         $parent = dirname($path);
         if ($parent !== $path) {
