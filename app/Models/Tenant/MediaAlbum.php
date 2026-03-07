@@ -2,6 +2,7 @@
 
 namespace App\Models\Tenant;
 
+use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,9 +13,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Album photo d'un tenant.
  *
  * Relations :
- *   $album->creator()     → User qui a créé l'album
- *   $album->items()       → tous les MediaItem de l'album
- *   $album->shareLinks()  → liens de partage temporaires
+ *   $album->creator()          → User qui a créé l'album
+ *   $album->items()            → tous les MediaItem de l'album
+ *   $album->shareLinks()       → liens de partage temporaires
+ *   $album->rolePermissions()  → droits par rôle
+ *   $album->userPermissions()  → overrides par utilisateur
  *
  * Scopes :
  *   MediaAlbum::visibleFor($user)  → albums accessibles selon le rôle
@@ -39,58 +42,49 @@ class MediaAlbum extends Model
 
     // ── Relations ────────────────────────────────────────────
 
-    /**
-     * Utilisateur créateur de l'album.
-     *
-     * @return BelongsTo<User, $this>
-     */
+    /** @return BelongsTo<User, $this> */
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    /**
-     * Tous les médias de l'album (non supprimés).
-     *
-     * @return HasMany<MediaItem, $this>
-     */
+    /** @return HasMany<MediaItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(MediaItem::class, 'album_id');
     }
 
-    /**
-     * Liens de partage temporaires de l'album.
-     *
-     * @return HasMany<MediaShareLink, $this>
-     */
+    /** @return HasMany<MediaShareLink, $this> */
     public function shareLinks(): HasMany
     {
         return $this->hasMany(MediaShareLink::class, 'album_id');
     }
 
+    /** @return HasMany<MediaAlbumPermission, $this> */
+    public function rolePermissions(): HasMany
+    {
+        return $this->hasMany(MediaAlbumPermission::class, 'album_id');
+    }
+
+    /** @return HasMany<MediaAlbumUserPermission, $this> */
+    public function userPermissions(): HasMany
+    {
+        return $this->hasMany(MediaAlbumUserPermission::class, 'album_id');
+    }
+
     // ── Scopes ───────────────────────────────────────────────
 
-    /**
-     * Albums publics (visibles par tous).
-     */
     public function scopePublic($query)
     {
         return $query->where('visibility', 'public');
     }
 
-    /**
-     * Albums restreints ou publics (exclus les albums privés d'autres users).
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     */
     public function scopeVisibleFor($query, User $user)
     {
         return $query->where(function ($q) use ($user) {
             $q->where('visibility', 'public')
                 ->orWhere('visibility', 'restricted')
                 ->orWhere(function ($q2) use ($user) {
-                    // Albums privés : uniquement les siens
                     $q2->where('visibility', 'private')
                         ->where('created_by', $user->id);
                 });
@@ -99,9 +93,6 @@ class MediaAlbum extends Model
 
     // ── Helpers ──────────────────────────────────────────────
 
-    /**
-     * Nombre de médias dans l'album (sans requête supplémentaire si déjà chargé).
-     */
     public function itemCount(): int
     {
         return $this->relationLoaded('items')
@@ -109,16 +100,53 @@ class MediaAlbum extends Model
             : $this->items()->count();
     }
 
-    /**
-     * Label de visibilité en français.
-     */
     public function visibilityLabel(): string
     {
         return match ($this->visibility) {
-            'public' => 'Public',
+            'public'     => 'Public',
             'restricted' => 'Restreint',
-            'private' => 'Privé',
-            default => $this->visibility,
+            'private'    => 'Privé',
+            default      => $this->visibility,
         };
+    }
+
+    /**
+     * Vérifie si un utilisateur a un droit sur cet album.
+     * Résolution : Admin/Président/DGS → toujours vrai
+     *              override utilisateur → prioritaire
+     *              droit par rôle → fallback
+     *
+     * @param  'can_view'|'can_download'|'can_manage'  $ability
+     */
+    public function userCan(User $user, string $ability): bool
+    {
+        // Admin/Président/DGS — accès total
+        if ($user->role && UserRole::from($user->role)->atLeast(UserRole::DGS)) {
+            return true;
+        }
+
+        // Album public → can_view pour tous
+        if ($ability === 'can_view' && $this->visibility === 'public') {
+            return true;
+        }
+
+        // Album privé → créateur uniquement
+        if ($this->visibility === 'private') {
+            return $this->created_by === $user->id;
+        }
+
+        // Override utilisateur individuel
+        $userPerm = $this->userPermissions()->where('user_id', $user->id)->first();
+        if ($userPerm !== null) {
+            return (bool) $userPerm->$ability;
+        }
+
+        // Droit par rôle
+        $rolePerm = $this->rolePermissions()->where('role', $user->role)->first();
+        if ($rolePerm !== null) {
+            return (bool) $rolePerm->$ability;
+        }
+
+        return false;
     }
 }
