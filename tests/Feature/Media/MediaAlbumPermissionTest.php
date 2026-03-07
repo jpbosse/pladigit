@@ -4,21 +4,12 @@ namespace Tests\Feature\Media;
 
 use App\Enums\UserRole;
 use App\Models\Tenant\MediaAlbum;
-use App\Models\Tenant\MediaAlbumPermission;
-use App\Models\Tenant\MediaAlbumUserPermission;
+use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
 use Tests\TestCase;
 
 /**
- * Tests fonctionnels des droits par album.
- *
- * Couverture :
- *   - Page permissions accessible au gestionnaire
- *   - Page permissions interdite aux autres
- *   - Droits par rôle : enregistrement et résolution
- *   - Override utilisateur : prioritaire sur le rôle
- *   - Suppression d'un override
- *   - Admin/DGS toujours autorisés (before())
+ * Tests fonctionnels des droits par album (système Share générique).
  */
 class MediaAlbumPermissionTest extends TestCase
 {
@@ -98,19 +89,14 @@ class MediaAlbumPermissionTest extends TestCase
             ],
         ])->assertRedirect(route('media.albums.permissions.edit', $album));
 
-        $this->assertDatabaseHas('media_album_permissions', [
-            'album_id'     => $album->id,
-            'role'         => 'resp_service',
-            'can_view'     => 1,
-            'can_download' => 1,
-            'can_manage'   => 0,
-        ], 'tenant');
-
-        $this->assertDatabaseHas('media_album_permissions', [
-            'album_id'   => $album->id,
-            'role'       => 'user',
-            'can_view'   => 1,
-            'can_manage' => 0,
+        $this->assertDatabaseHas('shares', [
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'role',
+            'shared_with_role' => 'resp_service',
+            'can_view'         => 1,
+            'can_download'     => 1,
+            'can_manage'       => 0,
         ], 'tenant');
     }
 
@@ -125,13 +111,12 @@ class MediaAlbumPermissionTest extends TestCase
             'created_by' => $owner->id,
         ]);
 
-        // Donner can_view au rôle user
-        MediaAlbumPermission::create([
-            'album_id'     => $album->id,
-            'role'         => UserRole::USER->value,
-            'can_view'     => true,
-            'can_download' => false,
-            'can_manage'   => false,
+        Share::create([
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'role',
+            'shared_with_role' => UserRole::USER->value,
+            'can_view'         => true,
         ]);
 
         $this->actingAs($viewer);
@@ -150,8 +135,6 @@ class MediaAlbumPermissionTest extends TestCase
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
-
-        // Pas de permission pour le rôle user
 
         $this->actingAs($viewer);
 
@@ -175,78 +158,84 @@ class MediaAlbumPermissionTest extends TestCase
         ]);
 
         // Rôle user : pas de droits
-        MediaAlbumPermission::create([
-            'album_id' => $album->id,
-            'role'     => UserRole::USER->value,
-            'can_view' => false,
+        Share::create([
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'role',
+            'shared_with_role' => UserRole::USER->value,
+            'can_view'         => false,
         ]);
 
         // Override user individuel : can_view = true
-        MediaAlbumUserPermission::create([
-            'album_id' => $album->id,
-            'user_id'  => $viewer->id,
-            'can_view' => true,
+        Share::create([
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'user',
+            'shared_with_id'   => $viewer->id,
+            'can_view'         => true,
         ]);
 
         $this->actingAs($viewer);
 
-        // L'override donne accès malgré le rôle bloqué
         $this->get(route('media.albums.show', $album))
             ->assertOk();
     }
 
-    public function test_ajout_override_utilisateur(): void
+    public function test_ajout_partage_utilisateur(): void
     {
         $owner  = User::factory()->create();
         $target = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Override Store',
+            'name'       => 'Album Partage Store',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
 
         $this->actingAs($owner);
 
-        $this->post(route('media.albums.permissions.user.store', $album), [
-            'user_id'      => $target->id,
-            'can_view'     => '1',
-            'can_download' => '1',
+        $this->post(route('media.albums.permissions.store', $album), [
+            'shared_with_type' => 'user',
+            'shared_with_id'   => $target->id,
+            'can_view'         => '1',
+            'can_download'     => '1',
         ])->assertRedirect(route('media.albums.permissions.edit', $album));
 
-        $this->assertDatabaseHas('media_album_user_permissions', [
-            'album_id'     => $album->id,
-            'user_id'      => $target->id,
-            'can_view'     => 1,
-            'can_download' => 1,
-            'can_manage'   => 0,
+        $this->assertDatabaseHas('shares', [
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'user',
+            'shared_with_id'   => $target->id,
+            'can_view'         => 1,
+            'can_download'     => 1,
+            'can_manage'       => 0,
         ], 'tenant');
     }
 
-    public function test_suppression_override_utilisateur(): void
+    public function test_suppression_partage(): void
     {
         $owner  = User::factory()->create();
         $target = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Override Delete',
+            'name'       => 'Album Partage Delete',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
 
-        $perm = MediaAlbumUserPermission::create([
-            'album_id' => $album->id,
-            'user_id'  => $target->id,
-            'can_view' => true,
+        $share = Share::create([
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'user',
+            'shared_with_id'   => $target->id,
+            'can_view'         => true,
         ]);
 
         $this->actingAs($owner);
 
-        $this->delete(route('media.albums.permissions.user.destroy', [$album, $perm]))
+        $this->delete(route('media.albums.permissions.destroy', [$album, $share]))
             ->assertRedirect(route('media.albums.permissions.edit', $album));
 
-        $this->assertDatabaseMissing('media_album_user_permissions', [
-            'id' => $perm->id,
-        ], 'tenant');
+        $this->assertDatabaseMissing('shares', ['id' => $share->id], 'tenant');
     }
 }

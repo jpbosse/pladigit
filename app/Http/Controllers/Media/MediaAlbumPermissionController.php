@@ -4,16 +4,19 @@ namespace App\Http\Controllers\Media;
 
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\Department;
 use App\Models\Tenant\MediaAlbum;
-use App\Models\Tenant\MediaAlbumPermission;
-use App\Models\Tenant\MediaAlbumUserPermission;
+use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
+use App\Services\ShareService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class MediaAlbumPermissionController extends Controller
 {
+    public function __construct(private ShareService $shareService) {}
+
     /**
      * Page de gestion des droits d'un album.
      */
@@ -21,24 +24,20 @@ class MediaAlbumPermissionController extends Controller
     {
         $this->authorize('manage', $album);
 
-        // Droits par rôle indexés par role
-        $rolePerms = $album->rolePermissions()
-            ->get()
-            ->keyBy('role');
+        $shares = $this->shareService->sharesFor($album);
 
-        // Overrides utilisateur avec le user chargé
-        $userPerms = $album->userPermissions()
-            ->with('user')
-            ->get();
+        $roleShares = $shares->where('shared_with_type', 'role')->keyBy('shared_with_role');
+        $deptShares = $shares->where('shared_with_type', 'department');
+        $userShares = $shares->where('shared_with_type', 'user');
 
-        // Rôles configurables (Admin/Président/DGS sont toujours full)
         $configurableRoles = [
             UserRole::RESP_DIRECTION->value => UserRole::RESP_DIRECTION->label(),
             UserRole::RESP_SERVICE->value   => UserRole::RESP_SERVICE->label(),
-            UserRole::USER->value          => UserRole::USER->label(),
+            UserRole::USER->value           => UserRole::USER->label(),
         ];
 
-        // Utilisateurs du tenant (hors Admin/Président/DGS)
+        $departments = Department::orderBy('name')->get();
+
         $users = User::whereNotIn('role', [
             UserRole::ADMIN->value,
             UserRole::PRESIDENT->value,
@@ -47,9 +46,11 @@ class MediaAlbumPermissionController extends Controller
 
         return view('media.albums.permissions', compact(
             'album',
-            'rolePerms',
-            'userPerms',
+            'roleShares',
+            'deptShares',
+            'userShares',
             'configurableRoles',
+            'departments',
             'users',
         ));
     }
@@ -61,43 +62,29 @@ class MediaAlbumPermissionController extends Controller
     {
         $this->authorize('manage', $album);
 
-        $data = $request->input('roles', []);
-
-        foreach ($data as $role => $perms) {
-            // Valider que le rôle est configurable
-            if (!in_array($role, [
-                UserRole::RESP_DIRECTION->value,
-                UserRole::RESP_SERVICE->value,
-                UserRole::USER->value,
-            ])) {
-                continue;
-            }
-
-            MediaAlbumPermission::updateOrCreate(
-                ['album_id' => $album->id, 'role' => $role],
-                [
-                    'can_view'     => isset($perms['can_view']),
-                    'can_download' => isset($perms['can_download']),
-                    'can_manage'   => isset($perms['can_manage']),
-                ]
-            );
-        }
-
-        // Rôles non soumis (cases toutes décochées) → mettre à false
-        $submittedRoles = array_keys($data);
         $allConfigurable = [
             UserRole::RESP_DIRECTION->value,
             UserRole::RESP_SERVICE->value,
             UserRole::USER->value,
         ];
 
+        $data = $request->input('roles', []);
+
         foreach ($allConfigurable as $role) {
-            if (!in_array($role, $submittedRoles)) {
-                MediaAlbumPermission::updateOrCreate(
-                    ['album_id' => $album->id, 'role' => $role],
-                    ['can_view' => false, 'can_download' => false, 'can_manage' => false]
-                );
-            }
+            $perms = $data[$role] ?? [];
+            $this->shareService->upsert(
+                object: $album,
+                withType: 'role',
+                withId: null,
+                withRole: $role,
+                abilities: [
+                    'can_view'     => isset($perms['can_view']),
+                    'can_download' => isset($perms['can_download']),
+                    'can_edit'     => isset($perms['can_edit']),
+                    'can_manage'   => isset($perms['can_manage']),
+                ],
+                sharedBy: auth()->id(),
+            );
         }
 
         return redirect()
@@ -106,41 +93,47 @@ class MediaAlbumPermissionController extends Controller
     }
 
     /**
-     * Ajoute un override utilisateur.
+     * Ajoute un partage (utilisateur ou département).
      */
-    public function storeUser(Request $request, MediaAlbum $album): RedirectResponse
+    public function store(Request $request, MediaAlbum $album): RedirectResponse
     {
         $this->authorize('manage', $album);
 
         $request->validate([
-            'user_id' => ['required', 'integer'],
+            'shared_with_type' => ['required', 'in:user,department'],
+            'shared_with_id'   => ['required', 'integer'],
         ]);
 
-        MediaAlbumUserPermission::updateOrCreate(
-            ['album_id' => $album->id, 'user_id' => $request->integer('user_id')],
-            [
+        $this->shareService->upsert(
+            object: $album,
+            withType: $request->input('shared_with_type'),
+            withId: $request->integer('shared_with_id'),
+            withRole: null,
+            abilities: [
                 'can_view'     => $request->boolean('can_view'),
                 'can_download' => $request->boolean('can_download'),
+                'can_edit'     => $request->boolean('can_edit'),
                 'can_manage'   => $request->boolean('can_manage'),
-            ]
+            ],
+            sharedBy: auth()->id(),
         );
 
         return redirect()
             ->route('media.albums.permissions.edit', $album)
-            ->with('success', 'Override utilisateur ajouté.');
+            ->with('success', 'Partage ajouté.');
     }
 
     /**
-     * Supprime un override utilisateur.
+     * Supprime un partage.
      */
-    public function destroyUser(MediaAlbum $album, MediaAlbumUserPermission $perm): RedirectResponse
+    public function destroy(MediaAlbum $album, Share $share): RedirectResponse
     {
         $this->authorize('manage', $album);
 
-        $perm->delete();
+        $this->shareService->revoke($share);
 
         return redirect()
             ->route('media.albums.permissions.edit', $album)
-            ->with('success', 'Override supprimé.');
+            ->with('success', 'Partage supprimé.');
     }
 }

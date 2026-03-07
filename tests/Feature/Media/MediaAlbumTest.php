@@ -3,6 +3,7 @@
 namespace Tests\Feature\Media;
 
 use App\Models\Tenant\MediaAlbum;
+use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
 use Tests\TestCase;
 
@@ -149,10 +150,12 @@ class MediaAlbumTest extends TestCase
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
-        \App\Models\Tenant\MediaAlbumPermission::create([
-            'album_id' => $album->id,
-            'role'     => \App\Enums\UserRole::USER->value,
-            'can_view' => true,
+        Share::create([
+            'shareable_type'   => 'media_album',
+            'shareable_id'     => $album->id,
+            'shared_with_type' => 'role',
+            'shared_with_role' => \App\Enums\UserRole::USER->value,
+            'can_view'         => true,
         ]);
         $this->actingAs($member);
         $this->get(route('media.albums.show', $album))
