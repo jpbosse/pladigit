@@ -96,34 +96,28 @@ Route::middleware('tenant')->group(function () {
             Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
             Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('users.reset-password');
 
-
-
-
-
-	    Route::get('departments/organigramme', [App\Http\Controllers\Admin\DepartmentController::class, 'organigramme'])->name('departments.organigramme');
+            Route::get('departments/organigramme', [App\Http\Controllers\Admin\DepartmentController::class, 'organigramme'])->name('departments.organigramme');
             Route::resource('departments', App\Http\Controllers\Admin\DepartmentController::class)
                 ->only(['index', 'store', 'update', 'destroy'])
                 ->names('departments');
 
-
-
             /*
              * Paramètres LDAP et SMTP — à décommenter en Phase 2 (§18.1)
              *
-	    */
+        */
 
-		Route::get('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'ldap'])->name('settings.ldap');
-		Route::put('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'updateLdap'])->name('settings.ldap.update');
-		Route::get('settings/ldap/test', [App\Http\Controllers\Admin\SettingsController::class, 'testLdap'])->name('settings.ldap.test');
-		Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
-		Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
-		Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
-		Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
-		Route::get('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'media'])->name('settings.media');
-		Route::put('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'updateMedia'])->name('settings.media.update');
-		Route::get('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'nas'])->name('settings.nas');
-		Route::put('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'updateNas'])->name('settings.nas.update');
-		Route::post('settings/nas/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncNas'])->name('settings.nas.sync');
+            Route::get('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'ldap'])->name('settings.ldap');
+            Route::put('settings/ldap', [App\Http\Controllers\Admin\SettingsController::class, 'updateLdap'])->name('settings.ldap.update');
+            Route::get('settings/ldap/test', [App\Http\Controllers\Admin\SettingsController::class, 'testLdap'])->name('settings.ldap.test');
+            Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
+            Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
+            Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
+            Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
+            Route::get('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'media'])->name('settings.media');
+            Route::put('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'updateMedia'])->name('settings.media.update');
+            Route::get('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'nas'])->name('settings.nas');
+            Route::put('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'updateNas'])->name('settings.nas.update');
+            Route::post('settings/nas/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncNas'])->name('settings.nas.sync');
 
         });
 
@@ -147,8 +141,8 @@ Route::middleware('tenant')->group(function () {
             Route::post('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'store'])->name('items.store');
             Route::get('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'show'])->name('items.show');
             Route::delete('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'destroy'])->name('items.destroy');
-	    Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
-	    Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
+            Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
+            Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
 
             // Servir les fichiers (inline et téléchargement)
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');

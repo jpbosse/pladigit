@@ -51,8 +51,7 @@ class User extends Authenticatable
         // LDAP
         'ldap_dn',
         'ldap_synced_at',
-	'media_cols',
-
+        'media_cols',
 
     ];
 
@@ -73,7 +72,7 @@ class User extends Authenticatable
         'totp_enabled' => 'boolean',
         'force_pwd_change' => 'boolean',
         'password_history' => 'array',
-	'media_cols' => 'integer',
+        'media_cols' => 'integer',
     ];
 
     // Laravel attend 'password' par défaut — on remplace

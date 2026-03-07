@@ -34,8 +34,8 @@ class NasManager
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings, 'photo'),
-            'sftp'  => $this->makeSftpDriver($settings, 'photo'),
-            'smb'   => $this->makeSmbDriver(),
+            'sftp' => $this->makeSftpDriver($settings, 'photo'),
+            'smb' => $this->makeSmbDriver(),
             default => throw new RuntimeException("Driver NAS inconnu : {$driver}"),
         };
     }
@@ -50,8 +50,8 @@ class NasManager
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings, 'ged'),
-            'sftp'  => $this->makeSftpDriver($settings, 'ged'),
-            'smb'   => $this->makeSmbDriver(),
+            'sftp' => $this->makeSftpDriver($settings, 'ged'),
+            'smb' => $this->makeSmbDriver(),
             default => throw new RuntimeException("Driver NAS inconnu : {$driver}"),
         };
     }
@@ -71,17 +71,18 @@ class NasManager
     private function makeLocalDriver(?TenantSettings $settings, string $module): LocalNasDriver
     {
         $field = "nas_{$module}_local_path";
-        $path  = $settings?->$field ?? config('nas.local_path');
+        $path = $settings?->$field ?? config('nas.local_path');
+
         return new LocalNasDriver($path ?: null);
     }
 
     private function makeSftpDriver(?TenantSettings $settings, string $module): SftpNasDriver
     {
-        $host     = "nas_{$module}_host";
-        $port     = "nas_{$module}_port";
+        $host = "nas_{$module}_host";
+        $port = "nas_{$module}_port";
         $username = "nas_{$module}_username";
         $password = "nas_{$module}_password_enc";
-        $root     = "nas_{$module}_root_path";
+        $root = "nas_{$module}_root_path";
 
         if (! $settings || ! $settings->$host) {
             throw new RuntimeException(
@@ -99,8 +100,8 @@ class NasManager
         }
 
         return new SftpNasDriver(
-            host:     $settings->$host,
-            port:     (int) ($settings->$port ?? 22),
+            host: $settings->$host,
+            port: (int) ($settings->$port ?? 22),
             username: $settings->$username ?? '',
             password: $pwd,
             rootPath: $settings->$root ?? '/',

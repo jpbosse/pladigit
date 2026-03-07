@@ -35,7 +35,7 @@ class NasSyncCommand extends Command
         $deep = (bool) $this->option('deep');
         $tenantSlug = $this->option('tenant');
 
-        $this->info('🔄 Synchronisation NAS — mode ' . ($deep ? 'SHA-256 (complète)' : 'mtime (légère)'));
+        $this->info('🔄 Synchronisation NAS — mode '.($deep ? 'SHA-256 (complète)' : 'mtime (légère)'));
         $this->newLine();
 
         $orgs = $tenantSlug
@@ -44,12 +44,13 @@ class NasSyncCommand extends Command
 
         if ($orgs->isEmpty()) {
             $this->warn('Aucune organisation active trouvée.');
+
             return self::SUCCESS;
         }
 
-        $totalAdded   = 0;
+        $totalAdded = 0;
         $totalSkipped = 0;
-        $totalErrors  = 0;
+        $totalErrors = 0;
 
         foreach ($orgs as $org) {
             $this->line("📁 <info>{$org->name}</info> ({$org->slug})");
@@ -58,17 +59,18 @@ class NasSyncCommand extends Command
                 $tenantManager->connectTo($org);
 
                 $settings = TenantSettings::first();
-                $driver   = $settings?->nas_photo_driver ?? 'local';
+                $driver = $settings?->nas_photo_driver ?? 'local';
 
-/*                if ($driver === 'local' && ! app()->environment('local', 'testing')) {
-                    $this->line("   ⏭  Driver local ignoré en production.");
-                    continue;
-                }
-*/
+                /*                if ($driver === 'local' && ! app()->environment('local', 'testing')) {
+                                    $this->line("   ⏭  Driver local ignoré en production.");
+                                    continue;
+                                }
+                */
                 $albums = MediaAlbum::all();
 
                 if ($albums->isEmpty()) {
-                    $this->line("   ℹ  Aucun album — synchronisation ignorée.");
+                    $this->line('   ℹ  Aucun album — synchronisation ignorée.');
+
                     continue;
                 }
 
@@ -83,7 +85,7 @@ class NasSyncCommand extends Command
                         } else {
                             $result = $mediaService->syncByMtime($album, $nasDir);
                             $this->line("   ✓ Album « {$album->name} » — {$result['added']} ajouté(s), {$result['skipped']} ignoré(s)");
-                            $totalAdded   += $result['added'];
+                            $totalAdded += $result['added'];
                             $totalSkipped += $result['skipped'];
                         }
                     } catch (\Throwable $e) {

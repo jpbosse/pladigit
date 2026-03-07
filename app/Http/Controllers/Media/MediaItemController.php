@@ -68,49 +68,44 @@ class MediaItemController extends Controller
     /**
      * Affichage détaillé d'un média (visionneuse plein écran).
      */
-	 public function show(MediaAlbum $album, MediaItem $item)
-	    {
-	        $this->assertBelongsToAlbum($item, $album);
-	
-	        $prev = MediaItem::where('album_id', $album->id)
-	            ->where('id', '<', $item->id)
-	            ->orderByDesc('id')
-	            ->first();
+    public function show(MediaAlbum $album, MediaItem $item)
+    {
+        $this->assertBelongsToAlbum($item, $album);
 
-        	$next = MediaItem::where('album_id', $album->id)
-	            ->where('id', '>', $item->id)
-	            ->orderBy('id')
-	            ->first();
+        $prev = MediaItem::where('album_id', $album->id)
+            ->where('id', '<', $item->id)
+            ->orderByDesc('id')
+            ->first();
 
-	        // Position et total pour le compteur
-	        $position = MediaItem::where('album_id', $album->id)
-	            ->where('id', '<=', $item->id)
-	            ->count();
-        	$total = MediaItem::where('album_id', $album->id)->count();
+        $next = MediaItem::where('album_id', $album->id)
+            ->where('id', '>', $item->id)
+            ->orderBy('id')
+            ->first();
 
-	        return view('media.items.show', compact('album', 'item', 'prev', 'next', 'position', 'total'));
-	    }
+        // Position et total pour le compteur
+        $position = MediaItem::where('album_id', $album->id)
+            ->where('id', '<=', $item->id)
+            ->count();
+        $total = MediaItem::where('album_id', $album->id)->count();
 
+        return view('media.items.show', compact('album', 'item', 'prev', 'next', 'position', 'total'));
+    }
 
-	 /**
-	 * Met à jour la description (caption) d'un média — appelé en AJAX.
-	 */
-	    public function updateCaption(Request $request, MediaAlbum $album, MediaItem $item)
-	    {
-	        $this->assertBelongsToAlbum($item, $album);
+    /**
+     * Met à jour la description (caption) d'un média — appelé en AJAX.
+     */
+    public function updateCaption(Request $request, MediaAlbum $album, MediaItem $item)
+    {
+        $this->assertBelongsToAlbum($item, $album);
 
-	        $request->validate([
-	            'caption' => ['nullable', 'string', 'max:500'],
-	        ]);
+        $request->validate([
+            'caption' => ['nullable', 'string', 'max:500'],
+        ]);
 
-	        $item->update(['caption' => $request->caption]);
+        $item->update(['caption' => $request->caption]);
 
-	        return response()->json(['ok' => true, 'caption' => $item->caption]);
-    	}
-
-
-
-
+        return response()->json(['ok' => true, 'caption' => $item->caption]);
+    }
 
     /**
      * Suppression (soft delete) d'un média.

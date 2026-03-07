@@ -51,12 +51,6 @@ class DepartmentTest extends TestCase
         $this->assertSoftDeleted($table, $data, 'tenant');
     }
 
-
-
-
-
-
-
     // ── Accès ──────────────────────────────────────────────────────────
 
     public function test_invité_ne_peut_pas_accéder_aux_départements(): void
@@ -143,27 +137,24 @@ class DepartmentTest extends TestCase
         ]);
     }
 
-
     public function test_création_service_sans_parent_devient_direction(): void
     {
-    	$this->actingAs($this->admin)
-	        ->post(route('admin.departments.store'), [
-	            'name'      => 'Service Voirie',
-	            'type'      => 'service',
-	            'parent_id' => null,
-	        ])
-	        ->assertRedirect();
+        $this->actingAs($this->admin)
+            ->post(route('admin.departments.store'), [
+                'name' => 'Service Voirie',
+                'type' => 'service',
+                'parent_id' => null,
+            ])
+            ->assertRedirect();
 
-	    // Sans parent, le type est dérivé en 'direction'
-	    $this->assertTenantCount('departments', 1);
-    
+        // Sans parent, le type est dérivé en 'direction'
+        $this->assertTenantCount('departments', 1);
 
-	    $this->assertDatabaseHas('departments', [
-	       	 'name' => 'Service Voirie',
-	       	 'type' => 'direction',
-	    ], 'tenant');
+        $this->assertDatabaseHas('departments', [
+            'name' => 'Service Voirie',
+            'type' => 'direction',
+        ], 'tenant');
     }
-
 
     public function test_création_service_parent_inexistant_refusée(): void
     {
