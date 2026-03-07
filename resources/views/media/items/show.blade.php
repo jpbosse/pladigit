@@ -290,7 +290,13 @@
             </a>
             @endif
 
-            <div class="ml-auto">
+            <div class="ml-auto flex items-center gap-2">
+                @can('manage', $item)
+                <a href="{{ route('media.items.shares.edit', $item) }}"
+                   class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-gray-600 border border-gray-200 text-sm font-medium hover:bg-gray-50">
+                    🔐 Partager
+                </a>
+                @endcan
                 <form method="POST" action="{{ route('media.items.destroy', [$album, $item]) }}"
                       onsubmit="return confirm('Supprimer définitivement ce fichier ?')">
                     @csrf @method('DELETE')
