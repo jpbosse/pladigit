@@ -10,7 +10,10 @@ class MediaAlbumPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
-        if ($user->role && UserRole::from($user->role)->atLeast(UserRole::DGS)) {
+        // Président et DGS : accès total à tous les albums
+        // Admin : accès via shares comme les autres (peut être exclu de certains albums RH/compta)
+        $role = $user->role ? UserRole::from($user->role) : null;
+        if ($role && in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true)) {
             return true;
         }
         return null;
@@ -50,7 +53,10 @@ class MediaAlbumPolicy
 
     public function delete(User $user, MediaAlbum $album): bool
     {
-        return $album->created_by === $user->id
-            || UserRole::from($user->role)->atLeast(UserRole::DGS);
+        if ($album->created_by === $user->id) {
+            return true;
+        }
+        $role = UserRole::from($user->role);
+        return in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true);
     }
 }
