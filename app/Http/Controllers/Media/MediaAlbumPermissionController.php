@@ -33,15 +33,15 @@ class MediaAlbumPermissionController extends Controller
 
         // Rôles configurables (Admin/Président/DGS sont toujours full)
         $configurableRoles = [
-            UserRole::RespDirection->value => UserRole::RespDirection->label(),
-            UserRole::RespService->value   => UserRole::RespService->label(),
-            UserRole::User->value          => UserRole::User->label(),
+            UserRole::RESP_DIRECTION->value => UserRole::RESP_DIRECTION->label(),
+            UserRole::RESP_SERVICE->value   => UserRole::RESP_SERVICE->label(),
+            UserRole::USER->value          => UserRole::USER->label(),
         ];
 
         // Utilisateurs du tenant (hors Admin/Président/DGS)
         $users = User::whereNotIn('role', [
-            UserRole::Admin->value,
-            UserRole::President->value,
+            UserRole::ADMIN->value,
+            UserRole::PRESIDENT->value,
             UserRole::DGS->value,
         ])->orderBy('name')->get();
 
@@ -66,9 +66,9 @@ class MediaAlbumPermissionController extends Controller
         foreach ($data as $role => $perms) {
             // Valider que le rôle est configurable
             if (!in_array($role, [
-                UserRole::RespDirection->value,
-                UserRole::RespService->value,
-                UserRole::User->value,
+                UserRole::RESP_DIRECTION->value,
+                UserRole::RESP_SERVICE->value,
+                UserRole::USER->value,
             ])) {
                 continue;
             }
@@ -86,9 +86,9 @@ class MediaAlbumPermissionController extends Controller
         // Rôles non soumis (cases toutes décochées) → mettre à false
         $submittedRoles = array_keys($data);
         $allConfigurable = [
-            UserRole::RespDirection->value,
-            UserRole::RespService->value,
-            UserRole::User->value,
+            UserRole::RESP_DIRECTION->value,
+            UserRole::RESP_SERVICE->value,
+            UserRole::USER->value,
         ];
 
         foreach ($allConfigurable as $role) {

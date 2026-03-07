@@ -85,7 +85,7 @@ class MediaAlbumController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $this->authorizeView($album, $user);
+        $this->authorize('view', $album);
 
         $items = $album->items()
             ->orderByDesc('created_at')
@@ -185,17 +185,4 @@ class MediaAlbumController extends Controller
     /**
      * Vérifie que l'utilisateur peut voir cet album.
      */
-    private function authorizeView(MediaAlbum $album, User $user): void
-    {
-        $visible = match ($album->visibility) {
-            'public' => true,
-            'restricted' => true,
-            'private' => $album->created_by === $user->id,
-            default => false,
-        };
-
-        if (! $visible) {
-            abort(403, 'Vous n\'avez pas accès à cet album.');
-        }
-    }
 }
