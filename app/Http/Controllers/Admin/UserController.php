@@ -51,7 +51,7 @@ class UserController extends Controller
     public function create()
     {
         $directions = Department::on('tenant')->directions()->orderBy('name')->get();
-        $services = Department::on('tenant')->services()->with('parent')->orderBy('name')->get();
+        $services = Department::on('tenant')->services()->with('parentDept')->orderBy('name')->get();
 
         return view('admin.users.create', compact('directions', 'services'));
     }
@@ -132,7 +132,7 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $directions = Department::on('tenant')->directions()->orderBy('name')->get();
-        $services = Department::on('tenant')->services()->with('parent')->orderBy('name')->get();
+        $services = Department::on('tenant')->services()->with('parentDept')->orderBy('name')->get();
         $userDeptIds = $user->departments()->pluck('departments.id')->toArray();
 
         return view('admin.users.edit', compact('user', 'directions', 'services', 'userDeptIds'));
