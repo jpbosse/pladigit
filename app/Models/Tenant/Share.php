@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 class Share extends Model
 {
     protected $connection = 'tenant';
+
     protected $table = 'shares';
 
     protected $fillable = [
@@ -33,10 +34,10 @@ class Share extends Model
     ];
 
     protected $casts = [
-        'can_view'     => 'boolean',
+        'can_view' => 'boolean',
         'can_download' => 'boolean',
-        'can_edit'     => 'boolean',
-        'can_manage'   => 'boolean',
+        'can_edit' => 'boolean',
+        'can_manage' => 'boolean',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -70,24 +71,24 @@ class Share extends Model
     public function scopeForUser($query, int $userId)
     {
         return $query->where('shared_with_type', 'user')
-                     ->where('shared_with_id', $userId);
+            ->where('shared_with_id', $userId);
     }
 
     public function scopeForRole($query, string $role)
     {
         return $query->where('shared_with_type', 'role')
-                     ->where('shared_with_role', $role);
+            ->where('shared_with_role', $role);
     }
 
     public function scopeForDepartment($query, int $deptId)
     {
         return $query->where('shared_with_type', 'department')
-                     ->where('shared_with_id', $deptId);
+            ->where('shared_with_id', $deptId);
     }
 
     public function scopeForModel($query, string $type, int $id)
     {
         return $query->where('shareable_type', $type)
-                     ->where('shareable_id', $id);
+            ->where('shareable_id', $id);
     }
 }

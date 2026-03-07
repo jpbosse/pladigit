@@ -32,8 +32,8 @@ class MediaAlbumPermissionController extends Controller
 
         $configurableRoles = [
             UserRole::RESP_DIRECTION->value => UserRole::RESP_DIRECTION->label(),
-            UserRole::RESP_SERVICE->value   => UserRole::RESP_SERVICE->label(),
-            UserRole::USER->value           => UserRole::USER->label(),
+            UserRole::RESP_SERVICE->value => UserRole::RESP_SERVICE->label(),
+            UserRole::USER->value => UserRole::USER->label(),
         ];
 
         $departments = Department::orderBy('name')->get();
@@ -79,10 +79,10 @@ class MediaAlbumPermissionController extends Controller
                 withId: null,
                 withRole: $role,
                 abilities: [
-                    'can_view'     => isset($perms['can_view']),
+                    'can_view' => isset($perms['can_view']),
                     'can_download' => isset($perms['can_download']),
-                    'can_edit'     => isset($perms['can_edit']),
-                    'can_manage'   => isset($perms['can_manage']),
+                    'can_edit' => isset($perms['can_edit']),
+                    'can_manage' => isset($perms['can_manage']),
                 ],
                 sharedBy: auth()->id(),
             );
@@ -102,7 +102,7 @@ class MediaAlbumPermissionController extends Controller
 
         $request->validate([
             'shared_with_type' => ['required', 'in:user,department'],
-            'shared_with_id'   => ['required', 'integer'],
+            'shared_with_id' => ['required', 'integer'],
         ]);
 
         $this->shareService->upsert(
@@ -111,10 +111,10 @@ class MediaAlbumPermissionController extends Controller
             withId: $request->integer('shared_with_id'),
             withRole: null,
             abilities: [
-                'can_view'     => $request->boolean('can_view'),
+                'can_view' => $request->boolean('can_view'),
                 'can_download' => $request->boolean('can_download'),
-                'can_edit'     => $request->boolean('can_edit'),
-                'can_manage'   => $request->boolean('can_manage'),
+                'can_edit' => $request->boolean('can_edit'),
+                'can_manage' => $request->boolean('can_manage'),
             ],
             sharedBy: auth()->id(),
         );
@@ -132,10 +132,10 @@ class MediaAlbumPermissionController extends Controller
         $this->authorize('manage', $album);
 
         $share->update([
-            'can_view'     => $request->boolean('can_view'),
+            'can_view' => $request->boolean('can_view'),
             'can_download' => $request->boolean('can_download'),
-            'can_edit'     => $request->boolean('can_edit'),
-            'can_manage'   => $request->boolean('can_manage'),
+            'can_edit' => $request->boolean('can_edit'),
+            'can_manage' => $request->boolean('can_manage'),
         ]);
 
         return redirect()->route('media.albums.permissions.edit', $album)

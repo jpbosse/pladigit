@@ -24,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class MediaItem extends Model
 {
-    use HasFactory, SoftDeletes, Shareable;
+    use HasFactory, Shareable, SoftDeletes;
 
     protected $connection = 'tenant';
 

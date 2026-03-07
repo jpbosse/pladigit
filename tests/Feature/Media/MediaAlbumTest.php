@@ -143,19 +143,19 @@ class MediaAlbumTest extends TestCase
 
     public function test_un_album_restreint_est_visible_par_les_membres(): void
     {
-        $owner  = User::factory()->create();
+        $owner = User::factory()->create();
         $member = User::factory()->create(['role' => \App\Enums\UserRole::USER->value]);
-        $album  = MediaAlbum::create([
-            'name'       => 'Album Restreint',
+        $album = MediaAlbum::create([
+            'name' => 'Album Restreint',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
         Share::create([
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'role',
             'shared_with_role' => \App\Enums\UserRole::USER->value,
-            'can_view'         => true,
+            'can_view' => true,
         ]);
         $this->actingAs($member);
         $this->get(route('media.albums.show', $album))

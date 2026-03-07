@@ -29,14 +29,15 @@ class ShareService
     private function morphType(Model $object): string
     {
         $class = get_class($object);
-        $map   = array_flip(Relation::morphMap());
+        $map = array_flip(Relation::morphMap());
+
         return $map[$class] ?? $class;
     }
 
     public function can(User $user, Model $object, string $ability): bool
     {
         $type = $this->morphType($object);
-        $id   = $object->getKey();
+        $id = $object->getKey();
 
         // 1. Override utilisateur individuel
         $userShare = Share::forModel($type, $id)
@@ -50,7 +51,7 @@ class ShareService
         // 2. Override département
         $deptIds = $user->departments()->pluck('departments.id')->toArray();
 
-        if (!empty($deptIds)) {
+        if (! empty($deptIds)) {
             $deptShare = Share::forModel($type, $id)
                 ->forDepartment(0) // placeholder — requête ci-dessous
                 ->whereIn('shared_with_id', $deptIds)
@@ -99,10 +100,10 @@ class ShareService
     ): Share {
         return Share::updateOrCreate(
             [
-                'shareable_type'   => $this->morphType($object),
-                'shareable_id'     => $object->getKey(),
+                'shareable_type' => $this->morphType($object),
+                'shareable_id' => $object->getKey(),
                 'shared_with_type' => $withType,
-                'shared_with_id'   => $withId,
+                'shared_with_id' => $withId,
                 'shared_with_role' => $withRole,
             ],
             array_merge($abilities, ['shared_by' => $sharedBy])

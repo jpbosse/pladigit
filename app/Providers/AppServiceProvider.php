@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
-use App\Policies\MediaItemPolicy;
 use App\Policies\MediaAlbumPolicy;
+use App\Policies\MediaItemPolicy;
 use App\Services\TenantManager;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Gate;
@@ -26,7 +26,7 @@ class AppServiceProvider extends ServiceProvider
         // Alias courts pour les relations polymorphiques (table shares)
         Relation::morphMap([
             'media_album' => MediaAlbum::class,
-            'media_item'  => MediaItem::class,
+            'media_item' => MediaItem::class,
             // Phase 5 : 'ged_document' => GedDocument::class,
             // Phase 5 : 'ged_folder'   => GedFolder::class,
         ]);

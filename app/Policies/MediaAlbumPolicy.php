@@ -16,6 +16,7 @@ class MediaAlbumPolicy
         if ($role && in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true)) {
             return true;
         }
+
         return null;
     }
 
@@ -27,6 +28,7 @@ class MediaAlbumPolicy
         if ($album->visibility === 'private') {
             return $album->created_by === $user->id;
         }
+
         return $album->userCan($user, 'can_view');
     }
 
@@ -35,6 +37,7 @@ class MediaAlbumPolicy
         if ($album->visibility === 'private') {
             return $album->created_by === $user->id;
         }
+
         return $album->userCan($user, 'can_download');
     }
 
@@ -43,6 +46,7 @@ class MediaAlbumPolicy
         if ($album->created_by === $user->id) {
             return true;
         }
+
         return $album->userCan($user, 'can_manage');
     }
 
@@ -57,6 +61,7 @@ class MediaAlbumPolicy
             return true;
         }
         $role = UserRole::from($user->role);
+
         return in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true);
     }
 }
