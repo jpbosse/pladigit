@@ -139,6 +139,13 @@ Route::middleware('tenant')->group(function () {
             Route::put('albums/{album}/permissions/roles', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'updateRoles'])->name('albums.permissions.roles');
             Route::post('albums/{album}/permissions/shares', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'store'])->name('albums.permissions.store');
             Route::delete('albums/{album}/permissions/shares/{share}', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'destroy'])->name('albums.permissions.destroy');
+            Route::patch('albums/{album}/permissions/shares/{share}', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'update'])->name('albums.permissions.update');
+
+            // Partages individuels par média
+            Route::get('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'edit'])->name('items.shares.edit');
+            Route::post('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'store'])->name('items.shares.store');
+            Route::patch('items/{item}/shares/{share}', [\App\Http\Controllers\Media\MediaItemShareController::class, 'update'])->name('items.shares.update');
+            Route::delete('items/{item}/shares/{share}', [\App\Http\Controllers\Media\MediaItemShareController::class, 'destroy'])->name('items.shares.destroy');
 
             // Test connexion NAS (AJAX — admin uniquement)
             Route::get('nas/test', [\App\Http\Controllers\Media\MediaAlbumController::class, 'testNasConnection'])->name('nas.test');

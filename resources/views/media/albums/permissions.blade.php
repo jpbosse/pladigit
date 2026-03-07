@@ -31,7 +31,7 @@
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-6">
         <div class="p-5 border-b border-gray-100">
             <h2 class="text-sm font-semibold text-gray-700">Droits par rôle</h2>
-            <p class="text-xs text-gray-400 mt-1">Admin, Président et DGS ont toujours accès total.</p>
+            <p class="text-xs text-gray-400 mt-1">Président et DGS ont toujours accès total. L'Admin est soumis aux droits comme les autres rôles.</p>
         </div>
 
         <form method="POST" action="{{ route('media.albums.permissions.roles', $album) }}">
@@ -48,7 +48,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-50">
-                        @foreach(['admin' => 'Admin', 'president' => 'Président', 'dgs' => 'DGS'] as $role => $label)
+                        @foreach(['president' => 'Président', 'dgs' => 'DGS'] as $role => $label)
                         <tr class="bg-gray-50">
                             <td class="px-5 py-3 text-gray-400 font-medium">{{ $label }} <span class="text-xs">(accès total)</span></td>
                             <td class="text-center px-4 py-3 text-green-500">✓</td>
@@ -114,45 +114,50 @@
                         <th class="text-center px-4 py-3 text-xs font-medium text-gray-500">✏️</th>
                         <th class="text-center px-4 py-3 text-xs font-medium text-gray-500">⚙️</th>
                         <th class="px-4 py-3"></th>
+                        <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-50">
-                    @foreach($deptShares as $share)
+                    @foreach($deptShares->merge($userShares) as $share)
                     <tr>
                         <td class="px-5 py-3">
-                            <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded mr-1">Direction/Service</span>
-                            {{ $share->sharedWithDepartment?->name ?? '—' }}
+                            @if($share->shared_with_type === 'department')
+                                <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded mr-1">Direction/Service</span>
+                                {{ $share->sharedWithDepartment?->name ?? '—' }}
+                            @else
+                                <span class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded mr-1">Utilisateur</span>
+                                <span class="font-medium">{{ $share->sharedWithUser?->name ?? '—' }}</span>
+                                <span class="text-xs text-gray-400 ml-1">{{ $share->sharedWithUser?->email }}</span>
+                            @endif
                         </td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_view ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_view ? '✓' : '✗' }}</span></td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_download ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_download ? '✓' : '✗' }}</span></td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_edit ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_edit ? '✓' : '✗' }}</span></td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_manage ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_manage ? '✓' : '✗' }}</span></td>
-                        <td class="text-right px-4 py-3">
+                        {{-- Formulaire de modification inline --}}
+                        <form method="POST" action="{{ route('media.albums.permissions.update', [$album, $share]) }}" class="contents">
+                        @csrf @method('PATCH')
+                        <td class="text-center px-4 py-3">
+                            <input type="checkbox" name="can_view" value="1" {{ $share->can_view ? 'checked' : '' }}
+                                   class="rounded border-gray-300 text-blue-600">
+                        </td>
+                        <td class="text-center px-4 py-3">
+                            <input type="checkbox" name="can_download" value="1" {{ $share->can_download ? 'checked' : '' }}
+                                   class="rounded border-gray-300 text-blue-600">
+                        </td>
+                        <td class="text-center px-4 py-3">
+                            <input type="checkbox" name="can_edit" value="1" {{ $share->can_edit ? 'checked' : '' }}
+                                   class="rounded border-gray-300 text-blue-600">
+                        </td>
+                        <td class="text-center px-4 py-3">
+                            <input type="checkbox" name="can_manage" value="1" {{ $share->can_manage ? 'checked' : '' }}
+                                   class="rounded border-gray-300 text-blue-600">
+                        </td>
+                        <td class="text-right px-4 py-3 space-x-2">
+                            <button type="submit" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Enregistrer</button>
+                        </td>
+                        </form>
+                        <td class="px-2 py-3">
                             <form method="POST" action="{{ route('media.albums.permissions.destroy', [$album, $share]) }}"
                                   onsubmit="return confirm('Supprimer ce partage ?')">
                                 @csrf @method('DELETE')
-                                <button class="text-red-400 hover:text-red-600 text-xs">Supprimer</button>
-                            </form>
-                        </td>
-                    </tr>
-                    @endforeach
-
-                    @foreach($userShares as $share)
-                    <tr>
-                        <td class="px-5 py-3">
-                            <span class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded mr-1">Utilisateur</span>
-                            <span class="font-medium">{{ $share->sharedWithUser?->name ?? '—' }}</span>
-                            <span class="text-xs text-gray-400 ml-1">{{ $share->sharedWithUser?->email }}</span>
-                        </td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_view ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_view ? '✓' : '✗' }}</span></td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_download ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_download ? '✓' : '✗' }}</span></td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_edit ? 'text-green-500' : 'text-red-400' }}</span>{{ $share->can_edit ? '✓' : '✗' }}</span></td>
-                        <td class="text-center px-4 py-3"><span class="{{ $share->can_manage ? 'text-green-500' : 'text-red-400' }}">{{ $share->can_manage ? '✓' : '✗' }}</span></td>
-                        <td class="text-right px-4 py-3">
-                            <form method="POST" action="{{ route('media.albums.permissions.destroy', [$album, $share]) }}"
-                                  onsubmit="return confirm('Supprimer ce partage ?')">
-                                @csrf @method('DELETE')
-                                <button class="text-red-400 hover:text-red-600 text-xs">Supprimer</button>
+                                <button class="text-red-400 hover:text-red-600 text-xs">✕</button>
                             </form>
                         </td>
                     </tr>

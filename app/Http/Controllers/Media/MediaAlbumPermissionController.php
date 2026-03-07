@@ -127,6 +127,21 @@ class MediaAlbumPermissionController extends Controller
     /**
      * Supprime un partage.
      */
+    public function update(Request $request, MediaAlbum $album, Share $share): RedirectResponse
+    {
+        $this->authorize('manage', $album);
+
+        $share->update([
+            'can_view'     => $request->boolean('can_view'),
+            'can_download' => $request->boolean('can_download'),
+            'can_edit'     => $request->boolean('can_edit'),
+            'can_manage'   => $request->boolean('can_manage'),
+        ]);
+
+        return redirect()->route('media.albums.permissions.edit', $album)
+            ->with('success', 'Droits mis à jour.');
+    }
+
     public function destroy(MediaAlbum $album, Share $share): RedirectResponse
     {
         $this->authorize('manage', $album);
