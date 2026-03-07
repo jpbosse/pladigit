@@ -19,9 +19,9 @@ class MediaAlbumPermissionTest extends TestCase
 
     public function test_le_createur_peut_acceder_a_la_page_permissions(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Album Test',
+            'name' => 'Album Test',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -39,7 +39,7 @@ class MediaAlbumPermissionTest extends TestCase
         $other = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Privé',
+            'name' => 'Album Privé',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
@@ -53,10 +53,10 @@ class MediaAlbumPermissionTest extends TestCase
     public function test_un_dgs_peut_acceder_aux_permissions_de_nimporte_quel_album(): void
     {
         $owner = User::factory()->create();
-        $dgs   = User::factory()->create(['role' => UserRole::DGS->value]);
+        $dgs = User::factory()->create(['role' => UserRole::DGS->value]);
 
         $album = MediaAlbum::create([
-            'name'       => 'Album quelconque',
+            'name' => 'Album quelconque',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
@@ -73,9 +73,9 @@ class MediaAlbumPermissionTest extends TestCase
 
     public function test_enregistrement_des_droits_par_role(): void
     {
-        $user  = User::factory()->create();
+        $user = User::factory()->create();
         $album = MediaAlbum::create([
-            'name'       => 'Album Rôles',
+            'name' => 'Album Rôles',
             'visibility' => 'restricted',
             'created_by' => $user->id,
         ]);
@@ -85,38 +85,38 @@ class MediaAlbumPermissionTest extends TestCase
         $this->put(route('media.albums.permissions.roles', $album), [
             'roles' => [
                 'resp_service' => ['can_view' => '1', 'can_download' => '1'],
-                'user'         => ['can_view' => '1'],
+                'user' => ['can_view' => '1'],
             ],
         ])->assertRedirect(route('media.albums.permissions.edit', $album));
 
         $this->assertDatabaseHas('shares', [
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'role',
             'shared_with_role' => 'resp_service',
-            'can_view'         => 1,
-            'can_download'     => 1,
-            'can_manage'       => 0,
+            'can_view' => 1,
+            'can_download' => 1,
+            'can_manage' => 0,
         ], 'tenant');
     }
 
     public function test_un_utilisateur_avec_droit_role_peut_voir_lalbum(): void
     {
-        $owner  = User::factory()->create();
+        $owner = User::factory()->create();
         $viewer = User::factory()->create(['role' => UserRole::USER->value]);
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Restreint',
+            'name' => 'Album Restreint',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
 
         Share::create([
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'role',
             'shared_with_role' => UserRole::USER->value,
-            'can_view'         => true,
+            'can_view' => true,
         ]);
 
         $this->actingAs($viewer);
@@ -127,11 +127,11 @@ class MediaAlbumPermissionTest extends TestCase
 
     public function test_un_utilisateur_sans_droit_ne_peut_pas_voir_lalbum_restreint(): void
     {
-        $owner  = User::factory()->create();
+        $owner = User::factory()->create();
         $viewer = User::factory()->create(['role' => UserRole::USER->value]);
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Fermé',
+            'name' => 'Album Fermé',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
@@ -148,31 +148,31 @@ class MediaAlbumPermissionTest extends TestCase
 
     public function test_override_utilisateur_prioritaire_sur_le_role(): void
     {
-        $owner  = User::factory()->create();
+        $owner = User::factory()->create();
         $viewer = User::factory()->create(['role' => UserRole::USER->value]);
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Override',
+            'name' => 'Album Override',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
 
         // Rôle user : pas de droits
         Share::create([
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'role',
             'shared_with_role' => UserRole::USER->value,
-            'can_view'         => false,
+            'can_view' => false,
         ]);
 
         // Override user individuel : can_view = true
         Share::create([
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'user',
-            'shared_with_id'   => $viewer->id,
-            'can_view'         => true,
+            'shared_with_id' => $viewer->id,
+            'can_view' => true,
         ]);
 
         $this->actingAs($viewer);
@@ -183,11 +183,11 @@ class MediaAlbumPermissionTest extends TestCase
 
     public function test_ajout_partage_utilisateur(): void
     {
-        $owner  = User::factory()->create();
+        $owner = User::factory()->create();
         $target = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Partage Store',
+            'name' => 'Album Partage Store',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
@@ -196,39 +196,39 @@ class MediaAlbumPermissionTest extends TestCase
 
         $this->post(route('media.albums.permissions.store', $album), [
             'shared_with_type' => 'user',
-            'shared_with_id'   => $target->id,
-            'can_view'         => '1',
-            'can_download'     => '1',
+            'shared_with_id' => $target->id,
+            'can_view' => '1',
+            'can_download' => '1',
         ])->assertRedirect(route('media.albums.permissions.edit', $album));
 
         $this->assertDatabaseHas('shares', [
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'user',
-            'shared_with_id'   => $target->id,
-            'can_view'         => 1,
-            'can_download'     => 1,
-            'can_manage'       => 0,
+            'shared_with_id' => $target->id,
+            'can_view' => 1,
+            'can_download' => 1,
+            'can_manage' => 0,
         ], 'tenant');
     }
 
     public function test_suppression_partage(): void
     {
-        $owner  = User::factory()->create();
+        $owner = User::factory()->create();
         $target = User::factory()->create();
 
         $album = MediaAlbum::create([
-            'name'       => 'Album Partage Delete',
+            'name' => 'Album Partage Delete',
             'visibility' => 'restricted',
             'created_by' => $owner->id,
         ]);
 
         $share = Share::create([
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $album->id,
             'shared_with_type' => 'user',
-            'shared_with_id'   => $target->id,
-            'can_view'         => true,
+            'shared_with_id' => $target->id,
+            'can_view' => true,
         ]);
 
         $this->actingAs($owner);

@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Media;
 
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Department;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
-use App\Enums\UserRole;
 use App\Services\ShareService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,7 +47,7 @@ class MediaItemShareController extends Controller
 
         $request->validate([
             'shared_with_type' => 'required|in:user,department',
-            'shared_with_id'   => 'required|integer',
+            'shared_with_id' => 'required|integer',
         ]);
 
         $this->shareService->upsert(
@@ -56,10 +56,10 @@ class MediaItemShareController extends Controller
             $request->integer('shared_with_id'),
             null,
             [
-                'can_view'     => $request->boolean('can_view'),
+                'can_view' => $request->boolean('can_view'),
                 'can_download' => $request->boolean('can_download'),
-                'can_edit'     => false,
-                'can_manage'   => false,
+                'can_edit' => false,
+                'can_manage' => false,
             ],
             auth()->id()
         );
@@ -73,10 +73,10 @@ class MediaItemShareController extends Controller
         $this->authorize('manage', $item);
 
         $share->update([
-            'can_view'     => $request->boolean('can_view'),
+            'can_view' => $request->boolean('can_view'),
             'can_download' => $request->boolean('can_download'),
-            'can_edit'     => false,
-            'can_manage'   => false,
+            'can_edit' => false,
+            'can_manage' => false,
         ]);
 
         return redirect()->route('media.items.shares.edit', $item)

@@ -3,7 +3,6 @@
 namespace App\Policies;
 
 use App\Enums\UserRole;
-use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
 use App\Services\ShareService;
@@ -18,6 +17,7 @@ class MediaItemPolicy
         if ($role && in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true)) {
             return true;
         }
+
         return null;
     }
 
@@ -32,9 +32,16 @@ class MediaItemPolicy
         }
         // Héritage album
         $album = $item->album;
-        if (!$album) return false;
-        if ($album->visibility === 'public') return true;
-        if ($album->visibility === 'private') return $album->created_by === $user->id;
+        if (! $album) {
+            return false;
+        }
+        if ($album->visibility === 'public') {
+            return true;
+        }
+        if ($album->visibility === 'private') {
+            return $album->created_by === $user->id;
+        }
+
         return $album->userCan($user, 'can_view');
     }
 
@@ -44,17 +51,27 @@ class MediaItemPolicy
             return $item->userCan($user, 'can_download');
         }
         $album = $item->album;
-        if (!$album) return false;
-        if ($album->visibility === 'private') return $album->created_by === $user->id;
+        if (! $album) {
+            return false;
+        }
+        if ($album->visibility === 'private') {
+            return $album->created_by === $user->id;
+        }
+
         return $album->userCan($user, 'can_download');
     }
 
     public function manage(User $user, MediaItem $item): bool
     {
         $album = $item->album;
-        if (!$album) return false;
+        if (! $album) {
+            return false;
+        }
         // Peut gérer les partages du média si can_manage sur l'album
-        if ($album->created_by === $user->id) return true;
+        if ($album->created_by === $user->id) {
+            return true;
+        }
+
         return $album->userCan($user, 'can_manage');
     }
 }

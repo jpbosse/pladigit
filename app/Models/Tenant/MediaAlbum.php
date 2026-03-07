@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  */
 class MediaAlbum extends Model
 {
-    use HasFactory, SoftDeletes, Shareable;
+    use HasFactory, Shareable, SoftDeletes;
 
     protected $connection = 'tenant';
 
@@ -89,10 +89,10 @@ class MediaAlbum extends Model
     public function visibilityLabel(): string
     {
         return match ($this->visibility) {
-            'public'     => 'Public',
+            'public' => 'Public',
             'restricted' => 'Restreint',
-            'private'    => 'Privé',
-            default      => $this->visibility,
+            'private' => 'Privé',
+            default => $this->visibility,
         };
     }
 

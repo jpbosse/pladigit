@@ -6,7 +6,10 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function connection(): string { return 'tenant'; }
+    public function connection(): string
+    {
+        return 'tenant';
+    }
 
     public function up(): void
     {
