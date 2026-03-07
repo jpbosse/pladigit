@@ -134,10 +134,11 @@ Route::middleware('tenant')->group(function () {
             Route::delete('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'destroy'])->name('albums.destroy');
 
             // Droits par album
+            // Droits et partages par album
             Route::get('albums/{album}/permissions', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'edit'])->name('albums.permissions.edit');
             Route::put('albums/{album}/permissions/roles', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'updateRoles'])->name('albums.permissions.roles');
-            Route::post('albums/{album}/permissions/users', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'storeUser'])->name('albums.permissions.user.store');
-            Route::delete('albums/{album}/permissions/users/{perm}', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'destroyUser'])->name('albums.permissions.user.destroy');
+            Route::post('albums/{album}/permissions/shares', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'store'])->name('albums.permissions.store');
+            Route::delete('albums/{album}/permissions/shares/{share}', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'destroy'])->name('albums.permissions.destroy');
 
             // Test connexion NAS (AJAX — admin uniquement)
             Route::get('nas/test', [\App\Http\Controllers\Media\MediaAlbumController::class, 'testNasConnection'])->name('nas.test');

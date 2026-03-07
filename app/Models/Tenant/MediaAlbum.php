@@ -3,6 +3,8 @@
 namespace App\Models\Tenant;
 
 use App\Enums\UserRole;
+use App\Models\Concerns\Shareable;
+use App\Services\ShareService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,18 +15,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Album photo d'un tenant.
  *
  * Relations :
- *   $album->creator()          → User qui a créé l'album
- *   $album->items()            → tous les MediaItem de l'album
- *   $album->shareLinks()       → liens de partage temporaires
- *   $album->rolePermissions()  → droits par rôle
- *   $album->userPermissions()  → overrides par utilisateur
- *
- * Scopes :
- *   MediaAlbum::visibleFor($user)  → albums accessibles selon le rôle
+ *   $album->creator()   → User qui a créé l'album
+ *   $album->items()     → tous les MediaItem de l'album
+ *   $album->shareLinks() → liens de partage temporaires
+ *   $album->shares()    → partages (via trait Shareable)
  */
 class MediaAlbum extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, Shareable;
 
     protected $connection = 'tenant';
 
@@ -58,18 +56,6 @@ class MediaAlbum extends Model
     public function shareLinks(): HasMany
     {
         return $this->hasMany(MediaShareLink::class, 'album_id');
-    }
-
-    /** @return HasMany<MediaAlbumPermission, $this> */
-    public function rolePermissions(): HasMany
-    {
-        return $this->hasMany(MediaAlbumPermission::class, 'album_id');
-    }
-
-    /** @return HasMany<MediaAlbumUserPermission, $this> */
-    public function userPermissions(): HasMany
-    {
-        return $this->hasMany(MediaAlbumUserPermission::class, 'album_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────
@@ -112,11 +98,9 @@ class MediaAlbum extends Model
 
     /**
      * Vérifie si un utilisateur a un droit sur cet album.
-     * Résolution : Admin/Président/DGS → toujours vrai
-     *              override utilisateur → prioritaire
-     *              droit par rôle → fallback
+     * Délègue au ShareService (résolution user → dept → rôle).
      *
-     * @param  'can_view'|'can_download'|'can_manage'  $ability
+     * @param  'can_view'|'can_download'|'can_edit'|'can_manage'  $ability
      */
     public function userCan(User $user, string $ability): bool
     {
@@ -135,18 +119,6 @@ class MediaAlbum extends Model
             return $this->created_by === $user->id;
         }
 
-        // Override utilisateur individuel
-        $userPerm = $this->userPermissions()->where('user_id', $user->id)->first();
-        if ($userPerm !== null) {
-            return (bool) $userPerm->$ability;
-        }
-
-        // Droit par rôle
-        $rolePerm = $this->rolePermissions()->where('role', $user->role)->first();
-        if ($rolePerm !== null) {
-            return (bool) $rolePerm->$ability;
-        }
-
-        return false;
+        return app(ShareService::class)->can($user, $this, $ability);
     }
 }

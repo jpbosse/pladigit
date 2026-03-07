@@ -45,7 +45,7 @@ class MediaAlbumPolicy
 
     public function create(User $user): bool
     {
-        return $user->role && UserRole::from($user->role)->atLeast(UserRole::RespService);
+        return $user->role && UserRole::from($user->role)->atLeast(UserRole::RESP_SERVICE);
     }
 
     public function delete(User $user, MediaAlbum $album): bool
