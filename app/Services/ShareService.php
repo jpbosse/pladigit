@@ -18,12 +18,6 @@ use Illuminate\Database\Eloquent\Relations\Relation;
 class ShareService
 {
     /**
-     * Vérifie si un utilisateur a un droit sur un objet.
-     *
-     * @param  'can_view'|'can_download'|'can_edit'|'can_manage'  $ability
-     */
-
-    /**
      * Retourne l'alias morphMap ou le FQCN si non enregistré.
      */
     private function morphType(Model $object): string
@@ -34,6 +28,12 @@ class ShareService
         return $map[$class] ?? $class;
     }
 
+
+     /**
+     * Vérifie si un utilisateur a un droit sur un objet.
+     *
+     * @param  'can_view'|'can_download'|'can_edit'|'can_manage'  $ability
+     */
     public function can(User $user, Model $object, string $ability): bool
     {
         $type = $this->morphType($object);
@@ -53,11 +53,11 @@ class ShareService
 
         if (! empty($deptIds)) {
             $deptShare = Share::forModel($type, $id)
-                ->forDepartment(0) // placeholder — requête ci-dessous
-                ->whereIn('shared_with_id', $deptIds)
-                ->where('shared_with_type', 'department')
-                ->orderByDesc($ability) // true en premier
-                ->first();
+	    	->where('shared_with_type', 'department')
+		->whereIn('shared_with_id', $deptIds)
+		->orderByDesc($ability)
+		->first();
+
 
             if ($deptShare !== null) {
                 return (bool) $deptShare->$ability;
