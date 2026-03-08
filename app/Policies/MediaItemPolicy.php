@@ -26,11 +26,9 @@ class MediaItemPolicy
      */
     public function view(User $user, MediaItem $item): bool
     {
-        // Droits directs sur le média
         if ($item->shares()->exists()) {
-            return $item->userCan($user, 'can_view');
+            return $this->shareService->can($user, $item, 'can_view');
         }
-        // Héritage album
         $album = $item->album;
         if (! $album) {
             return false;
@@ -48,7 +46,7 @@ class MediaItemPolicy
     public function download(User $user, MediaItem $item): bool
     {
         if ($item->shares()->exists()) {
-            return $item->userCan($user, 'can_download');
+            return $this->shareService->can($user, $item, 'can_download');
         }
         $album = $item->album;
         if (! $album) {

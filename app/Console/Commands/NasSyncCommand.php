@@ -59,7 +59,8 @@ class NasSyncCommand extends Command
                 $tenantManager->connectTo($org);
 
                 $settings = TenantSettings::first();
-                $driver = $settings?->nas_photo_driver ?? 'local';
+
+                $driver = $settings !== null ? $settings->nas_photo_driver ?? 'local' : 'local';
 
                 /*                if ($driver === 'local' && ! app()->environment('local', 'testing')) {
                                     $this->line("   ⏭  Driver local ignoré en production.");
