@@ -27,10 +27,9 @@ class MediaItemShareController extends Controller
         $deptShares = $shares->where('shared_with_type', 'department');
 
         $departments = Department::orderBy('name')->get();
-        $users = User::whereNotIn('role', [
-            UserRole::PRESIDENT->value,
-            UserRole::DGS->value,
-        ])->where('status', 'active')->orderBy('name')->get();
+        $users = User::where('status', 'active')
+            ->whereNotIn('role', [UserRole::PRESIDENT->value, UserRole::DGS->value])
+            ->orderBy('name')->get();
 
         return view('media.items.shares', compact(
             'item',

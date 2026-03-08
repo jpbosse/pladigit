@@ -28,8 +28,7 @@ class ShareService
         return $map[$class] ?? $class;
     }
 
-
-     /**
+    /**
      * Vérifie si un utilisateur a un droit sur un objet.
      *
      * @param  'can_view'|'can_download'|'can_edit'|'can_manage'  $ability
@@ -53,11 +52,10 @@ class ShareService
 
         if (! empty($deptIds)) {
             $deptShare = Share::forModel($type, $id)
-	    	->where('shared_with_type', 'department')
-		->whereIn('shared_with_id', $deptIds)
-		->orderByDesc($ability)
-		->first();
-
+                ->where('shared_with_type', 'department')
+                ->whereIn('shared_with_id', $deptIds)
+                ->orderByDesc($ability)
+                ->first();
 
             if ($deptShare !== null) {
                 return (bool) $deptShare->$ability;

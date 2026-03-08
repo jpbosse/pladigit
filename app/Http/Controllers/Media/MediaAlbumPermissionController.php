@@ -38,12 +38,11 @@ class MediaAlbumPermissionController extends Controller
 
         $departments = Department::orderBy('name')->get();
 
-        // Président et DGS ont accès total via Policy, inutile de les cibler
-        // Admin peut être restreint sur certains albums (RH, compta) → inclus dans le sélecteur
-        $users = User::whereNotIn('role', [
-            UserRole::PRESIDENT->value,
-            UserRole::DGS->value,
-        ])->where('status', 'active')->orderBy('name')->get();
+        // Président et DGS ont accès total via Policy → inutile de les cibler
+        // Admin inclus : peut être restreint sur albums RH/compta
+        $users = User::where('status', 'active')
+            ->whereNotIn('role', [UserRole::PRESIDENT->value, UserRole::DGS->value])
+            ->orderBy('name')->get();
 
         return view('media.albums.permissions', compact(
             'album',
