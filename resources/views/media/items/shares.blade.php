@@ -53,20 +53,29 @@
                                 <span class="text-xs text-gray-400 ml-1">{{ $share->sharedWithUser?->email }}</span>
                             @endif
                         </td>
-                        <form method="POST" action="{{ route('media.items.shares.update', [$item, $share]) }}" class="contents">
-                        @csrf @method('PATCH')
+                        <form id="item-share-{{ $share->id }}"
+                              method="POST"
+                              action="{{ route('media.items.shares.update', [$item, $share]) }}"
+                              style="display:none">
+                            @csrf @method('PATCH')
+                        </form>
                         <td class="text-center px-4 py-3">
-                            <input type="checkbox" name="can_view" value="1" {{ $share->can_view ? 'checked' : '' }}
+                            <input type="checkbox" name="can_view" value="1"
+                                   form="item-share-{{ $share->id }}"
+                                   {{ $share->can_view ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600">
                         </td>
                         <td class="text-center px-4 py-3">
-                            <input type="checkbox" name="can_download" value="1" {{ $share->can_download ? 'checked' : '' }}
+                            <input type="checkbox" name="can_download" value="1"
+                                   form="item-share-{{ $share->id }}"
+                                   {{ $share->can_download ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600">
                         </td>
                         <td class="px-4 py-3">
-                            <button type="submit" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Enregistrer</button>
+                            <button type="submit"
+                                    form="item-share-{{ $share->id }}"
+                                    class="text-blue-500 hover:text-blue-700 text-xs font-medium">Enregistrer</button>
                         </td>
-                        </form>
                         <td class="px-2 py-3">
                             <form method="POST" action="{{ route('media.items.shares.destroy', [$item, $share]) }}"
                                   onsubmit="return confirm('Supprimer ce partage ?')">
@@ -104,14 +113,14 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Destinataire</label>
-                        <select x-show="type === 'user'" name="shared_with_id"
+                        <select x-show="type === 'user'" name="shared_with_id" x-bind:disabled="type !== 'user'"
                                 class="w-full rounded-lg border-gray-300 text-sm">
                             <option value="">-- Choisir un utilisateur --</option>
                             @foreach($users as $u)
                                 <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
                             @endforeach
                         </select>
-                        <select x-show="type === 'department'" name="shared_with_id"
+                        <select x-show="type === 'department'" name="shared_with_id" x-bind:disabled="type !== 'department'"
                                 class="w-full rounded-lg border-gray-300 text-sm">
                             <option value="">-- Choisir une direction/service --</option>
                             @foreach($departments as $dept)

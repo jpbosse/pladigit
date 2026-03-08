@@ -130,29 +130,42 @@
                                 <span class="text-xs text-gray-400 ml-1">{{ $share->sharedWithUser?->email }}</span>
                             @endif
                         </td>
-                        {{-- Formulaire de modification inline --}}
-                        <form method="POST" action="{{ route('media.albums.permissions.update', [$album, $share]) }}" class="contents">
-                        @csrf @method('PATCH')
+                        {{-- Formulaire hors tableau (HTML valide) --}}
+                        <form id="share-form-{{ $share->id }}"
+                              method="POST"
+                              action="{{ route('media.albums.permissions.update', [$album, $share]) }}"
+                              style="display:none">
+                            @csrf @method('PATCH')
+                        </form>
                         <td class="text-center px-4 py-3">
-                            <input type="checkbox" name="can_view" value="1" {{ $share->can_view ? 'checked' : '' }}
+                            <input type="checkbox" name="can_view" value="1"
+                                   form="share-form-{{ $share->id }}"
+                                   {{ $share->can_view ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600">
                         </td>
                         <td class="text-center px-4 py-3">
-                            <input type="checkbox" name="can_download" value="1" {{ $share->can_download ? 'checked' : '' }}
+                            <input type="checkbox" name="can_download" value="1"
+                                   form="share-form-{{ $share->id }}"
+                                   {{ $share->can_download ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600">
                         </td>
                         <td class="text-center px-4 py-3">
-                            <input type="checkbox" name="can_edit" value="1" {{ $share->can_edit ? 'checked' : '' }}
+                            <input type="checkbox" name="can_edit" value="1"
+                                   form="share-form-{{ $share->id }}"
+                                   {{ $share->can_edit ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600">
                         </td>
                         <td class="text-center px-4 py-3">
-                            <input type="checkbox" name="can_manage" value="1" {{ $share->can_manage ? 'checked' : '' }}
+                            <input type="checkbox" name="can_manage" value="1"
+                                   form="share-form-{{ $share->id }}"
+                                   {{ $share->can_manage ? 'checked' : '' }}
                                    class="rounded border-gray-300 text-blue-600">
                         </td>
                         <td class="text-right px-4 py-3 space-x-2">
-                            <button type="submit" class="text-blue-500 hover:text-blue-700 text-xs font-medium">Enregistrer</button>
+                            <button type="submit"
+                                    form="share-form-{{ $share->id }}"
+                                    class="text-blue-500 hover:text-blue-700 text-xs font-medium">Enregistrer</button>
                         </td>
-                        </form>
                         <td class="px-2 py-3">
                             <form method="POST" action="{{ route('media.albums.permissions.destroy', [$album, $share]) }}"
                                   onsubmit="return confirm('Supprimer ce partage ?')">
@@ -192,14 +205,14 @@
                 {{-- Destinataire --}}
                 <div class="flex-1 min-w-48">
                     <label class="block text-xs text-gray-500 mb-1">Destinataire</label>
-                    <select x-show="type === 'user'" name="shared_with_id"
+                    <select x-show="type === 'user'" name="shared_with_id" x-bind:disabled="type !== 'user'"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                         <option value="">-- Choisir un utilisateur --</option>
                         @foreach($users as $u)
                             <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
                         @endforeach
                     </select>
-                    <select x-show="type === 'department'" name="shared_with_id"
+                    <select x-show="type === 'department'" name="shared_with_id" x-bind:disabled="type !== 'department'"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
                         <option value="">-- Choisir une direction/service --</option>
                         @foreach($departments as $dept)
@@ -235,3 +248,4 @@
 
 </div>
 @endsection
+ 
