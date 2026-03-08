@@ -9,6 +9,21 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * Paramètres de configuration du tenant.
  * Table singleton (une seule ligne par base tenant).
+ *
+ * @property string|null $nas_photo_driver
+ * @property string|null $nas_photo_local_path
+ * @property string|null $nas_photo_host
+ * @property int|null $nas_photo_port
+ * @property string|null $nas_photo_username
+ * @property string|null $nas_photo_share
+ * @property string|null $nas_photo_root_path
+ * @property string|null $nas_ged_driver
+ * @property string|null $nas_ged_local_path
+ * @property string|null $nas_ged_host
+ * @property int|null $nas_ged_port
+ * @property string|null $nas_ged_username
+ * @property string|null $nas_ged_share
+ * @property string|null $nas_ged_root_path
  */
 class TenantSettings extends Model
 {

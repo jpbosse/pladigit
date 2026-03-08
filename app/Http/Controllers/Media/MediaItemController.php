@@ -21,9 +21,12 @@ class MediaItemController extends Controller
     /**
      * Formulaire d'upload vers un album.
      */
-    public function create(MediaAlbum $album)
+    public function create(MediaAlbum $album): \Illuminate\View\View
     {
-        return view('media.items.create', compact('album'));
+        /** @var view-string $viewName */
+        $viewName = 'media.items.create';
+
+        return view($viewName, compact('album'));
     }
 
     /**

@@ -30,7 +30,7 @@ class NasManager
     public function photoDriver(?TenantSettings $settings = null): NasConnectorInterface
     {
         $settings ??= TenantSettings::first();
-        $driver = $settings?->nas_photo_driver ?? config('nas.default_driver', 'local');
+        $driver = $settings !== null ? ($settings->nas_photo_driver ?? config('nas.default_driver', 'local')) : config('nas.default_driver', 'local');
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings, 'photo'),
@@ -46,7 +46,7 @@ class NasManager
     public function gedDriver(?TenantSettings $settings = null): NasConnectorInterface
     {
         $settings ??= TenantSettings::first();
-        $driver = $settings?->nas_ged_driver ?? config('nas.default_driver', 'local');
+        $driver = $settings !== null ? ($settings->nas_ged_driver ?? config('nas.default_driver', 'local')) : config('nas.default_driver', 'local');
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings, 'ged'),
@@ -71,7 +71,7 @@ class NasManager
     private function makeLocalDriver(?TenantSettings $settings, string $module): LocalNasDriver
     {
         $field = "nas_{$module}_local_path";
-        $path = $settings?->$field ?? config('nas.local_path');
+        $path = $settings !== null ? ($settings->$field ?? config('nas.local_path')) : config('nas.local_path');
 
         return new LocalNasDriver($path ?: null);
     }

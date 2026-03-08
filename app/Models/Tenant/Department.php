@@ -21,6 +21,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *   $dept->managers()  → les responsables (is_manager=true)
  *   $dept->children()  → les services enfants (si direction)
  *   $dept->parent()    → la direction parente (si service)
+ *
+ * @property Department|null $parent
  */
 class Department extends Model
 {
@@ -168,7 +170,7 @@ class Department extends Model
     public function fullLabel(): string
     {
         /** @var Department|null $parent */
-        $parent = $this->parent;
+        $parent = $this->parentDept;
         if ($this->isService() && $parent instanceof Department) {
             return $parent->name.' — '.$this->name;
         }
