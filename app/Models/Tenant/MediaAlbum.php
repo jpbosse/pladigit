@@ -65,17 +65,55 @@ class MediaAlbum extends Model
         return $query->where('visibility', 'public');
     }
 
-    public function scopeVisibleFor($query, User $user)
-    {
-        return $query->where(function ($q) use ($user) {
-            $q->where('visibility', 'public')
-                ->orWhere('visibility', 'restricted')
-                ->orWhere(function ($q2) use ($user) {
-                    $q2->where('visibility', 'private')
-                        ->where('created_by', $user->id);
-                });
-        });
+
+public function scopeVisibleFor($query, User $user)
+{
+    $role = UserRole::from($user->role);
+
+    // Président, DGS et Admin voient tout
+    if ($role->atLeast(UserRole::DGS)) {
+        return $query;
     }
+
+    // Rôles subordonnés pour l'héritage hiérarchique
+    $userLevel = $role->level();
+    $subordinateRoles = array_values(array_filter(
+        UserRole::values(),
+        fn(string $r) => UserRole::from($r)->level() > $userLevel
+    ));
+
+    $deptIds = $user->departments()->pluck('departments.id');
+
+    return $query->where(function ($q) use ($user, $subordinateRoles, $deptIds) {
+        $q->where('visibility', 'public')
+          ->orWhere(function ($q2) use ($user) {
+              $q2->where('visibility', 'private')
+                 ->where('created_by', $user->id);
+          })
+          ->orWhere(function ($q2) use ($user, $subordinateRoles, $deptIds) {
+              $q2->where('visibility', 'restricted')
+                 ->where(function ($q3) use ($user, $subordinateRoles, $deptIds) {
+                     $q3->whereHas('shares', fn($s) => $s
+                             ->where('shared_with_type', 'role')
+                             ->where('shared_with_role', $user->role)
+                             ->where('can_view', true))
+                        ->orWhereHas('shares', fn($s) => $s
+                             ->where('shared_with_type', 'user')
+                             ->where('shared_with_id', $user->id)
+                             ->where('can_view', true))
+                        ->orWhereHas('shares', fn($s) => $s
+                             ->where('shared_with_type', 'department')
+                             ->whereIn('shared_with_id', $deptIds)
+                             ->where('can_view', true))
+                        ->orWhereHas('shares', fn($s) => $s
+                             ->where('shared_with_type', 'role')
+                             ->whereIn('shared_with_role', $subordinateRoles)
+                             ->where('can_view', true))
+                        ->orWhere('created_by', $user->id);
+                 });
+          });
+    });
+}
 
     // ── Helpers ──────────────────────────────────────────────
 

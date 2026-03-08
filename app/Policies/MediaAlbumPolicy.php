@@ -11,7 +11,6 @@ class MediaAlbumPolicy
     public function before(User $user, string $ability): ?bool
     {
         // Président et DGS : accès total à tous les albums
-        // Admin : accès via shares comme les autres (peut être exclu de certains albums RH/compta)
         $role = $user->role ? UserRole::from($user->role) : null;
         if ($role && in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true)) {
             return true;
@@ -43,8 +42,17 @@ class MediaAlbumPolicy
 
     public function manage(User $user, MediaAlbum $album): bool
     {
+        // Créateur de l'album
         if ($album->created_by === $user->id) {
             return true;
+        }
+
+        // Seuls Admin et Resp. Direction peuvent gérer les droits des albums
+        // qu'ils n'ont pas créés (via can_manage explicite dans les shares)
+        $role = UserRole::from($user->role);
+
+        if (! $role->atLeast(UserRole::RESP_DIRECTION)) {
+            return false;
         }
 
         return $album->userCan($user, 'can_manage');
@@ -60,6 +68,7 @@ class MediaAlbumPolicy
         if ($album->created_by === $user->id) {
             return true;
         }
+
         $role = UserRole::from($user->role);
 
         return in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true);

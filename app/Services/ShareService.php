@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
 use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
 use Illuminate\Database\Eloquent\Model;
@@ -13,7 +14,10 @@ use Illuminate\Database\Eloquent\Relations\Relation;
  * Logique de résolution (par ordre de priorité) :
  *   1. Override utilisateur individuel
  *   2. Override département (un des départements de l'utilisateur)
- *   3. Droit par rôle
+ *   3. Droit par rôle exact
+ *   4. Héritage hiérarchique — si un rôle de niveau inférieur (moins de droits)
+ *      a can_view, les rôles supérieurs (plus de droits) héritent du droit.
+ *      Ex : resp_service a can_view → resp_direction le voit aussi.
  */
 class ShareService
 {
@@ -36,7 +40,7 @@ class ShareService
     public function can(User $user, Model $object, string $ability): bool
     {
         $type = $this->morphType($object);
-        $id = $object->getKey();
+        $id   = $object->getKey();
 
         // 1. Override utilisateur individuel
         $userShare = Share::forModel($type, $id)
@@ -62,13 +66,36 @@ class ShareService
             }
         }
 
-        // 3. Droit par rôle
+        // 3. Droit par rôle exact
         $roleShare = Share::forModel($type, $id)
             ->forRole($user->role)
             ->first();
 
         if ($roleShare !== null) {
             return (bool) $roleShare->$ability;
+        }
+
+        // 4. Héritage hiérarchique
+        // Un rôle de niveau N hérite des droits accordés aux rôles de niveau > N
+        // (moins de droits dans la hiérarchie).
+        // Ex : resp_direction (4) hérite de resp_service (5) et user (6).
+        $userLevel = UserRole::from($user->role)->level();
+
+        $subordinateRoles = array_values(array_filter(
+            UserRole::values(),
+            fn (string $r) => UserRole::from($r)->level() > $userLevel
+        ));
+
+        if (! empty($subordinateRoles)) {
+            $inheritedShare = Share::forModel($type, $id)
+                ->where('shared_with_type', 'role')
+                ->whereIn('shared_with_role', $subordinateRoles)
+                ->where($ability, true)
+                ->first();
+
+            if ($inheritedShare !== null) {
+                return true;
+            }
         }
 
         return false;
@@ -98,10 +125,10 @@ class ShareService
     ): Share {
         return Share::updateOrCreate(
             [
-                'shareable_type' => $this->morphType($object),
-                'shareable_id' => $object->getKey(),
+                'shareable_type'   => $this->morphType($object),
+                'shareable_id'     => $object->getKey(),
                 'shared_with_type' => $withType,
-                'shared_with_id' => $withId,
+                'shared_with_id'   => $withId,
                 'shared_with_role' => $withRole,
             ],
             array_merge($abilities, ['shared_by' => $sharedBy])
