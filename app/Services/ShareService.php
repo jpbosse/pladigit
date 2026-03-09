@@ -98,7 +98,64 @@ class ShareService
             }
         }
 
+        // 5. Héritage hiérarchique des nœuds organisationnels
+        // Un responsable (is_manager=true) d'un nœud hérite des droits accordés
+        // à tous ses nœuds enfants, petits-enfants, etc. (récursivement).
+        // Ex : responsable du Pôle Technique → voit les albums délégués à la
+        // Direction DST (enfant) et au Service Voirie (petit-enfant).
+        $managedDeptIds = $user->departments()
+            ->wherePivot('is_manager', true)
+            ->pluck('departments.id')
+            ->toArray();
+
+        if (! empty($managedDeptIds)) {
+            $allChildIds = $this->getAllChildDeptIds($managedDeptIds);
+
+            if (! empty($allChildIds)) {
+                $inheritedDeptShare = Share::forModel($type, $id)
+                    ->where('shared_with_type', 'department')
+                    ->whereIn('shared_with_id', $allChildIds)
+                    ->where($ability, true)
+                    ->first();
+
+                if ($inheritedDeptShare !== null) {
+                    return true;
+                }
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Retourne récursivement tous les IDs des nœuds enfants des nœuds donnés.
+     * Ne retourne que les enfants — pas les nœuds de départ eux-mêmes
+     * (déjà couverts par l'étape 2).
+     *
+     * @param  array<int>  $parentIds
+     * @return array<int>
+     */
+    private function getAllChildDeptIds(array $parentIds): array
+    {
+        $allChildren = [];
+        $toProcess   = $parentIds;
+
+        while (! empty($toProcess)) {
+            $children = \App\Models\Tenant\Department::whereIn('parent_id', $toProcess)
+                ->pluck('id')
+                ->toArray();
+
+            $newChildren = array_diff($children, $allChildren, $parentIds);
+
+            if (empty($newChildren)) {
+                break;
+            }
+
+            $allChildren = array_merge($allChildren, $newChildren);
+            $toProcess   = $newChildren;
+        }
+
+        return $allChildren;
     }
 
     /**
