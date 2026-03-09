@@ -13,10 +13,10 @@ class MediaAlbumFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'        => fake()->words(3, true),
+            'name' => fake()->words(3, true),
             'description' => fake()->optional()->sentence(),
-            'visibility'  => 'public',
-            'created_by'  => User::factory(),
+            'visibility' => 'public',
+            'created_by' => User::factory(),
         ];
     }
 
