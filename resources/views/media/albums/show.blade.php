@@ -187,6 +187,12 @@
         <a href="{{ route('media.albums.index') }}" class="text-gray-400 hover:text-gray-600 text-sm">
             ← Photothèque
         </a>
+        @if($album->parent)
+            <span class="text-gray-300">/</span>
+            <a href="{{ route('media.albums.show', $album->parent) }}" class="text-gray-400 hover:text-gray-600 text-sm">
+                {{ $album->parent->name }}
+            </a>
+        @endif
         <span class="text-gray-300">/</span>
         <h1 class="text-xl font-bold text-gray-800">{{ $album->name }}</h1>
 
@@ -213,7 +219,11 @@
         </div>
 
         <div class="ml-auto flex items-center gap-2">
-            
+            <a href="{{ route('media.albums.create', ['parent_id' => $album->id]) }}"
+               class="text-xs text-white px-3 py-1.5 rounded-lg font-medium"
+               style="background-color: var(--color-primary, #1E3A5F);">
+                + Sous-album
+            </a>
             @can('manage', $album)
             <a href="{{ route('media.albums.permissions.edit', $album) }}"
                class="text-xs text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-1.5 rounded-lg bg-white">
@@ -251,6 +261,45 @@
                 @foreach(session('upload_errors') as $err)<li>{{ $err }}</li>@endforeach
             </ul>
         </div>
+    @endif
+
+    {{-- Sous-albums --}}
+    @if($album->children->isNotEmpty())
+        <div class="mb-6">
+            <h2 class="text-sm font-semibold text-gray-600 mb-3">
+                📁 Sous-albums ({{ $album->children->count() }})
+            </h2>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                @foreach($album->children as $child)
+                    <a href="{{ route('media.albums.show', $child) }}"
+                       class="group block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition">
+                        <div class="aspect-square bg-gray-100 flex items-center justify-center overflow-hidden">
+                            @if($child->cover_path)
+                                <img src="{{ route('media.items.serve', ['album' => $child->id, 'item' => 0]) }}"
+                                     alt="{{ $child->name }}"
+                                     class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200">
+                            @else
+                                <span class="text-3xl opacity-30">🖼️</span>
+                            @endif
+                        </div>
+                        <div class="p-2">
+                            <p class="text-xs font-semibold text-gray-800 truncate">{{ $child->name }}</p>
+                            <p class="text-xs text-gray-400 mt-0.5">{{ $child->items_count }} fichier(s)</p>
+                        </div>
+                    </a>
+                @endforeach
+
+                {{-- Raccourci création sous-album --}}
+                <a href="{{ route('media.albums.create', ['parent_id' => $album->id]) }}"
+                   class="group block bg-gray-50 rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-400 hover:bg-gray-100 transition">
+                    <div class="aspect-square flex flex-col items-center justify-center gap-2">
+                        <span class="text-2xl text-gray-300 group-hover:text-gray-500 transition">+</span>
+                        <span class="text-xs text-gray-400 group-hover:text-gray-600 transition text-center px-2">Nouveau sous-album</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+        <hr class="border-gray-100 mb-6">
     @endif
 
     {{-- Zone drag & drop --}}

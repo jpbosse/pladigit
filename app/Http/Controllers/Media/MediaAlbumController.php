@@ -26,13 +26,19 @@ class MediaAlbumController extends Controller
 
     /**
      * Liste des albums accessibles pour l'utilisateur courant.
+     * Seuls les albums racine (parent_id = null) sont listés —
+     * leurs sous-albums apparaissent imbriqués sous chaque carte.
      */
     public function index()
     {
         /** @var User $user */
         $user = auth()->user();
         $albums = MediaAlbum::visibleFor($user)
+            ->whereNull('parent_id')
             ->withCount('items')
+            ->with(['children' => function ($q) {
+                $q->withCount('items')->orderBy('name');
+            }])
             ->orderByDesc('created_at')
             ->paginate(24);
 
@@ -99,6 +105,10 @@ class MediaAlbumController extends Controller
 
         $this->authorize('view', $album);
 
+        $album->load(['parent', 'children' => function ($q) {
+            $q->withCount('items')->orderBy('name');
+        }]);
+
         $items = $album->items()
             ->orderByDesc('created_at')
             ->paginate(48);
@@ -109,7 +119,6 @@ class MediaAlbumController extends Controller
         $userCols = auth()->user()->media_cols ?: $defaultCols;
 
         return view('media.albums.show', compact('album', 'items', 'defaultCols', 'userCols'));
-
     }
 
     /**
