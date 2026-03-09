@@ -75,6 +75,28 @@ class MediaItem extends Model
     // ── Scopes ───────────────────────────────────────────────
 
     /**
+     * Filtre les items visibles par un utilisateur.
+     * Un item est visible si et seulement si son album l'est.
+     * Délègue entièrement à MediaAlbum::scopeVisibleFor.
+     */
+    public function scopeVisibleFor($query, User $user)
+    {
+        return $query->whereHas('album', fn ($q) => $q->visibleFor($user));
+    }
+
+    /**
+     * Vérifie si un utilisateur a un droit sur cet item.
+     * Les droits sont portés par l'album parent — un item hérite
+     * des droits de son album.
+     *
+     * @param  'can_view'|'can_download'|'can_edit'|'can_manage'  $ability
+     */
+    public function userCan(User $user, string $ability): bool
+    {
+        return $this->album->userCan($user, $ability);
+    }
+
+    /**
      * Uniquement les images.
      */
     public function scopeImages($query)
