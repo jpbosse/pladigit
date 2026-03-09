@@ -7,6 +7,7 @@ use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
 use App\Services\ShareService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -22,6 +23,8 @@ use Tests\TestCase;
  */
 class ShareServiceTest extends TestCase
 {
+    use RefreshDatabase;
+
     private ShareService $service;
 
     private MediaAlbum $album;
@@ -36,16 +39,6 @@ class ShareServiceTest extends TestCase
         $this->album = MediaAlbum::factory()->create([
             'visibility' => 'restricted',
         ]);
-    }
-
-    protected function tearDown(): void
-    {
-        DB::connection('tenant')->table('shares')->delete();
-        DB::connection('tenant')->table('user_department')->delete();
-        DB::connection('tenant')->statement('DELETE FROM departments');
-        DB::connection('tenant')->statement('DELETE FROM media_albums');
-        DB::connection('tenant')->statement('DELETE FROM users');
-        parent::tearDown();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
