@@ -41,10 +41,21 @@ class MediaAlbumController extends Controller
 
     /**
      * Formulaire de création d'un album.
+     * $parentId optionnel — pré-sélectionne l'album parent si fourni.
      */
-    public function create()
+    public function create(Request $request)
     {
-        return view('media.albums.create');
+        /** @var User $user */
+        $user = auth()->user();
+
+        $parentAlbums = MediaAlbum::visibleFor($user)
+            ->whereNull('parent_id')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $selectedParent = $request->integer('parent_id') ?: null;
+
+        return view('media.albums.create', compact('parentAlbums', 'selectedParent'));
     }
 
     /**
@@ -56,6 +67,7 @@ class MediaAlbumController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'visibility' => ['required', 'in:public,restricted,private'],
+            'parent_id' => ['nullable', 'integer', 'exists:tenant.media_albums,id'],
         ]);
 
         /** @var User $user */
@@ -69,7 +81,7 @@ class MediaAlbumController extends Controller
         $this->audit->log('media.album.created', $user, [
             'model_type' => MediaAlbum::class,
             'model_id' => $album->id,
-            'new' => ['name' => $album->name, 'visibility' => $album->visibility],
+            'new' => ['name' => $album->name, 'visibility' => $album->visibility, 'parent_id' => $album->parent_id],
         ]);
 
         return redirect()
@@ -105,7 +117,21 @@ class MediaAlbumController extends Controller
      */
     public function edit(MediaAlbum $album)
     {
-        return view('media.albums.edit', compact('album'));
+        /** @var User $user */
+        $user = auth()->user();
+
+        // Albums racine visibles — exclure l'album lui-même et ses enfants
+        // pour éviter les boucles circulaires
+        $childIds = $album->children()->pluck('id')->toArray();
+        $excludeIds = array_merge([$album->id], $childIds);
+
+        $parentAlbums = MediaAlbum::visibleFor($user)
+            ->whereNull('parent_id')
+            ->whereNotIn('id', $excludeIds)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('media.albums.edit', compact('album', 'parentAlbums'));
     }
 
     /**
@@ -117,11 +143,12 @@ class MediaAlbumController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'visibility' => ['required', 'in:public,restricted,private'],
+            'parent_id' => ['nullable', 'integer', 'exists:tenant.media_albums,id', "not_in:{$album->id}"],
         ]);
 
         /** @var User $user */
         $user = auth()->user();
-        $old = $album->only(['name', 'description', 'visibility']);
+        $old = $album->only(['name', 'description', 'visibility', 'parent_id']);
 
         $album->update($validated);
 
@@ -129,7 +156,7 @@ class MediaAlbumController extends Controller
             'model_type' => MediaAlbum::class,
             'model_id' => $album->id,
             'old' => $old,
-            'new' => $album->only(['name', 'description', 'visibility']),
+            'new' => $album->only(['name', 'description', 'visibility', 'parent_id']),
         ]);
 
         return redirect()
