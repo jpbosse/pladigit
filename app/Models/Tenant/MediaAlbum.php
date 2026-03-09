@@ -15,10 +15,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Album photo d'un tenant.
  *
  * Relations :
- *   $album->creator()   → User qui a créé l'album
- *   $album->items()     → tous les MediaItem de l'album
+ *   $album->creator()    → User qui a créé l'album
+ *   $album->parent()     → Album parent (null si album racine)
+ *   $album->children()   → Sous-albums directs
+ *   $album->items()      → tous les MediaItem de l'album
  *   $album->shareLinks() → liens de partage temporaires
- *   $album->shares()    → partages (via trait Shareable)
+ *   $album->shares()     → partages (via trait Shareable)
  */
 class MediaAlbum extends Model
 {
@@ -27,10 +29,12 @@ class MediaAlbum extends Model
     protected $connection = 'tenant';
 
     protected $fillable = [
+        'parent_id',
         'created_by',
         'name',
         'description',
         'cover_path',
+        'nas_path',
         'visibility',
     ];
 
@@ -44,6 +48,18 @@ class MediaAlbum extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return BelongsTo<MediaAlbum, $this> */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(MediaAlbum::class, 'parent_id');
+    }
+
+    /** @return HasMany<MediaAlbum, $this> */
+    public function children(): HasMany
+    {
+        return $this->hasMany(MediaAlbum::class, 'parent_id');
     }
 
     /** @return HasMany<MediaItem, $this> */
@@ -85,15 +101,12 @@ class MediaAlbum extends Model
         $deptIds = $user->departments()->pluck('departments.id')->toArray();
 
         // Départements enfants des nœuds où l'utilisateur est responsable
-        // (héritage récursif descendant — is_manager=true requis)
         $managedDeptIds = $user->departments()
             ->wherePivot('is_manager', true)
             ->pluck('departments.id')
             ->toArray();
 
         $childDeptIds = $this->resolveChildDeptIds($managedDeptIds);
-
-        // Tous les départements donnant accès : directs + enfants hérités
         $allDeptIds = array_unique(array_merge($deptIds, $childDeptIds));
 
         return $query->where(function ($q) use ($user, $subordinateRoles, $allDeptIds) {
@@ -107,7 +120,7 @@ class MediaAlbum extends Model
                         ->where('created_by', $user->id);
                 })
 
-                // 3. Albums restreints accessibles
+                // 3. Albums restreints accessibles via délégation
                 ->orWhere(function ($q2) use ($user, $subordinateRoles, $allDeptIds) {
                     $q2->where('visibility', 'restricted')
                         ->where(function ($q3) use ($user, $subordinateRoles, $allDeptIds) {
@@ -121,7 +134,7 @@ class MediaAlbum extends Model
                                     ->where('shared_with_id', $user->id)
                                     ->where('can_view', true))
 
-                                // Délégation nœud direct OU nœuds enfants hérités
+                                // Délégation nœud direct ou hérité
                                 ->orWhereHas('shares', fn ($s) => $s
                                     ->where('shared_with_type', 'department')
                                     ->whereIn('shared_with_id', $allDeptIds)
@@ -139,8 +152,64 @@ class MediaAlbum extends Model
                                     ->whereIn('shared_with_role', $subordinateRoles)
                                     ->where('can_view', true));
                         });
+                })
+
+                // 4. Sous-albums dont l'album parent est accessible
+                // Résolution en PHP pour éviter la récursion SQL infinie.
+                ->orWhere(function ($q2) use ($user, $subordinateRoles, $allDeptIds) {
+                    $parentIds = $this->resolveAccessibleParentIds($user, $subordinateRoles, $allDeptIds);
+                    if (! empty($parentIds)) {
+                        $q2->whereIn('parent_id', $parentIds);
+                    } else {
+                        $q2->whereRaw('0 = 1'); // aucun parent accessible
+                    }
                 });
         });
+    }
+
+    /**
+     * Retourne les IDs des albums racine accessibles par l'utilisateur.
+     * Utilisé pour résoudre l'héritage parent → enfant sans récursion SQL.
+     *
+     * @param  array<string>  $subordinateRoles
+     * @param  array<int>  $allDeptIds
+     * @return array<int>
+     */
+    private function resolveAccessibleParentIds(User $user, array $subordinateRoles, array $allDeptIds): array
+    {
+        return self::query()
+            ->whereNotNull('id') // albums racine uniquement (on filtre après)
+            ->where(function ($q) use ($user, $subordinateRoles, $allDeptIds) {
+                $q->where('visibility', 'public')
+                    ->orWhere(function ($q2) use ($user) {
+                        $q2->where('visibility', 'private')
+                            ->where('created_by', $user->id);
+                    })
+                    ->orWhere(function ($q2) use ($user, $subordinateRoles, $allDeptIds) {
+                        $q2->where('visibility', 'restricted')
+                            ->where(function ($q3) use ($user, $subordinateRoles, $allDeptIds) {
+                                $q3->orWhere('created_by', $user->id)
+                                    ->orWhereHas('shares', fn ($s) => $s
+                                        ->where('shared_with_type', 'user')
+                                        ->where('shared_with_id', $user->id)
+                                        ->where('can_view', true))
+                                    ->orWhereHas('shares', fn ($s) => $s
+                                        ->where('shared_with_type', 'department')
+                                        ->whereIn('shared_with_id', $allDeptIds)
+                                        ->where('can_view', true))
+                                    ->orWhereHas('shares', fn ($s) => $s
+                                        ->where('shared_with_type', 'role')
+                                        ->where('shared_with_role', $user->role)
+                                        ->where('can_view', true))
+                                    ->orWhereHas('shares', fn ($s) => $s
+                                        ->where('shared_with_type', 'role')
+                                        ->whereIn('shared_with_role', $subordinateRoles)
+                                        ->where('can_view', true));
+                            });
+                    });
+            })
+            ->pluck('id')
+            ->toArray();
     }
 
     /**
