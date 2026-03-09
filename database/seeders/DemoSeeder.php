@@ -5,8 +5,8 @@ namespace Database\Seeders;
 use App\Enums\UserRole;
 use App\Models\Tenant\Department;
 use App\Models\Tenant\MediaAlbum;
-use App\Models\Tenant\User;
 use App\Models\Tenant\Share;
+use App\Models\Tenant\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -60,27 +60,27 @@ class DemoSeeder extends Seeder
 
         $definitions = [
             UserRole::ADMIN->value => [
-                'name'  => 'Admin Démo',
+                'name' => 'Admin Démo',
                 'email' => 'admin@demo.pladigit.fr',
             ],
             UserRole::PRESIDENT->value => [
-                'name'  => 'Marie Dupont',
+                'name' => 'Marie Dupont',
                 'email' => 'president@demo.pladigit.fr',
             ],
             UserRole::DGS->value => [
-                'name'  => 'Jean-Pierre Martin',
+                'name' => 'Jean-Pierre Martin',
                 'email' => 'dgs@demo.pladigit.fr',
             ],
             UserRole::RESP_DIRECTION->value => [
-                'name'  => 'Sophie Lambert',
+                'name' => 'Sophie Lambert',
                 'email' => 'resp.direction@demo.pladigit.fr',
             ],
             UserRole::RESP_SERVICE->value => [
-                'name'  => 'Thomas Bernard',
+                'name' => 'Thomas Bernard',
                 'email' => 'resp.service@demo.pladigit.fr',
             ],
             UserRole::USER->value => [
-                'name'  => 'Lucie Moreau',
+                'name' => 'Lucie Moreau',
                 'email' => 'user@demo.pladigit.fr',
             ],
         ];
@@ -90,11 +90,11 @@ class DemoSeeder extends Seeder
             $users[$role] = User::updateOrCreate(
                 ['email' => $data['email']],
                 array_merge($data, [
-                    'password_hash'      => $password,
-                    'role'               => $role,
-                    'status'             => 'active',
-                    'force_pwd_change'   => false,
-                    'totp_enabled'       => false,
+                    'password_hash' => $password,
+                    'role' => $role,
+                    'status' => 'active',
+                    'force_pwd_change' => false,
+                    'totp_enabled' => false,
                     'password_changed_at' => now(),
                 ])
             );
@@ -136,13 +136,13 @@ class DemoSeeder extends Seeder
         // Affectations
         $dst->members()->syncWithoutDetaching([
             $users[UserRole::RESP_DIRECTION->value]->id => ['is_manager' => true],
-            $users[UserRole::RESP_SERVICE->value]->id   => ['is_manager' => false],
-            $users[UserRole::USER->value]->id            => ['is_manager' => false],
+            $users[UserRole::RESP_SERVICE->value]->id => ['is_manager' => false],
+            $users[UserRole::USER->value]->id => ['is_manager' => false],
         ]);
 
         $voirie->members()->syncWithoutDetaching([
             $users[UserRole::RESP_SERVICE->value]->id => ['is_manager' => true],
-            $users[UserRole::USER->value]->id          => ['is_manager' => false],
+            $users[UserRole::USER->value]->id => ['is_manager' => false],
         ]);
 
         $rh->members()->syncWithoutDetaching([
@@ -166,8 +166,8 @@ class DemoSeeder extends Seeder
             ['name' => 'Fête de la commune 2025'],
             [
                 'description' => 'Photos de la fête annuelle de la commune.',
-                'visibility'  => 'public',
-                'created_by'  => $admin->id,
+                'visibility' => 'public',
+                'created_by' => $admin->id,
             ]
         );
 
@@ -176,8 +176,8 @@ class DemoSeeder extends Seeder
             ['name' => 'Travaux voirie 2025'],
             [
                 'description' => 'Suivi photographique des chantiers en cours.',
-                'visibility'  => 'restricted',
-                'created_by'  => $respDir->id,
+                'visibility' => 'restricted',
+                'created_by' => $respDir->id,
             ]
         );
 
@@ -185,17 +185,17 @@ class DemoSeeder extends Seeder
         foreach ([UserRole::RESP_SERVICE->value, UserRole::USER->value] as $role) {
             Share::updateOrCreate(
                 [
-                    'shareable_type'   => 'media_album',
-                    'shareable_id'     => $albumRestreint->id,
+                    'shareable_type' => 'media_album',
+                    'shareable_id' => $albumRestreint->id,
                     'shared_with_type' => 'role',
                     'shared_with_role' => $role,
                 ],
                 [
-                    'can_view'     => true,
+                    'can_view' => true,
                     'can_download' => $role === UserRole::RESP_SERVICE->value,
-                    'can_edit'     => false,
-                    'can_manage'   => false,
-                    'shared_by'    => $admin->id,
+                    'can_edit' => false,
+                    'can_manage' => false,
+                    'shared_by' => $admin->id,
                 ]
             );
         }
@@ -203,17 +203,17 @@ class DemoSeeder extends Seeder
         // Override utilisateur : Lucie (user) peut aussi télécharger
         Share::updateOrCreate(
             [
-                'shareable_type'   => 'media_album',
-                'shareable_id'     => $albumRestreint->id,
+                'shareable_type' => 'media_album',
+                'shareable_id' => $albumRestreint->id,
                 'shared_with_type' => 'user',
-                'shared_with_id'   => $users[UserRole::USER->value]->id,
+                'shared_with_id' => $users[UserRole::USER->value]->id,
             ],
             [
-                'can_view'     => true,
+                'can_view' => true,
                 'can_download' => true,
-                'can_edit'     => false,
-                'can_manage'   => false,
-                'shared_by'    => $admin->id,
+                'can_edit' => false,
+                'can_manage' => false,
+                'shared_by' => $admin->id,
             ]
         );
 
@@ -222,8 +222,8 @@ class DemoSeeder extends Seeder
             ['name' => 'RH — Documents confidentiels'],
             [
                 'description' => 'Album privé RH — accès restreint au créateur.',
-                'visibility'  => 'private',
-                'created_by'  => $users[UserRole::RESP_DIRECTION->value]->id,
+                'visibility' => 'private',
+                'created_by' => $users[UserRole::RESP_DIRECTION->value]->id,
             ]
         );
     }

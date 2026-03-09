@@ -16,13 +16,13 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name'               => fake()->name(),
-            'email'              => fake()->unique()->safeEmail(),
-            'password_hash'      => Hash::make('password'),
-            'role'               => UserRole::USER->value,
-            'status'             => 'active',
-            'force_pwd_change'   => false,
-            'totp_enabled'       => false,
+            'name' => fake()->name(),
+            'email' => fake()->unique()->safeEmail(),
+            'password_hash' => Hash::make('password'),
+            'role' => UserRole::USER->value,
+            'status' => 'active',
+            'force_pwd_change' => false,
+            'totp_enabled' => false,
             'password_changed_at' => now(),
         ];
     }
@@ -63,7 +63,7 @@ class UserFactory extends Factory
         $secret = $google2fa->generateSecretKey();
 
         return $this->state([
-            'totp_enabled'    => true,
+            'totp_enabled' => true,
             'totp_secret_enc' => Crypt::encryptString($secret),
         ]);
     }
@@ -71,7 +71,7 @@ class UserFactory extends Factory
     public function ldap(): static
     {
         return $this->state([
-            'ldap_dn'       => 'uid=test,ou=users,dc=pladigit,dc=fr',
+            'ldap_dn' => 'uid=test,ou=users,dc=pladigit,dc=fr',
             'password_hash' => null,
         ]);
     }

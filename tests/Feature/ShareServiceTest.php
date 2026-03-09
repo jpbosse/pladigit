@@ -23,6 +23,7 @@ use Tests\TestCase;
 class ShareServiceTest extends TestCase
 {
     private ShareService $service;
+
     private MediaAlbum $album;
 
     protected function setUp(): void
@@ -52,26 +53,26 @@ class ShareServiceTest extends TestCase
     private function shareWith(string $type, mixed $id, array $abilities): void
     {
         Share::create([
-            'shareable_type'   => 'media_album',
-            'shareable_id'     => $this->album->id,
+            'shareable_type' => 'media_album',
+            'shareable_id' => $this->album->id,
             'shared_with_type' => $type,
-            'shared_with_id'   => $type === 'user' || $type === 'department' ? $id : null,
+            'shared_with_id' => $type === 'user' || $type === 'department' ? $id : null,
             'shared_with_role' => $type === 'role' ? $id : null,
-            'can_view'         => $abilities['can_view']     ?? false,
-            'can_download'     => $abilities['can_download'] ?? false,
-            'can_edit'         => $abilities['can_edit']     ?? false,
-            'can_manage'       => $abilities['can_manage']   ?? false,
+            'can_view' => $abilities['can_view'] ?? false,
+            'can_download' => $abilities['can_download'] ?? false,
+            'can_edit' => $abilities['can_edit'] ?? false,
+            'can_manage' => $abilities['can_manage'] ?? false,
         ]);
     }
 
     private function attachToDept(User $user, Department $dept, bool $isManager = false): void
     {
         DB::connection('tenant')->table('user_department')->insert([
-            'user_id'       => $user->id,
+            'user_id' => $user->id,
             'department_id' => $dept->id,
-            'is_manager'    => $isManager,
-            'created_at'    => now(),
-            'updated_at'    => now(),
+            'is_manager' => $isManager,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
@@ -109,8 +110,8 @@ class ShareServiceTest extends TestCase
     public function test_utilisateur_membre_dun_nœud_délégué_peut_visionner(): void
     {
         $direction = Department::factory()->direction()->create();
-        $user      = User::factory()->create(['role' => 'user']);
-        $service   = Department::factory()->service($direction->id)->create();
+        $user = User::factory()->create(['role' => 'user']);
+        $service = Department::factory()->service($direction->id)->create();
         $this->attachToDept($user, $service);
         $this->shareWith('department', $service->id, ['can_view' => true]);
 
@@ -120,9 +121,9 @@ class ShareServiceTest extends TestCase
     public function test_utilisateur_non_membre_du_nœud_délégué_ne_peut_pas_visionner(): void
     {
         $direction = Department::factory()->direction()->create();
-        $user      = User::factory()->create(['role' => 'user']);
-        $service1  = Department::factory()->service($direction->id)->create();
-        $service2  = Department::factory()->service($direction->id)->create();
+        $user = User::factory()->create(['role' => 'user']);
+        $service1 = Department::factory()->service($direction->id)->create();
+        $service2 = Department::factory()->service($direction->id)->create();
         $this->attachToDept($user, $service1);
         $this->shareWith('department', $service2->id, ['can_view' => true]);
 
@@ -178,9 +179,9 @@ class ShareServiceTest extends TestCase
 
     public function test_responsable_de_pôle_hérite_du_droit_accordé_à_sa_direction_enfant(): void
     {
-        $pole      = Department::factory()->direction()->create(['name' => 'Pôle Technique']);
+        $pole = Department::factory()->direction()->create(['name' => 'Pôle Technique']);
         $direction = Department::factory()->direction()->create([
-            'name'      => 'Direction DST',
+            'name' => 'Direction DST',
             'parent_id' => $pole->id,
         ]);
 
@@ -195,13 +196,13 @@ class ShareServiceTest extends TestCase
 
     public function test_responsable_de_pôle_hérite_du_droit_accordé_à_un_service_petit_enfant(): void
     {
-        $pole      = Department::factory()->direction()->create(['name' => 'Pôle Technique']);
+        $pole = Department::factory()->direction()->create(['name' => 'Pôle Technique']);
         $direction = Department::factory()->direction()->create([
-            'name'      => 'Direction DST',
+            'name' => 'Direction DST',
             'parent_id' => $pole->id,
         ]);
-        $service   = Department::factory()->service($direction->id)->create([
-            'name'      => 'Service Voirie',
+        $service = Department::factory()->service($direction->id)->create([
+            'name' => 'Service Voirie',
             'parent_id' => $direction->id,
         ]);
 
@@ -216,7 +217,7 @@ class ShareServiceTest extends TestCase
 
     public function test_membre_simple_du_pôle_nhérite_pas_des_droits_des_enfants(): void
     {
-        $pole      = Department::factory()->direction()->create();
+        $pole = Department::factory()->direction()->create();
         $direction = Department::factory()->direction()->create(['parent_id' => $pole->id]);
 
         // Membre simple — is_manager = false
@@ -230,7 +231,7 @@ class ShareServiceTest extends TestCase
 
     public function test_délégation_accordée_au_pôle_nest_pas_héritée_par_les_membres_enfants(): void
     {
-        $pole    = Department::factory()->direction()->create();
+        $pole = Department::factory()->direction()->create();
         $service = Department::factory()->service($pole->id)->create();
 
         // Agent simple dans le service enfant

@@ -40,7 +40,7 @@ class ShareService
     public function can(User $user, Model $object, string $ability): bool
     {
         $type = $this->morphType($object);
-        $id   = $object->getKey();
+        $id = $object->getKey();
 
         // 1. Override utilisateur individuel
         $userShare = Share::forModel($type, $id)
@@ -138,7 +138,7 @@ class ShareService
     private function getAllChildDeptIds(array $parentIds): array
     {
         $allChildren = [];
-        $toProcess   = $parentIds;
+        $toProcess = $parentIds;
 
         while (! empty($toProcess)) {
             $children = \App\Models\Tenant\Department::whereIn('parent_id', $toProcess)
@@ -152,7 +152,7 @@ class ShareService
             }
 
             $allChildren = array_merge($allChildren, $newChildren);
-            $toProcess   = $newChildren;
+            $toProcess = $newChildren;
         }
 
         return $allChildren;
@@ -182,10 +182,10 @@ class ShareService
     ): Share {
         return Share::updateOrCreate(
             [
-                'shareable_type'   => $this->morphType($object),
-                'shareable_id'     => $object->getKey(),
+                'shareable_type' => $this->morphType($object),
+                'shareable_id' => $object->getKey(),
                 'shared_with_type' => $withType,
-                'shared_with_id'   => $withId,
+                'shared_with_id' => $withId,
                 'shared_with_role' => $withRole,
             ],
             array_merge($abilities, ['shared_by' => $sharedBy])
