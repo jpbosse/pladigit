@@ -108,25 +108,19 @@
                 {{-- Label libre --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1">Type / Label</label>
-                    <div class="flex gap-2">
-                        <select id="labelPreset" onchange="applyLabelPreset(this)"
-                                class="border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 flex-shrink-0">
-                            <option value="">Choisir…</option>
-                            <option value="Direction">Direction</option>
-                            <option value="Service">Service</option>
-                            <option value="Pôle">Pôle</option>
-                            <option value="Bureau">Bureau</option>
-                            <option value="Cellule">Cellule</option>
-                            <option value="Délégation">Délégation</option>
-                            <option value="Unité">Unité</option>
-                        </select>
-                        <input type="text" name="label" id="labelInput"
-                               value="{{ old('label') }}"
-                               placeholder="ou saisie libre…"
-                               maxlength="100"
-                               class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                    </div>
-                    <p class="text-xs text-gray-400 mt-1">Affiché dans l'organigramme sous le nom.</p>
+                    <input type="text" name="label" id="labelInput"
+                           value="{{ old('label') }}"
+                           placeholder="Direction, Pôle, Comité…"
+                           maxlength="100"
+                           list="label-suggestions"
+                           autocomplete="off"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    <datalist id="label-suggestions">
+                        @foreach($labelSuggestions as $suggestion)
+                            <option value="{{ $suggestion }}">
+                        @endforeach
+                    </datalist>
+                    <p class="text-xs text-gray-400 mt-1">Affiché dans l'organigramme. Les labels déjà utilisés sont suggérés automatiquement.</p>
                 </div>
 
                 {{-- Couleur --}}
@@ -218,23 +212,13 @@
             {{-- Label --}}
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Type / Label</label>
-                <div class="flex gap-2">
-                    <select onchange="applyLabelPresetEdit(this)"
-                            class="border border-gray-300 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200 flex-shrink-0">
-                        <option value="">Choisir…</option>
-                        <option value="Direction">Direction</option>
-                        <option value="Service">Service</option>
-                        <option value="Pôle">Pôle</option>
-                        <option value="Bureau">Bureau</option>
-                        <option value="Cellule">Cellule</option>
-                        <option value="Délégation">Délégation</option>
-                        <option value="Unité">Unité</option>
-                    </select>
-                    <input type="text" name="label" id="editLabel"
-                           maxlength="100"
-                           placeholder="ou saisie libre…"
-                           class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                </div>
+                <input type="text" name="label" id="editLabel"
+                       maxlength="100"
+                       placeholder="Direction, Pôle, Comité…"
+                       list="label-suggestions"
+                       autocomplete="off"
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                {{-- datalist partagé avec le formulaire de création --}}
             </div>
 
             {{-- Couleur --}}
@@ -299,18 +283,6 @@
 {{-- Scripts                                                        --}}
 {{-- ═══════════════════════════════════════════════════════════════ --}}
 <script>
-// ─── Présélection label depuis le select (formulaire création) ────────
-function applyLabelPreset(select) {
-    if (select.value) {
-        document.getElementById('labelInput').value = select.value;
-    }
-}
-function applyLabelPresetEdit(select) {
-    if (select.value) {
-        document.getElementById('editLabel').value = select.value;
-    }
-}
-
 // ─── Modal modification ───────────────────────────────────────────────
 function openEditModal(id, name, label, color, parentId, isTransversal, sortOrder) {
     document.getElementById('editForm').action = '/admin/departments/' + id;

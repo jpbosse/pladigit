@@ -127,7 +127,167 @@ class MediaService
     }
 
     // =========================================================================
-    // Synchronisation NAS → BDD
+    // Synchronisation arborescence NAS → albums/sous-albums
+    // =========================================================================
+
+    /**
+     * Synchronise récursivement l'arborescence NAS vers la hiérarchie albums/sous-albums.
+     *
+     * Comportement :
+     *   - Chaque dossier NAS → un album (créé s'il n'existe pas, nas_path = chemin NAS)
+     *   - Les sous-dossiers → des sous-albums (parent_id = album parent)
+     *   - Les fichiers dans chaque dossier → ingérés via syncByMtime ou syncBySha256
+     *   - Les albums existants (nas_path correspondant) ne sont pas recréés
+     *   - Les albums créés manuellement (nas_path = null) sont ignorés
+     *
+     * @param  string  $nasRoot  Chemin racine NAS à parcourir ('' = racine)
+     * @param  User|null  $owner  Propriétaire des albums créés (null = premier admin)
+     * @param  bool  $deep  true = sync SHA-256, false = sync mtime
+     * @return array{albums_created: int, albums_found: int, files_added: int, files_skipped: int, errors: int}
+     */
+    public function syncAlbumTree(
+        string $nasRoot = '',
+        ?User $owner = null,
+        bool $deep = false,
+    ): array {
+        $nas = $this->nasManager->photoDriver();
+
+        $stats = [
+            'albums_created' => 0,
+            'albums_found' => 0,
+            'files_added' => 0,
+            'files_skipped' => 0,
+            'errors' => 0,
+        ];
+
+        // Depuis la racine, on descend directement dans les sous-dossiers
+        // sans créer d'album racine — chaque dossier de premier niveau = album racine
+        try {
+            $topDirs = $nas->listDirectories($nasRoot);
+        } catch (\Throwable $e) {
+            Log::error('MediaService::syncAlbumTree — erreur listDirectories racine', [
+                'error' => $e->getMessage(),
+            ]);
+            $stats['errors']++;
+
+            return $stats;
+        }
+
+        foreach ($topDirs as $dir) {
+            $this->syncDirectory($nas, $dir['path'], null, $owner, $deep, $stats);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Parcourt récursivement un dossier NAS et crée/met à jour l'album correspondant.
+     *
+     * @param  array{albums_created: int, albums_found: int, files_added: int, files_skipped: int, errors: int}  $stats
+     */
+    private function syncDirectory(
+        NasConnectorInterface $nas,
+        string $nasPath,
+        ?int $parentId,
+        ?User $owner,
+        bool $deep,
+        array &$stats,
+    ): void {
+        // 1. Trouver ou créer l'album correspondant à ce dossier NAS
+        $album = $this->findOrCreateAlbumForPath($nasPath, $parentId, $owner, $stats);
+
+        if ($album === null) {
+            $stats['errors']++;
+
+            return;
+        }
+
+        // 2. Synchroniser les fichiers de ce dossier
+        try {
+            if ($deep) {
+                $result = $this->syncBySha256($album, $nasPath);
+                $stats['files_added'] += $result['updated'];
+                $stats['files_skipped'] += $result['unchanged'];
+            } else {
+                $result = $this->syncByMtime($album, $nasPath);
+                $stats['files_added'] += $result['added'];
+                $stats['files_skipped'] += $result['skipped'];
+            }
+        } catch (\Throwable $e) {
+            Log::error('MediaService::syncDirectory — erreur sync fichiers', [
+                'nas_path' => $nasPath,
+                'error' => $e->getMessage(),
+            ]);
+            $stats['errors']++;
+        }
+
+        // 3. Descendre récursivement dans les sous-dossiers
+        try {
+            $subDirs = $nas->listDirectories($nasPath);
+        } catch (\Throwable $e) {
+            Log::error('MediaService::syncDirectory — erreur listDirectories', [
+                'nas_path' => $nasPath,
+                'error' => $e->getMessage(),
+            ]);
+            $stats['errors']++;
+
+            return;
+        }
+
+        foreach ($subDirs as $dir) {
+            $this->syncDirectory($nas, $dir['path'], $album->id, $owner, $deep, $stats);
+        }
+    }
+
+    /**
+     * Trouve l'album associé à un chemin NAS, ou le crée s'il n'existe pas.
+     */
+    private function findOrCreateAlbumForPath(
+        string $nasPath,
+        ?int $parentId,
+        ?User $owner,
+        array &$stats,
+    ): ?MediaAlbum {
+        // Chercher un album existant avec ce nas_path
+        $existing = MediaAlbum::where('nas_path', $nasPath)->first();
+
+        if ($existing) {
+            $stats['albums_found']++;
+
+            return $existing;
+        }
+
+        // Créer l'album — nom = dernier segment du chemin NAS
+        $name = basename($nasPath);
+        $ownerId = $owner?->id ?? User::where('role', 'admin')->value('id') ?? 1;
+
+        try {
+            $album = MediaAlbum::create([
+                'name' => $name,
+                'description' => null,
+                'visibility' => 'restricted',
+                'parent_id' => $parentId,
+                'nas_path' => $nasPath,
+                'created_by' => $ownerId,
+            ]);
+
+            $stats['albums_created']++;
+            Log::info('MediaService::syncAlbumTree — album créé', [
+                'name' => $name,
+                'nas_path' => $nasPath,
+                'parent_id' => $parentId,
+            ]);
+
+            return $album;
+        } catch (\Throwable $e) {
+            Log::error('MediaService::syncAlbumTree — erreur création album', [
+                'nas_path' => $nasPath,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
     // =========================================================================
 
     /**

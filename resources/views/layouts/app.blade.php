@@ -17,6 +17,55 @@
     @endif
 
     <style>
+        .topbar-logo {
+            height: 22px;
+            width: auto;
+            object-fit: contain;
+            opacity: 0.92;
+            filter: brightness(0) invert(1);
+            flex-shrink: 0;
+        }
+        .navbar-logo {
+            height: 36px;
+            width: auto;
+            object-fit: contain;
+            flex-shrink: 0;
+            margin-right: 8px;
+        }
+
+        /* ── Logo à cheval sur topbar + navbar ── */
+        .straddling-logo {
+            position: fixed;
+            top: 0;
+            left: 1.5rem;              /* flottant, pas collé au bord */
+            height: 88px;
+            width: auto;
+            z-index: 101;
+            object-fit: contain;
+            background: white;
+            padding: 6px 14px 10px 14px;
+            border-radius: 0 0 14px 14px;  /* arrondi uniquement en bas */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+        }
+        /* 24px (left) + 14px (pad) + 72px (logo) + 14px (pad) + 16px (gap) = 140px */
+        .topbar-left { padding-left: 148px; }
+        .navbar      { padding-left: 148px; }
+
+        @media (max-width: 768px) {
+            .straddling-logo { height: 56px; top: 0; left: 0.75rem; padding: 3px 6px; }
+            .topbar-left { padding-left: 100px; }
+            .navbar      { padding-left: 100px; }
+            /* Icônes seules sur mobile — masquer les labels */
+            .nav-item span:not(.nav-icon):not(.nav-badge) { display: none; }
+            .nav-item { padding: 6px 8px; gap: 0; }
+            .nav-badge { display: none; }
+        }
+        @media (max-width: 400px) {
+            .straddling-logo { height: 46px; top: 8px; }
+            .topbar-subdomain, .topbar-dot { display: none; }
+            .topbar-org { font-size: 0.65rem; }
+        }
+
         /* ── Barre supérieure contextuelle ── */
         .topbar {
             height: 36px;
@@ -179,6 +228,15 @@
         $currentRoute = request()->route()?->getName() ?? '';
     @endphp
 
+    {{-- ── Logo à cheval topbar + navbar ── --}}
+    @auth
+    <a href="{{ route('dashboard') }}">
+        <img src="{{ asset('img/logo.png') }}"
+             alt="{{ config('app.name') }}"
+             class="straddling-logo">
+    </a>
+    @endauth
+
     {{-- ── Barre supérieure ── --}}
     <div class="topbar">
         <div class="topbar-left">
@@ -261,6 +319,22 @@
     <main class="main-content">
         @yield('content')
     </main>
+
+<script>
+// Ajuste le padding-left de la navbar selon la largeur réelle du logo
+(function() {
+    var logo = document.querySelector('.straddling-logo');
+    if (!logo) return;
+    function adjust() {
+        var w = logo.getBoundingClientRect().width;
+        var offset = w + 44; // 44px de marge après le logo
+        document.querySelector('.navbar').style.paddingLeft = offset + 'px';
+        document.querySelector('.topbar-left').style.paddingLeft = offset + 'px';
+    }
+    if (logo.complete) adjust();
+    else logo.addEventListener('load', adjust);
+})();
+</script>
 
 </body>
 </html>

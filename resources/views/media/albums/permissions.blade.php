@@ -1,273 +1,390 @@
 @extends('layouts.app')
+
 @section('title', 'Droits — ' . $album->name)
 
-@push('styles')
-<style>
-    .toggle-wrap { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
-    .toggle-label { font-size: 0.65rem; font-weight: 500; color: #94a3b8; letter-spacing: 0.04em; text-transform: uppercase; }
-    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
-    .toggle input { opacity: 0; width: 0; height: 0; }
-    .toggle-slider { position: absolute; inset: 0; background: #e2e8f0; border-radius: 20px; cursor: pointer; transition: background 0.2s ease; }
-    .toggle-slider:before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s ease; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
-    .toggle input:checked + .toggle-slider { background: var(--color-primary, #1E3A5F); }
-    .toggle input:checked + .toggle-slider:before { transform: translateX(16px); }
-    .toggle input:disabled + .toggle-slider { background: var(--color-primary, #1E3A5F); opacity: .35; cursor: not-allowed; }
-    .role-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1.25rem; display: flex; flex-direction: column; gap: 1rem; transition: box-shadow 0.15s ease; }
-    .role-card:hover { box-shadow: 0 4px 12px rgba(30,58,95,.08); }
-    .role-card.is-total { background: #f8fafc; }
-    .role-card-name { font-size: 0.875rem; font-weight: 600; color: #1e3a5f; }
-    .role-card-badge { font-size: 0.65rem; font-weight: 500; padding: 2px 8px; border-radius: 20px; background: color-mix(in srgb, var(--color-primary, #1E3A5F) 12%, white); color: var(--color-primary, #1E3A5F); display: inline-block; margin-top: 2px; }
-    .role-card-toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-    .share-card { background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 1rem 1.25rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; transition: box-shadow 0.15s ease; }
-    .share-card:hover { box-shadow: 0 4px 12px rgba(30,58,95,.08); }
-    .share-card-info { flex: 1; min-width: 140px; }
-    .share-card-toggles { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .share-card-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-    #toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: #1e3a5f; color: white; padding: 0.6rem 1.2rem; border-radius: 8px; font-size: 0.8rem; font-weight: 500; box-shadow: 0 4px 16px rgba(0,0,0,.2); opacity: 0; transform: translateY(8px); transition: opacity .25s, transform .25s; pointer-events: none; z-index: 50; }
-    #toast.show { opacity: 1; transform: translateY(0); }
-</style>
-@endpush
-
 @section('content')
-<div class="max-w-5xl mx-auto px-4 py-6">
-
-    <div id="toast">✓ Droit mis à jour</div>
+<div class="max-w-7xl mx-auto px-4">
 
     {{-- Fil d'Ariane --}}
-    <div class="flex items-center gap-2 mb-6 text-sm text-gray-400">
-        <a href="{{ route('media.albums.index') }}" class="hover:text-gray-600">Photothèque</a>
-        <span>/</span>
-        <a href="{{ route('media.albums.show', $album) }}" class="hover:text-gray-600">{{ $album->name }}</a>
-        <span>/</span>
-        <span class="text-gray-600">Droits d'accès</span>
+    <div class="flex items-center gap-2 mb-6 text-sm flex-wrap">
+        <a href="{{ route('media.albums.index') }}" class="text-gray-400 hover:text-gray-600">← Photothèque</a>
+        @foreach($album->ancestors() as $ancestor)
+            <span class="text-gray-300">/</span>
+            <a href="{{ route('media.albums.show', $ancestor) }}" class="text-gray-400 hover:text-gray-600">{{ $ancestor->name }}</a>
+        @endforeach
+        <span class="text-gray-300">/</span>
+        <a href="{{ route('media.albums.show', $album) }}" class="text-gray-400 hover:text-gray-600">{{ $album->name }}</a>
+        <span class="text-gray-300">/</span>
+        <span class="font-semibold text-gray-800">🔐 Droits</span>
     </div>
 
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-xl font-bold text-gray-800">Droits d'accès</h1>
-            <p class="text-sm text-gray-400 mt-0.5">{{ $album->name }}</p>
+            <h1 class="text-xl font-bold text-gray-800">Gestion des droits</h1>
+            <p class="text-sm text-gray-500 mt-1">Album : <strong>{{ $album->name }}</strong></p>
         </div>
         <a href="{{ route('media.albums.show', $album) }}"
-           class="px-4 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">
+           class="text-sm text-gray-500 hover:text-gray-700 border border-gray-200 px-3 py-2 rounded-lg bg-white">
             ← Retour à l'album
         </a>
     </div>
 
+    {{-- Flash --}}
     @if(session('success'))
-        <div class="mb-6 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">
-            ✓ {{ session('success') }}
+        <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
+            ✅ {{ session('success') }}
         </div>
     @endif
 
-    {{-- Droits par rôle --}}
-    <div class="mb-8">
-        <div class="flex items-baseline gap-3 mb-4">
-            <h2 class="text-sm font-semibold text-gray-700">Droits par rôle</h2>
-            <span class="text-xs text-gray-400">Sauvegarde automatique au clic</span>
-        </div>
-
-        {{-- Bandeau Président / DGS --}}
-        <div class="flex items-center gap-3 px-4 py-3 rounded-xl mb-4"
-             style="background: color-mix(in srgb, var(--color-primary, #1E3A5F) 8%, white); border: 1px solid color-mix(in srgb, var(--color-primary, #1E3A5F) 20%, white);">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" style="color: var(--color-primary, #1E3A5F)">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.955 11.955 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
-            </svg>
+    {{-- Info héritage parent --}}
+    @if(isset($inheritedFrom) && $inheritedFrom)
+        <div class="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700 flex items-start gap-3">
+            <span class="text-lg">ℹ️</span>
             <div>
-                <span class="text-sm font-semibold" style="color: var(--color-primary, #1E3A5F)">Président &amp; DGS</span>
-                <span class="text-sm text-gray-500 ml-2">— Accès total à tous les albums, sans restriction possible.</span>
+                <p class="font-semibold">Héritage actif</p>
+                <p class="mt-0.5">Cet album hérite des droits de
+                    <a href="{{ route('media.albums.permissions.edit', $inheritedFrom) }}" class="underline font-medium">
+                        {{ $inheritedFrom->name }}
+                    </a>
+                    sauf si une permission explicite est définie ci-dessous.
+                    Une permission explicite sur cet album <strong>prime sur l'héritage</strong>.
+                </p>
             </div>
         </div>
-
-        {{-- 3 rôles configurables --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            @foreach($configurableRoles as $role => $label)
-            @php $s = $roleShares[$role] ?? null; @endphp
-            <div class="role-card"
-                 x-data="{
-                    role: '{{ $role }}',
-                    can_view: {{ $s?->can_view ? 'true' : 'false' }},
-                    can_download: {{ $s?->can_download ? 'true' : 'false' }},
-                    can_edit: {{ $s?->can_edit ? 'true' : 'false' }},
-                    can_manage: {{ $s?->can_manage ? 'true' : 'false' }},
-                    saving: false,
-                    async save() {
-                        this.saving = true;
-                        const fd = new FormData();
-                        fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
-                        fd.append('_method', 'PUT');
-                        fd.append('roles[' + this.role + '][can_view]', this.can_view ? '1' : '');
-                        fd.append('roles[' + this.role + '][can_download]', this.can_download ? '1' : '');
-                        fd.append('roles[' + this.role + '][can_edit]', this.can_edit ? '1' : '');
-                        fd.append('roles[' + this.role + '][can_manage]', this.can_manage ? '1' : '');
-                        await fetch('{{ route('media.albums.permissions.roles', $album) }}', { method: 'POST', body: fd });
-                        this.saving = false;
-                        showToast();
-                    }
-                 }">
-                <div>
-                    <div class="role-card-name">{{ $label }}</div>
-                    <div class="text-xs text-gray-400 mt-0.5" x-text="saving ? 'Enregistrement…' : 'Configurez les droits'"></div>
-                </div>
-                <div class="role-card-toggles">
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_view" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Voir</span>
-                    </div>
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_download" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Télécharger</span>
-                    </div>
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_edit" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Éditer</span>
-                    </div>
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_manage" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Gérer</span>
-                    </div>
-                </div>
-            </div>
-            @endforeach
-        </div>{{-- fin grille 5 colonnes --}}
-    </div>
-
-    {{-- Partages individuels --}}
-    @if($deptShares->isNotEmpty() || $userShares->isNotEmpty())
-    <div class="mb-8">
-        <div class="flex items-baseline gap-3 mb-4">
-            <h2 class="text-sm font-semibold text-gray-700">Partages individuels</h2>
-            <span class="text-xs text-gray-400">Prioritaires sur les droits par rôle</span>
-        </div>
-        <div class="flex flex-col gap-3">
-            @foreach($deptShares->merge($userShares) as $share)
-            <div class="share-card"
-                 x-data="{
-                    can_view: {{ $share->can_view ? 'true' : 'false' }},
-                    can_download: {{ $share->can_download ? 'true' : 'false' }},
-                    can_edit: {{ $share->can_edit ? 'true' : 'false' }},
-                    can_manage: {{ $share->can_manage ? 'true' : 'false' }},
-                    saving: false,
-                    async save() {
-                        this.saving = true;
-                        const fd = new FormData();
-                        fd.append('_token', document.querySelector('meta[name=csrf-token]').content);
-                        fd.append('_method', 'PATCH');
-                        if (this.can_view) fd.append('can_view', '1');
-                        if (this.can_download) fd.append('can_download', '1');
-                        if (this.can_edit) fd.append('can_edit', '1');
-                        if (this.can_manage) fd.append('can_manage', '1');
-                        await fetch('{{ route('media.albums.permissions.update', [$album, $share]) }}', { method: 'POST', body: fd });
-                        this.saving = false;
-                        showToast();
-                    }
-                 }">
-                <div class="share-card-info">
-                    @if($share->shared_with_type === 'department')
-                        <span class="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full font-medium">Direction / Service</span>
-                        <div class="font-medium text-gray-700 text-sm mt-1">{{ $share->sharedWithDepartment?->name ?? '—' }}</div>
-                    @else
-                        <span class="text-xs bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full font-medium">Utilisateur</span>
-                        <div class="font-medium text-gray-700 text-sm mt-1">{{ $share->sharedWithUser?->name ?? '—' }}</div>
-                        <div class="text-xs text-gray-400">{{ $share->sharedWithUser?->email }}</div>
-                    @endif
-                </div>
-                <div class="share-card-toggles">
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_view" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Voir</span>
-                    </div>
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_download" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Télécharger</span>
-                    </div>
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_edit" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Éditer</span>
-                    </div>
-                    <div class="toggle-wrap">
-                        <label class="toggle"><input type="checkbox" x-model="can_manage" @change="save()"><span class="toggle-slider"></span></label>
-                        <span class="toggle-label">Gérer</span>
-                    </div>
-                </div>
-                <div class="share-card-actions">
-                    <span x-show="saving" class="text-xs text-gray-400">…</span>
-                    <form method="POST" action="{{ route('media.albums.permissions.destroy', [$album, $share]) }}"
-                          onsubmit="return confirm('Supprimer ce partage ?')">
-                        @csrf @method('DELETE')
-                        <button type="submit"
-                                class="w-7 h-7 flex items-center justify-center rounded-full text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors text-sm">
-                            ✕
-                        </button>
-                    </form>
-                </div>
-            </div>
-            @endforeach
-        </div>
-    </div>
     @endif
 
-    {{-- Ajouter un partage --}}
-    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div class="p-5 border-b border-gray-100">
-            <h2 class="text-sm font-semibold text-gray-700">Ajouter un partage</h2>
-            <p class="text-xs text-gray-400 mt-1">Partager avec un utilisateur ou une direction / service.</p>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {{-- ── Section 1 : Permissions par rôle ─────────────────────────── --}}
+        <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-visible flex flex-col">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-800">👥 Par rôle</h2>
+                <span class="text-xs text-gray-400">Niveau minimum d'accès requis</span>
+            </div>
+
+            {{-- Encart rôles avec accès total garanti --}}
+            <div class="mx-5 mt-4 mb-1 flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
+                <span class="mt-0.5">🔒</span>
+                <span>
+                    <strong>Admin, Président et DGS</strong> ont toujours accès total à tous les albums,
+                    quel que soit le paramétrage ci-dessous. Leurs droits ne peuvent pas être restreints.
+                </span>
+            </div>
+
+            {{-- Permissions existantes --}}
+            @if($permissions['role']->isNotEmpty())
+                <div class="divide-y divide-gray-50 mt-3">
+                    @foreach($permissions['role'] as $perm)
+                        @php
+                            $pivotRole = \App\Enums\UserRole::tryFrom($perm->subject_role);
+                            $label = match($perm->subject_role) {
+                                'resp_direction' => 'Resp. Direction et au-dessus',
+                                'resp_service'   => 'Resp. Service et au-dessus',
+                                'user'           => 'Tous les agents',
+                                default          => $pivotRole?->label() ?? $perm->subject_role,
+                            };
+                        @endphp
+                        <div class="px-5 py-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium text-gray-700">{{ $label }}</span>
+                                @if($perm->subject_role === 'user')
+                                    <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">inclut Resp. Service + Resp. Direction</span>
+                                @elseif($perm->subject_role === 'resp_service')
+                                    <span class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">inclut Resp. Direction</span>
+                                @endif
+                            </div>
+                            <div class="flex items-center gap-3">
+                                @include('media.albums._permission_level_badge', ['level' => $perm->level])
+                                <form method="POST" action="{{ route('media.albums.permissions.destroy-subject', [$album, $perm]) }}">
+                                    @csrf @method('DELETE')
+                                    <button class="text-xs text-red-400 hover:text-red-600" title="Supprimer">✕</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="px-5 py-4 text-sm text-gray-400 italic">Aucune permission par rôle définie.</p>
+            @endif
+
+            {{-- Formulaire ajout rôle minimum --}}
+            <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 mt-auto">
+                <form method="POST" action="{{ route('media.albums.permissions.store-subject', $album) }}"
+                      class="flex items-center gap-3 flex-wrap">
+                    @csrf
+                    <input type="hidden" name="subject_type" value="role">
+                    <select name="subject_role" required
+                            class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        <option value="">— Niveau minimum</option>
+                        <option value="resp_direction">Resp. Direction et au-dessus</option>
+                        <option value="resp_service">Resp. Service et au-dessus</option>
+                        <option value="user">Tous les agents</option>
+                    </select>
+                    <select name="level" required
+                            class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        @foreach($levels as $level)
+                            @if($level['value'] !== 'none')
+                                <option value="{{ $level['value'] }}">{{ $level['label'] }}</option>
+                            @endif
+                        @endforeach
+                    </select>
+                    <button type="submit"
+                            class="px-4 py-1.5 rounded-lg text-white text-sm font-medium"
+                            style="background-color: var(--color-primary, #1E3A5F);">
+                        + Ajouter
+                    </button>
+                </form>
+            </div>
         </div>
-        <form method="POST" action="{{ route('media.albums.permissions.store', $album) }}" class="p-5"
-              x-data="{ type: 'user' }">
-            @csrf
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Type</label>
-                    <select name="shared_with_type" x-model="type"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-                        <option value="user">Utilisateur</option>
-                        <option value="department">Direction / Service</option>
-                    </select>
+
+        {{-- ── Section 2 : Permissions par entité organisationnelle ──── --}}
+        <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-visible flex flex-col">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-800">🏢 Par entité</h2>
+                <span class="text-xs text-gray-400">Choisir une entité = tous ses membres</span>
+            </div>
+            <p class="mx-5 mt-3 text-xs text-gray-400 italic">
+                💡 Pour partager uniquement avec le responsable, utilisez le bloc <strong>Par utilisateur</strong>.
+            </p>
+
+            @php
+                // Tri hiérarchique : racines d'abord, puis leurs enfants indentés
+                // On construit une liste à plat ordonnée depuis $deptTree
+                $deptPermsById = $permissions['department']->keyBy(fn($p) => $p->subject_id);
+
+                $flattenDeptPerms = function($nodes, $deptPermsById, $depth = 0) use (&$flattenDeptPerms): array {
+                    $result = [];
+                    foreach ($nodes as $node) {
+                        if ($deptPermsById->has($node->id)) {
+                            $result[] = ['perm' => $deptPermsById->get($node->id), 'depth' => $depth, 'dept' => $node];
+                        }
+                        if ($node->allChildren && $node->allChildren->isNotEmpty()) {
+                            $result = array_merge($result, $flattenDeptPerms($node->allChildren, $deptPermsById, $depth + 1));
+                        }
+                    }
+                    return $result;
+                };
+
+                $sortedDeptPerms = $flattenDeptPerms($deptTree, $deptPermsById);
+            @endphp
+
+            @if(count($sortedDeptPerms) > 0)
+                <div class="mt-3">
+                    @foreach($sortedDeptPerms as $entry)
+                        @php
+                            $perm  = $entry['perm'];
+                            $dept  = $entry['dept'];
+                            $depth = $entry['depth'];
+                            $indent = $depth * 20; // px
+                            $parentName = $depth > 0 ? ($dept->parentDept?->name ?? null) : null;
+                        @endphp
+                        <div class="py-3 pr-5 flex items-center justify-between border-b border-gray-50 last:border-0"
+                             style="padding-left: {{ 20 + $indent }}px; {{ $depth > 0 ? 'background: rgba(249,250,251,0.6);' : '' }}">
+                            <div class="flex items-center gap-2">
+                                <span class="text-base">{{ $depth === 0 ? '🏢' : '📂' }}</span>
+                                <div>
+                                    <span class="text-sm font-medium text-gray-700">
+                                        @if($dept->label)<span class="text-xs font-normal text-gray-400">{{ $dept->label }}</span> @endif
+                                        {{ $dept->name }}
+                                    </span>
+                                    @if($parentName)
+                                        <span class="block text-xs text-gray-400 mt-0.5">↳ {{ $parentName }}</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-3 flex-wrap justify-end">
+                                @if(in_array($dept->id, $redundancies))
+                                    <span class="text-xs text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-full" title="Ce niveau est déjà accordé par une entité parente">⚠ redondant</span>
+                                @endif
+                                @if($perm->level->value === 'none')
+                                    <span class="text-xs text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-full" title="Bloque l'héritage — les membres de cette entité n'ont aucun accès">🚫 héritage bloqué</span>
+                                @endif
+                                @include('media.albums._permission_level_badge', ['level' => $perm->level])
+                                <form method="POST" action="{{ route('media.albums.permissions.destroy-subject', [$album, $perm]) }}">
+                                    @csrf @method('DELETE')
+                                    <button class="text-xs text-red-400 hover:text-red-600">✕</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Destinataire</label>
-                    <select x-show="type === 'user'" name="shared_with_id" x-bind:disabled="type !== 'user'"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-                        <option value="">— Choisir un utilisateur —</option>
+            @else
+                <p class="px-5 py-4 text-sm text-gray-400 italic">Aucune permission par entité définie.</p>
+            @endif
+
+            {{-- Select hiérarchique avec filtre Alpine.js --}}
+            <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 mt-auto">
+                <form method="POST" action="{{ route('media.albums.permissions.store-subject', $album) }}"
+                      x-data="{
+                          search: '',
+                          selectedId: '',
+                          selectedType: '',
+                          open: false,
+                          items: @js($deptTreeFlat),
+                          get filtered() {
+                              if (!this.search) return this.items;
+                              const q = this.search.toLowerCase();
+                              return this.items.filter(i => i.label.toLowerCase().includes(q));
+                          },
+                          select(item) {
+                              this.selectedId   = item.id;
+                              this.selectedType = item.type;
+                              this.search       = item.label;
+                              this.open         = false;
+                          },
+                          clear() {
+                              this.search = ''; this.selectedId = ''; this.selectedType = ''; this.open = false;
+                          },
+                          dropdownStyle: 'top:0;left:0;width:280px;',
+                          positionDropdown() {
+                              this.$nextTick(() => {
+                                  const input = this.$refs.searchInput;
+                                  if (!input) return;
+                                  const rect = input.getBoundingClientRect();
+                                  const spaceBelow = window.innerHeight - rect.bottom;
+                                  const openUp = spaceBelow < 280 && rect.top > 280;
+                                  this.dropdownStyle = [
+                                      'position:fixed',
+                                      'left:'       + Math.round(rect.left)  + 'px',
+                                      'width:'      + Math.round(rect.width) + 'px',
+                                      'max-height:196px',
+                                      'overflow-y:scroll',
+                                      'overscroll-behavior:contain',
+                                      openUp
+                                          ? 'bottom:' + Math.round(window.innerHeight - rect.top + 4) + 'px'
+                                          : 'top:'    + Math.round(rect.bottom + 4) + 'px',
+                                      'z-index:9999',
+                                  ].join(';');
+                              });
+                          }
+                      }"
+                      class="space-y-3">
+                    @csrf
+
+                    {{-- Champ recherche --}}
+                    <div class="relative" x-ref="searchWrapper">
+                        <input type="text"
+                               x-model="search"
+                               x-ref="searchInput"
+                               @focus="open = true; positionDropdown()"
+                               @click.outside="open = false"
+                               @input="selectedId = ''; selectedType = ''; positionDropdown()"
+                               @keydown.escape="open = false"
+                               placeholder="🔍 Rechercher une entité…"
+                               autocomplete="off"
+                               class="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+
+                        {{-- Dropdown en fixed pour échapper à overflow-hidden des parents --}}
+                        <div x-show="open && filtered.length > 0"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-bind:style="dropdownStyle"
+                             class="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl overflow-y-scroll">
+                            <template x-for="item in filtered" :key="item.id">
+                                <div @click="select(item)"
+                                     class="px-3 py-1.5 text-xs cursor-pointer hover:bg-blue-50 flex items-center gap-1.5"
+                                     :class="{ 'bg-blue-50': selectedId == item.id }">
+                                    <span x-text="'　'.repeat(item.depth)"></span>
+                                    <span x-text="item.icon"></span>
+                                    <span>
+                                        <span x-show="item.typeLabel" x-text="item.typeLabel"
+                                              class="text-xs text-gray-400 mr-1"></span>
+                                        <span x-text="item.name" class="font-medium text-gray-700"></span>
+                                    </span>
+                                    <span x-show="item.parent" x-text="'↳ ' + item.parent"
+                                          class="text-xs text-gray-400 ml-auto"></span>
+                                </div>
+                            </template>
+                            <div x-show="filtered.length === 0"
+                                 class="px-3 py-2 text-xs text-gray-400 italic">
+                                Aucune entité trouvée.
+                            </div>
+                        </div>
+                    </div>
+
+                    <input type="hidden" name="subject_id"   x-bind:value="selectedId">
+                    <input type="hidden" name="subject_type" x-bind:value="selectedType">
+
+                    <div class="flex gap-2">
+                        <select name="level" required
+                                class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                            @foreach($levels as $level)
+                                <option value="{{ $level['value'] }}">{{ $level['label'] }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit"
+                                :disabled="!selectedId"
+                                class="px-4 py-1.5 rounded-lg text-white text-sm font-medium disabled:opacity-40"
+                                style="background-color: var(--color-primary, #1E3A5F);">
+                            + Ajouter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{-- ── Section 4 : Permissions par utilisateur ─────────────────────── --}}
+        <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-visible flex flex-col">
+            <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h2 class="font-semibold text-gray-800">👤 Par utilisateur</h2>
+                <span class="text-xs text-gray-400">Override individuel — prime sur tout le reste</span>
+            </div>
+
+            @if($permissions['user']->isNotEmpty())
+                <div class="divide-y divide-gray-50">
+                    @foreach($permissions['user'] as $perm)
+                        <div class="px-5 py-3 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                                     style="background-color: var(--color-primary, #1E3A5F);">
+                                    {{ strtoupper(substr($perm->user?->name ?? '?', 0, 1)) }}
+                                </div>
+                                <span class="text-sm font-medium text-gray-700">{{ $perm->user?->name ?? '—' }}</span>
+                                <span class="text-xs text-gray-400">
+                                    {{ $perm->user?->role instanceof \App\Enums\UserRole ? $perm->user->role->label() : ($perm->user?->role ?? '') }}
+                                </span>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                @include('media.albums._permission_level_badge', ['level' => $perm->level])
+                                <form method="POST" action="{{ route('media.albums.permissions.destroy-user', [$album, $perm]) }}">
+                                    @csrf @method('DELETE')
+                                    <button class="text-xs text-red-400 hover:text-red-600">✕</button>
+                                </form>
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            @else
+                <p class="px-5 py-4 text-sm text-gray-400 italic">Aucune permission individuelle définie.</p>
+            @endif
+
+            <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 mt-auto">
+                <form method="POST" action="{{ route('media.albums.permissions.store-user', $album) }}"
+                      class="flex items-center gap-3 flex-wrap">
+                    @csrf
+                    <select name="user_id" required
+                            class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        <option value="">— Choisir un utilisateur</option>
                         @foreach($users as $u)
-                            <option value="{{ $u->id }}">{{ $u->name }} ({{ $u->email }})</option>
+                            <option value="{{ $u->id }}">{{ $u->name }}</option>
                         @endforeach
                     </select>
-                    <select x-show="type === 'department'" name="shared_with_id" x-bind:disabled="type !== 'department'"
-                            class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-100 bg-white">
-                        <option value="">— Choisir une direction / service —</option>
-                        @foreach($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                    <select name="level" required
+                            class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        @foreach($levels as $level)
+                            <option value="{{ $level['value'] }}">{{ $level['label'] }}</option>
                         @endforeach
                     </select>
-                </div>
+                    <button type="submit"
+                            class="px-4 py-1.5 rounded-lg text-white text-sm font-medium"
+                            style="background-color: var(--color-primary, #1E3A5F);">
+                        + Ajouter
+                    </button>
+                </form>
             </div>
-            <div class="flex items-center gap-6 mb-5">
-                @foreach([['can_view','Voir'],['can_download','Télécharger'],['can_edit','Éditer'],['can_manage','Gérer']] as [$field,$cap])
-                <div class="toggle-wrap">
-                    <label class="toggle">
-                        <input type="checkbox" name="{{ $field }}" value="1" {{ $field === 'can_view' ? 'checked' : '' }}>
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="toggle-label">{{ $cap }}</span>
-                </div>
-                @endforeach
-            </div>
-            <button type="submit"
-                    class="px-5 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity"
-                    style="background-color: var(--color-primary, #1E3A5F);">
-                Partager
-            </button>
-        </form>
+        </div>
+
     </div>
-
 </div>
-
-<script>
-function showToast() {
-    const t = document.getElementById('toast');
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2000);
-}
-</script>
 @endsection

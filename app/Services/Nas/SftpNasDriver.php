@@ -62,13 +62,58 @@ class SftpNasDriver implements NasConnectorInterface
             $filePath = ltrim($directory.'/'.$file, '/');
             $fullFilePath = $this->resolve($filePath);
             $stat = @ssh2_sftp_stat($sftp, $fullFilePath);
+            $isDir = isset($stat['mode']) && ($stat['mode'] & 0040000);
+
+            if ($isDir) {
+                continue;
+            }
 
             $entries[] = [
                 'name' => $file,
                 'path' => $filePath,
                 'size' => (int) ($stat['size'] ?? 0),
                 'mtime' => (int) ($stat['mtime'] ?? 0),
-                'type' => isset($stat['mode']) && ($stat['mode'] & 0040000) ? 'dir' : 'file',
+                'type' => 'file',
+            ];
+        }
+        closedir($handle);
+
+        return $entries;
+    }
+
+    /**
+     * Liste les sous-dossiers directs d'un répertoire (non récursif).
+     *
+     * @return array<int, array{name: string, path: string}>
+     */
+    public function listDirectories(string $directory): array
+    {
+        $sftp = $this->getSftp();
+        $fullPath = $this->resolve($directory);
+        $handle = opendir("ssh2.sftp://{$sftp}/{$fullPath}");
+
+        if ($handle === false) {
+            return [];
+        }
+
+        $entries = [];
+        while (($file = readdir($handle)) !== false) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+
+            $filePath = ltrim($directory.'/'.$file, '/');
+            $fullFilePath = $this->resolve($filePath);
+            $stat = @ssh2_sftp_stat($sftp, $fullFilePath);
+            $isDir = isset($stat['mode']) && ($stat['mode'] & 0040000);
+
+            if (! $isDir) {
+                continue;
+            }
+
+            $entries[] = [
+                'name' => $file,
+                'path' => $filePath,
             ];
         }
         closedir($handle);

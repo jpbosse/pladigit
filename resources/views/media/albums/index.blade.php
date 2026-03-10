@@ -57,7 +57,12 @@
                         <div class="p-2">
                             <p class="text-xs font-semibold text-gray-800 truncate">{{ $album->name }}</p>
                             <div class="flex items-center justify-between mt-1">
-                                <span class="text-xs text-gray-400">{{ $album->items_count }} fichier(s)</span>
+                                <span class="text-xs text-gray-400">
+                                    {{ $album->items_count }} photo(s)
+                                    @if($album->children_count > 0)
+                                        · <span class="text-blue-400">{{ $album->children_count }} sous-album(s)</span>
+                                    @endif
+                                </span>
                                 <span class="text-xs px-1.5 py-0.5 rounded-full
                                     @if($album->visibility === 'public') bg-green-100 text-green-700
                                     @elseif($album->visibility === 'restricted') bg-yellow-100 text-yellow-700
@@ -67,30 +72,6 @@
                             </div>
                         </div>
                     </a>
-
-                    {{-- Sous-albums imbriqués --}}
-                    @if($album->children->isNotEmpty())
-                        <div class="pl-3 border-l-2 border-gray-200 flex flex-col gap-1.5">
-                            @foreach($album->children as $child)
-                                <a href="{{ route('media.albums.show', $child) }}"
-                                   class="group flex items-center gap-2 bg-white rounded-lg border border-gray-100 px-2 py-1.5 hover:shadow-sm hover:border-gray-200 transition text-xs">
-                                    <span class="text-gray-300 flex-shrink-0">↳</span>
-                                    <div class="w-8 h-8 rounded bg-gray-100 flex items-center justify-center overflow-hidden flex-shrink-0">
-                                        @if($child->cover_path)
-                                            <img src="{{ route('media.items.serve', ['album' => $child->id, 'item' => 0]) }}"
-                                                 alt="{{ $child->name }}" class="w-full h-full object-cover">
-                                        @else
-                                            <span class="text-base opacity-30">🖼️</span>
-                                        @endif
-                                    </div>
-                                    <div class="min-w-0 flex-1">
-                                        <p class="font-medium text-gray-700 truncate">{{ $child->name }}</p>
-                                        <p class="text-gray-400">{{ $child->items_count }} fichier(s)</p>
-                                    </div>
-                                </a>
-                            @endforeach
-                        </div>
-                    @endif
 
                 </div>
             @endforeach
@@ -104,3 +85,5 @@
 
 </div>
 @endsection
+
+

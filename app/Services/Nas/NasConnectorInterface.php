@@ -15,12 +15,20 @@ interface NasConnectorInterface
     public function testConnection(): bool;
 
     /**
-     * Liste les fichiers d'un répertoire.
+     * Liste les fichiers d'un répertoire (non récursif).
      * Retourne un tableau de ['name', 'path', 'size', 'mtime', 'type'].
      *
      * @return array<int, array{name: string, path: string, size: int, mtime: int, type: string}>
      */
     public function listFiles(string $directory): array;
+
+    /**
+     * Liste les sous-dossiers directs d'un répertoire (non récursif).
+     * Retourne un tableau de ['name', 'path'].
+     *
+     * @return array<int, array{name: string, path: string}>
+     */
+    public function listDirectories(string $directory): array;
 
     /**
      * Lit le contenu binaire d'un fichier.
