@@ -10,9 +10,9 @@ class MediaAlbumPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
-        // Président et DGS : accès total à tous les albums
+        // Admin, Président et DGS : accès total à tous les albums
         $role = $user->role ? UserRole::from($user->role) : null;
-        if ($role && in_array($role, [UserRole::PRESIDENT, UserRole::DGS], true)) {
+        if ($role && in_array($role, [UserRole::ADMIN, UserRole::PRESIDENT, UserRole::DGS], true)) {
             return true;
         }
 

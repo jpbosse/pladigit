@@ -133,13 +133,17 @@ Route::middleware('tenant')->group(function () {
             Route::put('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'update'])->name('albums.update');
             Route::delete('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'destroy'])->name('albums.destroy');
 
-            // Droits par album
-            // Droits et partages par album
-            Route::get('albums/{album}/permissions', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'edit'])->name('albums.permissions.edit');
-            Route::put('albums/{album}/permissions/roles', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'updateRoles'])->name('albums.permissions.roles');
-            Route::post('albums/{album}/permissions/shares', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'store'])->name('albums.permissions.store');
-            Route::delete('albums/{album}/permissions/shares/{share}', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'destroy'])->name('albums.permissions.destroy');
-            Route::patch('albums/{album}/permissions/shares/{share}', [\App\Http\Controllers\Media\MediaAlbumPermissionController::class, 'update'])->name('albums.permissions.update');
+            // ── Droits par album ──────────────────────────────────────────
+            Route::prefix('albums/{album}/permissions')
+                ->name('albums.permissions.')
+                ->controller(\App\Http\Controllers\Media\AlbumPermissionController::class)
+                ->group(function () {
+                    Route::get('/', 'edit')->name('edit');
+                    Route::post('/subject', 'storeSubject')->name('store-subject');
+                    Route::post('/user', 'storeUser')->name('store-user');
+                    Route::delete('/subject/{permission}', 'destroySubject')->name('destroy-subject');
+                    Route::delete('/user/{permission}', 'destroyUser')->name('destroy-user');
+                });
 
             // Partages individuels par média
             Route::get('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'edit'])->name('items.shares.edit');

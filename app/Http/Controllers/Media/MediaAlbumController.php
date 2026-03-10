@@ -35,10 +35,7 @@ class MediaAlbumController extends Controller
         $user = auth()->user();
         $albums = MediaAlbum::visibleFor($user)
             ->whereNull('parent_id')
-            ->withCount('items')
-            ->with(['children' => function ($q) {
-                $q->withCount('items')->orderBy('name');
-            }])
+            ->withCount(['items', 'children'])
             ->orderByDesc('created_at')
             ->paginate(24);
 
@@ -54,12 +51,8 @@ class MediaAlbumController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $parentAlbums = MediaAlbum::visibleFor($user)
-            ->whereNull('parent_id')
-            ->orderBy('name')
-            ->get(['id', 'name']);
-
         $selectedParent = $request->integer('parent_id') ?: null;
+        $parentAlbums = $this->buildAlbumTree($user);
 
         return view('media.albums.create', compact('parentAlbums', 'selectedParent'));
     }
@@ -129,16 +122,9 @@ class MediaAlbumController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        // Albums racine visibles — exclure l'album lui-même et ses enfants
-        // pour éviter les boucles circulaires
-        $childIds = $album->children()->pluck('id')->toArray();
-        $excludeIds = array_merge([$album->id], $childIds);
-
-        $parentAlbums = MediaAlbum::visibleFor($user)
-            ->whereNull('parent_id')
-            ->whereNotIn('id', $excludeIds)
-            ->orderBy('name')
-            ->get(['id', 'name']);
+        // Tous les albums sauf l'album lui-même et tous ses descendants
+        $excludeIds = array_merge([$album->id], $album->descendantIds());
+        $parentAlbums = $this->buildAlbumTree($user, $excludeIds);
 
         return view('media.albums.edit', compact('album', 'parentAlbums'));
     }
@@ -219,6 +205,59 @@ class MediaAlbumController extends Controller
     // ── Helpers privés ───────────────────────────────────────
 
     /**
-     * Vérifie que l'utilisateur peut voir cet album.
+     * Construit une liste à plat de tous les albums accessibles,
+     * indentés selon leur profondeur, pour les selects <option>.
+     *
+     * Retourne une Collection de stdClass { id, name (indenté), depth }
+     *
+     * @param  array<int>  $excludeIds  Albums à exclure (ex: album courant + descendants)
      */
+    private function buildAlbumTree(User $user, array $excludeIds = []): \Illuminate\Support\Collection
+    {
+        $all = MediaAlbum::visibleFor($user)
+            ->whereNotIn('id', $excludeIds)
+            ->orderBy('name')
+            ->get(['id', 'parent_id', 'name']);
+
+        // Indexer par id pour accès rapide
+        $byId = $all->keyBy('id');
+
+        // Construire l'arbre en récursif
+        $result = collect();
+        $this->appendChildren($byId, null, 0, $result, $excludeIds);
+
+        return $result;
+    }
+
+    /**
+     * Ajoute récursivement les enfants d'un parent dans $result.
+     *
+     * @param  array<int>  $excludeIds
+     */
+    private function appendChildren(
+        \Illuminate\Support\Collection $byId,
+        ?int $parentId,
+        int $depth,
+        \Illuminate\Support\Collection &$result,
+        array $excludeIds
+    ): void {
+        $children = $byId->filter(fn ($a) => $a->parent_id === $parentId);
+
+        foreach ($children as $album) {
+            if (in_array($album->id, $excludeIds)) {
+                continue;
+            }
+
+            $prefix = $depth > 0 ? str_repeat('　', $depth).'└── ' : '';
+
+            $item = new \stdClass;
+            $item->id = $album->id;
+            $item->name = $prefix.$album->name;
+            $item->depth = $depth;
+
+            $result->push($item);
+
+            $this->appendChildren($byId, $album->id, $depth + 1, $result, $excludeIds);
+        }
+    }
 }

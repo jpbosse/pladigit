@@ -44,7 +44,18 @@ class DepartmentController extends Controller
             'members' => Department::on('tenant')->withCount('members')->get()->sum('members_count'),
         ];
 
-        return view('admin.departments.index', compact('roots', 'allDepts', 'stats'));
+        // Labels déjà utilisés dans ce tenant (pour le datalist dynamique)
+        $defaultLabels = ['Direction', 'Pôle', 'Commission', 'Comité', 'Cellule', 'Unité', 'Bureau', 'Service', 'Délégation'];
+        $usedLabels = Department::on('tenant')
+            ->whereNotNull('label')
+            ->where('label', '!=', '')
+            ->distinct()
+            ->pluck('label')
+            ->toArray();
+        $labelSuggestions = array_unique(array_merge($defaultLabels, $usedLabels));
+        sort($labelSuggestions);
+
+        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions'));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -96,6 +107,11 @@ class DepartmentController extends Controller
             $data['parent_id'] = null;
         }
 
+        // Normalise le label : ucfirst (ex: "pôle" → "Pôle")
+        if (! empty($data['label'])) {
+            $data['label'] = ucfirst(mb_strtolower(trim($data['label'])));
+        }
+
         // Dérive le type legacy pour compatibilité (direction si racine, service sinon)
         $data['type'] = empty($data['parent_id']) ? 'direction' : 'service';
         $data['is_transversal'] = (bool) ($data['is_transversal'] ?? false);
@@ -143,6 +159,11 @@ class DepartmentController extends Controller
             }
         } else {
             $data['parent_id'] = null;
+        }
+
+        // Normalise le label : ucfirst
+        if (! empty($data['label'])) {
+            $data['label'] = ucfirst(mb_strtolower(trim($data['label'])));
         }
 
         // Recalcule le type legacy

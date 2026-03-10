@@ -35,7 +35,7 @@ class LocalNasDriver implements NasConnectorInterface
     }
 
     /**
-     * Liste les fichiers d'un répertoire (non récursif).
+     * Liste les fichiers directs d'un répertoire (non récursif).
      *
      * @return array<int, array{name: string, path: string, size: int, mtime: int, type: string}>
      */
@@ -45,29 +45,74 @@ class LocalNasDriver implements NasConnectorInterface
         if (! is_dir($fullPath)) {
             return [];
         }
+
         $entries = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::LEAVES_ONLY
-        );
-        foreach ($iterator as $item) {
-            if (! $item->isFile()) {
+        $items = scandir($fullPath);
 
-                // Exclure les dossiers thumbs
-                if (str_contains($item->getRealPath(), DIRECTORY_SEPARATOR.'thumbs'.DIRECTORY_SEPARATOR)) {
-                    continue;
-                }
+        if ($items === false) {
+            return [];
+        }
 
+        foreach ($items as $file) {
+            if ($file === '.' || $file === '..' || $file === 'thumbs') {
                 continue;
             }
-            $absolutePath = $item->getRealPath();
-            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
+
+            $absolutePath = $fullPath.DIRECTORY_SEPARATOR.$file;
+
+            if (! is_file($absolutePath)) {
+                continue;
+            }
+
+            $relativePath = ltrim(($directory !== '' ? $directory.'/' : '').$file, '/');
+
             $entries[] = [
-                'name' => $item->getFilename(),
+                'name' => $file,
                 'path' => $relativePath,
-                'size' => (int) $item->getSize(),
-                'mtime' => (int) $item->getMTime(),
+                'size' => (int) filesize($absolutePath),
+                'mtime' => (int) filemtime($absolutePath),
                 'type' => 'file',
+            ];
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Liste les sous-dossiers directs d'un répertoire (non récursif).
+     *
+     * @return array<int, array{name: string, path: string}>
+     */
+    public function listDirectories(string $directory): array
+    {
+        $fullPath = $this->resolve($directory);
+        if (! is_dir($fullPath)) {
+            return [];
+        }
+
+        $entries = [];
+        $items = scandir($fullPath);
+
+        if ($items === false) {
+            return [];
+        }
+
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..' || $item === 'thumbs') {
+                continue;
+            }
+
+            $absolutePath = $fullPath.DIRECTORY_SEPARATOR.$item;
+
+            if (! is_dir($absolutePath)) {
+                continue;
+            }
+
+            $relativePath = ltrim(($directory !== '' ? $directory.'/' : '').$item, '/');
+
+            $entries[] = [
+                'name' => $item,
+                'path' => $relativePath,
             ];
         }
 
