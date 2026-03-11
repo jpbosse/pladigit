@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,18 +10,11 @@ use Illuminate\Support\Facades\Auth;
 /**
  * Vérifie que l'utilisateur possède le rôle minimum requis.
  * Usage dans les routes : ->middleware('role:dgs')
+ *
+ * La hiérarchie est définie dans UserRole (§17.7 CDC v1.2).
  */
 class CheckRole
 {
-    private array $hierarchy = [
-        'admin' => 1,
-        'president' => 2,
-        'dgs' => 3,
-        'resp_direction' => 4,
-        'resp_service' => 5,
-        'user' => 6,
-    ];
-
     public function handle(Request $request, Closure $next, string ...$allowedRoles): mixed
     {
         $user = Auth::user();
@@ -29,11 +23,12 @@ class CheckRole
             return redirect()->route('login');
         }
 
-        $userLevel = $this->hierarchy[$user->role] ?? 99;
+        $userRole = UserRole::tryFrom($user->role);
 
         foreach ($allowedRoles as $role) {
-            $requiredLevel = $this->hierarchy[$role] ?? 99;
-            if ($userLevel <= $requiredLevel) {
+            $requiredRole = UserRole::tryFrom($role);
+
+            if ($requiredRole && $userRole->atLeast($requiredRole)) {
                 return $next($request);
             }
         }

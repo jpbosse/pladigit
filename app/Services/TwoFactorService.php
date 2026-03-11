@@ -8,12 +8,18 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
 /**
  * Gestion de la double authentification TOTP.
  * Le secret est chiffré en AES-256 avant stockage.
+ *
+ * ⚠ RÈGLE DE SÉCURITÉ : Ne jamais logger un code TOTP, un secret,
+ * ni un code de secours — même partiellement. Ces données sont
+ * à usage unique et leur présence dans les logs constitue une
+ * faille exploitable (OWASP A09 - Security Logging Failures).
  */
 class TwoFactorService
 {
@@ -73,18 +79,23 @@ class TwoFactorService
 
     /**
      * Vérifie un code TOTP ou un code de secours.
+     *
+     * ⚠ Aucune donnée sensible (code, secret) n'est loguée ici.
+     * Seuls l'identifiant utilisateur et le résultat booléen sont tracés.
      */
     public function verify(User $user, string $code): bool
     {
-        \Log::info('TwoFactor::verify', [
+        // Log de contexte — sans jamais inclure le code ni le secret
+        Log::info('2FA — tentative de vérification', [
             'user_id' => $user->id,
-            'enabled' => $user->totp_enabled,
+            'totp_enabled' => $user->totp_enabled,
             'has_secret' => ! empty($user->totp_secret_enc),
-            'code' => $code,
         ]);
 
         if (! $user->totp_enabled || ! $user->totp_secret_enc) {
-            \Log::error('2FA — secret manquant');
+            Log::warning('2FA — vérification impossible : secret manquant ou 2FA désactivé', [
+                'user_id' => $user->id,
+            ]);
 
             return false;
         }
@@ -92,12 +103,17 @@ class TwoFactorService
         $plainSecret = Crypt::decryptString($user->totp_secret_enc);
         $valid = $this->google2fa->verifyKey($plainSecret, $code, 4);
 
-        \Log::info('2FA result', ['secret_len' => strlen($plainSecret), 'valid' => $valid]);
+        // Log du résultat uniquement — pas du code, pas du secret
+        Log::info('2FA — résultat vérification TOTP', [
+            'user_id' => $user->id,
+            'valid' => $valid,
+        ]);
 
         if ($valid) {
             return true;
         }
 
+        // Tentative sur les codes de secours
         return $this->verifyBackupCode($user, $code);
     }
 
@@ -118,15 +134,22 @@ class TwoFactorService
         $key = array_search($inputHash, $hashedCodes, true);
 
         if ($key === false) {
+            Log::info('2FA — code de secours invalide', ['user_id' => $user->id]);
+
             return false;
         }
 
-        // Supprimer le code utilisé
+        // Supprimer le code utilisé (usage unique)
         unset($hashedCodes[$key]);
         $user->update([
             'totp_backup_code_enc' => Crypt::encryptString(
                 json_encode(array_values($hashedCodes))
             ),
+        ]);
+
+        Log::info('2FA — code de secours consommé', [
+            'user_id' => $user->id,
+            'remaining_codes' => count($hashedCodes),
         ]);
 
         return true;

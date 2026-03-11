@@ -45,7 +45,7 @@
                     <td class="px-4 py-3 text-gray-600">{{ $user->email }}</td>
                     <td class="px-4 py-3">
                         <span class="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
-                            {{ $user->role }}
+                            {{ App\Enums\UserRole::tryFrom($user->role)?->label() ?? $user->role }}
                         </span>
                     </td>
                     <td class="px-4 py-3 text-gray-500">{{ $user->department ?? '—' }}</td>

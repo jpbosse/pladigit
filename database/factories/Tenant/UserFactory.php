@@ -2,6 +2,7 @@
 
 namespace Database\Factories\Tenant;
 
+use App\Enums\UserRole;
 use App\Models\Tenant\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Crypt;
@@ -18,16 +19,37 @@ class UserFactory extends Factory
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
             'password_hash' => Hash::make('password'),
-            'role' => 'user',
+            'role' => UserRole::USER->value,
             'status' => 'active',
-            'department' => fake()->optional()->word(),
+            'force_pwd_change' => false,
             'totp_enabled' => false,
+            'password_changed_at' => now(),
         ];
     }
 
     public function admin(): static
     {
-        return $this->state(['role' => 'admin']);
+        return $this->state(['role' => UserRole::ADMIN->value]);
+    }
+
+    public function president(): static
+    {
+        return $this->state(['role' => UserRole::PRESIDENT->value]);
+    }
+
+    public function dgs(): static
+    {
+        return $this->state(['role' => UserRole::DGS->value]);
+    }
+
+    public function respDirection(): static
+    {
+        return $this->state(['role' => UserRole::RESP_DIRECTION->value]);
+    }
+
+    public function respService(): static
+    {
+        return $this->state(['role' => UserRole::RESP_SERVICE->value]);
     }
 
     public function inactive(): static
@@ -52,5 +74,10 @@ class UserFactory extends Factory
             'ldap_dn' => 'uid=test,ou=users,dc=pladigit,dc=fr',
             'password_hash' => null,
         ]);
+    }
+
+    public function forcePwdChange(): static
+    {
+        return $this->state(['force_pwd_change' => true]);
     }
 }

@@ -4,13 +4,10 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Tenant\User;
 use App\Services\TwoFactorService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class TwoFactorTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_activation_2fa_avec_code_valide(): void
     {
         $user = User::factory()->create();
