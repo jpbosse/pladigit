@@ -190,7 +190,6 @@ class MediaAlbumPermissionTest extends TestCase
             'user_id' => $target->id,
             'level' => 'download',
         ]);
-        dump($response->status(), $response->headers->get('Location'));
         $response->assertRedirect(route('media.albums.permissions.edit', $album));
 
         $this->assertDatabaseHas('album_user_permissions', [
