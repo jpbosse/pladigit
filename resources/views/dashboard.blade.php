@@ -24,7 +24,7 @@
         @endif
     </div>
 
-    {{-- Alertes --}}
+    {{-- Alerte 2FA --}}
     @unless(Auth::user()->totp_enabled)
     <div class="bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-xl p-4 mb-6 flex justify-between items-center">
         <div>
@@ -38,11 +38,11 @@
     </div>
     @endunless
 
-    {{-- Cartes stats (admin uniquement) --}}
+    {{-- Cartes stats admin --}}
     @if(Auth::user()->role === 'admin')
-    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div class="bg-white rounded-xl shadow p-4 border-l-4" style="border-color: #1E3A5F;">
-            <p class="text-xs text-gray-400 uppercase font-medium">Utilisateurs total</p>
+            <p class="text-xs text-gray-400 uppercase font-medium">Utilisateurs</p>
             <p class="text-3xl font-bold mt-1" style="color: #1E3A5F;">{{ $totalUsers }}</p>
             <p class="text-xs text-gray-400 mt-1">/ {{ $org->max_users }} max</p>
         </div>
@@ -62,6 +62,20 @@
             <p class="text-xs text-gray-400 mt-1">comptes admin</p>
         </div>
     </div>
+
+    {{-- Stats départements --}}
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-indigo-400">
+            <p class="text-xs text-gray-400 uppercase font-medium">Directions</p>
+            <p class="text-3xl font-bold text-indigo-600 mt-1">{{ $totalDirections }}</p>
+            <p class="text-xs text-gray-400 mt-1">unités organisationnelles</p>
+        </div>
+        <div class="bg-white rounded-xl shadow p-4 border-l-4 border-cyan-400">
+            <p class="text-xs text-gray-400 uppercase font-medium">Services</p>
+            <p class="text-3xl font-bold text-cyan-600 mt-1">{{ $totalServices }}</p>
+            <p class="text-xs text-gray-400 mt-1">services rattachés</p>
+        </div>
+    </div>
     @endif
 
     {{-- Infos utilisateur --}}
@@ -69,13 +83,12 @@
         <div class="bg-white rounded-xl shadow p-4 border-l-4" style="border-color: var(--color-primary, #1E3A5F);">
             <p class="text-xs text-gray-400 uppercase font-medium">Rôle</p>
             <p class="text-lg font-semibold text-gray-800 mt-1">
-                {{ Str::title(str_replace('_', ' ', Auth::user()->role)) }}
+                {{ App\Enums\UserRole::tryFrom(Auth::user()->role)?->label() ?? Auth::user()->role }}
             </p>
             @if(Auth::user()->department)
             <p class="text-xs text-gray-400 mt-1">{{ Auth::user()->department }}</p>
             @endif
         </div>
-
         <div class="bg-white rounded-xl shadow p-4 border-l-4 border-gray-200">
             <p class="text-xs text-gray-400 uppercase font-medium">Dernière connexion</p>
             <p class="text-sm font-medium text-gray-800 mt-1">
@@ -85,7 +98,6 @@
             <p class="text-xs text-gray-400 mt-1">depuis {{ Auth::user()->last_login_ip }}</p>
             @endif
         </div>
-
         <div class="bg-white rounded-xl shadow p-4 border-l-4
                     {{ Auth::user()->totp_enabled ? 'border-green-400' : 'border-yellow-400' }}">
             <p class="text-xs text-gray-400 uppercase font-medium">Double authentification</p>
@@ -98,25 +110,100 @@
         </div>
     </div>
 
+    {{-- Activité récente (admin) --}}
+    @if(Auth::user()->role === 'admin')
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+        {{-- Dernières connexions --}}
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-5 py-3 border-b flex items-center gap-2" style="background-color: #F8FAFC;">
+                <span class="text-sm font-semibold text-gray-700">🔐 Dernières connexions</span>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($recentLogins as $login)
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                             style="background-color: #1E3A5F;">
+                            {{ strtoupper(substr($login->name, 0, 2)) }}
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-700">{{ $login->name }}</p>
+                            @if($login->last_login_ip)
+                            <p class="text-xs text-gray-400">{{ $login->last_login_ip }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    <span class="text-xs text-gray-400">
+                        {{ $login->last_login_at->locale('fr')->diffForHumans() }}
+                    </span>
+                </div>
+                @empty
+                <p class="px-5 py-4 text-sm text-gray-400 italic">Aucune connexion enregistrée.</p>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Journal d'audit --}}
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="px-5 py-3 border-b flex items-center gap-2" style="background-color: #F8FAFC;">
+                <span class="text-sm font-semibold text-gray-700">📋 Activité récente</span>
+            </div>
+            <div class="divide-y divide-gray-50">
+                @forelse($recentAudit as $log)
+                @php
+                    $actionLabels = [
+                        'user.login'              => ['🔑', 'Connexion'],
+                        'user.created'            => ['➕', 'Utilisateur créé'],
+                        'user.updated'            => ['✏️', 'Utilisateur modifié'],
+                        'user.deactivated'        => ['🚫', 'Utilisateur désactivé'],
+                        'user.password_reset'     => ['🔄', 'Mot de passe réinitialisé'],
+                        'user.password_changed'   => ['🔒', 'Mot de passe changé'],
+                        'department.created'      => ['🏢', 'Département créé'],
+                        'department.updated'      => ['✏️', 'Département modifié'],
+                        'department.deleted'      => ['🗑', 'Département supprimé'],
+                        'user.backup_codes_regenerated' => ['🛡', 'Codes 2FA régénérés'],
+                    ];
+                    $label = $actionLabels[$log->action] ?? ['📌', $log->action];
+                @endphp
+                <div class="px-5 py-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <span class="text-base">{{ $label[0] }}</span>
+                        <div>
+                            <p class="text-sm text-gray-700">{{ $label[1] }}</p>
+                            <p class="text-xs text-gray-400">{{ $log->user_name }}</p>
+                        </div>
+                    </div>
+                    <span class="text-xs text-gray-400">
+                        {{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->diffForHumans() }}
+                    </span>
+                </div>
+                @empty
+                <p class="px-5 py-4 text-sm text-gray-400 italic">Aucune activité enregistrée.</p>
+                @endforelse
+            </div>
+        </div>
+
+    </div>
+    @endif
+
     {{-- Modules --}}
     <div class="mb-2">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Modules</h2>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-
         @php
         $modules = [
-            ['icon' => '📁', 'name' => 'GED', 'desc' => 'Gestion documentaire', 'phase' => 3, 'color' => '#1E3A5F'],
-            ['icon' => '🖼', 'name' => 'Photothèque', 'desc' => 'Médias & albums', 'phase' => 3, 'color' => '#2563EB'],
-            ['icon' => '✅', 'name' => 'Projets', 'desc' => 'Tâches & suivi', 'phase' => 5, 'color' => '#16A34A'],
-            ['icon' => '📅', 'name' => 'Agenda', 'desc' => 'Événements', 'phase' => 6, 'color' => '#9333EA'],
-            ['icon' => '💬', 'name' => 'Chat', 'desc' => 'Messagerie temps réel', 'phase' => 7, 'color' => '#EA580C'],
-            ['icon' => '📊', 'name' => 'Sondages', 'desc' => 'Formulaires & votes', 'phase' => 8, 'color' => '#0891B2'],
-            ['icon' => '🗄', 'name' => 'ERP', 'desc' => 'Données métier', 'phase' => 9, 'color' => '#B45309'],
-            ['icon' => '📰', 'name' => 'Actualités', 'desc' => 'Flux RSS', 'phase' => 10, 'color' => '#475569'],
+            ['icon' => '📁', 'name' => 'GED',        'desc' => 'Gestion documentaire',  'phase' => 3],
+            ['icon' => '🖼',  'name' => 'Photothèque', 'desc' => 'Médias & albums',       'phase' => 3],
+            ['icon' => '✅', 'name' => 'Projets',     'desc' => 'Tâches & suivi',        'phase' => 5],
+            ['icon' => '📅', 'name' => 'Agenda',      'desc' => 'Événements',            'phase' => 6],
+            ['icon' => '💬', 'name' => 'Chat',        'desc' => 'Messagerie temps réel', 'phase' => 7],
+            ['icon' => '📊', 'name' => 'Sondages',    'desc' => 'Formulaires & votes',   'phase' => 8],
+            ['icon' => '🗄',  'name' => 'ERP',         'desc' => 'Données métier',        'phase' => 9],
+            ['icon' => '📰', 'name' => 'Actualités',  'desc' => 'Flux RSS',              'phase' => 10],
         ];
         @endphp
-
         @foreach($modules as $module)
         <div class="bg-white rounded-xl shadow p-4 opacity-60 cursor-not-allowed relative overflow-hidden">
             <div class="absolute top-2 right-2">
@@ -142,7 +229,7 @@
             <p class="text-xs text-gray-400">Utilisateurs</p>
             <p class="text-sm font-medium text-gray-700">{{ $activeUsers }} / {{ $org->max_users }}</p>
             <div class="w-32 bg-gray-200 rounded-full h-1.5 mt-1">
-                <div class="h-1.5 rounded-full" style="background-color:#1E3A5F; width: {{ min(100, ($activeUsers / $org->max_users) * 100) }}%"></div>
+                <div class="h-1.5 rounded-full" style="background-color:#1E3A5F; width: {{ min(100, ($activeUsers / max(1, $org->max_users)) * 100) }}%"></div>
             </div>
         </div>
     </div>

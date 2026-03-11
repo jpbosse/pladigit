@@ -1,16 +1,13 @@
 name: CI — Tests & Qualité
-
 on:
   push:
     branches: [ develop ]
   pull_request:
     branches: [ main ]
-
 jobs:
   tests:
     name: Tests PHP
     runs-on: ubuntu-latest
-
     services:
       mysql:
         image: mysql:8.0
@@ -26,27 +23,22 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: mbstring, pdo, pdo_mysql, redis
           coverage: none
-
       - name: Cache Composer
         uses: actions/cache@v4
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
-
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
-
       - name: Préparer l'environnement
         run: |
           cp .env.example .env
@@ -54,18 +46,14 @@ jobs:
           sed -i 's/DB_DATABASE=.*/DB_DATABASE=pladigit_testing/' .env
           sed -i 's/DB_USERNAME=.*/DB_USERNAME=pladigit/' .env
           sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=pladigit_test/' .env
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
       - name: Installer les dépendances NPM
         run: npm ci
-
       - name: Compiler les assets
         run: npm run build
-
       - name: Créer la base tenant de test
         run: |
           mysql -h 127.0.0.1 -u root -proot -e "
@@ -73,7 +61,6 @@ jobs:
             GRANT ALL PRIVILEGES ON \`pladigit_testing_tenant\`.* TO 'pladigit'@'%';
             FLUSH PRIVILEGES;
           "
-
       - name: Migrer la base platform
         run: php artisan migrate --database=mysql --path=database/migrations/platform --force
         env:
@@ -83,7 +70,6 @@ jobs:
           DB_DATABASE: pladigit_testing
           DB_USERNAME: root
           DB_PASSWORD: root
-
       - name: Lancer les tests
         run: php artisan test --stop-on-failure --no-coverage
         env:
@@ -93,53 +79,43 @@ jobs:
           DB_DATABASE: pladigit_testing
           DB_USERNAME: pladigit
           DB_PASSWORD: pladigit_test
-
+          DB_TENANT_DATABASE: pladigit_testing_tenant
   qualite:
     name: Qualité du code
     runs-on: ubuntu-latest
     needs: tests
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
           extensions: mbstring, pdo, pdo_mysql
-
+          ini-values: memory_limit=512M
       - name: Cache Composer
         uses: actions/cache@v4
         with:
           path: vendor
           key: composer-${{ hashFiles('composer.lock') }}
-
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist
-
       - name: Laravel Pint (style)
         run: ./vendor/bin/pint --test
-
       - name: PHPStan (analyse statique)
-        run: ./vendor/bin/phpstan analyse --memory-limit=256M
+        run: ./vendor/bin/phpstan analyse --memory-limit=512M
         continue-on-error: true
-
   securite:
     name: Sécurité des dépendances
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup PHP 8.4
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-
       - name: Installer les dépendances
         run: composer install --no-interaction --prefer-dist
-
       - name: Vérification sécurité
         run: composer audit

@@ -12,7 +12,7 @@ class PasswordPolicyService
 {
     public function validate(string $password, ?array $history = []): array
     {
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
         $errors = [];
 
         if (strlen($password) < $settings->pwd_min_length) {
@@ -43,7 +43,7 @@ class PasswordPolicyService
 
     public function updatePassword(\App\Models\Tenant\User $user, string $newPassword): void
     {
-        $settings = TenantSettings::sole();
+        $settings = TenantSettings::firstOrCreate([]);
         $history = $user->password_history ?? [];
 
         array_unshift($history, $user->password_hash);

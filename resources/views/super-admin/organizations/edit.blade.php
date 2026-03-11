@@ -28,21 +28,17 @@
             <div class="grid grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Plan</label>
-		<select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-		    @foreach([
-		        'free'       => 'Free — 5 utilisateurs',
-		        'starter'    => 'Starter — 50 utilisateurs',
-		        'standard'   => 'Standard — 200 utilisateurs',
-		        'enterprise' => 'Enterprise — illimité',
-		    ] as $value => $label)
-		    <option value="{{ $value }}" {{ $organization->plan === $value ? 'selected' : '' }}>
-		        {{ $label }}
-		    </option>
-		    @endforeach
-		</select>
-
-
-
+                    <select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        @foreach([
+                            'communautaire' => 'Communautaire — 0 €/mois (auto-hébergé)',
+                            'assistance'    => 'Assistance — 150 €/mois (200 utilisateurs)',
+                            'enterprise'    => 'Enterprise — Sur devis (illimité)',
+                        ] as $value => $label)
+                        <option value="{{ $value }}" {{ $organization->plan === $value ? 'selected' : '' }}>
+                            {{ $label }}
+                        </option>
+                        @endforeach
+                    </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Max utilisateurs</label>
@@ -54,9 +50,13 @@
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
                 <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    @foreach(['active','suspended','pending'] as $status)
-                    <option value="{{ $status }}" {{ $organization->status === $status ? 'selected' : '' }}>
-                        {{ ucfirst($status) }}
+                    @foreach([
+                        'active'    => 'Actif',
+                        'suspended' => 'Suspendu',
+                        'pending'   => 'En attente',
+                    ] as $value => $label)
+                    <option value="{{ $value }}" {{ $organization->status === $value ? 'selected' : '' }}>
+                        {{ $label }}
                     </option>
                     @endforeach
                 </select>
