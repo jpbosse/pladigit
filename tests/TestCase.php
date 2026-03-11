@@ -4,11 +4,14 @@ namespace Tests;
 
 use App\Models\Platform\Organization;
 use App\Services\TenantManager;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 
 abstract class TestCase extends BaseTestCase
 {
+    use DatabaseTransactions;
+
     private static bool $tenantMigrated = false;
 
     private static bool $platformMigrated = false;
