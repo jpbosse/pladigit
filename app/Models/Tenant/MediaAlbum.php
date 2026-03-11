@@ -217,14 +217,14 @@ class MediaAlbum extends Model
         $ids = [];
         $toProcess = [$this->getKey()];
 
-        while (! empty($toProcess)) {
+        while (count($toProcess) > 0) {
             $children = static::whereIn('parent_id', $toProcess)
                 ->pluck('id')
                 ->toArray();
 
             $newChildren = array_diff($children, $ids);
 
-            if (empty($newChildren)) {
+            if ($newChildren === []) {
                 break;
             }
 

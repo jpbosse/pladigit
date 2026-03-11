@@ -182,8 +182,6 @@ class MediaService
 
     /**
      * Parcourt récursivement un dossier NAS et crée/met à jour l'album correspondant.
-     *
-     * @param  array{albums_created: int, albums_found: int, files_added: int, files_skipped: int, errors: int}  $stats
      */
     private function syncDirectory(
         NasConnectorInterface $nas,
@@ -259,7 +257,7 @@ class MediaService
 
         // Créer l'album — nom = dernier segment du chemin NAS
         $name = basename($nasPath);
-        $ownerId = $owner?->id ?? User::where('role', 'admin')->value('id') ?? 1;
+        $ownerId = $owner !== null ? $owner->id : (User::where('role', 'admin')->value('id') ?? 1);
 
         try {
             $album = MediaAlbum::create([
