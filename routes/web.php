@@ -65,6 +65,13 @@ Route::middleware('tenant')->group(function () {
         ->middleware('throttle:5,10')
         ->name('2fa.verify');
 
+    // Invitation — activation de compte par email (routes publiques, pas d'auth)
+    Route::get('/invitation/{token}', [App\Http\Controllers\Auth\InvitationController::class, 'show'])
+        ->name('invitation.show');
+    Route::post('/invitation/{token}', [App\Http\Controllers\Auth\InvitationController::class, 'accept'])
+        ->middleware('throttle:5,10')
+        ->name('invitation.accept');
+
     // Zone authentifiée — force-pwd-change appliqué sur TOUTES les routes auth
     Route::middleware(['auth', 'force-pwd-change'])->group(function () {
 
