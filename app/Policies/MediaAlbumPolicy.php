@@ -42,20 +42,22 @@ class MediaAlbumPolicy
 
     public function manage(User $user, MediaAlbum $album): bool
     {
-        // Créateur de l'album
+        // Créateur de l'album → toujours admin (before() ne couvre pas ce cas
+        // pour les rôles non bypassés comme resp_service ou user)
         if ($album->created_by === $user->id) {
             return true;
         }
 
-        // Seuls Admin et Resp. Direction peuvent gérer les droits des albums
-        // qu'ils n'ont pas créés (via can_manage explicite dans les shares)
+        // Resp. Direction et au-dessus → déléguer au AlbumPermissionService
+        // (Admin/Président/DGS sont déjà interceptés par before())
         $role = UserRole::from($user->role);
 
         if (! $role->atLeast(UserRole::RESP_DIRECTION)) {
             return false;
         }
 
-        return $album->userCan($user, 'can_manage');
+        // Pour resp_direction : vérifier la permission effective (niveau Admin requis)
+        return $album->canAdmin($user);
     }
 
     public function create(User $user): bool

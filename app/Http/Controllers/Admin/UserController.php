@@ -7,10 +7,9 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Department;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
+use App\Services\InvitationService;
 use App\Services\PasswordPolicyService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * Gestion des utilisateurs par l'Admin Organisation.
@@ -26,6 +25,7 @@ class UserController extends Controller
     public function __construct(
         private PasswordPolicyService $policy,
         private AuditService $audit,
+        private InvitationService $invitation,
     ) {}
 
     public function index()
@@ -80,18 +80,14 @@ class UserController extends Controller
             }
         }
 
-        $policyErrors = $this->policy->validate($request->password ?? '');
-        if (! empty($policyErrors)) {
-            return back()->withErrors(['password' => $policyErrors])->withInput();
-        }
-
+        // Création sans mot de passe — sera défini lors de l'activation via email
         $user = User::on('tenant')->create([
             'name' => $request->name,
             'email' => $request->email,
             'role' => $request->role,
-            'password_hash' => Hash::make($request->password ?? ''),
-            'status' => 'active',
-            'force_pwd_change' => true,
+            'password_hash' => null,
+            'status' => 'inactive', // Actif après activation invitation
+            'force_pwd_change' => false,
             'created_by' => auth()->id(),
         ]);
 
@@ -119,6 +115,10 @@ class UserController extends Controller
             $user->departments()->sync($sync);
         }
 
+        // Génération du token et envoi de l'email d'invitation
+        $token = $this->invitation->generate($user);
+        $this->invitation->sendInvitation($user, $token, auth()->user()->name);
+
         $this->audit->log('user.created', auth()->user(), [
             'model_type' => User::class,
             'model_id' => $user->id,
@@ -126,7 +126,7 @@ class UserController extends Controller
         ]);
 
         return redirect()->route('admin.users.index')
-            ->with('success', "Utilisateur {$user->email} créé. Il devra changer son mot de passe à la première connexion.");
+            ->with('success', "Invitation envoyée à {$user->email}. Le compte sera actif après activation.");
     }
 
     public function edit(User $user)
@@ -230,21 +230,16 @@ class UserController extends Controller
 
     public function resetPassword(User $user)
     {
-        $password = Str::random(12);
-
-        $user->update([
-            'password_hash' => Hash::make($password),
-            'force_pwd_change' => true,
-        ]);
+        // Générer un nouveau token d'invitation et envoyer l'email
+        // Supprime le mot de passe existant jusqu'à la réactivation
+        $token = $this->invitation->generate($user);
+        $this->invitation->sendInvitation($user, $token, auth()->user()->name);
 
         $this->audit->log('user.password_reset', auth()->user(), [
             'model_type' => User::class,
             'model_id' => $user->id,
         ]);
 
-        // Mot de passe stocké en session flash (jamais en base ni en log)
-        // TODO §17.4 — Remplacer par un e-mail d'invitation
-        return back()->with('temp_password', $password)
-            ->with('success', "Mot de passe réinitialisé. Communiquez-le à l'utilisateur.");
+        return back()->with('success', "Un email de réinitialisation a été envoyé à {$user->email}.");
     }
 }

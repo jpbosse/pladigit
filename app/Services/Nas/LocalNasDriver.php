@@ -35,7 +35,7 @@ class LocalNasDriver implements NasConnectorInterface
     }
 
     /**
-     * Liste les fichiers directs d'un répertoire (non récursif).
+     * Liste les fichiers d'un répertoire (non récursif).
      *
      * @return array<int, array{name: string, path: string, size: int, mtime: int, type: string}>
      */
@@ -45,74 +45,29 @@ class LocalNasDriver implements NasConnectorInterface
         if (! is_dir($fullPath)) {
             return [];
         }
-
         $entries = [];
-        $items = scandir($fullPath);
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::LEAVES_ONLY
+        );
+        foreach ($iterator as $item) {
+            if (! $item->isFile()) {
 
-        if ($items === false) {
-            return [];
-        }
+                // Exclure les dossiers thumbs
+                if (str_contains($item->getRealPath(), DIRECTORY_SEPARATOR.'thumbs'.DIRECTORY_SEPARATOR)) {
+                    continue;
+                }
 
-        foreach ($items as $file) {
-            if ($file === '.' || $file === '..' || $file === 'thumbs') {
                 continue;
             }
-
-            $absolutePath = $fullPath.DIRECTORY_SEPARATOR.$file;
-
-            if (! is_file($absolutePath)) {
-                continue;
-            }
-
-            $relativePath = ltrim(($directory !== '' ? $directory.'/' : '').$file, '/');
-
+            $absolutePath = $item->getRealPath();
+            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
             $entries[] = [
-                'name' => $file,
+                'name' => $item->getFilename(),
                 'path' => $relativePath,
-                'size' => (int) filesize($absolutePath),
-                'mtime' => (int) filemtime($absolutePath),
+                'size' => (int) $item->getSize(),
+                'mtime' => (int) $item->getMTime(),
                 'type' => 'file',
-            ];
-        }
-
-        return $entries;
-    }
-
-    /**
-     * Liste les sous-dossiers directs d'un répertoire (non récursif).
-     *
-     * @return array<int, array{name: string, path: string}>
-     */
-    public function listDirectories(string $directory): array
-    {
-        $fullPath = $this->resolve($directory);
-        if (! is_dir($fullPath)) {
-            return [];
-        }
-
-        $entries = [];
-        $items = scandir($fullPath);
-
-        if ($items === false) {
-            return [];
-        }
-
-        foreach ($items as $item) {
-            if ($item === '.' || $item === '..' || $item === 'thumbs') {
-                continue;
-            }
-
-            $absolutePath = $fullPath.DIRECTORY_SEPARATOR.$item;
-
-            if (! is_dir($absolutePath)) {
-                continue;
-            }
-
-            $relativePath = ltrim(($directory !== '' ? $directory.'/' : '').$item, '/');
-
-            $entries[] = [
-                'name' => $item,
-                'path' => $relativePath,
             ];
         }
 
@@ -157,6 +112,47 @@ class LocalNasDriver implements NasConnectorInterface
     public function exists(string $path): bool
     {
         return file_exists($this->resolve($path));
+    }
+
+    /**
+     * Ouvre un flux de lecture pour le streaming par chunks (Range HTTP).
+     *
+     * @return array{mixed, mixed}
+     */
+    public function openReadStream(string $path): array
+    {
+        $fullPath = $this->resolve($path);
+        $this->assertFile($fullPath);
+        $handle = fopen($fullPath, 'rb');
+
+        if ($handle === false) {
+            throw new RuntimeException("Impossible d'ouvrir le flux : {$path}");
+        }
+
+        return [null, $handle];
+    }
+
+    /**
+     * @param  array{mixed, mixed}  $stream
+     */
+    public function closeReadStream(array $stream): void
+    {
+        [, $handle] = $stream;
+        if (is_resource($handle)) {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * @param  array{mixed, mixed}  $stream
+     */
+    public function readChunk(array $stream, int $offset, int $length): string|false
+    {
+        [, $handle] = $stream;
+        fseek($handle, $offset);
+        $data = fread($handle, $length);
+
+        return $data === '' ? false : $data;
     }
 
     /**

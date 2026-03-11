@@ -166,7 +166,7 @@ class AlbumPermissionService
         // Ex : 'resp_service' → s'applique à resp_service ET resp_direction.
         // On cherche la permission de rôle la plus restrictive applicable
         // (niveau de rôle le plus haut parmi ceux qui couvrent l'utilisateur).
-        $userRoleLevel = UserRole::from($user->role)->level();
+        $userRoleLevel = UserRole::tryFrom($user->role ?? '')?->level() ?? 99;
 
         $rolePerm = AlbumPermission::forAlbum($albumId)
             ->where('subject_type', 'role')

@@ -124,18 +124,9 @@
             </div>
         </div>
 
-        {{-- Mot de passe --}}
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
-                <input type="password" name="password"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2" required>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Confirmer</label>
-                <input type="password" name="password_confirmation"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2" required>
-            </div>
+        {{-- Invitation par email (remplace le mot de passe en clair) --}}
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-sm text-blue-700">
+            📧 Un email d'invitation sera envoyé automatiquement. L'utilisateur choisira son mot de passe lors de l'activation (lien valable 72h).
         </div>
 
         <div class="flex gap-3">
