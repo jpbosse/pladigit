@@ -30,6 +30,7 @@ Route::get('check-org-ajax/{slug}', function ($slug) {
 Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
     ->name('super-admin.login');
 Route::post('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])
+    ->middleware('throttle:super-admin-login')
     ->name('super-admin.login.post');
 Route::post('super-admin/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])
     ->name('super-admin.logout');
@@ -53,7 +54,7 @@ Route::middleware('tenant')->group(function () {
 
     // Authentification
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
     Route::post('/profile/backup-codes', [App\Http\Controllers\ProfileController::class, 'regenerateBackupCodes'])->name('profile.regenerate-backup-codes');
 
