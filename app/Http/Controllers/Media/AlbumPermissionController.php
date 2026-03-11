@@ -107,7 +107,7 @@ class AlbumPermissionController extends Controller
             ['level' => $validated['level']]
         );
 
-        return back()->with('success', 'Permission mise à jour.');
+        return redirect()->route('media.albums.permissions.edit', $album)->with('success', 'Permission mise à jour.');
     }
 
     /**
@@ -127,7 +127,7 @@ class AlbumPermissionController extends Controller
             ['level' => $validated['level']]
         );
 
-        return back()->with('success', 'Permission utilisateur mise à jour.');
+        return redirect()->route('media.albums.permissions.edit', $album)->with('success', 'Permission utilisateur mise à jour.');
     }
 
     /**
@@ -138,7 +138,7 @@ class AlbumPermissionController extends Controller
         $this->authorize('manage', $album);
         $permission->delete();
 
-        return back()->with('success', 'Permission supprimée.');
+        return redirect()->route('media.albums.permissions.edit', $album)->with('success', 'Permission supprimée.');
     }
 
     /**
@@ -149,7 +149,7 @@ class AlbumPermissionController extends Controller
         $this->authorize('manage', $album);
         $permission->delete();
 
-        return back()->with('success', 'Permission utilisateur supprimée.');
+        return redirect()->route('media.albums.permissions.edit', $album)->with('success', 'Permission utilisateur supprimée.');
     }
 
     // ── Helpers privés ───────────────────────────────────────────────────────
