@@ -73,7 +73,7 @@ class NasSyncCommand extends Command
                 $tenantManager->connectTo($org);
 
                 $settings = TenantSettings::first();
-                $driver = $settings?->nas_photo_driver ?? 'local';
+                $driver = $settings !== null ? $settings->nas_photo_driver : 'local';
 
                 // Premier admin du tenant comme propriétaire des albums créés automatiquement
                 $owner = User::where('role', 'admin')->first();
