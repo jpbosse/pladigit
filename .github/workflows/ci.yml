@@ -79,6 +79,7 @@ jobs:
           DB_DATABASE: pladigit_testing
           DB_USERNAME: pladigit
           DB_PASSWORD: pladigit_test
+          DB_TENANT_DATABASE: pladigit_testing_tenant
   qualite:
     name: Qualité du code
     runs-on: ubuntu-latest
