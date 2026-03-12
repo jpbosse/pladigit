@@ -6,6 +6,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 
 // ── Page d'accueil publique ───────────────────────────────
+Route::get('/health', [App\Http\Controllers\HealthController::class, 'check'])->name('health');
+Route::get('/health/ping', [App\Http\Controllers\HealthController::class, 'ping'])->name('health.ping');
+
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
