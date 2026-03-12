@@ -9,7 +9,7 @@ use App\Models\Tenant\User;
 use App\Services\MediaService;
 use App\Services\Nas\NasManager;
 use Illuminate\Http\Request;
-use Illuminate\Http\StreamedResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
  * Gestion des fichiers médias (upload, affichage, suppression, téléchargement, streaming).
