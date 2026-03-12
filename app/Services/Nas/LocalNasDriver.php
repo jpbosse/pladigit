@@ -201,33 +201,30 @@ class LocalNasDriver implements NasConnectorInterface
         return (int) filesize($fullPath);
     }
 
-
-public function listDirectories(string $directory): array
-{
-    $fullPath = $this->resolve($directory);
-    if (! is_dir($fullPath)) {
-        return [];
-    }
-    $entries = [];
-    foreach (new \DirectoryIterator($fullPath) as $item) {
-        if ($item->isDot() || ! $item->isDir()) {
-            continue;
+    public function listDirectories(string $directory): array
+    {
+        $fullPath = $this->resolve($directory);
+        if (! is_dir($fullPath)) {
+            return [];
         }
-        $absolutePath = $item->getRealPath();
-        $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
-        $entries[] = [
-            'name'  => $item->getFilename(),
-            'path'  => $relativePath,
-            'size'  => 0,
-            'mtime' => (int) $item->getMTime(),
-            'type'  => 'directory',
-        ];
+        $entries = [];
+        foreach (new \DirectoryIterator($fullPath) as $item) {
+            if ($item->isDot() || ! $item->isDir()) {
+                continue;
+            }
+            $absolutePath = $item->getRealPath();
+            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
+            $entries[] = [
+                'name' => $item->getFilename(),
+                'path' => $relativePath,
+                'size' => 0,
+                'mtime' => (int) $item->getMTime(),
+                'type' => 'directory',
+            ];
+        }
+
+        return $entries;
     }
-
-    return $entries;
-}
-
-
 
     // -------------------------------------------------------------------------
     // Helpers privés
