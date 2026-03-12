@@ -31,7 +31,7 @@ class UserInvitationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: "Invitation à rejoindre {$this->orgName} — Pladigit",
+            subject: "Invitation à rejoindre Pladigit — Activez votre compte",
         );
     }
 

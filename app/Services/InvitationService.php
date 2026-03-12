@@ -58,7 +58,7 @@ class InvitationService
     public function sendInvitation(User $user, string $token, string $invitedByName): void
     {
         $settings = TenantSettings::on('tenant')->firstOrCreate([]);
-        $orgName = $settings->org_name ?? config('app.name');
+        $orgName = $settings->org_name ?? 'Pladigit';
 
         $activationUrl = route('invitation.accept', ['token' => $token]);
 
