@@ -56,6 +56,10 @@ Route::middleware('tenant')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    Route::get('/logout', fn () => redirect()->route('login'));
+
     Route::post('/profile/backup-codes', [App\Http\Controllers\ProfileController::class, 'regenerateBackupCodes'])->name('profile.regenerate-backup-codes');
 
     // 2FA — Challenge login
