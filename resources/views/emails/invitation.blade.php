@@ -28,8 +28,8 @@
         <p>Bonjour <strong>{{ $user->name }}</strong>,</p>
 
         <p>
-            <strong>{{ $invitedByName }}</strong> vous a créé un compte sur la plateforme
-            <strong>Pladigit</strong> de l'organisation <strong>{{ $orgName }}</strong>.
+	   <strong>{{ $invitedByName }}</strong> vous a créé un compte sur la plateforme <strong>Pladigit</strong>.
+
         </p>
 
         <p>Cliquez sur le bouton ci-dessous pour choisir votre mot de passe et activer votre compte :</p>
