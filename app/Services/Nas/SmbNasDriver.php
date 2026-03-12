@@ -142,6 +142,36 @@ class SmbNasDriver implements NasConnectorInterface
         return [$smb, $handle];
     }
 
+
+/**
+     * @param array{mixed, mixed} $stream
+     */
+    public function closeReadStream(array $stream): void
+    {
+        [$smb, $handle] = $stream;
+        if ($handle !== false && $handle !== null) {
+            @smbclient_close($smb, $handle);
+        }
+    }
+
+    /**
+     * @param array{mixed, mixed} $stream
+     */
+    public function readChunk(array $stream, int $offset, int $length): string|false
+    {
+        [$smb, $handle] = $stream;
+        if (@smbclient_eof($smb, $handle)) {
+            return false;
+        }
+        $data = @smbclient_read($smb, $handle, $length);
+
+        return $data === false ? false : $data;
+    }
+
+
+
+
+
     /**
      * Écrit un fichier sur le partage SMB.
      */
