@@ -219,6 +219,29 @@ class SettingsController extends Controller
         return back()->with('success', 'Configuration NAS sauvegardée.');
     }
 
+
+public function security()
+{
+    $settings = TenantSettings::firstOrCreate([]);
+    return view('admin.settings.security', compact('settings'));
+}
+
+public function updateSecurity(Request $request)
+{
+    $validated = $request->validate([
+        'session_lifetime_minutes' => ['required', 'integer', 'min:5', 'max:10080'],
+        'login_max_attempts'       => ['required', 'integer', 'min:3', 'max:20'],
+        'login_lockout_minutes'    => ['required', 'integer', 'min:1', 'max:1440'],
+    ]);
+
+    $settings = TenantSettings::firstOrCreate([]);
+    $settings->update($validated);
+
+    return back()->with('success', 'Paramètres de sécurité enregistrés.');
+}
+
+
+
     public function syncNas(Request $request)
     {
         $deep = (bool) $request->input('deep', false);
