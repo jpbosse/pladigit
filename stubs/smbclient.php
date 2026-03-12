@@ -3,11 +3,18 @@
 /**
  * Stubs PHPStan pour l'extension PHP smbclient (pecl/smbclient).
  */
+const SMBCLIENT_OPT_TIMEOUT = 1;
+const SMBCLIENT_OPT_ENCRYPT_LEVEL = 2;
+const SMBCLIENT_ENCRYPTLEVEL_NONE = 0;
+const SMBCLIENT_ENCRYPTLEVEL_REQUEST = 1;
+const SMBCLIENT_ENCRYPTLEVEL_REQUIRE = 2;
 
 /** @return mixed */
 function smbclient_state_new() {}
 
 function smbclient_state_init(mixed $state, string $workgroup = '', string $username = '', string $password = ''): bool {}
+
+function smbclient_state_option(mixed $state, int $option, mixed $value): bool {}
 
 function smbclient_connect(mixed $state, string $server): bool {}
 
