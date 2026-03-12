@@ -32,7 +32,7 @@ class LdapAuthService
         return $this->lastFailureReason === 'unavailable';
     }
 
-    private function buildConnection(TenantSettings $settings): Connection
+    protected function buildConnection(TenantSettings $settings): Connection
     {
         if (! $settings->ldap_host) {
             throw new \RuntimeException('LDAP non configuré pour ce tenant.');
@@ -201,18 +201,68 @@ class LdapAuthService
             return;
         }
 
-        $ldapUsers = $conn->query()
-            ->setDn($settings->ldap_base_dn)
-            ->whereHas('mail')
-            ->get();
+
+// La requête est dans son propre try/catch : une query qui échoue
+        // ne doit jamais déclencher la désactivation des comptes existants.
+        try {
+            $ldapUsers = $conn->query()
+                ->setDn($settings->ldap_base_dn)
+                ->whereHas('mail')
+                ->get();
+        } catch (LdapRecordException|\Exception $e) {
+            Log::error('LDAP sync annulée : échec de la requête (résultat non fiable).', [
+                'host'      => $settings->ldap_host,
+                'exception' => $e->getMessage(),
+            ]);
+            return;
+        }
+
+        // Circuit breaker : éviter la désactivation masse sur timeout partiel.
+        $knownLdapCount = User::whereNotNull('ldap_dn')->count();
+
+        // Règle 1 : résultat vide alors que des comptes LDAP existent en base.
+        if (count($ldapUsers) === 0 && $knownLdapCount > 0) {
+            Log::warning('LDAP sync interrompue : 0 utilisateurs retournés alors que '
+                ."{$knownLdapCount} comptes LDAP existent. Désactivation masse bloquée.", [
+                'host' => $settings->ldap_host,
+            ]);
+            return;
+        }
+
+        // Règle 2 : plus de 50% des comptes connus seraient verrouillés.
+        if ($knownLdapCount > 0) {
+            $activeDns     = array_filter(array_column($ldapUsers, 'dn'));
+            $wouldBeLocked = User::whereNotNull('ldap_dn')
+                ->whereNotIn('ldap_dn', $activeDns)
+                ->count();
+
+            if (($wouldBeLocked / $knownLdapCount) > 0.5) {
+                Log::warning('LDAP sync interrompue : '.$wouldBeLocked.'/'.$knownLdapCount
+                    .' comptes seraient verrouillés ('.round($wouldBeLocked / $knownLdapCount * 100)
+                    .'%). Seuil 50% dépassé — désactivation masse bloquée.', [
+                    'host' => $settings->ldap_host,
+                ]);
+                return;
+            }
+        }
 
         foreach ($ldapUsers as $ldapEntry) {
             $this->syncUser($ldapEntry, $conn, $settings->ldap_base_dn);
         }
 
-        $activeLdapDns = array_column($ldapUsers, 'dn');
-        User::whereNotNull('ldap_dn')
+        $activeLdapDns = array_filter(array_column($ldapUsers, 'dn'));
+        $locked = User::whereNotNull('ldap_dn')
             ->whereNotIn('ldap_dn', $activeLdapDns)
             ->update(['status' => 'locked']);
+
+        Log::info('LDAP sync terminée.', [
+            'host'   => $settings->ldap_host,
+            'synced' => count($ldapUsers),
+            'locked' => $locked,
+        ]);
     }
-}
+
+
+ }
+
+
