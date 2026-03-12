@@ -16,11 +16,20 @@ class ResolveTenant
         private TenantMailer $tenantMailer,
     ) {}
 
-    public function handle(Request $request, Closure $next): mixed
+
+
+public function handle(Request $request, Closure $next): mixed
     {
-        if (app()->environment('testing') && $this->tenantManager->hasTenant()) {
+        // Routes publiques sans tenant — priorité absolue, même en test
+        if ($request->is('health', 'health/*')) {
             return $next($request);
         }
+
+    // En test, le tenant est pré-résolu par TestCase::setUp()
+    if (app()->environment('testing') && $this->tenantManager->hasTenant()) {
+        return $next($request);
+    }
+
 
         try {
             $this->tenantManager->resolveFromRequest($request->getHost());
