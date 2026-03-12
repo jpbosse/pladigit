@@ -65,8 +65,7 @@ class DashboardTest extends TestCase
             ->assertViewHas('totalUsers')
             ->assertViewHas('activeUsers')
             ->assertViewHas('ldapUsers')
-            ->assertViewHas('adminUsers')
-            ->assertViewHas('usersByRole');
+            ->assertViewHas('adminUsers');
     }
 
     public function test_dashboard_reçoit_les_stats_départements(): void

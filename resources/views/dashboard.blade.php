@@ -85,9 +85,6 @@
             <p class="text-lg font-semibold text-gray-800 mt-1">
                 {{ App\Enums\UserRole::tryFrom(Auth::user()->role)?->label() ?? Auth::user()->role }}
             </p>
-            @if(Auth::user()->department)
-            <p class="text-xs text-gray-400 mt-1">{{ Auth::user()->department }}</p>
-            @endif
         </div>
         <div class="bg-white rounded-xl shadow p-4 border-l-4 border-gray-200">
             <p class="text-xs text-gray-400 uppercase font-medium">Dernière connexion</p>
@@ -113,8 +110,6 @@
     {{-- Activité récente (admin) --}}
     @if(Auth::user()->role === 'admin')
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-
-        {{-- Dernières connexions --}}
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-5 py-3 border-b flex items-center gap-2" style="background-color: #F8FAFC;">
                 <span class="text-sm font-semibold text-gray-700">🔐 Dernières connexions</span>
@@ -144,7 +139,6 @@
             </div>
         </div>
 
-        {{-- Journal d'audit --}}
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="px-5 py-3 border-b flex items-center gap-2" style="background-color: #F8FAFC;">
                 <span class="text-sm font-semibold text-gray-700">📋 Activité récente</span>
@@ -183,7 +177,6 @@
                 @endforelse
             </div>
         </div>
-
     </div>
     @endif
 
@@ -194,13 +187,13 @@
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         @php
         $modules = [
-            ['icon' => '📁', 'name' => 'GED',        'desc' => 'Gestion documentaire',  'phase' => 3],
-            ['icon' => '🖼',  'name' => 'Photothèque', 'desc' => 'Médias & albums',       'phase' => 3],
-            ['icon' => '✅', 'name' => 'Projets',     'desc' => 'Tâches & suivi',        'phase' => 5],
-            ['icon' => '📅', 'name' => 'Agenda',      'desc' => 'Événements',            'phase' => 6],
-            ['icon' => '💬', 'name' => 'Chat',        'desc' => 'Messagerie temps réel', 'phase' => 7],
-            ['icon' => '📊', 'name' => 'Sondages',    'desc' => 'Formulaires & votes',   'phase' => 8],
-            ['icon' => '🗄',  'name' => 'ERP',         'desc' => 'Données métier',        'phase' => 9],
+            ['icon' => '📁', 'name' => 'GED',        'desc' => 'Gestion documentaire',  'phase' => 5],
+            ['icon' => '🖼',  'name' => 'Photothèque', 'desc' => 'Médias & albums',       'phase' => '3-4'],
+            ['icon' => '✅', 'name' => 'Projets',     'desc' => 'Tâches & suivi',        'phase' => 8],
+            ['icon' => '📅', 'name' => 'Agenda',      'desc' => 'Événements',            'phase' => 8],
+            ['icon' => '💬', 'name' => 'Chat',        'desc' => 'Messagerie temps réel', 'phase' => 9],
+            ['icon' => '📊', 'name' => 'Sondages',    'desc' => 'Formulaires & votes',   'phase' => 11],
+            ['icon' => '🗄',  'name' => 'ERP',         'desc' => 'Données métier',        'phase' => 7],
             ['icon' => '📰', 'name' => 'Actualités',  'desc' => 'Flux RSS',              'phase' => 10],
         ];
         @endphp
