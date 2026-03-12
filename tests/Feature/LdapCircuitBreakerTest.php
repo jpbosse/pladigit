@@ -19,7 +19,9 @@ use Tests\TestCase;
 class TestableLdapService extends LdapAuthService
 {
     public ?Connection $fakeConnection = null;
+
     public bool $throwOnConnect = false;
+
     public bool $throwOnQuery = false;
 
     protected function buildConnection(TenantSettings $settings): Connection
@@ -27,6 +29,7 @@ class TestableLdapService extends LdapAuthService
         if ($this->throwOnConnect) {
             throw new LdapRecordException('Connection refused');
         }
+
         return $this->fakeConnection;
     }
 }
@@ -37,13 +40,13 @@ class LdapCircuitBreakerTest extends TestCase
     {
         parent::setUp();
         TenantSettings::firstOrCreate([])->update([
-            'ldap_host'              => 'ldap.test.local',
-            'ldap_port'              => 636,
-            'ldap_base_dn'           => 'dc=test,dc=local',
-            'ldap_bind_dn'           => 'cn=admin,dc=test,dc=local',
+            'ldap_host' => 'ldap.test.local',
+            'ldap_port' => 636,
+            'ldap_base_dn' => 'dc=test,dc=local',
+            'ldap_bind_dn' => 'cn=admin,dc=test,dc=local',
             'ldap_bind_password_enc' => \Illuminate\Support\Facades\Crypt::encryptString('secret'),
-            'ldap_use_ssl'           => true,
-            'ldap_use_tls'           => false,
+            'ldap_use_ssl' => true,
+            'ldap_use_tls' => false,
         ]);
     }
 
@@ -57,10 +60,10 @@ class LdapCircuitBreakerTest extends TestCase
 
     private function makeService(?array $ldapUsers = null, bool $throwOnConnect = false, bool $throwOnQuery = false): TestableLdapService
     {
-        $service = new TestableLdapService();
+        $service = new TestableLdapService;
         $service->throwOnConnect = $throwOnConnect;
 
-        if (!$throwOnConnect) {
+        if (! $throwOnConnect) {
             $queryMock = Mockery::mock(\LdapRecord\Query\Builder::class);
             $queryMock->shouldReceive('setDn')->andReturnSelf();
             $queryMock->shouldReceive('whereHas')->andReturnSelf();
@@ -146,7 +149,7 @@ class LdapCircuitBreakerTest extends TestCase
             ['dn' => 'uid=user2,dc=test,dc=local', 'mail' => ['user2@test.local'], 'cn' => ['User 2']],
         ];
 
-        Log::shouldReceive("info")->once();
+        Log::shouldReceive('info')->once();
 
         $this->makeService(ldapUsers: $ldapUsers)->syncAllUsers();
 

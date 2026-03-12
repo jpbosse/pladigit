@@ -15,13 +15,14 @@ use Tests\TestCase;
 class SecuritySettingsTest extends TestCase
 {
     private User $admin;
+
     private User $user;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->user  = User::factory()->create(['role' => 'user', 'status' => 'active']);
+        $this->user = User::factory()->create(['role' => 'user', 'status' => 'active']);
     }
 
     protected function tearDown(): void
@@ -51,8 +52,8 @@ class SecuritySettingsTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.settings.security.update'), [
                 'session_lifetime_minutes' => 240,
-                'login_max_attempts'       => 3,
-                'login_lockout_minutes'    => 30,
+                'login_max_attempts' => 3,
+                'login_lockout_minutes' => 30,
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
@@ -68,8 +69,8 @@ class SecuritySettingsTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.settings.security.update'), [
                 'session_lifetime_minutes' => 2,
-                'login_max_attempts'       => 5,
-                'login_lockout_minutes'    => 15,
+                'login_max_attempts' => 5,
+                'login_lockout_minutes' => 15,
             ])
             ->assertSessionHasErrors('session_lifetime_minutes');
     }
@@ -79,8 +80,8 @@ class SecuritySettingsTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.settings.security.update'), [
                 'session_lifetime_minutes' => 99999,
-                'login_max_attempts'       => 5,
-                'login_lockout_minutes'    => 15,
+                'login_max_attempts' => 5,
+                'login_lockout_minutes' => 15,
             ])
             ->assertSessionHasErrors('session_lifetime_minutes');
     }
@@ -90,8 +91,8 @@ class SecuritySettingsTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.settings.security.update'), [
                 'session_lifetime_minutes' => 120,
-                'login_max_attempts'       => 1,
-                'login_lockout_minutes'    => 15,
+                'login_max_attempts' => 1,
+                'login_lockout_minutes' => 15,
             ])
             ->assertSessionHasErrors('login_max_attempts');
     }
@@ -101,8 +102,8 @@ class SecuritySettingsTest extends TestCase
         $this->actingAs($this->user)
             ->put(route('admin.settings.security.update'), [
                 'session_lifetime_minutes' => 60,
-                'login_max_attempts'       => 5,
-                'login_lockout_minutes'    => 15,
+                'login_max_attempts' => 5,
+                'login_lockout_minutes' => 15,
             ])
             ->assertForbidden();
     }
