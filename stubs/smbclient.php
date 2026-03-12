@@ -42,3 +42,9 @@ function smbclient_stat(mixed $state, string $uri): array|false {}
 function smbclient_mkdir(mixed $state, string $uri): bool {}
 
 function smbclient_state_free(mixed $state): bool {}
+
+const SMBCLIENT_OPT_TIMEOUT = 1;
+const SMBCLIENT_OPT_ENCRYPT_LEVEL = 2;
+const SMBCLIENT_ENCRYPTLEVEL_NONE = 0;
+const SMBCLIENT_ENCRYPTLEVEL_REQUEST = 1;
+const SMBCLIENT_ENCRYPTLEVEL_REQUIRE = 2;
