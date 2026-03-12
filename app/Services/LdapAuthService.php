@@ -201,8 +201,7 @@ class LdapAuthService
             return;
         }
 
-
-// La requête est dans son propre try/catch : une query qui échoue
+        // La requête est dans son propre try/catch : une query qui échoue
         // ne doit jamais déclencher la désactivation des comptes existants.
         try {
             $ldapUsers = $conn->query()
@@ -211,9 +210,10 @@ class LdapAuthService
                 ->get();
         } catch (LdapRecordException|\Exception $e) {
             Log::error('LDAP sync annulée : échec de la requête (résultat non fiable).', [
-                'host'      => $settings->ldap_host,
+                'host' => $settings->ldap_host,
                 'exception' => $e->getMessage(),
             ]);
+
             return;
         }
 
@@ -224,14 +224,15 @@ class LdapAuthService
         if (count($ldapUsers) === 0 && $knownLdapCount > 0) {
             Log::warning('LDAP sync interrompue : 0 utilisateurs retournés alors que '
                 ."{$knownLdapCount} comptes LDAP existent. Désactivation masse bloquée.", [
-                'host' => $settings->ldap_host,
-            ]);
+                    'host' => $settings->ldap_host,
+                ]);
+
             return;
         }
 
         // Règle 2 : plus de 50% des comptes connus seraient verrouillés.
         if ($knownLdapCount > 0) {
-            $activeDns     = array_filter(array_column($ldapUsers, 'dn'));
+            $activeDns = array_filter(array_column($ldapUsers, 'dn'));
             $wouldBeLocked = User::whereNotNull('ldap_dn')
                 ->whereNotIn('ldap_dn', $activeDns)
                 ->count();
@@ -240,8 +241,9 @@ class LdapAuthService
                 Log::warning('LDAP sync interrompue : '.$wouldBeLocked.'/'.$knownLdapCount
                     .' comptes seraient verrouillés ('.round($wouldBeLocked / $knownLdapCount * 100)
                     .'%). Seuil 50% dépassé — désactivation masse bloquée.', [
-                    'host' => $settings->ldap_host,
-                ]);
+                        'host' => $settings->ldap_host,
+                    ]);
+
                 return;
             }
         }
@@ -256,13 +258,9 @@ class LdapAuthService
             ->update(['status' => 'locked']);
 
         Log::info('LDAP sync terminée.', [
-            'host'   => $settings->ldap_host,
+            'host' => $settings->ldap_host,
             'synced' => count($ldapUsers),
             'locked' => $locked,
         ]);
     }
-
-
- }
-
-
+}

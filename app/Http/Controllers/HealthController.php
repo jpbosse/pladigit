@@ -12,8 +12,8 @@ class HealthController extends Controller
     {
         $checks = [
             'database' => $this->checkDatabase(),
-            'redis'    => $this->checkRedis(),
-            'disk'     => $this->checkDisk(),
+            'redis' => $this->checkRedis(),
+            'disk' => $this->checkDisk(),
         ];
 
         $healthy = collect($checks)->every(fn ($c) => $c['ok']);
@@ -21,7 +21,7 @@ class HealthController extends Controller
         return response()->json([
             'status' => $healthy ? 'ok' : 'degraded',
             'checks' => $checks,
-            'ts'     => now()->toIso8601String(),
+            'ts' => now()->toIso8601String(),
         ], $healthy ? 200 : 503);
     }
 
@@ -34,6 +34,7 @@ class HealthController extends Controller
     {
         try {
             DB::connection('mysql')->select('SELECT 1');
+
             return ['ok' => true, 'message' => 'platform DB reachable'];
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
@@ -43,9 +44,10 @@ class HealthController extends Controller
     private function checkRedis(): array
     {
         try {
-            $key = '_health_' . uniqid();
+            $key = '_health_'.uniqid();
             Cache::store('redis')->put($key, 1, 5);
             Cache::store('redis')->forget($key);
+
             return ['ok' => true, 'message' => 'Redis reachable'];
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => $e->getMessage()];
@@ -54,8 +56,8 @@ class HealthController extends Controller
 
     private function checkDisk(): array
     {
-        $path       = storage_path();
-        $freeBytes  = disk_free_space($path);
+        $path = storage_path();
+        $freeBytes = disk_free_space($path);
         $totalBytes = disk_total_space($path);
 
         if ($freeBytes === false || $totalBytes === false || $totalBytes === 0.0) {
@@ -63,13 +65,13 @@ class HealthController extends Controller
         }
 
         $freePercent = round(($freeBytes / $totalBytes) * 100, 1);
-        $ok          = $freePercent >= 10;
+        $ok = $freePercent >= 10;
 
         return [
-            'ok'           => $ok,
+            'ok' => $ok,
             'free_percent' => $freePercent,
-            'free_gb'      => round($freeBytes / 1_073_741_824, 2),
-            'message'      => $ok ? "Disk OK ({$freePercent}% free)" : "Low disk space ({$freePercent}% free)",
+            'free_gb' => round($freeBytes / 1_073_741_824, 2),
+            'message' => $ok ? "Disk OK ({$freePercent}% free)" : "Low disk space ({$freePercent}% free)",
         ];
     }
 }

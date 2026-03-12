@@ -16,8 +16,8 @@ class HealthCheckTest extends TestCase
                 'status', 'ts',
                 'checks' => [
                     'database' => ['ok', 'message'],
-                    'redis'    => ['ok', 'message'],
-                    'disk'     => ['ok', 'message', 'free_percent', 'free_gb'],
+                    'redis' => ['ok', 'message'],
+                    'disk' => ['ok', 'message', 'free_percent', 'free_gb'],
                 ],
             ]);
     }
