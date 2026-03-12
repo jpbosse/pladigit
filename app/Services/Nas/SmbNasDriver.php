@@ -142,9 +142,8 @@ class SmbNasDriver implements NasConnectorInterface
         return [$smb, $handle];
     }
 
-
-/**
-     * @param array{mixed, mixed} $stream
+    /**
+     * @param  array{mixed, mixed}  $stream
      */
     public function closeReadStream(array $stream): void
     {
@@ -155,7 +154,7 @@ class SmbNasDriver implements NasConnectorInterface
     }
 
     /**
-     * @param array{mixed, mixed} $stream
+     * @param  array{mixed, mixed}  $stream
      */
     public function readChunk(array $stream, int $offset, int $length): string|false
     {
@@ -167,10 +166,6 @@ class SmbNasDriver implements NasConnectorInterface
 
         return $data === false ? false : $data;
     }
-
-
-
-
 
     /**
      * Écrit un fichier sur le partage SMB.
@@ -243,32 +238,30 @@ class SmbNasDriver implements NasConnectorInterface
         return (int) ($stat['size'] ?? 0);
     }
 
-
-public function listDirectories(string $directory): array
-{
-    $fullPath = $this->resolve($directory);
-    if (! is_dir($fullPath)) {
-        return [];
-    }
-    $entries = [];
-    foreach (new \DirectoryIterator($fullPath) as $item) {
-        if ($item->isDot() || ! $item->isDir()) {
-            continue;
+    public function listDirectories(string $directory): array
+    {
+        $fullPath = $this->resolve($directory);
+        if (! is_dir($fullPath)) {
+            return [];
         }
-        $absolutePath = $item->getRealPath();
-        $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
-        $entries[] = [
-            'name'  => $item->getFilename(),
-            'path'  => $relativePath,
-            'size'  => 0,
-            'mtime' => (int) $item->getMTime(),
-            'type'  => 'directory',
-        ];
+        $entries = [];
+        foreach (new \DirectoryIterator($fullPath) as $item) {
+            if ($item->isDot() || ! $item->isDir()) {
+                continue;
+            }
+            $absolutePath = $item->getRealPath();
+            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
+            $entries[] = [
+                'name' => $item->getFilename(),
+                'path' => $relativePath,
+                'size' => 0,
+                'mtime' => (int) $item->getMTime(),
+                'type' => 'directory',
+            ];
+        }
+
+        return $entries;
     }
-
-    return $entries;
-}
-
 
     // ─────────────────────────────────────────────────────────────
     //  Helpers privés
