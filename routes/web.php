@@ -123,6 +123,7 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/ldap/test', [App\Http\Controllers\Admin\SettingsController::class, 'testLdap'])->name('settings.ldap.test');
             Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
             Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
+            Route::post('settings/smtp/test', [App\Http\Controllers\Admin\SettingsController::class, 'testSmtp'])->name('settings.smtp.test');
             Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
             Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
             Route::get('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'media'])->name('settings.media');
