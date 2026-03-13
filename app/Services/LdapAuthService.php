@@ -5,12 +5,34 @@ namespace App\Services;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use LdapRecord\Auth\BindException;
 use LdapRecord\Connection;
+use LdapRecord\LdapRecordException;
 
 class LdapAuthService
 {
-    private function buildConnection(TenantSettings $settings): Connection
+    /**
+     * Indique pourquoi LDAP n'a pas pu être utilisé lors du dernier appel.
+     * Valeurs possibles : null | 'not_configured' | 'unavailable' | 'bind_failed' | 'user_not_found'
+     */
+    private ?string $lastFailureReason = null;
+
+    public function getLastFailureReason(): ?string
+    {
+        return $this->lastFailureReason;
+    }
+
+    /**
+     * Indique si l'échec est dû à une indisponibilité réseau/serveur
+     * (et non à de mauvais identifiants). Utile pour le fallback local.
+     */
+    public function isUnavailable(): bool
+    {
+        return $this->lastFailureReason === 'unavailable';
+    }
+
+    protected function buildConnection(TenantSettings $settings): Connection
     {
         if (! $settings->ldap_host) {
             throw new \RuntimeException('LDAP non configuré pour ce tenant.');
@@ -26,7 +48,7 @@ class LdapAuthService
             'password' => $bindPassword,
             'use_ssl' => (bool) $settings->ldap_use_ssl,
             'use_tls' => (bool) $settings->ldap_use_tls,
-            'timeout' => 5,
+            'timeout' => 3,
         ]);
     }
 
@@ -47,7 +69,7 @@ class LdapAuthService
         $groups = $conn->query()
             ->setDn('ou=groups,'.$baseDn)
             ->whereEquals('objectClass', 'groupOfNames')
-            ->whereContains('member', $userDn)
+            ->whereEquals('member', $userDn)
             ->get();
 
         foreach ($groups as $group) {
@@ -60,15 +82,16 @@ class LdapAuthService
         return 'user';
     }
 
-    public function syncUser(array $ldapEntry, ?Connection $conn = null, ?string $baseDn = null): User
+    public function syncUser(array $ldapEntry, ?string $preResolvedRole = null, ?Connection $conn = null, ?string $baseDn = null): User
     {
         $email = $ldapEntry['mail'][0] ?? null;
         if (! $email) {
-            throw new \RuntimeException('L\'entrée LDAP ne possède pas d\'email.');
+            throw new \RuntimeException("L'entrée LDAP ne possède pas d'email.");
         }
 
-        $role = 'user';
-        if ($conn && $baseDn && isset($ldapEntry['dn'])) {
+        // Priorité : rôle pré-résolu (bound admin) > résolution à la volée > défaut user
+        $role = $preResolvedRole ?? 'user';
+        if ($preResolvedRole === null && $conn && $baseDn && isset($ldapEntry['dn'])) {
             $role = $this->resolveRole($conn, $ldapEntry['dn'], $baseDn);
         }
 
@@ -85,44 +108,103 @@ class LdapAuthService
         );
     }
 
+    /**
+     * Tente l'authentification LDAP.
+     *
+     * Retourne l'utilisateur synchronisé en cas de succès.
+     * Retourne null dans tous les cas d'échec.
+     *
+     * Consultez getLastFailureReason() pour distinguer :
+     *   - 'not_configured' : LDAP absent des settings tenant => ignorer, fallback local normal
+     *   - 'unavailable'    : serveur LDAP injoignable (timeout, réseau, dev sans OpenLDAP)
+     *                        => fallback local autorisé, warning loggé
+     *   - 'bind_failed'    : mauvais mot de passe LDAP => NE PAS fallback sur local
+     *   - 'user_not_found' : email inconnu dans l'annuaire => NE PAS fallback sur local
+     */
     public function authenticate(string $email, string $password): ?User
     {
-        // Vérifier qu'un tenant est actif
-        if (! app(\App\Services\TenantManager::class)->hasTenant()) {
+        $this->lastFailureReason = null;
+
+        if (! app(TenantManager::class)->hasTenant()) {
+            $this->lastFailureReason = 'not_configured';
+
             return null;
         }
 
         $settings = TenantSettings::firstOrCreate([]);
 
         if (! $settings->ldap_host) {
+            $this->lastFailureReason = 'not_configured';
+
             return null;
         }
 
+        // ── Étape 1 : connexion + bind admin ──────────────────────────
+        // Toute exception ici = serveur inaccessible (pas de mauvais identifiants utilisateur).
         try {
             $conn = $this->buildConnection($settings);
             $conn->connect();
+        } catch (BindException|LdapRecordException|\Exception $e) {
+            $this->lastFailureReason = 'unavailable';
+            Log::warning('LDAP indisponible — fallback sur authentification locale.', [
+                'host' => $settings->ldap_host ?? 'non défini',
+                'email' => $email,
+                'exception' => $e->getMessage(),
+            ]);
 
+            return null;
+        }
+
+        // ── Étape 2 : recherche utilisateur + vérification mot de passe ──
+        try {
             $ldapUser = $conn->query()
                 ->setDn($settings->ldap_base_dn)
                 ->whereEquals('mail', $email)
                 ->first();
 
             if (! $ldapUser) {
+                $this->lastFailureReason = 'user_not_found';
+
                 return null;
             }
 
-            $conn->auth()->attempt($ldapUser['dn'], $password, $bindAsUser = true);
+            // Résolution du rôle pendant que la connexion est encore bound en admin.
+            // attempt(bindAsUser: true) ci-dessous rebind en tant qu'utilisateur,
+            // qui n'a généralement pas les droits de lecture sur ou=groups.
+            $role = $this->resolveRole($conn, $ldapUser['dn'], $settings->ldap_base_dn);
 
-            return $this->syncUser($ldapUser, $conn, $settings->ldap_base_dn);
+            // Vérifie le mot de passe — retourne false si incorrect (pas d'exception)
+            $bound = $conn->auth()->attempt($ldapUser['dn'], $password, true);
+
+            if (! $bound) {
+                $this->lastFailureReason = 'bind_failed';
+
+                return null;
+            }
+
+            return $this->syncUser($ldapUser, $role);
 
         } catch (BindException) {
+            // Mauvais mot de passe LDAP — ne pas fallback sur local
+            $this->lastFailureReason = 'bind_failed';
+
+            return null;
+
+        } catch (LdapRecordException|\Exception $e) {
+            $this->lastFailureReason = 'unavailable';
+            Log::warning('LDAP indisponible — fallback sur authentification locale.', [
+                'host' => $settings->ldap_host ?? 'non défini',
+                'email' => $email,
+                'exception' => $e->getMessage(),
+            ]);
+
             return null;
         }
     }
 
     public function syncAllUsers(): void
     {
-        if (! app(\App\Services\TenantManager::class)->hasTenant()) {
+        if (! app(TenantManager::class)->hasTenant()) {
             return;
         }
 
@@ -132,21 +214,78 @@ class LdapAuthService
             return;
         }
 
-        $conn = $this->buildConnection($settings);
-        $conn->connect();
+        try {
+            $conn = $this->buildConnection($settings);
+            $conn->connect();
+        } catch (LdapRecordException|\Exception $e) {
+            Log::error('Impossible de synchroniser les utilisateurs LDAP : serveur inaccessible.', [
+                'host' => $settings->ldap_host,
+                'exception' => $e->getMessage(),
+            ]);
 
-        $ldapUsers = $conn->query()
-            ->setDn($settings->ldap_base_dn)
-            ->whereHas('mail')
-            ->get();
-
-        foreach ($ldapUsers as $ldapEntry) {
-            $this->syncUser($ldapEntry, $conn, $settings->ldap_base_dn);
+            return;
         }
 
-        $activeLdapDns = array_column($ldapUsers, 'dn');
-        User::whereNotNull('ldap_dn')
+        // La requête est dans son propre try/catch : une query qui échoue
+        // ne doit jamais déclencher la désactivation des comptes existants.
+        try {
+            $ldapUsers = $conn->query()
+                ->setDn($settings->ldap_base_dn)
+                ->whereHas('mail')
+                ->get();
+        } catch (LdapRecordException|\Exception $e) {
+            Log::error('LDAP sync annulée : échec de la requête (résultat non fiable).', [
+                'host' => $settings->ldap_host,
+                'exception' => $e->getMessage(),
+            ]);
+
+            return;
+        }
+
+        // Circuit breaker : éviter la désactivation masse sur timeout partiel.
+        $knownLdapCount = User::whereNotNull('ldap_dn')->count();
+
+        // Règle 1 : résultat vide alors que des comptes LDAP existent en base.
+        if (count($ldapUsers) === 0 && $knownLdapCount > 0) {
+            Log::warning('LDAP sync interrompue : 0 utilisateurs retournés alors que '
+                ."{$knownLdapCount} comptes LDAP existent. Désactivation masse bloquée.", [
+                    'host' => $settings->ldap_host,
+                ]);
+
+            return;
+        }
+
+        // Règle 2 : plus de 50% des comptes connus seraient verrouillés.
+        if ($knownLdapCount > 0) {
+            $activeDns = array_filter(array_column($ldapUsers, 'dn'));
+            $wouldBeLocked = User::whereNotNull('ldap_dn')
+                ->whereNotIn('ldap_dn', $activeDns)
+                ->count();
+
+            if (($wouldBeLocked / $knownLdapCount) > 0.5) {
+                Log::warning('LDAP sync interrompue : '.$wouldBeLocked.'/'.$knownLdapCount
+                    .' comptes seraient verrouillés ('.round($wouldBeLocked / $knownLdapCount * 100)
+                    .'%). Seuil 50% dépassé — désactivation masse bloquée.', [
+                        'host' => $settings->ldap_host,
+                    ]);
+
+                return;
+            }
+        }
+
+        foreach ($ldapUsers as $ldapEntry) {
+            $this->syncUser($ldapEntry, null, $conn, $settings->ldap_base_dn);
+        }
+
+        $activeLdapDns = array_filter(array_column($ldapUsers, 'dn'));
+        $locked = User::whereNotNull('ldap_dn')
             ->whereNotIn('ldap_dn', $activeLdapDns)
             ->update(['status' => 'locked']);
+
+        Log::info('LDAP sync terminée.', [
+            'host' => $settings->ldap_host,
+            'synced' => count($ldapUsers),
+            'locked' => $locked,
+        ]);
     }
 }

@@ -33,10 +33,10 @@
         <env name="SESSION_DRIVER"   value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="MAIL_MAILER"      value="array"/>
+        <env name="LDAP_LOGGING"     value="false"/>
         <env name="DB_CONNECTION"    value="mysql"/>
         <env name="DB_DATABASE"      value="pladigit_testing_platform"/>
         <env name="DB_TENANT_DATABASE" value="pladigit_testing_tenant"/>
         <env name="DB_CONNECTION"    value="mysql"/>
     </php>
 </phpunit>
-

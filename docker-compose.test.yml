@@ -1,0 +1,51 @@
+# ─────────────────────────────────────────────────────────────────────
+# Stack de test LDAP — OpenLDAP + phpLDAPadmin (optionnel)
+# Usage :
+#   docker compose -f docker-compose.test.yml up -d
+#   php artisan test --filter LdapAuthTest
+#   docker compose -f docker-compose.test.yml down
+# ─────────────────────────────────────────────────────────────────────
+
+services:
+
+  openldap-test:
+    image: osixia/openldap:1.5.0
+    container_name: pladigit_openldap_test
+    environment:
+      LDAP_ORGANISATION:      "Les Bézots Test"
+      LDAP_DOMAIN:            "pladigit.test"
+      LDAP_BASE_DN:           "dc=pladigit,dc=test"
+      LDAP_ADMIN_PASSWORD:    "test_admin_secret"
+      LDAP_CONFIG_PASSWORD:   "test_config_secret"
+      LDAP_READONLY_USER:     "true"
+      LDAP_READONLY_USER_USERNAME: "readonly"
+      LDAP_READONLY_USER_PASSWORD: "readonly_secret"
+      LDAP_TLS:               "false"   # TLS désactivé en test local
+    ports:
+      - "3389:389"    # LDAP plain (tests uniquement — jamais en prod)
+      - "3636:636"    # LDAPS (si TLS activé)
+    volumes:
+      - ./docker/ldap/init.ldif:/container/service/slapd/assets/config/bootstrap/ldif/custom/init.ldif:ro
+    command: --copy-service
+    networks:
+      - ldap-test
+
+  # Optionnel : interface web pour inspecter l'annuaire manuellement
+  phpldapadmin:
+    image: osixia/phpldapadmin:0.9.0
+    container_name: pladigit_phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap-test"
+      PHPLDAPADMIN_HTTPS:      "false"
+    ports:
+      - "8090:80"
+    depends_on:
+      - openldap-test
+    networks:
+      - ldap-test
+    profiles:
+      - admin   # docker compose --profile admin up -d
+
+networks:
+  ldap-test:
+    driver: bridge
