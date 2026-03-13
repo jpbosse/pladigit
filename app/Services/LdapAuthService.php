@@ -48,7 +48,7 @@ class LdapAuthService
             'password' => $bindPassword,
             'use_ssl' => (bool) $settings->ldap_use_ssl,
             'use_tls' => (bool) $settings->ldap_use_tls,
-            'timeout' => 5,
+            'timeout' => 3,
         ]);
     }
 
@@ -69,7 +69,7 @@ class LdapAuthService
         $groups = $conn->query()
             ->setDn('ou=groups,'.$baseDn)
             ->whereEquals('objectClass', 'groupOfNames')
-            ->whereContains('member', $userDn)
+            ->whereEquals('member', $userDn)
             ->get();
 
         foreach ($groups as $group) {
@@ -82,15 +82,16 @@ class LdapAuthService
         return 'user';
     }
 
-    public function syncUser(array $ldapEntry, ?Connection $conn = null, ?string $baseDn = null): User
+    public function syncUser(array $ldapEntry, ?string $preResolvedRole = null, ?Connection $conn = null, ?string $baseDn = null): User
     {
         $email = $ldapEntry['mail'][0] ?? null;
         if (! $email) {
             throw new \RuntimeException("L'entrée LDAP ne possède pas d'email.");
         }
 
-        $role = 'user';
-        if ($conn && $baseDn && isset($ldapEntry['dn'])) {
+        // Priorité : rôle pré-résolu (bound admin) > résolution à la volée > défaut user
+        $role = $preResolvedRole ?? 'user';
+        if ($preResolvedRole === null && $conn && $baseDn && isset($ldapEntry['dn'])) {
             $role = $this->resolveRole($conn, $ldapEntry['dn'], $baseDn);
         }
 
@@ -138,10 +139,24 @@ class LdapAuthService
             return null;
         }
 
+        // ── Étape 1 : connexion + bind admin ──────────────────────────
+        // Toute exception ici = serveur inaccessible (pas de mauvais identifiants utilisateur).
         try {
             $conn = $this->buildConnection($settings);
             $conn->connect();
+        } catch (BindException|LdapRecordException|\Exception $e) {
+            $this->lastFailureReason = 'unavailable';
+            Log::warning('LDAP indisponible — fallback sur authentification locale.', [
+                'host' => $settings->ldap_host ?? 'non défini',
+                'email' => $email,
+                'exception' => $e->getMessage(),
+            ]);
 
+            return null;
+        }
+
+        // ── Étape 2 : recherche utilisateur + vérification mot de passe ──
+        try {
             $ldapUser = $conn->query()
                 ->setDn($settings->ldap_base_dn)
                 ->whereEquals('mail', $email)
@@ -153,10 +168,21 @@ class LdapAuthService
                 return null;
             }
 
-            // Tente le bind avec les identifiants de l'utilisateur
-            $conn->auth()->attempt($ldapUser['dn'], $password, $bindAsUser = true);
+            // Résolution du rôle pendant que la connexion est encore bound en admin.
+            // attempt(bindAsUser: true) ci-dessous rebind en tant qu'utilisateur,
+            // qui n'a généralement pas les droits de lecture sur ou=groups.
+            $role = $this->resolveRole($conn, $ldapUser['dn'], $settings->ldap_base_dn);
 
-            return $this->syncUser($ldapUser, $conn, $settings->ldap_base_dn);
+            // Vérifie le mot de passe — retourne false si incorrect (pas d'exception)
+            $bound = $conn->auth()->attempt($ldapUser['dn'], $password, true);
+
+            if (! $bound) {
+                $this->lastFailureReason = 'bind_failed';
+
+                return null;
+            }
+
+            return $this->syncUser($ldapUser, $role);
 
         } catch (BindException) {
             // Mauvais mot de passe LDAP — ne pas fallback sur local
@@ -165,7 +191,6 @@ class LdapAuthService
             return null;
 
         } catch (LdapRecordException|\Exception $e) {
-            // Serveur LDAP inaccessible (timeout, connexion refusée, OpenLDAP absent en dev...)
             $this->lastFailureReason = 'unavailable';
             Log::warning('LDAP indisponible — fallback sur authentification locale.', [
                 'host' => $settings->ldap_host ?? 'non défini',
@@ -249,7 +274,7 @@ class LdapAuthService
         }
 
         foreach ($ldapUsers as $ldapEntry) {
-            $this->syncUser($ldapEntry, $conn, $settings->ldap_base_dn);
+            $this->syncUser($ldapEntry, null, $conn, $settings->ldap_base_dn);
         }
 
         $activeLdapDns = array_filter(array_column($ldapUsers, 'dn'));

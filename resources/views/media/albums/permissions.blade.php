@@ -342,7 +342,7 @@
                                 </div>
                                 <span class="text-sm font-medium text-gray-700">{{ $perm->user?->name ?? '—' }}</span>
                                 <span class="text-xs text-gray-400">
-                                    {{ $perm->user?->role instanceof \App\Enums\UserRole ? $perm->user->role->label() : ($perm->user?->role ?? '') }}
+                                    {{ \App\Enums\UserRole::tryFrom($perm->user?->role ?? '')?->label() ?? ($perm->user?->role ?? '') }}
                                 </span>
                             </div>
                             <div class="flex items-center gap-3">

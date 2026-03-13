@@ -146,24 +146,43 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'primary_color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'logo' => ['nullable', 'image', 'mimes:png,jpg,svg', 'max:2048'],
-            'login_bg' => ['nullable', 'image', 'mimes:png,jpg', 'max:4096'],
+            'logo' => ['nullable', 'file', 'mimes:png,jpg,jpeg,svg', 'max:2048'],
+            'login_bg' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:4096'],
         ]);
 
         $org = app(\App\Services\TenantManager::class)->current();
+        $disk = \Storage::disk('public');
         $data = [];
 
-        if (isset($validated['primary_color'])) {
+        if (filled($validated['primary_color'] ?? null)) {
             $data['primary_color'] = $validated['primary_color'];
         }
-        if ($request->hasFile('logo')) {
+
+        // Logo
+        if ($request->boolean('remove_logo') && $org->logo_path) {
+            $disk->delete($org->logo_path);
+            $data['logo_path'] = null;
+        } elseif ($request->hasFile('logo') && $request->file('logo')->isValid()) {
+            if ($org->logo_path) {
+                $disk->delete($org->logo_path);
+            }
             $data['logo_path'] = $request->file('logo')->store("orgs/{$org->slug}/branding", 'public');
         }
-        if ($request->hasFile('login_bg')) {
+
+        // Fond login
+        if ($request->boolean('remove_login_bg') && $org->login_bg_path) {
+            $disk->delete($org->login_bg_path);
+            $data['login_bg_path'] = null;
+        } elseif ($request->hasFile('login_bg') && $request->file('login_bg')->isValid()) {
+            if ($org->login_bg_path) {
+                $disk->delete($org->login_bg_path);
+            }
             $data['login_bg_path'] = $request->file('login_bg')->store("orgs/{$org->slug}/branding", 'public');
         }
 
-        $org->update($data);
+        if (! empty($data)) {
+            $org->update($data);
+        }
 
         return back()->with('success', 'Personnalisation sauvegardée.');
     }

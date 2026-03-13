@@ -1,62 +1,86 @@
 @extends('layouts.guest')
 @section('title', 'Vérification en deux étapes')
- 
+
 @section('content')
-<div class="text-center mb-6">
-    {{-- Icône bouclier --}}
-    <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3"
-         style="background-color: var(--color-primary, #1E3A5F);">
-        <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955
-                     11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824
-                     10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+
+{{-- Icône + titre --}}
+<div style="text-align:center;margin-bottom:24px;">
+    <div style="width:52px;height:52px;border-radius:14px;margin:0 auto 14px;
+                background:linear-gradient(135deg,var(--pd-navy-dark),var(--pd-navy-light));
+                display:flex;align-items:center;justify-content:center;">
+        <svg style="width:24px;height:24px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
     </div>
-    <h1 class="text-2xl font-bold" style="color: var(--color-primary, #1E3A5F);">
+    <h1 style="font-family:'Sora',sans-serif;font-size:19px;font-weight:700;
+               color:var(--pd-navy);margin:0 0 6px;">
         Vérification en deux étapes
     </h1>
-    <p class="text-gray-500 text-sm mt-1">
-        Saisissez le code à 6 chiffres de votre application d'authentification,<br>
+    <p style="font-size:13px;color:var(--pd-muted);margin:0;line-height:1.5;">
+        Saisissez le code à 6 chiffres de votre application,<br>
         ou un code de secours à 8 caractères.
     </p>
 </div>
- 
-@if ($errors->any())
-    <div class="bg-red-50 border border-red-300 text-red-700 rounded-lg p-3 mb-4 text-sm">
-        @foreach ($errors->all() as $error)<p>{{ $error }}</p>@endforeach
-    </div>
+
+{{-- Erreurs --}}
+@if($errors->any())
+<div style="background:rgba(231,76,60,0.08);border:1.5px solid rgba(231,76,60,0.25);
+            border-radius:10px;padding:11px 14px;margin-bottom:18px;
+            font-size:13px;color:#c0392b;text-align:center;">
+    @foreach($errors->all() as $error)<div>{{ $error }}</div>@endforeach
+</div>
 @endif
- 
+
 <form method="POST" action="{{ route('2fa.verify') }}">
     @csrf
-    <div class="mb-6">
-        <label for="code" class="block text-sm font-medium text-gray-700 mb-1">
+
+    {{-- Champ code --}}
+    <div style="margin-bottom:20px;">
+        <label for="code"
+               style="display:block;font-size:13px;font-weight:500;
+                      color:var(--pd-text);margin-bottom:8px;text-align:center;">
             Code de vérification
         </label>
         <input id="code" name="code" type="text" required
                autocomplete="one-time-code"
                inputmode="numeric"
                maxlength="8"
-               class="w-full border border-gray-300 rounded-lg px-3 py-3 text-center
-                      text-xl font-mono tracking-widest
-                      focus:outline-none focus:ring-2 focus:ring-blue-500
-                      @error('code') border-red-400 @enderror"
-               placeholder="000000"
-               autofocus>
+               placeholder="000 000"
+               autofocus
+               style="width:100%;box-sizing:border-box;
+                      padding:14px 16px;border-radius:12px;
+                      border:1.5px solid {{ $errors->has('code') ? '#e74c3c' : 'var(--pd-border)' }};
+                      background:var(--pd-bg);color:var(--pd-text);
+                      font-family:'Sora',monospace;font-size:26px;
+                      font-weight:600;letter-spacing:8px;
+                      text-align:center;outline:none;
+                      transition:border-color 0.15s;"
+               onfocus="this.style.borderColor='var(--pd-accent)'"
+               onblur="this.style.borderColor='{{ $errors->has('code') ? '#e74c3c' : 'var(--pd-border)' }}'">
         @error('code')
-            <p class="text-red-600 text-xs mt-1 text-center">{{ $message }}</p>
+        <p style="font-size:12px;color:#e74c3c;margin:5px 0 0;text-align:center;">{{ $message }}</p>
         @enderror
     </div>
- 
+
     <button type="submit"
-            class="w-full py-2 px-4 rounded-lg text-white font-medium text-sm"
-            style="background-color: var(--color-primary, #1E3A5F);">
+            style="width:100%;padding:11px;border-radius:10px;border:none;
+                   background:linear-gradient(135deg,var(--pd-navy-dark),var(--pd-navy-light));
+                   color:#fff;font-family:'DM Sans',sans-serif;
+                   font-size:14px;font-weight:600;cursor:pointer;
+                   transition:opacity 0.2s;"
+            onmouseover="this.style.opacity='0.9'"
+            onmouseout="this.style.opacity='1'">
         Vérifier
     </button>
 </form>
- 
-<p class="text-center text-xs text-gray-400 mt-4">
-    <a href="{{ route('login') }}" class="hover:underline">← Retour à la connexion</a>
-</p>
+
+<div style="text-align:center;margin-top:16px;">
+    <a href="{{ route('login') }}"
+       style="font-size:12.5px;color:var(--pd-muted);text-decoration:none;"
+       onmouseover="this.style.color='var(--pd-text)'"
+       onmouseout="this.style.color='var(--pd-muted)'">
+        ← Retour à la connexion
+    </a>
+</div>
+
 @endsection
