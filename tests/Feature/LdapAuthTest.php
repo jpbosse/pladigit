@@ -22,9 +22,8 @@ use Tests\TestCase;
  *   alice@pladigit.test   / password_alice  → groupe admin → rôle admin
  *   bob@pladigit.test     / password_bob    → pas de groupe → rôle user
  *   charlie@pladigit.test / password_charlie → groupe dgs → rôle dgs
- *
- * @group ldap
  */
+#[\PHPUnit\Framework\Attributes\Group('ldap')]
 class LdapAuthTest extends TestCase
 {
     use WithFaker;
