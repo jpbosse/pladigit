@@ -13,6 +13,13 @@ use Illuminate\Validation\ValidationException;
 
 /**
  * Gère le login local (email + mot de passe bcrypt) et LDAP (Phase 2).
+ *
+ * Stratégie de fallback LDAP :
+ *   1. Si LDAP non configuré         → auth locale directement (comportement normal)
+ *   2. Si LDAP configuré et succès   → connexion LDAP
+ *   3. Si LDAP configuré, bind échoué (mauvais mdp) → erreur, PAS de fallback local
+ *   4. Si LDAP configuré, user non trouvé            → erreur, PAS de fallback local
+ *   5. Si LDAP configuré mais serveur indisponible   → fallback local gracieux (warning loggé)
  */
 class LoginController extends Controller
 {
@@ -31,29 +38,25 @@ class LoginController extends Controller
         ]);
 
         // --- Phase 2 : Tenter l'authentification LDAP si configuré ---
-        $ldapUser = app(LdapAuthService::class)->authenticate(
-            $request->email,
-            $request->password
-        );
+        $ldapService = app(LdapAuthService::class);
+        $ldapUser = $ldapService->authenticate($request->email, $request->password);
 
         if ($ldapUser) {
-            $ldapUser->update([
-                'last_login_at' => now(),
-                'last_login_ip' => $request->ip(),
-            ]);
-            $this->audit->log('user.login_ldap', $ldapUser);
-            Auth::login($ldapUser, $request->boolean('remember'));
-            $request->session()->regenerate();
-
-            if ($ldapUser->totp_enabled) {
-                session(['2fa_user_id' => $ldapUser->id]);
-                Auth::logout();
-
-                return redirect()->route('2fa.challenge');
-            }
-
-            return redirect()->intended(route('dashboard'));
+            return $this->loginUser($ldapUser, $request, ldap: true);
         }
+
+        // Si LDAP a échoué pour une raison sécurité (mauvais mdp, user inconnu),
+        // on bloque immédiatement — pas de fallback local.
+        $ldapReason = $ldapService->getLastFailureReason();
+
+        if (in_array($ldapReason, ['bind_failed', 'user_not_found'], strict: true)) {
+            throw ValidationException::withMessages([
+                'email' => ['Identifiants incorrects.'],
+            ]);
+        }
+
+        // À ce stade : LDAP non configuré ('not_configured') ou serveur indisponible ('unavailable')
+        // Dans les deux cas, on laisse passer vers l'authentification locale.
         // --- Fin Phase 2 ---
 
         $user = User::where('email', $request->email)->first();
@@ -74,6 +77,14 @@ class LoginController extends Controller
         }
 
         // 3. Vérifier le mot de passe (bcrypt)
+        //    Si LDAP était configuré mais indisponible et que l'utilisateur est un compte
+        //    LDAP pur (pas de password_hash), on refuse — il ne peut pas se connecter sans LDAP.
+        if (! $user->password_hash) {
+            throw ValidationException::withMessages([
+                'email' => ['Ce compte nécessite le serveur LDAP pour se connecter.'],
+            ]);
+        }
+
         if (! Hash::check($request->password, $user->password_hash)) {
             $this->handleFailedAttempt($user);
             throw ValidationException::withMessages([
@@ -89,28 +100,36 @@ class LoginController extends Controller
         ]);
 
         $this->audit->log('user.login', $user);
+
+        return $this->loginUser($user, $request, ldap: false);
+    }
+
+    /**
+     * Finalise la connexion après authentification réussie (locale ou LDAP).
+     */
+    private function loginUser(User $user, Request $request, bool $ldap = false): \Illuminate\Http\RedirectResponse
+    {
+        if ($ldap) {
+            $user->update([
+                'last_login_at' => now(),
+                'last_login_ip' => $request->ip(),
+            ]);
+            $this->audit->log('user.login_ldap', $user);
+        }
+
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
 
-        /*        // 5. Si 2FA activé → rediriger vers vérification TOTP (Phase 2)
-                \Log::info('2FA check', ['totp_enabled' => $user->totp_enabled, 'user_id' => $user->id]);
-                if ($user->totp_enabled) {
-                    session(['2fa_user_id' => $user->id]);
-                    Auth::logout();
-                    return redirect()->route('2fa.challenge');
-                }
-         */
-        // 5. Si 2FA activé → rediriger vers vérification TOTP
+        // 2FA
         if ($user->totp_enabled) {
             Auth::logout();
             $request->session()->put('2fa_user_id', $user->id);
-            \Log::info('2FA redirect', ['session_id' => session()->getId(), '2fa_user_id' => session('2fa_user_id')]);
 
             return redirect()->route('2fa.challenge');
         }
 
-        // 6. Changement de mot de passe forcé
-        if ($user->force_pwd_change) {
+        // Changement de mot de passe forcé (comptes locaux uniquement)
+        if (! $ldap && $user->force_pwd_change) {
             return redirect()->route('password.change.forced');
         }
 

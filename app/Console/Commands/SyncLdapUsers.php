@@ -19,7 +19,21 @@ class SyncLdapUsers extends Command
 
     public function handle(TenantManager $tenantManager, LdapAuthService $ldap): int
     {
-        $orgs = Organization::where('status', 'active')->get();
+        $slug = $this->option('tenant');
+
+        $query = Organization::where('status', 'active');
+
+        if ($slug) {
+            $query->where('slug', $slug);
+
+            if ($query->doesntExist()) {
+                $this->error("Tenant introuvable ou inactif : {$slug}");
+
+                return Command::FAILURE;
+            }
+        }
+
+        $orgs = $query->get();
 
         foreach ($orgs as $org) {
             try {

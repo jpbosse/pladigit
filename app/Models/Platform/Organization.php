@@ -13,12 +13,17 @@ class Organization extends Model
 {
     use HasFactory;
 
-    protected $connection = 'mysql'; // Base platform
+    protected $connection = 'mysql';
 
     protected $fillable = [
         'slug', 'name', 'db_name', 'status',
         'max_users', 'storage_quota_mb', 'plan',
         'primary_color', 'timezone', 'locale',
+        'logo_path', 'login_bg_path',
+        // SMTP par tenant
+        'smtp_host', 'smtp_port', 'smtp_encryption',
+        'smtp_user', 'smtp_password_enc',
+        'smtp_from_address', 'smtp_from_name',
     ];
 
     protected $casts = [
@@ -26,7 +31,6 @@ class Organization extends Model
         'contract_signed_at' => 'date',
     ];
 
-    /** Génère le nom de la base de données à partir du slug. */
     public static function dbNameFromSlug(string $slug): string
     {
         return 'pladigit_'.str_replace('-', '_', $slug);

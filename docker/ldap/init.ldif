@@ -1,0 +1,75 @@
+# ─────────────────────────────────────────────────────────────────────
+# init.ldif — Données de test pour OpenLDAP (Pladigit §6.2)
+# Domaine : dc=pladigit,dc=test
+# Chargé automatiquement par osixia/openldap au démarrage
+# ─────────────────────────────────────────────────────────────────────
+
+# ── Unités organisationnelles ─────────────────────────────────────────
+
+dn: ou=users,dc=pladigit,dc=test
+objectClass: organizationalUnit
+ou: users
+
+dn: ou=groups,dc=pladigit,dc=test
+objectClass: organizationalUnit
+ou: groups
+
+# ── Utilisateurs ──────────────────────────────────────────────────────
+
+# Alice Admin — rôle admin via groupe
+dn: cn=Alice Admin,ou=users,dc=pladigit,dc=test
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: Alice Admin
+sn: Admin
+givenName: Alice
+mail: alice@pladigit.test
+userPassword: password_alice
+uid: alice
+
+# Bob User — rôle user (pas de groupe de rôle)
+dn: cn=Bob User,ou=users,dc=pladigit,dc=test
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: Bob User
+sn: User
+givenName: Bob
+mail: bob@pladigit.test
+userPassword: password_bob
+uid: bob
+
+# Charlie DGS — rôle dgs
+dn: cn=Charlie DGS,ou=users,dc=pladigit,dc=test
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: Charlie DGS
+sn: DGS
+givenName: Charlie
+mail: charlie@pladigit.test
+userPassword: password_charlie
+uid: charlie
+
+# Diana — sans email (doit être ignorée à la synchronisation)
+dn: cn=Diana NoMail,ou=users,dc=pladigit,dc=test
+objectClass: inetOrgPerson
+objectClass: organizationalPerson
+objectClass: person
+cn: Diana NoMail
+sn: NoMail
+givenName: Diana
+uid: diana
+
+# ── Groupes de rôles ──────────────────────────────────────────────────
+
+dn: cn=admin,ou=groups,dc=pladigit,dc=test
+objectClass: groupOfNames
+cn: admin
+member: cn=Alice Admin,ou=users,dc=pladigit,dc=test
+
+dn: cn=dgs,ou=groups,dc=pladigit,dc=test
+objectClass: groupOfNames
+cn: dgs
+member: cn=Charlie DGS,ou=users,dc=pladigit,dc=test

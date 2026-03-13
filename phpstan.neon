@@ -6,6 +6,15 @@ parameters:
     paths:
         - app
     level: 5
+    stubFiles:
+        - stubs/smbclient.php
+    ignoreErrors:
+        -
+            message: '#^Function smbclient_[a-z_]+ not found\.$#'
+            path: app/Services/Nas/SmbNasDriver.php
+        -
+            message: '#^Constant SMBCLIENT_[A-Z_]+ not found\.$#'
+            path: app/Services/Nas/SmbNasDriver.php
     excludePaths:
         analyseAndScan:
             - app/Http/Middleware/TrustProxies.php (?)

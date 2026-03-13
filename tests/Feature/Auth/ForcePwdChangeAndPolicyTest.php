@@ -76,39 +76,6 @@ class ForcePwdChangeAndPolicyTest extends TestCase
         $this->actingAs($user)->get(route('dashboard'))->assertOk();
     }
 
-    public function test_creation_utilisateur_mot_de_passe_trop_court(): void
-    {
-        $this->settings();
-        $admin = $this->adminUser();
-        $this->actingAs($admin)->post(route('admin.users.store'), [
-            'name' => 'Jean Dupont', 'email' => 'jean@test.fr', 'role' => 'user',
-            'password' => 'Court!1', 'password_confirmation' => 'Court!1',
-        ])->assertSessionHasErrors('password');
-        $this->assertDatabaseMissing('users', ['email' => 'jean@test.fr'], 'tenant');
-    }
-
-    public function test_creation_utilisateur_sans_majuscule_rejete(): void
-    {
-        $this->settings();
-        $admin = $this->adminUser();
-        $this->actingAs($admin)->post(route('admin.users.store'), [
-            'name' => 'Jean Dupont', 'email' => 'jean2@test.fr', 'role' => 'user',
-            'password' => 'minuscules!123', 'password_confirmation' => 'minuscules!123',
-        ])->assertSessionHasErrors('password');
-        $this->assertDatabaseMissing('users', ['email' => 'jean2@test.fr'], 'tenant');
-    }
-
-    public function test_creation_utilisateur_conforme_force_pwd_change(): void
-    {
-        $this->settings();
-        $admin = $this->adminUser();
-        $this->actingAs($admin)->post(route('admin.users.store'), [
-            'name' => 'Jean Dupont', 'email' => 'conforme@test.fr', 'role' => 'user',
-            'password' => 'SecurePass!123', 'password_confirmation' => 'SecurePass!123',
-        ])->assertRedirect(route('admin.users.index'));
-        $this->assertDatabaseHas('users', ['email' => 'conforme@test.fr', 'force_pwd_change' => true], 'tenant');
-    }
-
     public function test_modification_mot_de_passe_trop_court_rejete(): void
     {
         $this->settings();

@@ -53,6 +53,11 @@ class User extends Authenticatable
         'ldap_synced_at',
         'media_cols',
 
+        // Invitation par email
+        'invitation_token',
+        'invitation_expires_at',
+        'invitation_used_at',
+
     ];
 
     protected $hidden = [
@@ -61,6 +66,7 @@ class User extends Authenticatable
         'totp_backup_code_enc',
         'password_history',
         'remember_token',
+        'invitation_token', // Hash SHA-256 — jamais exposé
     ];
 
     protected $casts = [
@@ -73,6 +79,8 @@ class User extends Authenticatable
         'force_pwd_change' => 'boolean',
         'password_history' => 'array',
         'media_cols' => 'integer',
+        'invitation_expires_at' => 'datetime',
+        'invitation_used_at' => 'datetime',
     ];
 
     // Laravel attend 'password' par défaut — on remplace

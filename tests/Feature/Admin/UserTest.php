@@ -6,7 +6,7 @@ use App\Models\Tenant\Department;
 use App\Models\Tenant\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -75,12 +75,13 @@ class UserTest extends TestCase
 
     public function test_admin_peut_créer_un_utilisateur(): void
     {
+        Mail::fake();
+
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
                 'name' => 'Jean Dupont',
                 'email' => 'jean.dupont@test.fr',
                 'role' => 'user',
-                'password' => 'MotDePasse!123',
             ])
             ->assertRedirect(route('admin.users.index'))
             ->assertSessionHas('success');
@@ -88,6 +89,7 @@ class UserTest extends TestCase
         $this->assertTenantHas('users', [
             'email' => 'jean.dupont@test.fr',
             'role' => 'user',
+            'status' => 'inactive', // Inactif jusqu'à activation
         ]);
     }
 
@@ -129,20 +131,26 @@ class UserTest extends TestCase
             ->assertSessionHasErrors('role');
     }
 
-    public function test_nouvel_utilisateur_doit_changer_son_mot_de_passe(): void
+    public function test_nouvel_utilisateur_reçoit_invitation_par_email(): void
     {
+        Mail::fake();
+
         $this->actingAs($this->admin)
             ->post(route('admin.users.store'), [
                 'name' => 'Jean Dupont',
                 'email' => 'jean.dupont@test.fr',
                 'role' => 'user',
-                'password' => 'MotDePasse!123',
             ]);
 
-        $this->assertTenantHas('users', [
-            'email' => 'jean.dupont@test.fr',
-            'force_pwd_change' => 1,
-        ]);
+        // Le token d'invitation est stocké (hashé) en base
+        $user = User::on('tenant')->where('email', 'jean.dupont@test.fr')->first();
+        $this->assertNotNull($user->invitation_token);
+        $this->assertNotNull($user->invitation_expires_at);
+        $this->assertNull($user->invitation_used_at);
+        $this->assertNull($user->password_hash);
+
+        // L'email d'invitation a bien été envoyé
+        Mail::assertSent(\App\Mail\UserInvitationMail::class, fn ($m) => $m->hasTo('jean.dupont@test.fr'));
     }
 
     // ── Modification ───────────────────────────────────────────────────
@@ -219,8 +227,11 @@ class UserTest extends TestCase
 
     public function test_admin_peut_réinitialiser_le_mot_de_passe(): void
     {
+        Mail::fake();
+
         $user = User::factory()->create([
-            'password_hash' => Hash::make('AncienMotDePasse!1'),
+            'password_hash' => \Illuminate\Support\Facades\Hash::make('AncienMotDePasse!1'),
+            'status' => 'active',
         ]);
 
         $this->actingAs($this->admin)
@@ -229,7 +240,13 @@ class UserTest extends TestCase
             ->assertSessionHas('success');
 
         $user->refresh();
-        $this->assertTrue((bool) $user->force_pwd_change);
+
+        // Le compte est repassé en inactif en attendant la réactivation
+        $this->assertEquals('inactive', $user->status);
+        // Un token d'invitation a été généré
+        $this->assertNotNull($user->invitation_token);
+        // Un email a été envoyé
+        Mail::assertSent(\App\Mail\UserInvitationMail::class, fn ($m) => $m->hasTo($user->email));
     }
 
     // ── Affectation départements ───────────────────────────────────────

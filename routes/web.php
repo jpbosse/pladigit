@@ -6,6 +6,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 
 // ── Page d'accueil publique ───────────────────────────────
+Route::get('/health', [App\Http\Controllers\HealthController::class, 'check'])->name('health');
+Route::get('/health/ping', [App\Http\Controllers\HealthController::class, 'ping'])->name('health.ping');
+
 Route::get('/', function () {
     return view('welcome');
 })->name('home');
@@ -30,6 +33,7 @@ Route::get('check-org-ajax/{slug}', function ($slug) {
 Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
     ->name('super-admin.login');
 Route::post('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])
+    ->middleware('throttle:super-admin-login')
     ->name('super-admin.login.post');
 Route::post('super-admin/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])
     ->name('super-admin.logout');
@@ -53,8 +57,12 @@ Route::middleware('tenant')->group(function () {
 
     // Authentification
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:login');
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    Route::get('/logout', fn () => redirect()->route('login'));
+
     Route::post('/profile/backup-codes', [App\Http\Controllers\ProfileController::class, 'regenerateBackupCodes'])->name('profile.regenerate-backup-codes');
 
     // 2FA — Challenge login
@@ -63,6 +71,13 @@ Route::middleware('tenant')->group(function () {
     Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])
         ->middleware('throttle:5,10')
         ->name('2fa.verify');
+
+    // Invitation — activation de compte par email (routes publiques, pas d'auth)
+    Route::get('/invitation/{token}', [App\Http\Controllers\Auth\InvitationController::class, 'show'])
+        ->name('invitation.show');
+    Route::post('/invitation/{token}', [App\Http\Controllers\Auth\InvitationController::class, 'accept'])
+        ->middleware('throttle:5,10')
+        ->name('invitation.accept');
 
     // Zone authentifiée — force-pwd-change appliqué sur TOUTES les routes auth
     Route::middleware(['auth', 'force-pwd-change'])->group(function () {
@@ -111,6 +126,7 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/ldap/test', [App\Http\Controllers\Admin\SettingsController::class, 'testLdap'])->name('settings.ldap.test');
             Route::get('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'smtp'])->name('settings.smtp');
             Route::put('settings/smtp', [App\Http\Controllers\Admin\SettingsController::class, 'updateSmtp'])->name('settings.smtp.update');
+            Route::post('settings/smtp/test', [App\Http\Controllers\Admin\SettingsController::class, 'testSmtp'])->name('settings.smtp.test');
             Route::get('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'branding'])->name('settings.branding');
             Route::post('settings/branding', [App\Http\Controllers\Admin\SettingsController::class, 'updateBranding'])->name('settings.branding.update');
             Route::get('settings/media', [App\Http\Controllers\Admin\SettingsController::class, 'media'])->name('settings.media');
@@ -118,6 +134,11 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'nas'])->name('settings.nas');
             Route::put('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'updateNas'])->name('settings.nas.update');
             Route::post('settings/nas/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncNas'])->name('settings.nas.sync');
+            Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
+            Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
+
+            // Journal d'audit
+            Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
 
         });
 

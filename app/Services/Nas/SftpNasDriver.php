@@ -62,58 +62,13 @@ class SftpNasDriver implements NasConnectorInterface
             $filePath = ltrim($directory.'/'.$file, '/');
             $fullFilePath = $this->resolve($filePath);
             $stat = @ssh2_sftp_stat($sftp, $fullFilePath);
-            $isDir = isset($stat['mode']) && ($stat['mode'] & 0040000);
-
-            if ($isDir) {
-                continue;
-            }
 
             $entries[] = [
                 'name' => $file,
                 'path' => $filePath,
                 'size' => (int) ($stat['size'] ?? 0),
                 'mtime' => (int) ($stat['mtime'] ?? 0),
-                'type' => 'file',
-            ];
-        }
-        closedir($handle);
-
-        return $entries;
-    }
-
-    /**
-     * Liste les sous-dossiers directs d'un répertoire (non récursif).
-     *
-     * @return array<int, array{name: string, path: string}>
-     */
-    public function listDirectories(string $directory): array
-    {
-        $sftp = $this->getSftp();
-        $fullPath = $this->resolve($directory);
-        $handle = opendir("ssh2.sftp://{$sftp}/{$fullPath}");
-
-        if ($handle === false) {
-            return [];
-        }
-
-        $entries = [];
-        while (($file = readdir($handle)) !== false) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-
-            $filePath = ltrim($directory.'/'.$file, '/');
-            $fullFilePath = $this->resolve($filePath);
-            $stat = @ssh2_sftp_stat($sftp, $fullFilePath);
-            $isDir = isset($stat['mode']) && ($stat['mode'] & 0040000);
-
-            if (! $isDir) {
-                continue;
-            }
-
-            $entries[] = [
-                'name' => $file,
-                'path' => $filePath,
+                'type' => isset($stat['mode']) && ($stat['mode'] & 0040000) ? 'dir' : 'file',
             ];
         }
         closedir($handle);
@@ -174,6 +129,47 @@ class SftpNasDriver implements NasConnectorInterface
         return hash_final($context);
     }
 
+    /**
+     * Ouvre un flux SFTP pour le streaming par chunks (Range HTTP).
+     *
+     * @return array{mixed, mixed}
+     */
+    public function openReadStream(string $path): array
+    {
+        $sftp = $this->getSftp();
+        $fullPath = $this->resolve($path);
+        $handle = fopen("ssh2.sftp://{$sftp}/{$fullPath}", 'rb');
+
+        if ($handle === false) {
+            throw new RuntimeException("SFTP : impossible d'ouvrir le flux pour {$path}");
+        }
+
+        return [$sftp, $handle];
+    }
+
+    /**
+     * @param  array{mixed, mixed}  $stream
+     */
+    public function closeReadStream(array $stream): void
+    {
+        [, $handle] = $stream;
+        if (is_resource($handle)) {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * @param  array{mixed, mixed}  $stream
+     */
+    public function readChunk(array $stream, int $offset, int $length): string|false
+    {
+        [, $handle] = $stream;
+        fseek($handle, $offset);
+        $data = fread($handle, $length);
+
+        return $data === '' ? false : $data;
+    }
+
     public function mtime(string $path): int
     {
         $sftp = $this->getSftp();
@@ -188,6 +184,31 @@ class SftpNasDriver implements NasConnectorInterface
         $stat = @ssh2_sftp_stat($sftp, $this->resolve($path));
 
         return (int) ($stat['size'] ?? 0);
+    }
+
+    public function listDirectories(string $directory): array
+    {
+        $fullPath = $this->resolve($directory);
+        if (! is_dir($fullPath)) {
+            return [];
+        }
+        $entries = [];
+        foreach (new \DirectoryIterator($fullPath) as $item) {
+            if ($item->isDot() || ! $item->isDir()) {
+                continue;
+            }
+            $absolutePath = $item->getRealPath();
+            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
+            $entries[] = [
+                'name' => $item->getFilename(),
+                'path' => $relativePath,
+                'size' => 0,
+                'mtime' => (int) $item->getMTime(),
+                'type' => 'directory',
+            ];
+        }
+
+        return $entries;
     }
 
     // ─────────────────────────────────────────────────────────────
