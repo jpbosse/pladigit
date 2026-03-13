@@ -3,142 +3,124 @@
 
 @section('admin-content')
 
-{{-- ── En-tête ─────────────────────────────────────────────────────── --}}
-<div class="mb-6">
-    <div class="flex justify-between items-start flex-wrap gap-3">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-800">Hiérarchie organisationnelle</h1>
-            <p class="text-sm text-gray-500 mt-1">Structure libre — Directions, Services, Pôles, Bureaux…</p>
-        </div>
-        <a href="{{ route('admin.departments.organigramme') }}" target="_blank"
-           class="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
-           style="background-color: var(--color-primary, #1E3A5F);">
-            🗂 Organigramme
-        </a>
+{{-- En-tête --}}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:24px;">
+    <div>
+        <h1 style="font-family:'Sora',sans-serif;font-size:20px;font-weight:700;color:var(--pd-text);margin:0 0 4px;">
+            Hiérarchie organisationnelle
+        </h1>
+        <p style="font-size:13px;color:var(--pd-muted);margin:0;">Structure libre — Directions, Services, Pôles, Bureaux…</p>
     </div>
-
-    {{-- Compteurs --}}
-    <div class="grid grid-cols-3 gap-4 mt-4">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-blue-50">🏢</div>
-            <div>
-                <p class="text-2xl font-bold text-gray-800">{{ $stats['roots'] }}</p>
-                <p class="text-xs text-gray-500">Entité(s) racine</p>
-            </div>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-green-50">📂</div>
-            <div>
-                <p class="text-2xl font-bold text-gray-800">{{ $stats['total'] }}</p>
-                <p class="text-xs text-gray-500">Total entités</p>
-            </div>
-        </div>
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg flex items-center justify-center text-xl bg-orange-50">👥</div>
-            <div>
-                <p class="text-2xl font-bold text-gray-800">{{ $stats['members'] }}</p>
-                <p class="text-xs text-gray-500">Membre(s) total</p>
-            </div>
-        </div>
-    </div>
+    <a href="{{ route('admin.departments.organigramme') }}" target="_blank"
+       style="display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;
+              border:1.5px solid var(--pd-border);background:var(--pd-surface);
+              color:var(--pd-text);font-size:13px;font-weight:600;text-decoration:none;transition:border-color 0.15s;"
+       onmouseover="this.style.borderColor='var(--pd-accent)'" onmouseout="this.style.borderColor='var(--pd-border)'">
+        <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1"/><rect x="15" y="3" width="6" height="6" rx="1"/><rect x="9" y="15" width="6" height="6" rx="1"/><path d="M6 9v3a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V9"/><line x1="12" y1="12" x2="12" y2="15"/></svg>
+        Organigramme
+    </a>
 </div>
 
-{{-- ── Alertes ──────────────────────────────────────────────────────── --}}
+{{-- Compteurs --}}
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:24px;">
+    @foreach([['roots','Entité(s) racine','🏢','59,154,225'],['total','Total entités','📂','118,99,197'],['members','Membre(s) affectés','👥','232,168,56']] as [$key,$label,$icon,$rgb])
+    <div style="background:var(--pd-surface);border:1.5px solid var(--pd-border);border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;box-shadow:var(--pd-shadow);">
+        <div style="width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;background:rgba({{ $rgb }},0.1);flex-shrink:0;">
+            {{ $icon }}
+        </div>
+        <div>
+            <p style="font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:var(--pd-text);margin:0 0 1px;">{{ $stats[$key] }}</p>
+            <p style="font-size:12px;color:var(--pd-muted);margin:0;">{{ $label }}</p>
+        </div>
+    </div>
+    @endforeach
+</div>
+
+{{-- Flash --}}
 @if(session('success'))
-    <div class="bg-green-50 border border-green-300 text-green-700 rounded-lg p-3 mb-4 text-sm flex items-center gap-2">
-        <span>✓</span> {{ session('success') }}
-    </div>
+<div style="background:rgba(46,204,113,0.08);border:1.5px solid rgba(46,204,113,0.3);border-radius:10px;padding:11px 16px;margin-bottom:20px;font-size:13px;color:#1a8a4a;display:flex;align-items:center;gap:8px;">
+    <svg style="width:15px;height:15px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    {{ session('success') }}
+</div>
 @endif
-@if($errors->has('delete'))
-    <div class="bg-red-50 border border-red-300 text-red-700 rounded-lg p-3 mb-4 text-sm flex items-center gap-2">
-        <span>⚠</span> {{ $errors->first('delete') }}
-    </div>
-@elseif($errors->any())
-    <div class="bg-red-50 border border-red-300 text-red-700 rounded-lg p-3 mb-4 text-sm flex items-center gap-2">
-        <span>⚠</span> {{ $errors->first() }}
-    </div>
+@if($errors->any())
+<div style="background:rgba(231,76,60,0.08);border:1.5px solid rgba(231,76,60,0.25);border-radius:10px;padding:11px 16px;margin-bottom:20px;font-size:13px;color:#c0392b;display:flex;align-items:center;gap:8px;">
+    <svg style="width:15px;height:15px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    {{ $errors->first() }}
+</div>
 @endif
 
-{{-- ── Contenu principal ────────────────────────────────────────────── --}}
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+{{-- Contenu principal --}}
+<div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;">
 
-    {{-- ── Colonne gauche : arborescence accordéon ─────────────────── --}}
-    <div class="lg:col-span-2 space-y-1">
-
-        {{-- Bouton tout déplier / replier --}}
+    {{-- Arborescence --}}
+    <div>
         @if($roots->count())
-        <div class="flex justify-end mb-2">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
             <button onclick="toggleAll()" id="toggleAllBtn"
-                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition">
+                    style="font-size:12px;padding:6px 14px;border-radius:8px;border:1.5px solid var(--pd-border);
+                           background:var(--pd-surface);color:var(--pd-muted);cursor:pointer;font-family:inherit;transition:border-color 0.15s;"
+                    onmouseover="this.style.borderColor='var(--pd-accent)'" onmouseout="this.style.borderColor='var(--pd-border)'">
                 ▼ Tout déplier
             </button>
         </div>
         @endif
 
-        @forelse($roots as $root)
-            @include('admin.departments.partials.dept-node-admin', ['node' => $root, 'depth' => 0, 'allDepts' => $allDepts])
-        @empty
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center text-gray-400">
-                <p class="text-5xl mb-3">🏢</p>
-                <p class="text-sm font-medium text-gray-500">Aucune entité créée.</p>
-                <p class="text-xs mt-1">Commencez par créer une entité racine dans le formulaire.</p>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+            @forelse($roots as $root)
+                @include('admin.departments.partials.dept-node-admin', ['node' => $root, 'depth' => 0, 'allDepts' => $allDepts])
+            @empty
+            <div style="background:var(--pd-surface);border:1.5px solid var(--pd-border);border-radius:14px;padding:48px 24px;text-align:center;color:var(--pd-muted);">
+                <div style="font-size:36px;margin-bottom:12px;">🏢</div>
+                <p style="font-size:14px;font-weight:500;color:var(--pd-text);margin:0 0 4px;">Aucune entité créée</p>
+                <p style="font-size:12px;margin:0;">Commencez par créer une entité dans le formulaire.</p>
             </div>
-        @endforelse
+            @endforelse
+        </div>
     </div>
 
-    {{-- ── Colonne droite : formulaire création ─────────────────────── --}}
-    <div class="space-y-4">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h2 class="text-sm font-semibold text-gray-700 mb-4 pb-2 border-b flex items-center gap-2">
-                <span>➕</span> Nouvelle entité
-            </h2>
-            <form method="POST" action="{{ route('admin.departments.store') }}" class="space-y-3">
+    {{-- Formulaire création --}}
+    <div style="position:sticky;top:calc(var(--pd-topbar-h) + 16px);display:flex;flex-direction:column;gap:14px;">
+        <div style="background:var(--pd-surface);border:1.5px solid var(--pd-border);border-radius:14px;padding:22px;box-shadow:var(--pd-shadow);">
+            <p style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:var(--pd-text);margin:0 0 18px;padding-bottom:12px;border-bottom:1px solid var(--pd-border);">
+                Nouvelle entité
+            </p>
+            <form method="POST" action="{{ route('admin.departments.store') }}" style="display:flex;flex-direction:column;gap:14px;">
                 @csrf
 
-                {{-- Nom --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Nom <span class="text-red-500">*</span></label>
-                    <input type="text" name="name"
-                           value="{{ old('name') }}"
-                           placeholder="Ex : Direction des Finances"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                           required>
+                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Nom <span style="color:var(--pd-danger);">*</span></label>
+                    <input type="text" name="name" value="{{ old('name') }}" placeholder="Ex : Direction des Finances" required
+                           style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
+                           onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
                 </div>
 
-                {{-- Label libre --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Type / Label</label>
-                    <input type="text" name="label" id="labelInput"
-                           value="{{ old('label') }}"
-                           placeholder="Direction, Pôle, Comité…"
-                           maxlength="100"
-                           list="label-suggestions"
-                           autocomplete="off"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Type / Label</label>
+                    <input type="text" name="label" id="labelInput" value="{{ old('label') }}"
+                           placeholder="Direction, Pôle, Bureau…" maxlength="100" list="label-suggestions" autocomplete="off"
+                           style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
+                           onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
                     <datalist id="label-suggestions">
-                        @foreach($labelSuggestions as $suggestion)
-                            <option value="{{ $suggestion }}">
-                        @endforeach
+                        @foreach($labelSuggestions as $s)<option value="{{ $s }}">@endforeach
                     </datalist>
-                    <p class="text-xs text-gray-400 mt-1">Affiché dans l'organigramme. Les labels déjà utilisés sont suggérés automatiquement.</p>
+                    <p style="font-size:11px;color:var(--pd-muted);margin:4px 0 0;">Affiché dans l'organigramme.</p>
                 </div>
 
-                {{-- Couleur --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Couleur (optionnel)</label>
-                    <div class="flex items-center gap-2">
-                        <input type="color" name="color"
-                               value="{{ old('color', '#1E3A5F') }}"
-                               class="w-10 h-9 rounded border border-gray-300 cursor-pointer p-0.5">
-                        <span class="text-xs text-gray-400">Appliquée sur le nœud de l'organigramme.</span>
+                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Couleur</label>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <input type="color" name="color" value="{{ old('color', '#1E3A5F') }}"
+                               style="width:40px;height:36px;border-radius:8px;border:1.5px solid var(--pd-border);cursor:pointer;padding:2px;">
+                        <span style="font-size:11px;color:var(--pd-muted);">Nœud d'organigramme</span>
                     </div>
                 </div>
 
-                {{-- Rattaché à --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Rattaché à (optionnel)</label>
+                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Rattaché à</label>
                     <select name="parent_id"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                            style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;"
+                            onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
                         <option value="">— Aucun (entité racine) —</option>
                         @foreach($allDepts as $dept)
                             <option value="{{ $dept->id }}" {{ old('parent_id') == $dept->id ? 'selected' : '' }}>
@@ -148,130 +130,118 @@
                     </select>
                 </div>
 
-                {{-- Transversal --}}
-                <div class="flex items-center gap-2">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="hidden" name="is_transversal" value="0">
                     <input type="checkbox" name="is_transversal" id="isTransversal" value="1"
                            {{ old('is_transversal') ? 'checked' : '' }}
-                           class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                    <label for="isTransversal" class="text-xs text-gray-600">
-                        Entité transversale
-                        <span class="text-gray-400">(hors hiérarchie stricte)</span>
-                    </label>
-                </div>
+                           style="accent-color:var(--pd-accent);width:15px;height:15px;">
+                    <span style="font-size:12px;color:var(--pd-text);">Entité transversale
+                        <span style="color:var(--pd-muted);">(hors hiérarchie stricte)</span>
+                    </span>
+                </label>
 
-                {{-- Ordre --}}
                 <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Ordre d'affichage</label>
-                    <input type="number" name="sort_order"
-                           value="{{ old('sort_order', 0) }}"
-                           min="0" max="999"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Ordre d'affichage</label>
+                    <input type="number" name="sort_order" value="{{ old('sort_order', 0) }}" min="0" max="999"
+                           style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
+                           onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
                 </div>
 
                 <button type="submit"
-                        class="w-full py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 transition mt-1"
-                        style="background-color: #1E3A5F;">
+                        style="width:100%;padding:10px;border-radius:10px;border:none;cursor:pointer;
+                               background:linear-gradient(135deg,var(--pd-navy-dark),var(--pd-navy-light));
+                               color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;
+                               transition:opacity 0.2s;"
+                        onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                     Créer l'entité
                 </button>
             </form>
         </div>
 
-        {{-- Info --}}
-        <div class="bg-gray-50 rounded-xl border border-gray-100 p-4 text-xs text-gray-500 space-y-1">
-            <p class="font-medium text-gray-600 mb-2">ℹ️ Liberté de structure</p>
-            <p>• Créez n'importe quelle hiérarchie : Pôle → Direction → Service → Bureau.</p>
-            <p>• Aucune restriction sur le type ou la profondeur.</p>
-            <p>• Un nœud transversal est affiché avec un marqueur visuel distinct.</p>
-            <p>• Impossible de supprimer un nœud avec des membres ou des enfants.</p>
+        <div style="background:rgba(59,154,225,0.05);border:1.5px solid rgba(59,154,225,0.15);border-radius:12px;padding:14px 16px;font-size:12px;color:var(--pd-muted);line-height:1.7;">
+            <p style="font-weight:600;color:var(--pd-text);margin:0 0 6px;">ℹ Liberté de structure</p>
+            <p style="margin:0;">• Hiérarchie libre : Pôle → Direction → Service → Bureau</p>
+            <p style="margin:0;">• Aucune restriction de type ou de profondeur</p>
+            <p style="margin:0;">• Impossible de supprimer un nœud avec des membres</p>
         </div>
     </div>
 
 </div>
 
-{{-- ═══════════════════════════════════════════════════════════════ --}}
-{{-- Modal modification                                             --}}
-{{-- ═══════════════════════════════════════════════════════════════ --}}
-<div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
-        <div class="flex justify-between items-center px-6 py-4 border-b">
-            <h3 class="text-base font-semibold text-gray-800">Modifier l'entité</h3>
-            <button onclick="closeEditModal()" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+{{-- Modal modification --}}
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:500;">
+    <div style="background:var(--pd-surface);border-radius:16px;width:100%;max-width:460px;margin:16px;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px;border-bottom:1px solid var(--pd-border);">
+            <h3 style="font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:var(--pd-text);margin:0;">Modifier l'entité</h3>
+            <button onclick="closeEditModal()"
+                    style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:22px;line-height:1;padding:0;">×</button>
         </div>
-        <form method="POST" id="editForm" class="px-6 py-5 space-y-4">
+        <form method="POST" id="editForm" style="padding:22px;display:flex;flex-direction:column;gap:14px;">
             @csrf @method('PUT')
 
-            {{-- Nom --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Nom <span class="text-red-500">*</span></label>
-                <input type="text" name="name" id="editName"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-                       required>
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Nom *</label>
+                <input type="text" name="name" id="editName" required
+                       style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
+                       onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
             </div>
 
-            {{-- Label --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Type / Label</label>
-                <input type="text" name="label" id="editLabel"
-                       maxlength="100"
-                       placeholder="Direction, Pôle, Comité…"
-                       list="label-suggestions"
-                       autocomplete="off"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                {{-- datalist partagé avec le formulaire de création --}}
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Type / Label</label>
+                <input type="text" name="label" id="editLabel" maxlength="100" placeholder="Direction, Pôle…" list="label-suggestions" autocomplete="off"
+                       style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
+                       onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
             </div>
 
-            {{-- Couleur --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Couleur</label>
-                <div class="flex items-center gap-2">
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Couleur</label>
+                <div style="display:flex;align-items:center;gap:10px;">
                     <input type="color" name="color" id="editColor"
-                           class="w-10 h-9 rounded border border-gray-300 cursor-pointer p-0.5">
+                           style="width:40px;height:36px;border-radius:8px;border:1.5px solid var(--pd-border);cursor:pointer;padding:2px;">
                     <button type="button" onclick="document.getElementById('editColor').value='#1E3A5F'"
-                            class="text-xs text-gray-400 hover:text-gray-600 underline">
+                            style="font-size:11px;color:var(--pd-muted);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:inherit;">
                         Réinitialiser
                     </button>
                 </div>
             </div>
 
-            {{-- Rattaché à --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Rattaché à</label>
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Rattaché à</label>
                 <select name="parent_id" id="editParentId"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                        style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;">
                     <option value="">— Aucun (entité racine) —</option>
                     @foreach($allDepts as $dept)
-                        <option value="{{ $dept->id }}">
-                            {{ $dept->label ? '[' . $dept->label . '] ' : '' }}{{ $dept->name }}
-                        </option>
+                        <option value="{{ $dept->id }}">{{ $dept->label ? '[' . $dept->label . '] ' : '' }}{{ $dept->name }}</option>
                     @endforeach
                 </select>
             </div>
 
-            {{-- Transversal --}}
-            <div class="flex items-center gap-2">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                 <input type="hidden" name="is_transversal" value="0">
                 <input type="checkbox" name="is_transversal" id="editTransversal" value="1"
-                       class="w-4 h-4 rounded border-gray-300 text-blue-600">
-                <label for="editTransversal" class="text-xs text-gray-600">Entité transversale</label>
-            </div>
+                       style="accent-color:var(--pd-accent);width:15px;height:15px;">
+                <span style="font-size:12px;color:var(--pd-text);">Entité transversale</span>
+            </label>
 
-            {{-- Ordre --}}
             <div>
-                <label class="block text-xs font-medium text-gray-600 mb-1">Ordre d'affichage</label>
-                <input type="number" name="sort_order" id="editSortOrder"
-                       min="0" max="999"
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Ordre</label>
+                <input type="number" name="sort_order" id="editSortOrder" min="0" max="999"
+                       style="width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
+                       onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
             </div>
 
-            <div class="flex gap-3 pt-2">
+            <div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--pd-border);margin-top:4px;">
                 <button type="submit"
-                        class="flex-1 py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
-                        style="background-color: #1E3A5F;">
+                        style="flex:1;padding:10px;border-radius:10px;border:none;cursor:pointer;
+                               background:linear-gradient(135deg,var(--pd-navy-dark),var(--pd-navy-light));
+                               color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;margin-top:10px;"
+                        onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
                     Enregistrer
                 </button>
                 <button type="button" onclick="closeEditModal()"
-                        class="flex-1 py-2.5 rounded-lg border border-gray-300 text-sm text-gray-600 hover:bg-gray-50 transition">
+                        style="flex:1;padding:10px;border-radius:10px;border:1.5px solid var(--pd-border);cursor:pointer;
+                               background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;margin-top:10px;transition:border-color 0.15s;"
+                        onmouseover="this.style.borderColor='var(--pd-accent)'" onmouseout="this.style.borderColor='var(--pd-border)'">
                     Annuler
                 </button>
             </div>
@@ -279,49 +249,32 @@
     </div>
 </div>
 
-{{-- ═══════════════════════════════════════════════════════════════ --}}
-{{-- Scripts                                                        --}}
-{{-- ═══════════════════════════════════════════════════════════════ --}}
 <script>
-// ─── Modal modification ───────────────────────────────────────────────
 function openEditModal(id, name, label, color, parentId, isTransversal, sortOrder) {
     document.getElementById('editForm').action = '/admin/departments/' + id;
-    document.getElementById('editName').value        = name || '';
-    document.getElementById('editLabel').value       = label || '';
-    document.getElementById('editColor').value       = color || '#1E3A5F';
-    document.getElementById('editSortOrder').value   = sortOrder || 0;
+    document.getElementById('editName').value       = name || '';
+    document.getElementById('editLabel').value      = label || '';
+    document.getElementById('editColor').value      = color || '#1E3A5F';
+    document.getElementById('editSortOrder').value  = sortOrder || 0;
     document.getElementById('editTransversal').checked = !!isTransversal;
-
-    const parentSelect = document.getElementById('editParentId');
-    parentSelect.value = parentId || '';
-
-    document.getElementById('editModal').classList.remove('hidden');
+    document.getElementById('editParentId').value   = parentId || '';
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
     setTimeout(() => document.getElementById('editName').focus(), 50);
 }
-
 function closeEditModal() {
-    document.getElementById('editModal').classList.add('hidden');
+    document.getElementById('editModal').style.display = 'none';
 }
-
-// Fermeture au clic sur le fond
 document.getElementById('editModal').addEventListener('click', function(e) {
     if (e.target === this) closeEditModal();
 });
-
-// ─── Accordéon — tout déplier / replier ──────────────────────────────
 let allExpanded = false;
 function toggleAll() {
     allExpanded = !allExpanded;
-    document.querySelectorAll('.dept-children').forEach(el => {
-        el.style.display = allExpanded ? 'block' : 'none';
-    });
-    document.querySelectorAll('.dept-toggle').forEach(el => {
-        el.textContent = allExpanded ? '▼' : '▶';
-    });
-    document.getElementById('toggleAllBtn').textContent =
-        allExpanded ? '▲ Tout replier' : '▼ Tout déplier';
+    document.querySelectorAll('.dept-children').forEach(el => el.style.display = allExpanded ? 'block' : 'none');
+    document.querySelectorAll('.dept-toggle').forEach(el => el.textContent = allExpanded ? '▼' : '▶');
+    document.getElementById('toggleAllBtn').textContent = allExpanded ? '▲ Tout replier' : '▼ Tout déplier';
 }
-
 function toggleNode(btn) {
     const children = btn.closest('.dept-header').nextElementSibling;
     if (!children || !children.classList.contains('dept-children')) return;

@@ -137,6 +137,9 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
 
+            // Journal d'audit
+            Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
+
         });
 
         // ── Photothèque — accessible à tous les authentifiés ──
