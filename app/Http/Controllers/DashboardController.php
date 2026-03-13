@@ -34,7 +34,7 @@ class DashboardController extends Controller
         // Somme réelle depuis media_items (fichiers non supprimés)
         $storageUsedBytes = MediaItem::on('tenant')->sum('file_size_bytes');
         $storageUsedMb = round($storageUsedBytes / 1024 / 1024, 1);
-        $storageQuotaMb = $org?->storage_quota_mb ?? 5120; // défaut 5 Go
+        $storageQuotaMb = $org->storage_quota_mb ?? 5120; // défaut 5 Go
         $storageUsedPct = $storageQuotaMb > 0
             ? min(100, round($storageUsedMb / $storageQuotaMb * 100))
             : 0;
