@@ -46,13 +46,27 @@ class LoginController extends Controller
         }
 
         // Si LDAP a échoué pour une raison sécurité (mauvais mdp, user inconnu),
-        // on bloque immédiatement — pas de fallback local.
+        // on bloque uniquement si c'est un compte LDAP connu en base.
+        // Un compte local pur doit toujours pouvoir se connecter via auth locale.
         $ldapReason = $ldapService->getLastFailureReason();
 
-        if (in_array($ldapReason, ['bind_failed', 'user_not_found'], strict: true)) {
+        if ($ldapReason === 'bind_failed') {
+            // Mauvais mot de passe LDAP → on bloque, pas de fallback local
             throw ValidationException::withMessages([
                 'email' => ['Identifiants incorrects.'],
             ]);
+        }
+
+        if ($ldapReason === 'user_not_found') {
+            // Utilisateur non trouvé dans l'annuaire LDAP
+            // Si c'est un compte LDAP en base → on bloque
+            // Si c'est un compte local pur → on laisse passer vers l'auth locale
+            $localUser = User::where('email', $request->email)->first();
+            if ($localUser && $localUser->ldap_dn) {
+                throw ValidationException::withMessages([
+                    'email' => ['Identifiants incorrects.'],
+                ]);
+            }
         }
 
         // À ce stade : LDAP non configuré ('not_configured') ou serveur indisponible ('unavailable')

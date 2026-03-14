@@ -197,6 +197,28 @@ class SmbNasDriver implements NasConnectorInterface
         return $stat !== false;
     }
 
+    public function deleteFile(string $path): bool
+    {
+        try {
+            $smb = $this->getState();
+
+            return @smbclient_unlink($smb, $this->resolve($path));
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function mkdir(string $path): bool
+    {
+        try {
+            $smb = $this->getState();
+
+            return @smbclient_mkdir($smb, $this->resolve($path));
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public function sha256(string $path): string
     {
         $smb = $this->getState();

@@ -142,6 +142,11 @@ class MediaAlbum extends Model
         return app(AlbumPermissionService::class)->canDownload($user, $this);
     }
 
+    public function canUpload(User $user): bool
+    {
+        return app(AlbumPermissionService::class)->canUpload($user, $this);
+    }
+
     public function canAdmin(User $user): bool
     {
         return app(AlbumPermissionService::class)->canAdmin($user, $this);
@@ -150,13 +155,14 @@ class MediaAlbum extends Model
     /**
      * Compatibilité avec l'ancien code utilisant userCan().
      *
-     * @param  'can_view'|'can_download'|'can_edit'|'can_manage'  $ability
+     * @param  'can_view'|'can_download'|'can_upload'|'can_edit'|'can_manage'  $ability
      */
     public function userCan(User $user, string $ability): bool
     {
         return match ($ability) {
             'can_view' => $this->canView($user),
             'can_download' => $this->canDownload($user),
+            'can_upload' => $this->canUpload($user),
             'can_edit',
             'can_manage' => $this->canAdmin($user),
             default => false,

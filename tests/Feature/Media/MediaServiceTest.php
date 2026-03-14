@@ -1,5 +1,7 @@
 <?php
 
+// tests/Feature/Media/MediaServiceTest.php
+
 namespace Tests\Feature\Media;
 
 use App\Models\Tenant\MediaAlbum;
@@ -255,7 +257,114 @@ class MediaServiceTest extends TestCase
     }
 
     // =========================================================================
-    // Helpers
+    // EXIF — sanitizeExif
+    // =========================================================================
+
+    /**
+     * Les fractions scalaires string ("1/100") doivent être converties en float.
+     * Cas réel : ExposureTime, FNumber, FocalLength retournés par exif_read_data().
+     */
+    public function test_sanitize_exif_converts_scalar_fraction_strings(): void
+    {
+        $service = app(MediaService::class);
+
+        // Accès à la méthode privée via Reflection
+        $ref = new \ReflectionMethod($service, 'sanitizeExif');
+        $ref->setAccessible(true);
+
+        $raw = [
+            'DateTimeOriginal' => '2024:06:15 14:30:00',
+            'Make' => 'Canon',
+            'Model' => 'EOS R6',
+            'ExposureTime' => '1/200',   // fraction scalaire string
+            'FNumber' => '28/10',         // fraction scalaire string → 2.8
+            'FocalLength' => '500/10',    // fraction scalaire string → 50.0
+            'ISOSpeedRatings' => 800,     // scalaire entier direct
+        ];
+
+        $result = $ref->invoke($service, $raw);
+
+        $this->assertSame('2024:06:15 14:30:00', $result['DateTimeOriginal']);
+        $this->assertSame('Canon', $result['Make']);
+        $this->assertEqualsWithDelta(1 / 200, $result['ExposureTime'], 0.000001);
+        $this->assertEqualsWithDelta(2.8, $result['FNumber'], 0.0001);
+        $this->assertEqualsWithDelta(50.0, $result['FocalLength'], 0.0001);
+        $this->assertSame(800, $result['ISOSpeedRatings']);
+    }
+
+    /**
+     * ISOSpeedRatings peut être un tableau [800] — doit être normalisé en scalaire.
+     */
+    public function test_sanitize_exif_normalizes_iso_array_to_scalar(): void
+    {
+        $service = app(MediaService::class);
+
+        $ref = new \ReflectionMethod($service, 'sanitizeExif');
+        $ref->setAccessible(true);
+
+        $raw = [
+            'ISOSpeedRatings' => [800], // tableau d'un élément
+        ];
+
+        $result = $ref->invoke($service, $raw);
+
+        $this->assertSame(800, $result['ISOSpeedRatings']);
+        $this->assertIsInt($result['ISOSpeedRatings']);
+    }
+
+    /**
+     * Les fractions GPS en tableau de strings ("48/1") doivent être converties en floats.
+     */
+    public function test_sanitize_exif_converts_gps_fraction_arrays(): void
+    {
+        $service = app(MediaService::class);
+
+        $ref = new \ReflectionMethod($service, 'sanitizeExif');
+        $ref->setAccessible(true);
+
+        $raw = [
+            'GPSLatitude' => ['48/1', '51/1', '2988/100'],
+            'GPSLatitudeRef' => 'N',
+            'GPSLongitude' => ['2/1', '21/1', '0/1'],
+            'GPSLongitudeRef' => 'E',
+        ];
+
+        $result = $ref->invoke($service, $raw);
+
+        $this->assertIsArray($result['GPSLatitude']);
+        $this->assertCount(3, $result['GPSLatitude']);
+        $this->assertEqualsWithDelta(48.0, $result['GPSLatitude'][0], 0.001);
+        $this->assertEqualsWithDelta(51.0, $result['GPSLatitude'][1], 0.001);
+        $this->assertSame('N', $result['GPSLatitudeRef']);
+    }
+
+    /**
+     * extractExif() doit retourner [] pour les formats non-JPEG/TIFF.
+     */
+    public function test_extract_exif_returns_empty_for_non_jpeg_tiff(): void
+    {
+        $service = app(MediaService::class);
+
+        $this->assertSame([], $service->extractExif('/tmp/image.png', 'image/png'));
+        $this->assertSame([], $service->extractExif('/tmp/video.mp4', 'video/mp4'));
+        $this->assertSame([], $service->extractExif('/tmp/doc.pdf', 'application/pdf'));
+    }
+
+    /**
+     * extractExif() doit normaliser 'image/tif' en 'image/tiff' (alias incorrect).
+     * Le fichier n'existant pas, exif_read_data retourne false → tableau vide.
+     * Ce test valide que le MIME alias ne provoque pas d'exception.
+     */
+    public function test_extract_exif_handles_image_tif_alias(): void
+    {
+        $service = app(MediaService::class);
+
+        // image/tif est l'alias incorrect — ne doit pas lever d'exception
+        $result = $service->extractExif('/tmp/nonexistent.tif', 'image/tif');
+
+        $this->assertIsArray($result);
+    }
+
     // =========================================================================
 
     private function deleteDirectory(string $dir): void

@@ -68,6 +68,7 @@
                 <span>
                     <strong>Admin, Président et DGS</strong> ont toujours accès total à tous les albums,
                     quel que soit le paramétrage ci-dessous. Leurs droits ne peuvent pas être restreints.
+                    <em>Exception : les albums en visibilité <strong>Privé</strong> sont accessibles uniquement par leur créateur.</em>
                 </span>
             </div>
 
@@ -78,10 +79,10 @@
                         @php
                             $pivotRole = \App\Enums\UserRole::tryFrom($perm->subject_role);
                             $label = match($perm->subject_role) {
-                                'resp_direction' => 'Resp. Direction et au-dessus',
-                                'resp_service'   => 'Resp. Service et au-dessus',
-                                'user'           => 'Tous les agents',
-                                default          => $pivotRole?->label() ?? $perm->subject_role,
+                                'resp_direction' => 'Resp. Direction et supérieurs',
+                                'resp_service'   => 'Resp. Service et supérieurs',
+                                'user'           => 'Tous les utilisateurs',
+                                default          => $perm->subject_role,
                             };
                         @endphp
                         <div class="px-5 py-3 flex items-center justify-between">
@@ -114,11 +115,12 @@
                     @csrf
                     <input type="hidden" name="subject_type" value="role">
                     <select name="subject_role" required
-                            class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
-                        <option value="">— Niveau minimum</option>
-                        <option value="resp_direction">Resp. Direction et au-dessus</option>
-                        <option value="resp_service">Resp. Service et au-dessus</option>
-                        <option value="user">Tous les agents</option>
+                            class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+                            style="max-width:220px;">
+                        <option value="">— Choisir</option>
+                        <option value="resp_direction">Resp. Direction et supérieurs</option>
+                        <option value="resp_service">Resp. Service et supérieurs</option>
+                        <option value="user">Tous les utilisateurs</option>
                     </select>
                     <select name="level" required
                             class="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
