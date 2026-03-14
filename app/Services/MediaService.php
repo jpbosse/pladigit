@@ -1,5 +1,7 @@
 <?php
 
+// app/Services/MediaService.php
+
 namespace App\Services;
 
 use App\Models\Tenant\MediaAlbum;
@@ -64,9 +66,11 @@ class MediaService
     public function upload(UploadedFile $file, MediaAlbum $album, User $uploader): MediaItem
     {
         $this->assertAllowed($file);
+        $this->assertQuota($file, $uploader);
 
         $nas = $this->nasManager->driver();
         $nasPath = $this->buildNasPath($album, $file->getClientOriginalName());
+
         $contents = file_get_contents($file->getRealPath());
 
         if ($contents === false) {
@@ -127,6 +131,38 @@ class MediaService
     }
 
     // =========================================================================
+    /**
+     * Supprime physiquement sur le NAS tous les fichiers d'un album et de ses sous-albums.
+     * Appelé avant le soft-delete de l'album en base.
+     */
+    public function deleteAlbumFiles(MediaAlbum $album): void
+    {
+        $nas = $this->nasManager->photoDriver();
+
+        // Traiter récursivement les sous-albums d'abord
+        foreach ($album->children as $child) {
+            $this->deleteAlbumFiles($child);
+        }
+
+        // Supprimer tous les fichiers + thumbs de cet album
+        $album->items()->withTrashed()->each(function (MediaItem $item) use ($nas) {
+            try {
+                if ($item->file_path && $nas->exists($item->file_path)) {
+                    $nas->deleteFile($item->file_path);
+                }
+                if ($item->thumb_path && $nas->exists($item->thumb_path)) {
+                    $nas->deleteFile($item->thumb_path);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('MediaService::deleteAlbumFiles — suppression NAS échouée', [
+                    'item_id' => $item->id,
+                    'file_path' => $item->file_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+    }
+
     // Synchronisation arborescence NAS → albums/sous-albums
     // =========================================================================
 
@@ -143,7 +179,7 @@ class MediaService
      * @param  string  $nasRoot  Chemin racine NAS à parcourir ('' = racine)
      * @param  User|null  $owner  Propriétaire des albums créés (null = premier admin)
      * @param  bool  $deep  true = sync SHA-256, false = sync mtime
-     * @return array{albums_created: int, albums_found: int, files_added: int, files_skipped: int, errors: int}
+     * @return array{albums_created: int, albums_found: int, albums_removed: int, files_added: int, files_skipped: int, files_removed: int, errors: int}
      */
     public function syncAlbumTree(
         string $nasRoot = '',
@@ -155,8 +191,10 @@ class MediaService
         $stats = [
             'albums_created' => 0,
             'albums_found' => 0,
+            'albums_removed' => 0,
             'files_added' => 0,
             'files_skipped' => 0,
+            'files_removed' => 0,
             'errors' => 0,
         ];
 
@@ -174,7 +212,36 @@ class MediaService
         }
 
         foreach ($topDirs as $dir) {
+            // Ignorer le dossier albums/ — c'est la racine des uploads via l'interface,
+            // pas un dossier créé par les utilisateurs sur le NAS.
+            if ($dir['name'] === 'albums') {
+                continue;
+            }
             $this->syncDirectory($nas, $dir['path'], null, $owner, $deep, $stats);
+        }
+
+        // Purge globale des fichiers : supprime tous les items dont le fichier n'existe plus sur le NAS,
+        // y compris ceux appartenant à des dossiers entièrement supprimés.
+        try {
+            $removed = $this->purgeAllOrphanItems($nas);
+            $stats['files_removed'] += $removed;
+        } catch (\Throwable $e) {
+            Log::error('MediaService::syncAlbumTree — erreur purgeAllOrphanItems', [
+                'error' => $e->getMessage(),
+            ]);
+            $stats['errors']++;
+        }
+
+        // Purge globale des albums NAS : supprime les albums liés à un dossier NAS
+        // qui n'existe plus, à condition qu'ils soient vides.
+        try {
+            $albumsRemoved = $this->purgeOrphanAlbums($nas);
+            $stats['albums_removed'] += $albumsRemoved;
+        } catch (\Throwable $e) {
+            Log::error('MediaService::syncAlbumTree — erreur purgeOrphanAlbums', [
+                'error' => $e->getMessage(),
+            ]);
+            $stats['errors']++;
         }
 
         return $stats;
@@ -219,6 +286,9 @@ class MediaService
             $stats['errors']++;
         }
 
+        // Note : la purge des fichiers supprimés est gérée globalement
+        // par purgeAllOrphanItems() en fin de syncAlbumTree().
+
         // 3. Descendre récursivement dans les sous-dossiers
         try {
             $subDirs = $nas->listDirectories($nasPath);
@@ -233,6 +303,10 @@ class MediaService
         }
 
         foreach ($subDirs as $dir) {
+            // Ignorer le dossier thumbs/ — il ne contient que des miniatures générées
+            if (basename($dir['path']) === 'thumbs') {
+                continue;
+            }
             $this->syncDirectory($nas, $dir['path'], $album->id, $owner, $deep, $stats);
         }
     }
@@ -286,6 +360,106 @@ class MediaService
             return null;
         }
     }
+
+    /**
+    /**
+     * Purge globale — parcourt TOUS les MediaItems du tenant (toutes albums confondus)
+     * et supprime ceux dont le fichier n'existe plus sur le NAS.
+     *
+     * Utilisé en fin de syncAlbumTree pour couvrir le cas où des dossiers entiers
+     * ont été supprimés du NAS (syncDirectory ne serait jamais appelé pour eux).
+     *
+     * @return int Nombre d'items supprimés
+     */
+    private function purgeAllOrphanItems(NasConnectorInterface $nas): int
+    {
+        $removed = 0;
+
+        MediaItem::notThumbs()->each(function (MediaItem $item) use ($nas, &$removed) {
+            try {
+                if (! $nas->exists($item->file_path)) {
+                    Log::info('MediaService::purgeAllOrphanItems — fichier absent du NAS, suppression', [
+                        'item_id' => $item->id,
+                        'file_path' => $item->file_path,
+                    ]);
+                    $item->delete(); // soft-delete
+                    $removed++;
+                }
+            } catch (\Throwable $e) {
+                Log::warning('MediaService::purgeAllOrphanItems — impossible de vérifier existence', [
+                    'item_id' => $item->id,
+                    'file_path' => $item->file_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
+
+        return $removed;
+    }
+
+    /**
+     * Purge les albums liés à un chemin NAS (nas_path non null) dont le dossier
+     * n'existe plus sur le NAS ET qui ne contiennent plus aucun item.
+     *
+     * Les albums créés manuellement (nas_path = null) ne sont jamais touchés.
+     * La suppression se fait du plus profond vers la racine pour respecter
+     * les contraintes parent_id (enfants supprimés avant parents).
+     *
+     * @return int Nombre d'albums supprimés
+     */
+    private function purgeOrphanAlbums(NasConnectorInterface $nas): int
+    {
+        $removed = 0;
+
+        // Récupère tous les albums NAS, triés du plus profond au moins profond
+        // (ceux qui ont un parent_id d'abord) pour supprimer les enfants avant les parents
+        $albums = MediaAlbum::whereNotNull('nas_path')
+            ->withCount('items')
+            ->orderByRaw('parent_id IS NULL ASC') // enfants (parent_id non null) d'abord
+            ->get();
+
+        foreach ($albums as $album) {
+            try {
+                // Ne supprimer que si le dossier NAS n'existe plus
+                if ($nas->exists($album->nas_path)) {
+                    continue;
+                }
+
+                // Recharger le compte d'items (au cas où la purge précédente en aurait supprimé)
+                $itemsCount = $album->items()->count();
+
+                if ($itemsCount > 0) {
+                    // Des items subsistent (ex: upload manuel) — on ne supprime pas l'album
+                    Log::info('MediaService::purgeOrphanAlbums — dossier NAS absent mais album non vide, conservé', [
+                        'album_id' => $album->id,
+                        'nas_path' => $album->nas_path,
+                        'items' => $itemsCount,
+                    ]);
+
+                    continue;
+                }
+
+                Log::info('MediaService::purgeOrphanAlbums — dossier NAS absent et album vide, suppression', [
+                    'album_id' => $album->id,
+                    'name' => $album->name,
+                    'nas_path' => $album->nas_path,
+                ]);
+
+                $album->delete();
+                $removed++;
+
+            } catch (\Throwable $e) {
+                Log::warning('MediaService::purgeOrphanAlbums — erreur sur album', [
+                    'album_id' => $album->id,
+                    'nas_path' => $album->nas_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        return $removed;
+    }
+
     // =========================================================================
 
     /**
@@ -303,6 +477,13 @@ class MediaService
 
         foreach ($files as $entry) {
             if ($entry['type'] !== 'file') {
+                continue;
+            }
+
+            // Ignorer les miniatures générées (stockées dans thumbs/)
+            if ($this->isThumbPath($entry['path'])) {
+                $skipped++;
+
                 continue;
             }
 
@@ -351,6 +532,11 @@ class MediaService
 
         foreach ($files as $entry) {
             if ($entry['type'] !== 'file') {
+                continue;
+            }
+
+            // Ignorer les miniatures générées
+            if ($this->isThumbPath($entry['path'])) {
                 continue;
             }
 
@@ -446,13 +632,117 @@ class MediaService
     // =========================================================================
 
     /**
+     * Re-extrait les métadonnées EXIF de tous les MediaItems images du tenant courant.
+     *
+     * Pour chaque item :
+     *   1. Télécharge le fichier depuis le NAS (readFile)
+     *   2. Écrit dans un fichier temporaire (exif_read_data nécessite un chemin)
+     *   3. Extrait les EXIF via extractExif()
+     *   4. Met à jour exif_data, width_px, height_px si absents ou si --force
+     *
+     * @param  NasConnectorInterface  $nas  Driver NAS du tenant courant
+     * @param  bool  $force  true = ré-extraire même si exif_data déjà rempli
+     * @param  callable|null  $output  Callback de progression (string $msg)
+     * @return array{updated: int, skipped: int, errors: int}
+     */
+    public function refreshExif(
+        NasConnectorInterface $nas,
+        bool $force = false,
+        ?callable $output = null,
+    ): array {
+        $updated = 0;
+        $skipped = 0;
+        $errors = 0;
+
+        $log = $output ?? fn (string $msg) => Log::info($msg);
+
+        // Traiter uniquement les images JPEG/TIFF (seuls formats avec EXIF natif)
+        $query = MediaItem::whereIn('mime_type', ['image/jpeg', 'image/tiff'])
+            ->orderBy('id');
+
+        if (! $force) {
+            $query->whereNull('exif_data');
+        }
+
+        // Traitement par chunks pour éviter les problèmes mémoire sur grands volumes
+        $query->chunk(50, function ($items) use ($nas, $force, $log, &$updated, &$skipped, &$errors) {
+            foreach ($items as $item) {
+                try {
+                    // Lire le fichier depuis le NAS
+                    $contents = $nas->readFile($item->file_path);
+
+                    if (empty($contents)) {
+                        $log("⚠ Fichier vide ou illisible : {$item->file_path}");
+                        $errors++;
+
+                        continue;
+                    }
+
+                    // Écriture dans un fichier temporaire (exif_read_data() attend un chemin)
+                    $tmpPath = tempnam(sys_get_temp_dir(), 'pladigit_exif_');
+                    file_put_contents($tmpPath, $contents);
+
+                    try {
+                        $exifData = $this->extractExif($tmpPath, $item->mime_type);
+                        [$width, $height] = $this->getImageDimensions($tmpPath, $item->mime_type);
+                    } finally {
+                        @unlink($tmpPath);
+                    }
+
+                    $changes = [];
+
+                    if (! empty($exifData) && ($force || empty($item->exif_data))) {
+                        $changes['exif_data'] = $exifData;
+                    }
+
+                    if ($width && ($force || ! $item->width_px)) {
+                        $changes['width_px'] = $width;
+                    }
+
+                    if ($height && ($force || ! $item->height_px)) {
+                        $changes['height_px'] = $height;
+                    }
+
+                    if (! empty($changes)) {
+                        $item->update($changes);
+                        $log("✓ #{$item->id} {$item->file_name}");
+                        $updated++;
+                    } else {
+                        $skipped++;
+                    }
+
+                } catch (\Throwable $e) {
+                    $log("✗ #{$item->id} {$item->file_name} — {$e->getMessage()}");
+                    Log::error('MediaService::refreshExif — erreur item', [
+                        'item_id' => $item->id,
+                        'file_path' => $item->file_path,
+                        'error' => $e->getMessage(),
+                    ]);
+                    $errors++;
+                }
+            }
+        });
+
+        return compact('updated', 'skipped', 'errors');
+    }
+
+    /**
      * Extrait les métadonnées EXIF d'un fichier image (JPEG/TIFF uniquement).
+     *
+     * Notes :
+     *  - Seuls JPEG et TIFF contiennent des données EXIF natives.
+     *  - exif_read_data() avec sections_used=true retourne un tableau par section
+     *    (IFD0, EXIF, GPS…) ce qui permet de récupérer le bloc GPS correctement.
+     *  - Les fractions scalaires ("1/100") sont converties par sanitizeExif().
      *
      * @return array<string, mixed>
      */
     public function extractExif(string $filePath, string $mimeType): array
     {
-        if (! in_array($mimeType, ['image/jpeg', 'image/tiff', 'image/tif'])) {
+        // Normaliser image/tif → image/tiff
+        $mimeType = ($mimeType === 'image/tif') ? 'image/tiff' : $mimeType;
+
+        if (! in_array($mimeType, ['image/jpeg', 'image/tiff'])) {
             return [];
         }
 
@@ -461,14 +751,31 @@ class MediaService
         }
 
         try {
-            $raw = @exif_read_data($filePath, 'ANY_TAG', false);
+            // sections_used=true → tableau par section (IFD0, EXIF, GPS, COMPUTED…)
+            // Indispensable pour accéder aux données GPS qui sont dans leur propre section.
+            $sections = @exif_read_data($filePath, 'ANY_TAG', true);
 
-            if (! is_array($raw)) {
+            if (! is_array($sections)) {
                 return [];
             }
 
-            // Sérialiser uniquement les champs utiles et scalaires
-            return $this->sanitizeExif($raw);
+            // Fusionner toutes les sections en un tableau plat,
+            // en donnant la priorité à la section GPS pour ses clés propres.
+            $flat = [];
+            foreach ($sections as $sectionName => $sectionData) {
+                if (! is_array($sectionData)) {
+                    continue;
+                }
+                // La section GPS contient ses clés natives (GPSLatitude, GPSLongitude…)
+                // Les autres sections peuvent contenir des clés homonymes moins précises.
+                foreach ($sectionData as $key => $value) {
+                    if (! isset($flat[$key]) || $sectionName === 'GPS') {
+                        $flat[$key] = $value;
+                    }
+                }
+            }
+
+            return $this->sanitizeExif($flat);
         } catch (\Throwable) {
             return [];
         }
@@ -484,10 +791,17 @@ class MediaService
      */
     private function buildNasPath(MediaAlbum $album, string $originalName): string
     {
-        $date = now()->format('Y/m');
         $safe = Str::slug(pathinfo($originalName, PATHINFO_FILENAME));
         $ext = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
         $unique = Str::random(8);
+
+        // Album libre (nas_path défini) → on écrit directement dans son dossier NAS.
+        // Album protégé (nas_path null) → zone interne albums/{id}/{année}/{mois}/.
+        if ($album->nas_path) {
+            return rtrim($album->nas_path, '/')."/{$safe}-{$unique}.{$ext}";
+        }
+
+        $date = now()->format('Y/m');
 
         return "albums/{$album->id}/{$date}/{$safe}-{$unique}.{$ext}";
     }
@@ -534,20 +848,87 @@ class MediaService
         $ext = strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION));
         $mimeType = self::ALLOWED_EXTENSIONS[$ext] ?? 'application/octet-stream';
 
+        // Lecture du contenu pour miniature + EXIF + SHA-256
+        $contents = null;
+        $thumbPath = null;
+        $exifData = null;
+        $width = null;
+        $height = null;
+        $sha256 = null;
+
+        try {
+            $contents = $nas->readFile($entry['path']);
+            $sha256 = hash('sha256', $contents);
+
+            // Miniature (images uniquement)
+            if (str_starts_with($mimeType, 'image/')) {
+                $thumbPath = $this->generateThumbnail($contents, $entry['path'], $nas);
+
+                // EXIF via fichier temporaire
+                $tmpPath = tempnam(sys_get_temp_dir(), 'pladigit_nas_');
+                if ($tmpPath !== false) {
+                    file_put_contents($tmpPath, $contents);
+                    $exifData = $this->extractExif($tmpPath, $mimeType) ?: null;
+                    [$width, $height] = $this->getImageDimensions($tmpPath, $mimeType);
+                    @unlink($tmpPath);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('MediaService::ingestNasFile — lecture fichier échouée, ingestion sans métadonnées', [
+                'path' => $entry['path'],
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         MediaItem::create([
             'album_id' => $album->id,
             'uploaded_by' => $album->created_by,
             'file_name' => $entry['name'],
             'file_path' => $entry['path'],
-            'thumb_path' => null,
+            'thumb_path' => $thumbPath,
             'mime_type' => $mimeType,
             'file_size_bytes' => $entry['size'],
-            'width_px' => null,
-            'height_px' => null,
-            'exif_data' => null,
+            'width_px' => $width,
+            'height_px' => $height,
+            'exif_data' => $exifData,
             'caption' => null,
-            'sha256_hash' => null, // Calculé lors de la sync SHA-256
+            'sha256_hash' => $sha256,
         ]);
+    }
+
+    /**
+     * Vérifie que l'ajout du fichier ne dépasse pas le quota de l'organisation.
+     *
+     * Le quota (storage_quota_mb) est défini sur l'Organization dans pladigit_platform.
+     * La valeur par défaut est 10 240 Mo (10 Go), conformément à la migration.
+     *
+     * @throws RuntimeException si le quota serait dépassé après l'upload
+     */
+    private function assertQuota(UploadedFile $file, User $uploader): void
+    {
+        $org = app(\App\Services\TenantManager::class)->current();
+
+        if (! $org) {
+            return; // Pas de tenant résolu (tests unitaires, CLI) → on laisse passer
+        }
+
+        $quotaMb = $org->storage_quota_mb ?? 10240;
+        $quotaBytes = $quotaMb * 1024 * 1024;
+        $usedBytes = (int) MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+        $incomingBytes = $file->getSize();
+
+        if (($usedBytes + $incomingBytes) > $quotaBytes) {
+            $usedMb = round($usedBytes / 1048576, 1);
+            $freeMb = max(0, round(($quotaBytes - $usedBytes) / 1048576, 1));
+            $fileMb = round($incomingBytes / 1048576, 1);
+
+            throw new RuntimeException(
+                'Quota de stockage dépassé. '
+                ."Utilisé : {$usedMb} Mo / {$quotaMb} Mo. "
+                ."Espace libre : {$freeMb} Mo. "
+                ."Fichier : {$fileMb} Mo."
+            );
+        }
     }
 
     /**
@@ -587,6 +968,19 @@ class MediaService
     }
 
     /**
+     * Retourne true si le chemin appartient au dossier thumbs/ généré automatiquement.
+     * Ces fichiers ne doivent jamais être ingérés comme des médias.
+     * Ex : albums/1/2026/03/thumbs/photo_thumb.jpg → true
+     */
+    private function isThumbPath(string $path): bool
+    {
+        // Normaliser les séparateurs et vérifier la présence de /thumbs/
+        $normalized = str_replace('\\', '/', $path);
+
+        return str_contains($normalized, '/thumbs/');
+    }
+
+    /**
      * Retourne les dimensions [width, height] d'une image, ou [null, null].
      *
      * @return array{int|null, int|null}
@@ -605,20 +999,38 @@ class MediaService
     /**
      * Conserve uniquement les champs EXIF scalaires et utiles.
      *
+     * Gère deux cas de fractions EXIF :
+     *  - Scalaire string "1/100"  → ExposureTime, FNumber, FocalLength
+     *  - Tableau de strings ["48/1", "0/1", "0/1"] → GPSLatitude, GPSLongitude
+     *
+     * ISOSpeedRatings est parfois un entier, parfois un tableau d'entiers
+     * selon l'APN : on normalise toujours en scalaire.
+     *
      * @param  array<string, mixed>  $raw
      * @return array<string, mixed>
      */
     private function sanitizeExif(array $raw): array
     {
         $keep = [
+            // Dates
             'DateTime', 'DateTimeOriginal', 'DateTimeDigitized',
+            // Appareil
             'Make', 'Model', 'Software',
+            // Exposition
             'ExposureTime', 'FNumber', 'ISOSpeedRatings',
-            'FocalLength', 'Flash',
+            'ExposureMode', 'ExposureProgram', 'ExposureBiasValue',
+            'ShutterSpeedValue', 'ApertureValue', 'MaxApertureValue',
+            'BrightnessValue',
+            // Optique
+            'FocalLength', 'FocalLengthIn35mmFilm',
+            // Divers prise de vue
+            'Flash', 'MeteringMode', 'WhiteBalance',
+            'SceneCaptureType', 'LightSource', 'Orientation',
+            // GPS
             'GPSLatitude', 'GPSLatitudeRef',
             'GPSLongitude', 'GPSLongitudeRef',
             'GPSAltitude', 'GPSAltitudeRef',
-            'Orientation',
+            // Dimensions
             'ImageWidth', 'ImageLength',
         ];
 
@@ -631,18 +1043,32 @@ class MediaService
 
             $value = $raw[$key];
 
-            // Convertir les fractions GPS (ex: "48/1") en float
-            if (is_array($value)) {
+            // ── Cas 1 : fraction scalaire string "num/den" ──────────────────
+            // ExposureTime ("1/100"), FNumber ("28/10"), FocalLength ("500/10")
+            if (is_string($value) && str_contains($value, '/')) {
+                [$num, $den] = explode('/', $value, 2);
+                $value = ($den != 0) ? (float) $num / (float) $den : 0.0;
+            }
+
+            // ── Cas 2 : tableau (GPS ou multi-valeur) ────────────────────────
+            // Chaque élément peut être une fraction string ou un scalaire
+            elseif (is_array($value)) {
                 $value = array_map(function ($v) {
                     if (is_string($v) && str_contains($v, '/')) {
-                        [$num, $den] = explode('/', $v);
+                        [$num, $den] = explode('/', $v, 2);
 
                         return $den != 0 ? (float) $num / (float) $den : 0.0;
                     }
 
                     return is_scalar($v) ? $v : null;
                 }, $value);
-                $value = array_filter($value, fn ($v) => $v !== null);
+                $value = array_values(array_filter($value, fn ($v) => $v !== null));
+            }
+
+            // ── Cas 3 : ISOSpeedRatings — normaliser en scalaire ─────────────
+            // Certains appareils retournent un tableau [800], d'autres l'entier 800
+            if ($key === 'ISOSpeedRatings' && is_array($value)) {
+                $value = $value[0] ?? null;
             }
 
             if (is_scalar($value) || is_array($value)) {

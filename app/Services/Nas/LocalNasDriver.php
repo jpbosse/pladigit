@@ -115,6 +115,29 @@ class LocalNasDriver implements NasConnectorInterface
     }
 
     /**
+     * Supprime un fichier du NAS.
+     */
+    public function deleteFile(string $path): bool
+    {
+        $fullPath = $this->resolve($path);
+        if (! is_file($fullPath)) {
+            return true; // Déjà absent — pas d'erreur
+        }
+
+        return @unlink($fullPath);
+    }
+
+    public function mkdir(string $path): bool
+    {
+        $fullPath = $this->resolve($path);
+        if (is_dir($fullPath)) {
+            return true;
+        }
+
+        return mkdir($fullPath, 0775, true);
+    }
+
+    /**
      * Ouvre un flux de lecture pour le streaming par chunks (Range HTTP).
      *
      * @return array{mixed, mixed}
@@ -236,8 +259,15 @@ class LocalNasDriver implements NasConnectorInterface
      */
     private function resolve(string $relativePath): string
     {
-        // Normalise les séparateurs et supprime les ".."
+        // Supprime les ".." pour éviter toute traversée de répertoire
         $safe = str_replace(['..', '\\'], ['', '/'], $relativePath);
+
+        // Si le chemin est déjà absolu, on le retourne directement
+        // (évite la duplication quand nas_local_path est un chemin absolu)
+        if (str_starts_with($safe, '/')) {
+            return rtrim($safe, '/');
+        }
+
         $safe = ltrim($safe, '/');
 
         return $this->basePath.DIRECTORY_SEPARATOR.$safe;

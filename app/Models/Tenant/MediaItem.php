@@ -97,6 +97,15 @@ class MediaItem extends Model
     }
 
     /**
+     * Exclut les miniatures générées automatiquement (stockées dans thumbs/).
+     * Ces entrées ne doivent jamais apparaître dans la galerie.
+     */
+    public function scopeNotThumbs($query)
+    {
+        return $query->where('file_path', 'not like', '%/thumbs/%');
+    }
+
+    /**
      * Uniquement les images.
      */
     public function scopeImages($query)

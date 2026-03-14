@@ -21,6 +21,10 @@ interface NasConnectorInterface
 
     public function exists(string $path): bool;
 
+    public function deleteFile(string $path): bool;
+
+    public function mkdir(string $path): bool;
+
     public function sha256(string $path): string;
 
     /** @return array{mixed, mixed} */

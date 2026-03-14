@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\TenantSettings;
+use App\Models\Tenant\User;
+use App\Services\MediaService;
+use App\Services\TenantManager;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 
@@ -268,22 +272,52 @@ class SettingsController extends Controller
         return back()->with('success', 'Paramètres de sécurité enregistrés.');
     }
 
-    public function syncNas(Request $request)
+    public function syncNas(Request $request, MediaService $mediaService, TenantManager $tenantManager): JsonResponse
     {
         $deep = (bool) $request->input('deep', false);
-        $args = ['--deep' => $deep];
 
-        $host = request()->getHost();
-        $slug = explode('.', $host)[0];
-        if ($slug && $slug !== 'www') {
-            $args['--tenant'] = $slug;
+        try {
+            $owner = User::where('role', 'admin')->first();
+
+            $result = $mediaService->syncAlbumTree(
+                nasRoot: '',
+                owner: $owner,
+                deep: $deep,
+            );
+
+            // Mise à jour de la dernière sync
+            TenantSettings::firstOrCreate([])->update(['nas_photo_last_sync_at' => now()]);
+
+            $parts = [];
+            if ($result['files_added'] > 0) {
+                $parts[] = $result['files_added'].' fichier(s) ajouté(s)';
+            }
+            if ($result['files_removed'] > 0) {
+                $parts[] = $result['files_removed'].' fichier(s) supprimé(s)';
+            }
+            if ($result['albums_created'] > 0) {
+                $parts[] = $result['albums_created'].' album(s) créé(s)';
+            }
+            if ($result['albums_removed'] > 0) {
+                $parts[] = $result['albums_removed'].' album(s) supprimé(s)';
+            }
+            if ($result['errors'] > 0) {
+                $parts[] = $result['errors'].' erreur(s)';
+            }
+
+            $message = empty($parts) ? 'Aucune modification détectée.' : implode(', ', $parts).'.';
+
+            return response()->json([
+                'ok' => $result['errors'] === 0,
+                'message' => $message,
+                'stats' => $result,
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Erreur : '.$e->getMessage(),
+            ], 500);
         }
-
-        $exitCode = \Artisan::call('nas:sync', $args);
-
-        return response()->json([
-            'ok' => $exitCode === 0,
-            'message' => $exitCode === 0 ? 'Synchronisation terminée.' : 'Erreur lors de la synchronisation.',
-        ]);
     }
 }

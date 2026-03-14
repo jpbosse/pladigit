@@ -150,6 +150,7 @@ Route::middleware('tenant')->group(function () {
 
             // Albums
             Route::get('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'index'])->name('albums.index');
+            Route::get('albums/search', [\App\Http\Controllers\Media\MediaAlbumController::class, 'search'])->name('albums.search');
             Route::get('albums/create', [\App\Http\Controllers\Media\MediaAlbumController::class, 'create'])->name('albums.create');
             Route::post('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'store'])->name('albums.store');
             Route::get('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'show'])->name('albums.show');
@@ -184,6 +185,7 @@ Route::middleware('tenant')->group(function () {
             Route::get('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'show'])->name('items.show');
             Route::delete('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'destroy'])->name('items.destroy');
             Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
+            Route::post('sync', [\App\Http\Controllers\Media\MediaAlbumController::class, 'syncNas'])->name('sync');
             Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
 
             // Servir les fichiers (inline et téléchargement)

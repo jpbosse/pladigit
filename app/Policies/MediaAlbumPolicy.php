@@ -40,6 +40,16 @@ class MediaAlbumPolicy
         return $album->userCan($user, 'can_download');
     }
 
+    public function upload(User $user, MediaAlbum $album): bool
+    {
+        // Créateur de l'album → toujours autorisé
+        if ($album->created_by === $user->id) {
+            return true;
+        }
+
+        return $album->userCan($user, 'can_upload');
+    }
+
     public function manage(User $user, MediaAlbum $album): bool
     {
         // Créateur de l'album → toujours admin (before() ne couvre pas ce cas

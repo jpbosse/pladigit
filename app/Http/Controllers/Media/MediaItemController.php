@@ -25,6 +25,8 @@ class MediaItemController extends Controller
      */
     public function create(MediaAlbum $album): \Illuminate\View\View
     {
+        $this->authorize('upload', $album);
+
         /** @var view-string $viewName */
         $viewName = 'media.items.create';
 
@@ -36,6 +38,8 @@ class MediaItemController extends Controller
      */
     public function store(Request $request, MediaAlbum $album)
     {
+        $this->authorize('upload', $album);
+
         $request->validate([
             'files' => ['required', 'array', 'min:1', 'max:20'],
             'files.*' => ['file', 'max:204800'], // 200 Mo par fichier
@@ -43,6 +47,19 @@ class MediaItemController extends Controller
 
         /** @var User $user */
         $user = auth()->user();
+
+        // ── Pré-vérification quota avant tout upload ─────────────────────────
+        $org = app(\App\Services\TenantManager::class)->current();
+        $quotaMb = $org !== null ? $org->storage_quota_mb ?? 10240 : 10240;
+        $quotaBytes = $quotaMb * 1024 * 1024;
+        $usedBytes = (int) \App\Models\Tenant\MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+        $freeBytes = max(0, $quotaBytes - $usedBytes);
+
+        if ($freeBytes === 0) {
+            return redirect()
+                ->route('media.albums.show', $album)
+                ->with('error', "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur.");
+        }
         $success = 0;
         $errors = [];
 
@@ -116,6 +133,25 @@ class MediaItemController extends Controller
     public function destroy(MediaAlbum $album, MediaItem $item)
     {
         $this->assertBelongsToAlbum($item, $album);
+
+        // Suppression physique sur le NAS
+        try {
+            $nas = app(NasManager::class)->photoDriver();
+            if ($item->file_path && $nas->exists($item->file_path)) {
+                $nas->deleteFile($item->file_path);
+            }
+            if ($item->thumb_path && $nas->exists($item->thumb_path)) {
+                $nas->deleteFile($item->thumb_path);
+            }
+        } catch (\Throwable $e) {
+            // Log mais on continue — on supprime quand même l'entrée BDD
+            \Illuminate\Support\Facades\Log::warning('MediaItemController::destroy — suppression NAS échouée', [
+                'item_id' => $item->id,
+                'file_path' => $item->file_path,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $item->delete();
 
         return redirect()
