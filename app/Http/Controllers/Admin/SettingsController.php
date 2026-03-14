@@ -24,6 +24,7 @@ class SettingsController extends Controller
             'ldap_base_dn' => ['nullable', 'string', 'max:500'],
             'ldap_bind_dn' => ['nullable', 'string', 'max:500'],
             'ldap_password' => ['nullable', 'string'],
+            'ldap_use_ssl' => ['boolean'],
             'ldap_use_tls' => ['boolean'],
         ]);
 
@@ -34,6 +35,7 @@ class SettingsController extends Controller
             'ldap_port' => $validated['ldap_port'] ?? 636,
             'ldap_base_dn' => $validated['ldap_base_dn'],
             'ldap_bind_dn' => $validated['ldap_bind_dn'],
+            'ldap_use_ssl' => $request->boolean('ldap_use_ssl'),
             'ldap_use_tls' => $request->boolean('ldap_use_tls'),
         ];
 
@@ -49,10 +51,14 @@ class SettingsController extends Controller
     public function testLdap()
     {
         try {
-            $settings = TenantSettings::firstOrCreate([]);
+            $settings = TenantSettings::firstOrCreate([])->fresh();
 
             if (! $settings->ldap_host) {
                 return response()->json(['ok' => false, 'message' => 'LDAP non configuré.']);
+            }
+
+            if (! $settings->ldap_bind_password_enc) {
+                return response()->json(['ok' => false, 'message' => 'Mot de passe LDAP non enregistré — veuillez le saisir et sauvegarder avant de tester.']);
             }
 
             $password = Crypt::decryptString($settings->ldap_bind_password_enc);
@@ -62,6 +68,7 @@ class SettingsController extends Controller
                 'base_dn' => $settings->ldap_base_dn,
                 'username' => $settings->ldap_bind_dn,
                 'password' => $password,
+                'use_ssl' => (bool) $settings->ldap_use_ssl,
                 'use_tls' => (bool) $settings->ldap_use_tls,
                 'timeout' => 5,
             ]);
@@ -115,10 +122,12 @@ class SettingsController extends Controller
     public function testSmtp()
     {
         try {
-            $org = app(\App\Services\TenantManager::class)->current();
+            // fresh() force un rechargement depuis la base — évite de tester
+            // avec une instance Eloquent chargée avant la dernière sauvegarde.
+            $org = app(\App\Services\TenantManager::class)->current()?->fresh();
             $mailer = app(\App\Services\TenantMailer::class);
 
-            if (! $mailer->isConfigured($org)) {
+            if (! $org || ! $mailer->isConfigured($org)) {
                 return response()->json(['ok' => false, 'message' => 'SMTP non configuré sur cette organisation.']);
             }
 

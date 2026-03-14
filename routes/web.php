@@ -44,12 +44,15 @@ Route::prefix('super-admin')
     ->middleware('super-admin')
     ->group(function () {
         Route::get('/', [OrganizationController::class, 'index'])->name('dashboard');
+        Route::get('/stats', [\App\Http\Controllers\SuperAdmin\StatsController::class, 'index'])->name('stats');
         Route::resource('organizations', OrganizationController::class);
         Route::post('organizations/{organization}/suspend', [OrganizationController::class, 'suspend'])->name('organizations.suspend');
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');
         Route::post('organizations/{organization}/create-admin', [OrganizationController::class, 'createAdmin'])->name('organizations.create-admin');
         Route::post('organizations/{organization}/smtp', [OrganizationController::class, 'updateSmtp'])->name('organizations.update-smtp');
+        Route::post('organizations/{organization}/smtp/test', [OrganizationController::class, 'testSmtp'])->name('organizations.test-smtp');
         Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
+        Route::post('organizations/{organization}/ldap/test', [OrganizationController::class, 'testLdap'])->name('organizations.test-ldap');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────

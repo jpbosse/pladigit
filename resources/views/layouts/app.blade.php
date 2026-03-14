@@ -77,9 +77,9 @@
             <span class="pd-storage-pct">{{ $storageUsed }}%</span>
         </button>
 
-        <button class="pd-health-badge" type="button" title="État système">
-            <span class="pd-health-pulse ok"></span>
-            <span>OK</span>
+        <button class="pd-health-badge" type="button" title="État système" onclick="window.open('/health','_blank')">
+            <span class="pd-health-pulse" id="topbar-health-dot"></span>
+            <span id="topbar-health-label">…</span>
         </button>
 
         <button class="pd-tb-btn" id="pd-notif-open" type="button" aria-label="Notifications">
@@ -244,14 +244,20 @@
     @auth
     @if(\App\Enums\UserRole::tryFrom($user?->role ?? '') === \App\Enums\UserRole::ADMIN)
     @php
-        $onboardingSteps = [
-            ['label' => 'Authentification', 'done' => true],
-            ['label' => '2FA',              'done' => (bool)$user->totp_enabled],
-            ['label' => 'SMTP',             'done' => (bool)($tenant?->smtp_host)],
-            ['label' => 'LDAP',             'done' => false],
-            ['label' => 'Logo & couleurs',  'done' => (bool)($tenant?->logo_path)],
-            ['label' => 'Structure org.',   'done' => \App\Models\Tenant\Department::on('tenant')->exists()],
-        ];
+        // Préférer les étapes calculées par le contrôleur (contexte sûr)
+        // Fallback minimal si le layout est rendu hors DashboardController
+        if (empty($onboardingSteps ?? [])) {
+            $ldapDone = false;
+            try { $ldapDone = (bool)\App\Models\Tenant\TenantSettings::on('tenant')->whereNotNull('ldap_host')->value('ldap_host'); } catch (\Throwable) {}
+            $onboardingSteps = [
+                ['label' => 'Authentification', 'done' => true],
+                ['label' => '2FA',              'done' => (bool)$user->totp_enabled],
+                ['label' => 'SMTP',             'done' => (bool)($tenant?->smtp_host)],
+                ['label' => 'LDAP',             'done' => $ldapDone],
+
+                ['label' => 'Structure org.',   'done' => \App\Models\Tenant\Department::on('tenant')->exists()],
+            ];
+        }
         $doneCnt  = count(array_filter($onboardingSteps, fn($s) => $s['done']));
         $totalCnt = count($onboardingSteps);
         $obPct    = round($doneCnt / $totalCnt * 100);
@@ -298,8 +304,9 @@
     <div class="pd-footer-left">
         <span class="pd-version">v1.4 · Phase 2</span>
         <span style="display:flex;align-items:center;gap:6px;">
-            <span class="pd-status-dot"></span>
-            <span>Système opérationnel</span>
+            <span id="health-dot" class="pd-status-dot"></span>
+            <a href="/health" target="_blank" id="health-label"
+               style="text-decoration:none;color:inherit;">Système…</a>
         </span>
         <span>© {{ date('Y') }} Les Bézots</span>
     </div>
@@ -342,6 +349,13 @@
         @endif
     </div>
 </aside>
+@endauth
+
+{{-- ══════════ DRAWER ESPACE DE STOCKAGE ══════════ --}}
+@auth
+@if(isset($storageByModule))
+@include('partials.storage-drawer')
+@endif
 @endauth
 
 {{-- ══════════ COMMAND PALETTE ══════════ --}}
@@ -469,6 +483,22 @@
     document.getElementById('pd-notif-open')?.addEventListener('click', openNotif);
     document.getElementById('pd-notif-close')?.addEventListener('click', closeNotif);
 
+    // Storage drawer
+    var storageDrawer  = document.getElementById('pd-storage-drawer');
+    var storageOverlay = document.getElementById('pd-storage-overlay');
+    function openStorage(){
+        storageDrawer?.classList.add('open');
+        storageOverlay?.classList.add('open');
+    }
+    function closeStorage(){
+        storageDrawer?.classList.remove('open');
+        storageOverlay?.classList.remove('open');
+    }
+    document.getElementById('pd-storage-open')?.addEventListener('click', openStorage);
+    // Exposer globalement pour les onclick="" inline du drawer
+    window.openStorage  = openStorage;
+    window.closeStorage = closeStorage;
+
     // Command palette
     var cmdOverlay = document.getElementById('pd-cmd-overlay');
     var cmdInput   = document.getElementById('pd-cmd-input');
@@ -480,7 +510,7 @@
 
     document.addEventListener('keydown', function(e){
         if((e.metaKey||e.ctrlKey)&&e.key==='k'){ e.preventDefault(); cmdOverlay?.classList.contains('open') ? closeCmd() : openCmd(); }
-        if(e.key==='Escape'){ closeCmd(); closeNotif(); }
+        if(e.key==='Escape'){ closeCmd(); closeNotif(); closeStorage(); }
     });
 
     // Onboarding dismiss
@@ -504,5 +534,30 @@
 </script>
 
 @stack('scripts')
+
+<script>
+(function() {
+    const topDot = document.getElementById('topbar-health-dot');
+    const topLbl = document.getElementById('topbar-health-label');
+    const ftrDot = document.getElementById('health-dot');
+    const ftrLbl = document.getElementById('health-label');
+
+    fetch('/health', { headers: { 'Accept': 'application/json' } })
+        .then(r => r.json())
+        .then(data => {
+            const ok = data.status === 'ok';
+            if (topDot) { topDot.className = 'pd-health-pulse ' + (ok ? 'ok' : 'err'); }
+            if (topLbl) { topLbl.textContent = ok ? 'OK' : 'Dégradé'; }
+            if (ftrDot) { ftrDot.style.background = ok ? '#2ECC71' : '#E74C3C'; }
+            if (ftrLbl) { ftrLbl.textContent = ok ? 'Système opérationnel' : 'Système dégradé'; }
+        })
+        .catch(() => {
+            if (topDot) { topDot.className = 'pd-health-pulse err'; }
+            if (topLbl) { topLbl.textContent = 'KO'; }
+            if (ftrDot) { ftrDot.style.background = '#E74C3C'; }
+            if (ftrLbl) { ftrLbl.textContent = 'Système injoignable'; }
+        });
+})();
+</script>
 </body>
 </html>
