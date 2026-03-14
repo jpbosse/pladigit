@@ -34,9 +34,11 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'alpha_dash', 'unique:organizations'],
             'plan' => ['required', 'in:communautaire,assistance,enterprise'],
+            'storage_quota_mb' => ['nullable', 'integer', 'min:512'],
         ]);
         $validated['db_name'] = Organization::dbNameFromSlug($validated['slug']);
         $validated['max_users'] = $this->maxUsersFromPlan($validated['plan']);
+        $validated['storage_quota_mb'] = $validated['storage_quota_mb'] ?? 10240;
         $org = Organization::create($validated);
 
         $this->provisioning->provisionTenant($org);
@@ -48,20 +50,35 @@ class OrganizationController extends Controller
 
     public function show(Organization $organization)
     {
-        // Compter les utilisateurs du tenant
         $userCount = 0;
+        $ldapSettings = null;
         try {
             $this->tenantManager->connectTo($organization);
             $userCount = \DB::connection('tenant')->table('users')->count();
+            $ldapSettings = \App\Models\Tenant\TenantSettings::first();
         } catch (\Throwable) {
         }
 
-        return view('super-admin.organizations.show', compact('organization', 'userCount'));
+        return view('super-admin.organizations.show', compact('organization', 'userCount', 'ldapSettings'));
     }
 
     public function edit(Organization $organization)
     {
-        return view('super-admin.organizations.edit', compact('organization'));
+        // Connexion au tenant pour lire le stockage utilisé
+        $usedMb = 0.0;
+        try {
+            $this->tenantManager->connectTo($organization);
+            $usedBytes = (int) \DB::connection('tenant')
+                ->table('media_items')
+                ->whereNull('deleted_at')
+                ->sum('file_size_bytes');
+            $usedMb = round($usedBytes / 1048576, 1);
+        } catch (\Throwable) {
+        }
+
+        $diskFreeGb = round(disk_free_space('/') / 1073741824, 1);
+
+        return view('super-admin.organizations.edit', compact('organization', 'usedMb', 'diskFreeGb'));
     }
 
     public function update(Request $request, Organization $organization)
@@ -70,8 +87,10 @@ class OrganizationController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'plan' => ['required', 'in:communautaire,assistance,enterprise'],
             'status' => ['required', 'in:active,suspended,pending'],
+            'max_users' => ['nullable', 'integer', 'min:1'],
+            'storage_quota_mb' => ['nullable', 'integer', 'min:512'],  // 512 Mo minimum
         ]);
-        $validated['max_users'] = $this->maxUsersFromPlan($validated['plan']);
+        $validated['max_users'] = $validated['max_users'] ?? $this->maxUsersFromPlan($validated['plan']);
         $organization->update($validated);
 
         return redirect()
@@ -123,6 +142,7 @@ class OrganizationController extends Controller
         $validated = $request->validate([
             'smtp_host' => ['nullable', 'string', 'max:255'],
             'smtp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'smtp_encryption' => ['nullable', 'in:tls,smtps,none'],
             'smtp_user' => ['nullable', 'string', 'max:255'],
             'smtp_password' => ['nullable', 'string', 'max:255'],
             'smtp_from_address' => ['nullable', 'email', 'max:255'],
@@ -140,6 +160,62 @@ class OrganizationController extends Controller
         return redirect()
             ->route('super-admin.organizations.show', $organization)
             ->with('success', 'Configuration SMTP sauvegardée.');
+    }
+
+    public function testSmtp(Organization $organization)
+    {
+        try {
+            $org = $organization->fresh();
+            $mailer = app(\App\Services\TenantMailer::class);
+
+            if (! $mailer->isConfigured($org)) {
+                return response()->json(['ok' => false, 'message' => 'SMTP non configuré sur cette organisation.']);
+            }
+
+            $mailer->configureForTenant($org);
+
+            \Mail::raw('Test de connexion SMTP — Pladigit (Super Admin)', function ($msg) use ($org) {
+                $msg->to($org->smtp_from_address ?: config('mail.from.address'))
+                    ->subject('Test SMTP Pladigit — '.$org->name);
+            });
+
+            return response()->json(['ok' => true, 'message' => 'Email de test envoyé avec succès.']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function testLdap(Organization $organization)
+    {
+        try {
+            $this->tenantManager->connectTo($organization);
+            $settings = \App\Models\Tenant\TenantSettings::first()?->fresh();
+
+            if (! $settings || ! $settings->ldap_host) {
+                return response()->json(['ok' => false, 'message' => 'LDAP non configuré sur cette organisation.']);
+            }
+
+            if (! $settings->ldap_bind_password_enc) {
+                return response()->json(['ok' => false, 'message' => 'Mot de passe LDAP non enregistré — veuillez le saisir et sauvegarder avant de tester.']);
+            }
+
+            $password = \Illuminate\Support\Facades\Crypt::decryptString($settings->ldap_bind_password_enc);
+            $conn = new \LdapRecord\Connection([
+                'hosts' => [$settings->ldap_host],
+                'port' => $settings->ldap_port ?? 636,
+                'base_dn' => $settings->ldap_base_dn,
+                'username' => $settings->ldap_bind_dn,
+                'password' => $password,
+                'use_ssl' => (bool) $settings->ldap_use_ssl,
+                'use_tls' => (bool) $settings->ldap_use_tls,
+                'timeout' => 5,
+            ]);
+            $conn->connect();
+
+            return response()->json(['ok' => true, 'message' => 'Connexion LDAP réussie.']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()]);
+        }
     }
 
     public function updateLdap(Request $request, Organization $organization)
