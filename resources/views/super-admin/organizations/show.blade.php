@@ -118,6 +118,14 @@
 	                <input type="number" name="smtp_port" value="{{ old('smtp_port', $organization->smtp_port ?? 587) }}"
 	                       class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
         	    </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Chiffrement</label>
+                    <select name="smtp_encryption" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                        <option value="tls"   {{ ($organization->smtp_encryption ?? 'tls') === 'tls'   ? 'selected' : '' }}>STARTTLS — port 587 (recommandé)</option>
+                        <option value="smtps" {{ ($organization->smtp_encryption ?? '') === 'smtps' ? 'selected' : '' }}>SSL/TLS — port 465</option>
+                        <option value="none"  {{ ($organization->smtp_encryption ?? '') === 'none'  ? 'selected' : '' }}>Aucun chiffrement (déconseillé)</option>
+                    </select>
+                </div>
 	            <div>
         	        <label class="block text-sm font-medium text-gray-700 mb-1">Utilisateur</label>
                 	<input type="text" name="smtp_user" value="{{ old('smtp_user', $organization->smtp_user) }}"
@@ -139,13 +147,53 @@
         	               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
 	            </div>
 	        </div>
-	        <button type="submit"
-	                class="px-6 py-2 rounded-lg text-white text-sm font-medium"
-	                style="background-color: #1E3A5F;">
-	            Sauvegarder SMTP
-	        </button>
+	        <div class="flex items-center gap-3">
+	            <button type="submit"
+	                    class="px-6 py-2 rounded-lg text-white text-sm font-medium"
+	                    style="background-color: #1E3A5F;">
+	                Sauvegarder SMTP
+	            </button>
+	            @if($organization->smtp_host)
+	                <button type="button" id="btn-test-smtp-sa"
+	                        class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50">
+	                    Tester la connexion
+	                </button>
+	                <span id="smtp-test-result-sa" class="text-sm hidden"></span>
+	            @endif
+	        </div>
 	    </form>
 	</div>
+
+@push('scripts')
+<script>
+document.getElementById('btn-test-smtp-sa')?.addEventListener('click', async function () {
+    const btn = this;
+    const result = document.getElementById('smtp-test-result-sa');
+    btn.disabled = true;
+    btn.textContent = 'Test en cours…';
+    result.textContent = '';
+    result.classList.remove('hidden');
+    try {
+        const res = await fetch('{{ route('super-admin.organizations.test-smtp', $organization) }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+        });
+        const data = await res.json();
+        result.textContent = data.message;
+        result.className = 'text-sm ' + (data.ok ? 'text-green-600' : 'text-red-600');
+    } catch (e) {
+        result.textContent = 'Erreur réseau.';
+        result.className = 'text-sm text-red-600';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Tester la connexion';
+    }
+});
+</script>
+@endpush
 
 
 {{-- Configuration LDAP --}}
@@ -156,55 +204,97 @@
         <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Serveur LDAP</label>
-                <input type="text" name="ldap_host" value="{{ old('ldap_host') }}"
+                <input type="text" name="ldap_host" value="{{ old('ldap_host', $ldapSettings?->ldap_host) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                        placeholder="ldap.mondomaine.fr">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Port</label>
-                <input type="number" name="ldap_port" value="{{ old('ldap_port', 636) }}"
+                <input type="number" name="ldap_port" value="{{ old('ldap_port', $ldapSettings?->ldap_port ?? 636) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Base DN</label>
-                <input type="text" name="ldap_base_dn" value="{{ old('ldap_base_dn') }}"
+                <input type="text" name="ldap_base_dn" value="{{ old('ldap_base_dn', $ldapSettings?->ldap_base_dn) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                        placeholder="dc=mondomaine,dc=fr">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Bind DN</label>
-                <input type="text" name="ldap_bind_dn" value="{{ old('ldap_bind_dn') }}"
+                <input type="text" name="ldap_bind_dn" value="{{ old('ldap_bind_dn', $ldapSettings?->ldap_bind_dn) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
                        placeholder="cn=admin,dc=mondomaine,dc=fr">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Mot de passe <span class="text-gray-400 font-normal">(vide = inchangé)</span></label>
                 <input type="password" name="ldap_bind_password" placeholder="Laisser vide pour ne pas modifier"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Intervalle synchro (heures)</label>
-                <input type="number" name="ldap_sync_interval_hours" value="{{ old('ldap_sync_interval_hours', 24) }}"
+                <input type="number" name="ldap_sync_interval_hours" value="{{ old('ldap_sync_interval_hours', $ldapSettings?->ldap_sync_interval_hours ?? 24) }}"
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
             </div>
         </div>
-        <div class="flex gap-6 mb-4">
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" name="ldap_use_ssl" value="1" checked>
+        <div class="flex gap-6 mb-6">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="hidden" name="ldap_use_ssl" value="0">
+                <input type="checkbox" name="ldap_use_ssl" value="1" {{ ($ldapSettings?->ldap_use_ssl ?? true) ? 'checked' : '' }} class="rounded">
                 Utiliser SSL (LDAPS port 636)
             </label>
-            <label class="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" name="ldap_use_tls" value="1">
+            <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="hidden" name="ldap_use_tls" value="0">
+                <input type="checkbox" name="ldap_use_tls" value="1" {{ ($ldapSettings?->ldap_use_tls ?? false) ? 'checked' : '' }} class="rounded">
                 Utiliser TLS (STARTTLS port 389)
             </label>
         </div>
-        <button type="submit"
-                class="px-6 py-2 rounded-lg text-white text-sm font-medium"
-                style="background-color: #1E3A5F;">
-            Sauvegarder LDAP
-        </button>
+        <div class="flex items-center gap-3">
+            <button type="submit"
+                    class="px-6 py-2 rounded-lg text-white text-sm font-medium"
+                    style="background-color: #1E3A5F;">
+                Sauvegarder LDAP
+            </button>
+            @if($ldapSettings?->ldap_host)
+                <button type="button" id="btn-test-ldap-sa"
+                        class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50">
+                    Tester la connexion
+                </button>
+                <span id="ldap-test-result-sa" class="text-sm hidden"></span>
+            @endif
+        </div>
     </form>
 </div>
 
 </div>
 @endsection
+
+@push('scripts')
+<script>
+document.getElementById('btn-test-ldap-sa')?.addEventListener('click', async function () {
+    const btn = this;
+    const result = document.getElementById('ldap-test-result-sa');
+    btn.disabled = true;
+    btn.textContent = 'Test en cours…';
+    result.textContent = '';
+    result.classList.remove('hidden');
+    try {
+        const res = await fetch('{{ route('super-admin.organizations.test-ldap', $organization) }}', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                'Accept': 'application/json',
+            },
+        });
+        const data = await res.json();
+        result.textContent = data.message;
+        result.className = 'text-sm ' + (data.ok ? 'text-green-600' : 'text-red-600');
+    } catch (e) {
+        result.textContent = 'Erreur réseau.';
+        result.className = 'text-sm text-red-600';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Tester la connexion';
+    }
+});
+</script>
+@endpush

@@ -54,13 +54,22 @@
             </div>
 
             <div class="mb-6">
-                <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="hidden" name="ldap_use_tls" value="0">
-                    <input type="checkbox" name="ldap_use_tls" value="1"
-                           {{ $settings->ldap_use_tls ? 'checked' : '' }}
-                           class="rounded">
-                    <span class="text-sm text-gray-700">Utiliser TLS (LDAPS — recommandé en production)</span>
-                </label>
+                <div class="flex gap-6">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="hidden" name="ldap_use_ssl" value="0">
+                        <input type="checkbox" name="ldap_use_ssl" value="1"
+                               {{ $settings->ldap_use_ssl ? 'checked' : '' }}
+                               class="rounded">
+                        <span class="text-sm text-gray-700">Utiliser SSL (LDAPS — port 636)</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="hidden" name="ldap_use_tls" value="0">
+                        <input type="checkbox" name="ldap_use_tls" value="1"
+                               {{ $settings->ldap_use_tls ? 'checked' : '' }}
+                               class="rounded">
+                        <span class="text-sm text-gray-700">Utiliser TLS (STARTTLS — port 389)</span>
+                    </label>
+                </div>
             </div>
 
             @if($errors->any())
@@ -84,8 +93,10 @@
     </div>
 
     <div id="ldap-test-result" class="hidden rounded-lg p-3 text-sm"></div>
-</div>
 
+@endsection
+
+@push('scripts')
 <script>
 document.getElementById('btn-test-ldap').addEventListener('click', function () {
     const btn = this;
@@ -111,4 +122,5 @@ document.getElementById('btn-test-ldap').addEventListener('click', function () {
         });
 });
 </script>
-@endsection
+
+@endpush
