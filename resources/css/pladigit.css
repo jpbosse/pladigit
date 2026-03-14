@@ -744,9 +744,9 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
 .pd-footer a:hover { color: var(--pd-text); }
 
 .pd-version {
-    background: var(--pd-bg); border: 1px solid var(--pd-border);
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
     border-radius: 5px; padding: 2px 8px;
-    font-size: 11px; font-weight: 600; color: var(--pd-navy);
+    font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.7);
     font-family: 'Sora', sans-serif;
 }
 .pd-status-dot {
@@ -939,7 +939,7 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
 .pd-storage-drawer {
     position: fixed; top: 0; right: 0; bottom: 0;
     width: 420px;
-    background: var(--pd-navy-dark);
+    background: var(--pd-surface);
     z-index: 210;
     transform: translateX(100%);
     transition: transform var(--pd-transition);
