@@ -24,7 +24,7 @@
     --pd-sidebar-w:         240px;
     --pd-sidebar-collapsed: 60px;
     --pd-topbar-h:          58px;
-    --pd-footer-h:          44px;
+    --pd-footer-h:          80px;
 
     /* Surfaces (light mode) */
     --pd-bg:        #F0F4FA;
@@ -312,7 +312,7 @@ body {
 ═══════════════════════════════════════════════ */
 .pd-sidebar {
     position: fixed;
-    top: var(--pd-topbar-h); left: 0; bottom: var(--pd-footer-h);
+    top: var(--pd-topbar-h); left: 0; bottom: 0;
     width: var(--pd-sidebar-collapsed);
     background: var(--pd-navy-dark);
     overflow: visible;
@@ -444,9 +444,8 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
 .pd-main {
     margin-left: var(--pd-sidebar-collapsed);
     margin-top: var(--pd-topbar-h);
-    margin-bottom: var(--pd-footer-h);
     transition: margin-left var(--pd-transition);
-    min-height: calc(100vh - var(--pd-topbar-h) - var(--pd-footer-h));
+    min-height: calc(100vh - var(--pd-topbar-h));
 }
 .pd-sidebar-open .pd-main { margin-left: var(--pd-sidebar-w); }
 
@@ -728,16 +727,19 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
    FOOTER
 ═══════════════════════════════════════════════ */
 .pd-footer {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    height: var(--pd-footer-h);
+    position: static;
+    min-height: var(--pd-footer-h);
+    height: auto;
     background: var(--pd-navy-dark);
     border-top: 1px solid var(--pd-border);
-    display: flex; align-items: center;
+    display: flex; align-items: flex-start;
     justify-content: space-between;
-    padding: 0 24px; z-index: 100;
+    padding: 12px 24px;
     font-size: 12px; color: var(--pd-muted);
+    margin-left: var(--pd-sidebar-collapsed);
+    transition: margin-left var(--pd-transition);
 }
+.pd-sidebar-open .pd-footer { margin-left: var(--pd-sidebar-w); }
 .pd-footer-left  { display: flex; align-items: center; gap: 16px; }
 .pd-footer-right { display: flex; align-items: center; gap: 14px; }
 .pd-footer a { color: var(--pd-muted); text-decoration: none; transition: color 0.2s; }
@@ -854,7 +856,7 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
 .pd-notif-drawer {
     position: fixed;
     top: var(--pd-topbar-h); right: 0;
-    width: 360px; bottom: var(--pd-footer-h);
+    width: 360px; bottom: 0;
     background: var(--pd-navy-dark);
     border-left: 1px solid var(--pd-border);
     transform: translateX(100%);
