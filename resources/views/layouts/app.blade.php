@@ -167,39 +167,15 @@
 
         <span class="pd-nav-section">Modules</span>
 
+        @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::MEDIA))
         <a href="{{ route('media.albums.index') }}" class="pd-nav-item {{ str_starts_with($route, 'media.') ? 'active' : '' }}">
             <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
             <span class="pd-nav-label">Photothèque</span>
             <span class="pd-nav-tip">Photothèque</span>
         </a>
+        @endif
 
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-            <span class="pd-nav-label">Documents</span>
-            <span class="pd-nav-badge">Phase 5</span>
-            <span class="pd-nav-tip">Documents — Phase 5</span>
-        </a>
 
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-            <span class="pd-nav-label">Agenda</span>
-            <span class="pd-nav-badge">Phase 8</span>
-            <span class="pd-nav-tip">Agenda — Phase 8</span>
-        </a>
-
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-            <span class="pd-nav-label">Chat</span>
-            <span class="pd-nav-badge">Phase 9</span>
-            <span class="pd-nav-tip">Chat — Phase 9</span>
-        </a>
-
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
-            <span class="pd-nav-label">ERP DataGrid</span>
-            <span class="pd-nav-badge">Phase 7</span>
-            <span class="pd-nav-tip">ERP — Phase 7</span>
-        </a>
 
         @if(\App\Enums\UserRole::tryFrom($user?->role ?? '')?->atLeast(\App\Enums\UserRole::ADMIN))
         <span class="pd-nav-section">Administration</span>
@@ -369,11 +345,13 @@
         </div>
         <div id="pd-cmd-content">
             <div class="pd-cmd-group">Actions rapides</div>
+            @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::MEDIA))
             <a href="{{ route('media.albums.index') }}" class="pd-cmd-item">
                 <div class="pd-cmd-item-icon" style="background:rgba(46,204,113,0.12);">📷</div>
                 <div><div class="pd-cmd-title">Photothèque</div><div class="pd-cmd-sub">Gérer les albums et médias</div></div>
                 <span class="pd-cmd-shortcut">G P</span>
             </a>
+            @endif
             @if(\App\Enums\UserRole::tryFrom($user?->role ?? '')?->atLeast(\App\Enums\UserRole::ADMIN))
             <a href="{{ route('admin.users.create') }}" class="pd-cmd-item">
                 <div class="pd-cmd-item-icon" style="background:rgba(59,154,225,0.12);">👤</div>
