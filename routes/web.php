@@ -8,6 +8,8 @@ use App\Http\Controllers\SuperAdmin\OrganizationController;
 // ── Page d'accueil publique ───────────────────────────────
 Route::get('/health', [App\Http\Controllers\HealthController::class, 'check'])->name('health');
 Route::get('/health/ping', [App\Http\Controllers\HealthController::class, 'ping'])->name('health.ping');
+Route::get('/mentions-legales', [App\Http\Controllers\LegalController::class, 'mentions'])->name('legal.mentions');
+Route::get('/confidentialite', [App\Http\Controllers\LegalController::class, 'confidentialite'])->name('legal.confidentialite');
 
 Route::get('/', function () {
     return view('welcome');
