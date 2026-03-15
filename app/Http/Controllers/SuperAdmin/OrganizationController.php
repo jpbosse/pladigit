@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Enums\ModuleKey;
 use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
+use App\Services\ProvisioningException;
 use App\Services\TenantManager;
 use App\Services\TenantProvisioningService;
 use Illuminate\Http\Request;
@@ -42,7 +43,17 @@ class OrganizationController extends Controller
         $validated['storage_quota_mb'] = $validated['storage_quota_mb'] ?? 10240;
         $org = Organization::create($validated);
 
-        $this->provisioning->provisionTenant($org);
+        try {
+            $this->provisioning->provisionTenant($org);
+        } catch (ProvisioningException $e) {
+            // L'org est créée mais reste en 'pending' — la DB a été supprimée
+            $org->delete();
+
+            return redirect()
+                ->route('super-admin.organizations.index')
+                ->with('error', 'Échec du provisioning : '.$e->getMessage().
+                    ' L\'organisation a été supprimée. Vérifiez les droits MySQL et réessayez.');
+        }
 
         return redirect()
             ->route('super-admin.organizations.show', $org)
