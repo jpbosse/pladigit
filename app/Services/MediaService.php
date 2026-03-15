@@ -106,20 +106,50 @@ class MediaService
         // Dimensions
         [$width, $height] = $this->getImageDimensions($file->getRealPath(), $file->getMimeType() ?? '');
 
-        $item = MediaItem::create([
-            'album_id' => $album->id,
-            'uploaded_by' => $uploader->id,
-            'file_name' => $file->getClientOriginalName(),
-            'file_path' => $nasPath,
-            'thumb_path' => $thumbPath,
-            'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
-            'file_size_bytes' => strlen($contents),
-            'width_px' => $width,
-            'height_px' => $height,
-            'exif_data' => $exifData ?: null,
-            'sha256_hash' => $sha256,
-            'caption' => null,
-        ]);
+        // Transaction BDD — si create() échoue, on supprime les fichiers NAS
+        // pour éviter de laisser un fichier orphelin sur le NAS.
+        try {
+            $item = \DB::connection('tenant')->transaction(function () use (
+                $album, $uploader, $file, $nasPath, $thumbPath,
+                $contents, $exifData, $sha256, $width, $height
+            ): MediaItem {
+                return MediaItem::create([
+                    'album_id' => $album->id,
+                    'uploaded_by' => $uploader->id,
+                    'file_name' => $file->getClientOriginalName(),
+                    'file_path' => $nasPath,
+                    'thumb_path' => $thumbPath,
+                    'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
+                    'file_size_bytes' => strlen($contents),
+                    'width_px' => $width,
+                    'height_px' => $height,
+                    'exif_data' => $exifData ?: null,
+                    'sha256_hash' => $sha256,
+                    'caption' => null,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            // Compensation : supprimer les fichiers NAS pour éviter les orphelins
+            try {
+                if ($nas->exists($nasPath)) {
+                    $nas->deleteFile($nasPath);
+                }
+                if ($thumbPath && $nas->exists($thumbPath)) {
+                    $nas->deleteFile($thumbPath);
+                }
+            } catch (\Throwable) {
+                // Log mais on ne masque pas l'erreur originale
+                \Illuminate\Support\Facades\Log::warning('MediaService::upload — impossible de supprimer le fichier NAS orphelin', [
+                    'nas_path' => $nasPath,
+                    'thumb_path' => $thumbPath,
+                ]);
+            }
+
+            throw new RuntimeException(
+                "Échec de l'enregistrement en base après écriture NAS : ".$e->getMessage(),
+                previous: $e
+            );
+        }
 
         $this->auditService->log('media.upload', $uploader, [
             'model_type' => MediaItem::class,
