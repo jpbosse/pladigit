@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Tenant\TenantSettings;
-use App\Services\TenantManager;
 
 /**
  * WatermarkService — Appose un watermark sur une image JPEG/PNG en mémoire.
@@ -26,10 +25,10 @@ class WatermarkService
     /**
      * Applique le watermark configuré sur l'image.
      *
-     * @param  string          $contents   Contenu binaire de l'image originale
-     * @param  string          $mimeType   MIME type (image/jpeg, image/png, image/webp)
-     * @param  TenantSettings  $settings   Configuration watermark du tenant
-     * @return string                      Contenu binaire de l'image avec watermark (JPEG)
+     * @param  string  $contents  Contenu binaire de l'image originale
+     * @param  string  $mimeType  MIME type (image/jpeg, image/png, image/webp)
+     * @param  TenantSettings  $settings  Configuration watermark du tenant
+     * @return string Contenu binaire de l'image avec watermark (JPEG)
      *
      * @throws \RuntimeException Si GD ne peut pas lire l'image
      */
@@ -97,20 +96,21 @@ class WatermarkService
             return;
         }
 
-        $imgW    = imagesx($image);
-        $imgH    = imagesy($image);
+        $imgW = imagesx($image);
+        $imgH = imagesy($image);
         $padding = (int) ($imgW * 0.015);
         $padding = max(8, $padding);
 
         $fontPath = $this->resolveFontPath();
         $fontSize = $this->resolveFontSizePt($settings->wm_size ?? 'medium', $imgW);
-        $opacity  = max(10, min(100, $settings->wm_opacity ?? 60));
+        $opacity = max(10, min(100, $settings->wm_opacity ?? 60));
 
         if ($fontPath !== null && function_exists('imagettfbbox')) {
             // ── TTF : accents + fond rectangle ──────────────────────────
             $bbox = imagettfbbox($fontSize, 0, $fontPath, $text);
             if ($bbox === false) {
                 $this->applyTextWatermarkLegacy($image, $text, $settings);
+
                 return;
             }
 
@@ -129,8 +129,8 @@ class WatermarkService
             );
 
             // Fond rectangle noir semi-transparent
-            $bgAlpha  = (int) round(127 - ($opacity / 100 * 90));
-            $bgColor  = imagecolorallocatealpha($image, 0, 0, 0, $bgAlpha);
+            $bgAlpha = (int) round(127 - ($opacity / 100 * 90));
+            $bgColor = imagecolorallocatealpha($image, 0, 0, 0, $bgAlpha);
             if ($bgColor !== false) {
                 imagefilledrectangle($image, $boxX, $boxY, $boxX + $boxW, $boxY + $boxH, $bgColor);
             }
@@ -160,22 +160,22 @@ class WatermarkService
     {
         // Translittération basique des accents courants
         $map = [
-            'é'=>'e','è'=>'e','ê'=>'e','ë'=>'e',
-            'à'=>'a','â'=>'a','ä'=>'a',
-            'ù'=>'u','û'=>'u','ü'=>'u',
-            'î'=>'i','ï'=>'i',
-            'ô'=>'o','ö'=>'o',
-            'ç'=>'c','œ'=>'oe','æ'=>'ae',
-            'É'=>'E','È'=>'E','Ê'=>'E',
-            'À'=>'A','Â'=>'A',
-            'Ù'=>'U','Û'=>'U',
-            'Î'=>'I','Ô'=>'O','Ç'=>'C',
+            'é' => 'e', 'è' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'à' => 'a', 'â' => 'a', 'ä' => 'a',
+            'ù' => 'u', 'û' => 'u', 'ü' => 'u',
+            'î' => 'i', 'ï' => 'i',
+            'ô' => 'o', 'ö' => 'o',
+            'ç' => 'c', 'œ' => 'oe', 'æ' => 'ae',
+            'É' => 'E', 'È' => 'E', 'Ê' => 'E',
+            'À' => 'A', 'Â' => 'A',
+            'Ù' => 'U', 'Û' => 'U',
+            'Î' => 'I', 'Ô' => 'O', 'Ç' => 'C',
         ];
         $text = strtr($text, $map);
 
-        $imgW    = imagesx($image);
-        $imgH    = imagesy($image);
-        $gdSize  = $this->resolveFontSizeGd($settings->wm_size ?? 'medium', $imgW);
+        $imgW = imagesx($image);
+        $imgH = imagesy($image);
+        $gdSize = $this->resolveFontSizeGd($settings->wm_size ?? 'medium', $imgW);
         $padding = max(8, (int) ($imgW * 0.015));
         $opacity = max(10, min(100, $settings->wm_opacity ?? 60));
 
@@ -219,6 +219,7 @@ class WatermarkService
         if ($org === null || empty($org->logo_path)) {
             // Fallback texte si pas de logo configuré
             $this->applyTextWatermark($image, $settings);
+
             return;
         }
 
@@ -226,18 +227,21 @@ class WatermarkService
 
         if (! file_exists($logoPath)) {
             $this->applyTextWatermark($image, $settings);
+
             return;
         }
 
         $logoContents = file_get_contents($logoPath);
         if ($logoContents === false) {
             $this->applyTextWatermark($image, $settings);
+
             return;
         }
 
         $logo = imagecreatefromstring($logoContents);
         if ($logo === false) {
             $this->applyTextWatermark($image, $settings);
+
             return;
         }
 
@@ -245,16 +249,17 @@ class WatermarkService
         $imgH = imagesy($image);
 
         // Redimensionner le logo à ~20% de la largeur de l'image
-        $targetW   = (int) ($imgW * $this->resolveLogoRatio($settings->wm_size ?? 'medium'));
+        $targetW = (int) ($imgW * $this->resolveLogoRatio($settings->wm_size ?? 'medium'));
         $logoOrigW = imagesx($logo);
         $logoOrigH = imagesy($logo);
-        $ratio     = $logoOrigW / $logoOrigH;
-        $targetH   = (int) ($targetW / $ratio);
+        $ratio = $logoOrigW / $logoOrigH;
+        $targetH = (int) ($targetW / $ratio);
 
         $logoResized = imagecreatetruecolor($targetW, $targetH);
         if ($logoResized === false) {
             imagedestroy($logo);
             $this->applyTextWatermark($image, $settings);
+
             return;
         }
 
@@ -299,10 +304,10 @@ class WatermarkService
         int $padding
     ): array {
         return match ($position) {
-            'bottom-left'   => [$padding, $imgH - $elemH - $padding],
-            'center'        => [(int) (($imgW - $elemW) / 2), (int) (($imgH - $elemH) / 2)],
+            'bottom-left' => [$padding, $imgH - $elemH - $padding],
+            'center' => [(int) (($imgW - $elemW) / 2), (int) (($imgH - $elemH) / 2)],
             'bottom-center' => [(int) (($imgW - $elemW) / 2), $imgH - $elemH - $padding],
-            default         => [$imgW - $elemW - $padding, $imgH - $elemH - $padding], // bottom-right
+            default => [$imgW - $elemW - $padding, $imgH - $elemH - $padding], // bottom-right
         };
     }
 
@@ -334,9 +339,9 @@ class WatermarkService
     private function resolveFontSizePt(string $size, int $imgW): float
     {
         $base = match ($size) {
-            'small'  => 14.0,
-            'large'  => 28.0,
-            default  => 20.0, // medium
+            'small' => 14.0,
+            'large' => 28.0,
+            default => 20.0, // medium
         };
 
         // Adapter proportionnellement à la taille de l'image
@@ -352,9 +357,9 @@ class WatermarkService
     private function resolveFontSizeGd(string $size, int $imgW): int
     {
         $base = match ($size) {
-            'small'  => 2,
-            'large'  => 5,
-            default  => 4,
+            'small' => 2,
+            'large' => 5,
+            default => 4,
         };
 
         if ($imgW < 400) {
@@ -373,9 +378,9 @@ class WatermarkService
     private function resolveLogoRatio(string $size): float
     {
         return match ($size) {
-            'small'  => 0.12,
-            'large'  => 0.28,
-            default  => 0.20,
+            'small' => 0.12,
+            'large' => 0.28,
+            default => 0.20,
         };
     }
 
