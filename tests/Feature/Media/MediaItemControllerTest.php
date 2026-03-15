@@ -56,6 +56,8 @@ class MediaItemControllerTest extends TestCase
             return $manager;
         });
 
+        $this->persistCurrentOrg();
+
         $this->user = User::factory()->create(['role' => 'admin']);
         $this->album = MediaAlbum::factory()->public()->create(['created_by' => $this->user->id]);
     }
@@ -64,6 +66,28 @@ class MediaItemControllerTest extends TestCase
     {
         $this->deleteDirectory($this->nasRoot);
         parent::tearDown();
+    }
+
+    private function persistCurrentOrg(array $extra = []): \App\Models\Platform\Organization
+    {
+        $current = app(\App\Services\TenantManager::class)->current();
+        $slug = $current->slug ?? 'test';
+
+        $org = \App\Models\Platform\Organization::updateOrCreate(
+            ['slug' => $slug],
+            array_merge([
+                'name' => $current->name ?? 'Test Org',
+                'db_name' => $current->db_name ?? env('DB_TENANT_DATABASE'),
+                'status' => 'active',
+                'plan' => 'communautaire',
+                'primary_color' => '#1E3A5F',
+                'enabled_modules' => ['media'],
+            ], $extra)
+        );
+
+        app(\App\Services\TenantManager::class)->connectTo($org);
+
+        return $org;
     }
 
     // =========================================================================
@@ -322,8 +346,8 @@ class MediaItemControllerTest extends TestCase
             'file_size_bytes' => 1024 * 1024, // 1 Mo
         ]);
 
-        // Tenant avec quota = 1 Mo
-        \App\Models\Platform\Organization::query()->update(['storage_quota_mb' => 1]);
+        // Tenant avec quota = 1 Mo — on persiste et reconnecte pour que le contrôleur le voie
+        $this->persistCurrentOrg(['storage_quota_mb' => 1]);
 
         $file = \Illuminate\Http\UploadedFile::fake()->image('new.jpg', 10, 10);
 

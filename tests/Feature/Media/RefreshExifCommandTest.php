@@ -4,10 +4,12 @@
 
 namespace Tests\Feature\Media;
 
+use App\Models\Platform\Organization;
 use App\Models\Tenant\MediaItem;
 use App\Services\MediaService;
 use App\Services\Nas\LocalNasDriver;
 use App\Services\Nas\NasConnectorInterface;
+use App\Services\TenantManager;
 use Tests\TestCase;
 
 /**
@@ -138,8 +140,22 @@ class RefreshExifCommandTest extends TestCase
      */
     public function test_command_succeeds_with_no_active_orgs(): void
     {
-        // Désactiver toutes les orgs
-        \App\Models\Platform\Organization::query()->update(['status' => 'suspended']);
+        // Persister l'org de test puis la suspendre
+        $current = app(TenantManager::class)->current();
+        $slug = $current->slug ?? 'test';
+
+        $org = Organization::updateOrCreate(
+            ['slug' => $slug],
+            [
+                'name' => $current->name ?? 'Test Org',
+                'db_name' => $current->db_name ?? env('DB_TENANT_DATABASE'),
+                'status' => 'suspended',
+                'plan' => 'communautaire',
+                'primary_color' => '#1E3A5F',
+                'enabled_modules' => ['media'],
+            ]
+        );
+        app(TenantManager::class)->connectTo($org);
 
         $this->artisan('media:refresh-exif')
             ->assertExitCode(0);

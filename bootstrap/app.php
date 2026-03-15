@@ -23,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => CheckRole::class,
             'super-admin' => CheckSuperAdmin::class,
             'force-pwd-change' => ForcePwdChange::class,
+            'module' => \App\Http\Middleware\RequireModule::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

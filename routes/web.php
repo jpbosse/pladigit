@@ -53,6 +53,7 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/smtp/test', [OrganizationController::class, 'testSmtp'])->name('organizations.test-smtp');
         Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
         Route::post('organizations/{organization}/ldap/test', [OrganizationController::class, 'testLdap'])->name('organizations.test-ldap');
+        Route::post('organizations/{organization}/modules', [OrganizationController::class, 'updateModules'])->name('organizations.update-modules');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────
@@ -145,8 +146,8 @@ Route::middleware('tenant')->group(function () {
 
         });
 
-        // ── Photothèque — accessible à tous les authentifiés ──
-        Route::prefix('media')->name('media.')->group(function () {
+        // ── Photothèque — module activable par organisation ──
+        Route::prefix('media')->name('media.')->middleware('module:media')->group(function () {
 
             // Albums
             Route::get('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'index'])->name('albums.index');

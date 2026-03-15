@@ -259,8 +259,12 @@ class LocalNasDriver implements NasConnectorInterface
      */
     private function resolve(string $relativePath): string
     {
-        // Supprime les ".." pour éviter toute traversée de répertoire
-        $safe = str_replace(['..', '\\'], ['', '/'], $relativePath);
+        // Bloquer toute tentative de traversée de répertoire
+        if (str_contains($relativePath, '..')) {
+            throw new \RuntimeException("Chemin interdit (path traversal détecté) : {$relativePath}");
+        }
+
+        $safe = str_replace('\\', '/', $relativePath);
 
         // Si le chemin est déjà absolu, on le retourne directement
         // (évite la duplication quand nas_local_path est un chemin absolu)

@@ -102,7 +102,11 @@
         </form>
     </div>
 
+</div>{{-- /.max-w-4xl (en-tête + infos + créer admin) --}}
+
 {{-- Configuration SMTP --}}
+<div class="max-w-4xl mx-auto px-4 pb-6">
+
 	<div class="bg-white rounded-xl shadow p-6 mt-6">
 	    <h2 class="text-lg font-semibold text-gray-800 mb-4">Configuration SMTP</h2>
 	    <form method="POST" action="{{ route('super-admin.organizations.update-smtp', $organization) }}">
@@ -265,7 +269,48 @@ document.getElementById('btn-test-smtp-sa')?.addEventListener('click', async fun
     </form>
 </div>
 
+{{-- ── Modules activables ─────────────────────────────────────────────── --}}
+<div class="bg-white rounded-xl shadow p-6 mt-6">
+    <h2 class="text-lg font-semibold text-gray-800 mb-1">Modules activés</h2>
+    <p class="text-sm text-gray-500 mb-5">Cochez les modules accessibles pour cette organisation. Les modules grisés ne sont pas encore disponibles dans cette version.</p>
+
+    <form method="POST" action="{{ route('super-admin.organizations.update-modules', $organization) }}">
+        @csrf
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px;">
+            @foreach(\App\Enums\ModuleKey::cases() as $module)
+            @php
+                $enabledModules = is_array($organization->enabled_modules) ? $organization->enabled_modules : [];
+                $active    = in_array($module->value, $enabledModules, true);
+                $available = $module->isAvailable();
+            @endphp
+            <label style="display:flex;align-items:flex-start;gap:12px;padding:12px;border-radius:8px;cursor:{{ $available ? 'pointer' : 'not-allowed' }};opacity:{{ $available ? '1' : '0.5' }};border:1.5px solid {{ $active ? '#93c5fd' : '#e5e7eb' }};background:{{ $active ? '#eff6ff' : '#fff' }};">
+                <input type="checkbox"
+                       name="modules[]"
+                       value="{{ $module->value }}"
+                       style="margin-top:2px;width:15px;height:15px;flex-shrink:0;"
+                       {{ $active ? 'checked' : '' }}
+                       {{ ! $available ? 'disabled' : '' }}>
+                <div style="min-width:0;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <span style="font-size:13px;font-weight:500;color:#1f2937;">{{ $module->label() }}</span>
+                        <span style="font-size:11px;padding:1px 6px;border-radius:999px;font-family:monospace;background:{{ $available ? '#dcfce7' : '#f3f4f6' }};color:{{ $available ? '#15803d' : '#6b7280' }};">
+                            Phase {{ $module->phase() }}
+                        </span>
+                    </div>
+                    <p style="font-size:12px;color:#6b7280;margin-top:3px;line-height:1.4;">{{ $module->description() }}</p>
+                </div>
+            </label>
+            @endforeach
+        </div>
+        <button type="submit"
+                style="background-color:#1E3A5F;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:500;border:none;cursor:pointer;">
+            Enregistrer les modules
+        </button>
+    </form>
 </div>
+
+</div>{{-- /.max-w-4xl (SMTP + LDAP + Modules) --}}
+
 @endsection
 
 @push('scripts')

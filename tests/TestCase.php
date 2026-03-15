@@ -36,6 +36,7 @@ abstract class TestCase extends BaseTestCase
             'plan' => 'communautaire',
             'max_users' => 200,
             'primary_color' => '#1E3A5F',
+            'enabled_modules' => ['media'],
         ]);
         app(TenantManager::class)->connectTo($org);
     }
