@@ -151,32 +151,26 @@
             <span class="pd-section-sub">{{ $org->plan === 'community' ? 'Offre Communautaire' : ucfirst($org->plan) }}</span>
         </div>
         @php
-        $modules = [
-            ['icon'=>'📁','name'=>'Documents','desc'=>'Gestion documentaire, versionning, workflows','phase'=>5,'color'=>'#3B9AE1','bg'=>'rgba(59,154,225,0.1)','route'=>null],
-            ['icon'=>'📷','name'=>'Photothèque','desc'=>'Albums, médias NAS, watermark, partage','phase'=>null,'color'=>'#2ECC71','bg'=>'rgba(46,204,113,0.1)','route'=>'media.albums.index'],
-            ['icon'=>'💬','name'=>'Chat','desc'=>'Messagerie temps réel, canaux, 1:1','phase'=>9,'color'=>'#E8A838','bg'=>'rgba(232,168,56,0.1)','route'=>null],
-            ['icon'=>'📅','name'=>'Agenda','desc'=>'Événements, récurrence, export iCal','phase'=>8,'color'=>'#9B59B6','bg'=>'rgba(155,89,182,0.1)','route'=>null],
-            ['icon'=>'✅','name'=>'Projets','desc'=>'Kanban, tâches, Gantt, assignation','phase'=>8,'color'=>'#E74C3C','bg'=>'rgba(231,76,60,0.1)','route'=>null],
-            ['icon'=>'🗄','name'=>'ERP DataGrid','desc'=>'Tables no-code, audit trail, export CSV','phase'=>7,'color'=>'#1abc9c','bg'=>'rgba(26,188,156,0.1)','route'=>null],
-            ['icon'=>'📊','name'=>'Sondages','desc'=>'Formulaires, résultats temps réel','phase'=>11,'color'=>'#e67e22','bg'=>'rgba(230,126,34,0.1)','route'=>null],
-            ['icon'=>'📰','name'=>'Fil RSS','desc'=>'Actualités, flux externes, widget','phase'=>10,'color'=>'#95a5a6','bg'=>'rgba(149,165,166,0.1)','route'=>null],
-        ];
+        $org = app(\App\Services\TenantManager::class)->current();
+        $activeModules = [];
+        if ($org?->hasModule(\App\Enums\ModuleKey::MEDIA)) {
+            $activeModules[] = ['icon'=>'📷','name'=>'Photothèque','desc'=>'Albums, médias NAS, watermark, partage','color'=>'#2ECC71','bg'=>'rgba(46,204,113,0.1)','route'=>'media.albums.index'];
+        }
         @endphp
+        @if(count($activeModules) > 0)
         <div class="pd-module-grid" style="margin-bottom:32px;">
-            @foreach($modules as $mod)
-            @php $isActive = $mod['route'] !== null; @endphp
-            <div class="pd-module-card {{ $isActive ? '' : 'disabled' }}"
-                 style="--card-accent:{{ $mod['color'] }}; {{ $isActive ? 'cursor:pointer;' : '' }}"
-                 @if($isActive) onclick="window.location='{{ route($mod['route']) }}'" @endif>
-                <div class="pd-module-badge {{ $isActive ? 'active' : 'soon' }}">
-                    {{ $isActive ? 'Actif' : 'Phase '.$mod['phase'] }}
-                </div>
+            @foreach($activeModules as $mod)
+            <div class="pd-module-card"
+                 style="--card-accent:{{ $mod['color'] }};cursor:pointer;"
+                 onclick="window.location='{{ route($mod['route']) }}'">
+                <div class="pd-module-badge active">Actif</div>
                 <div class="pd-module-icon" style="background:{{ $mod['bg'] }};">{{ $mod['icon'] }}</div>
                 <h3>{{ $mod['name'] }}</h3>
                 <p>{{ $mod['desc'] }}</p>
             </div>
             @endforeach
         </div>
+        @endif
 
         <div style="display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start;">
             <div>
@@ -364,16 +358,7 @@
                         <span class="pd-qa-arrow">→</span>
                     </a>
                     @endif
-                    <a href="#" class="pd-qa-btn" style="opacity:.5;cursor:not-allowed;" title="Phase 8">
-                        <div class="pd-qa-icon" style="background:rgba(155,89,182,0.12);">📅</div>
-                        Créer un événement
-                        <span style="font-size:10px;color:var(--pd-muted);">Phase 8</span>
-                    </a>
-                    <a href="#" class="pd-qa-btn" style="opacity:.5;cursor:not-allowed;" title="Phase 5">
-                        <div class="pd-qa-icon" style="background:rgba(59,154,225,0.12);">📄</div>
-                        Nouveau document
-                        <span style="font-size:10px;color:var(--pd-muted);">Phase 5</span>
-                    </a>
+
                 </div>
 
                 @if($isAdmin)
