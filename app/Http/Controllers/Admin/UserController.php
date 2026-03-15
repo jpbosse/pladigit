@@ -50,10 +50,13 @@ class UserController extends Controller
 
     public function create()
     {
-        $directions = Department::on('tenant')->directions()->orderBy('name')->get();
-        $services = Department::on('tenant')->services()->with('parentDept')->orderBy('name')->get();
+        $deptTree = Department::on('tenant')
+            ->whereNull('parent_id')
+            ->with('allChildren')
+            ->orderBy('label')->orderBy('name')
+            ->get();
 
-        return view('admin.users.create', compact('directions', 'services'));
+        return view('admin.users.create', compact('deptTree'));
     }
 
     public function store(Request $request)
@@ -131,11 +134,14 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        $directions = Department::on('tenant')->directions()->orderBy('name')->get();
-        $services = Department::on('tenant')->services()->with('parentDept')->orderBy('name')->get();
+        $deptTree = Department::on('tenant')
+            ->whereNull('parent_id')
+            ->with('allChildren')
+            ->orderBy('label')->orderBy('name')
+            ->get();
         $userDeptIds = $user->departments()->pluck('departments.id')->toArray();
 
-        return view('admin.users.edit', compact('user', 'directions', 'services', 'userDeptIds'));
+        return view('admin.users.edit', compact('user', 'deptTree', 'userDeptIds'));
     }
 
     public function update(Request $request, User $user)
