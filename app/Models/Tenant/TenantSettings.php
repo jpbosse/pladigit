@@ -50,6 +50,13 @@ class TenantSettings extends Model
         'maintenance_window_day', 'maintenance_window_start', 'maintenance_window_end',
         // Photothèque affichage
         'media_default_cols',
+        // Watermark téléchargements
+        'wm_enabled',
+        'wm_type',
+        'wm_text',
+        'wm_position',
+        'wm_opacity',
+        'wm_size',
         // NAS Photothèque
         'nas_photo_driver',
         'nas_photo_local_path',
@@ -91,6 +98,9 @@ class TenantSettings extends Model
         'nas_ged_port' => 'integer',
         'nas_ged_sync_interval_minutes' => 'integer',
         'nas_ged_last_sync_at' => 'datetime',
+        // Watermark
+        'wm_enabled' => 'boolean',
+        'wm_opacity' => 'integer',
         'updated_at' => 'datetime',
     ];
 

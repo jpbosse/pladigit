@@ -55,7 +55,7 @@ class RefreshExifCommand extends Command
                 ? $this->error("Tenant « {$tenantSlug} » introuvable ou inactif.")
                 : $this->warn('Aucune organisation active trouvée.');
 
-            return self::FAILURE;
+            return $tenantSlug ? self::FAILURE : self::SUCCESS;
         }
 
         $grandTotal = ['updated' => 0, 'skipped' => 0, 'errors' => 0];

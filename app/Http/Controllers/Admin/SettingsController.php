@@ -211,7 +211,17 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'media_default_cols' => ['required', 'integer', 'min:1', 'max:12'],
+            // Watermark
+            'wm_enabled' => ['sometimes', 'boolean'],
+            'wm_type' => ['sometimes', 'in:text,logo'],
+            'wm_text' => ['nullable', 'string', 'max:100'],
+            'wm_position' => ['sometimes', 'in:bottom-right,bottom-left,center,bottom-center'],
+            'wm_opacity' => ['sometimes', 'integer', 'min:10', 'max:100'],
+            'wm_size' => ['sometimes', 'in:small,medium,large'],
         ]);
+
+        // La checkbox wm_enabled n'est pas soumise si décochée
+        $validated['wm_enabled'] = $request->boolean('wm_enabled');
 
         $settings = TenantSettings::firstOrCreate([]);
         $settings->update($validated);

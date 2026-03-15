@@ -45,6 +45,14 @@ class TenantSettingsFactory extends Factory
             'ldap_use_tls' => true,
             'ldap_use_ssl' => false,
             'ldap_sync_interval_hours' => 24,
+
+            // Watermark — désactivé par défaut en test
+            'wm_enabled' => false,
+            'wm_type' => 'text',
+            'wm_text' => null,
+            'wm_position' => 'bottom-right',
+            'wm_opacity' => 60,
+            'wm_size' => 'medium',
         ];
     }
 

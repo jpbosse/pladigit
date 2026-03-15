@@ -28,6 +28,7 @@ class OrganizationFactory extends Factory
             'primary_color' => '#1E3A5F',
             'timezone' => 'Europe/Paris',
             'locale' => 'fr_FR',
+            'enabled_modules' => [],
         ];
     }
 

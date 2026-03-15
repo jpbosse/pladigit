@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Media;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
+use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\MediaService;
 use App\Services\Nas\NasManager;
+use App\Services\WatermarkService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -161,6 +163,7 @@ class MediaItemController extends Controller
 
     /**
      * Téléchargement du fichier original depuis le NAS.
+     * Applique le watermark à la volée si activé pour ce tenant.
      * Charge le fichier en mémoire — réservé aux fichiers non-vidéo ou petits fichiers.
      */
     public function download(MediaAlbum $album, MediaItem $item)
@@ -176,8 +179,20 @@ class MediaItemController extends Controller
             $nas = app(NasManager::class)->photoDriver();
             $contents = $nas->readFile($item->file_path);
 
+            // ── Watermark à la volée ───────────────────────────────────────
+            $settings = TenantSettings::first();
+            $watermark = app(WatermarkService::class);
+
+            if ($settings !== null && $watermark->shouldApply($item->mime_type, $settings)) {
+                $contents = $watermark->apply($contents, $item->mime_type, $settings);
+                $mimeType = 'image/jpeg'; // WatermarkService sort toujours en JPEG
+            } else {
+                $mimeType = $item->mime_type;
+            }
+            // ─────────────────────────────────────────────────────────────
+
             return response($contents, 200, [
-                'Content-Type' => $item->mime_type,
+                'Content-Type' => $mimeType,
                 'Content-Disposition' => 'attachment; filename="'.$item->file_name.'"',
                 'Content-Length' => strlen($contents),
             ]);

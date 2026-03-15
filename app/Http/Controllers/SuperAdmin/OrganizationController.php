@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
+use App\Enums\ModuleKey;
 use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
 use App\Services\TenantManager;
@@ -246,6 +247,24 @@ class OrganizationController extends Controller
         return redirect()
             ->route('super-admin.organizations.show', $organization)
             ->with('success', 'Configuration LDAP sauvegardée.');
+    }
+
+    public function updateModules(Request $request, Organization $organization): \Illuminate\Http\RedirectResponse
+    {
+        $validKeys = ModuleKey::values();
+
+        $submitted = array_filter(
+            (array) $request->input('modules', []),
+            fn (string $key) => in_array($key, $validKeys, strict: true)
+        );
+
+        $organization->update([
+            'enabled_modules' => array_values($submitted),
+        ]);
+
+        return redirect()
+            ->route('super-admin.organizations.show', $organization)
+            ->with('success', 'Modules mis à jour.');
     }
 
     private function maxUsersFromPlan(string $plan): int
