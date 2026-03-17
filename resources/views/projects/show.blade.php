@@ -5,7 +5,8 @@
 
 @push('styles')
 <style>
-.proj-header      { display:flex; align-items:flex-start; gap:16px; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom: 0.5px solid var(--pd-border); }
+.proj-header      { display:flex; align-items:flex-start; gap:16px; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom: 0.5px solid var(--pd-border); max-width:100%; }
+.proj-header-actions { display:flex; gap:8px; flex-shrink:0; }
 .proj-color-dot   { width:14px; height:14px; border-radius:50%; flex-shrink:0; margin-top:5px; }
 .proj-tabs        { display:flex; gap:0; border-bottom: 0.5px solid var(--pd-border); margin-bottom:1.5rem; }
 .proj-tab         { padding:10px 18px; font-size:13px; font-weight:500; color:var(--pd-muted); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; }
@@ -22,6 +23,7 @@
 @endpush
 
 @section('content')
+<div style="padding:20px;">
 
 @php
     $canManage = $userRole?->canManage() || in_array(auth()->user()?->role, ['admin','president','dgs']);
@@ -53,7 +55,7 @@
         </div>
     </div>
     @if($canManage)
-    <div style="display:flex;gap:8px;">
+    <div class="proj-header-actions">
         <a href="{{ route('projects.edit', $project) }}" class="pd-btn pd-btn-sm pd-btn-secondary">Modifier</a>
     </div>
     @endif
@@ -179,4 +181,5 @@
 {{-- Slide-over tâche — masqué par défaut --}}
 @include('projects.partials._task_slideover')
 
+</div>
 @endsection
