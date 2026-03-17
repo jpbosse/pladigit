@@ -4,12 +4,14 @@
 
 namespace Tests\Feature\Media;
 
+use App\Models\Platform\Organization;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
 use App\Services\MediaService;
 use App\Services\Nas\LocalNasDriver;
 use App\Services\Nas\NasManager;
+use App\Services\TenantManager;
 use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
@@ -52,6 +54,34 @@ class MediaServiceTest extends TestCase
             'nas.default_driver' => 'local',
             'nas.local_path' => $this->nasRoot,
         ]);
+
+        // Persister l'organisation en base pour MediaService
+        $this->persistOrganization();
+    }
+
+    /**
+     * Persiste l'organisation courante en base platform.
+     * Nécessaire car MediaService::upload() a besoin d'une org persistée.
+     */
+    private function persistOrganization(): void
+    {
+        $tenantManager = app(TenantManager::class);
+        $current = $tenantManager->current();
+
+        if ($current) {
+            $org = Organization::updateOrCreate(
+                ['slug' => $current->slug],
+                [
+                    'name' => $current->name,
+                    'db_name' => $current->db_name,
+                    'status' => 'active',
+                    'plan' => 'communautaire',
+                    'primary_color' => '#1E3A5F',
+                    'enabled_modules' => ['media'],
+                ]
+            );
+            $tenantManager->connectTo($org);
+        }
     }
 
     protected function tearDown(): void

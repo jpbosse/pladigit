@@ -310,20 +310,25 @@ class MediaItemControllerTest extends TestCase
 
     public function test_store_refuse_extension_non_autorisee(): void
     {
+        $countBefore = MediaItem::count();
+
         $file = \Illuminate\Http\UploadedFile::fake()->create('malware.exe', 100, 'application/octet-stream');
 
         $this->actingAs($this->user)
             ->post(route('media.items.store', $this->album), [
                 'files' => [$file],
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('upload_errors');
 
-        // Aucun item créé
-        $this->assertDatabaseCount('media_items', 0, 'tenant');
+        // Aucun nouvel item créé
+        $this->assertDatabaseCount('media_items', $countBefore, 'tenant');
     }
 
     public function test_store_refuse_fichier_trop_volumineux(): void
     {
+        $countBefore = MediaItem::count();
+
         config(['nas.max_file_size' => 1024]); // 1 Ko max
 
         // Fake file de 10 Ko
@@ -333,9 +338,11 @@ class MediaItemControllerTest extends TestCase
             ->post(route('media.items.store', $this->album), [
                 'files' => [$file],
             ])
-            ->assertRedirect();
+            ->assertRedirect()
+            ->assertSessionHas('upload_errors');
 
-        $this->assertDatabaseCount('media_items', 0, 'tenant');
+        // Aucun nouvel item créé
+        $this->assertDatabaseCount('media_items', $countBefore, 'tenant');
     }
 
     public function test_store_refuse_si_quota_depasse(): void
