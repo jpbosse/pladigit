@@ -1,13 +1,15 @@
 {{-- resources/views/projects/partials/_task_slideover.blade.php --}}
 <div x-data="taskSlideover()"
+     x-cloak
      @open-task.window="openTask($event.detail.taskId)"
      @open-new-task.window="openNew($event.detail.status)"
-     style="position:fixed;top:0;right:0;bottom:0;width:440px;z-index:9999;pointer-events:none;">
+     x-show="open"
+     style="position:fixed;top:0;right:0;bottom:0;width:440px;z-index:9999;">
 
     {{-- Overlay sombre --}}
     <div x-show="open" x-cloak
          @click="close()"
-         style="position:fixed;inset:0;background:rgba(0,0,0,.3);pointer-events:auto;"
+         style="position:fixed;inset:0;background:rgba(0,0,0,.3);"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -18,7 +20,7 @@
 
     {{-- Panneau latéral --}}
     <div x-show="open" x-cloak
-         style="position:absolute;top:0;right:0;bottom:0;width:440px;background:var(--pd-bg);border-left:0.5px solid var(--pd-border);overflow-y:auto;pointer-events:auto;box-shadow:-4px 0 16px rgba(0,0,0,.08);"
+         style="position:absolute;top:0;right:0;bottom:0;width:440px;background:var(--pd-bg);border-left:0.5px solid var(--pd-border);overflow-y:auto;box-shadow:-4px 0 16px rgba(0,0,0,.08);"
          x-transition:enter="transform transition ease-out duration-200"
          x-transition:enter-start="translate-x-full"
          x-transition:enter-end="translate-x-0"

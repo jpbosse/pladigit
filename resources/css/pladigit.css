@@ -42,6 +42,9 @@
     --pd-transition: 0.28s cubic-bezier(0.4,0,0.2,1);
 }
 
+/* Alpine.js x-cloak - hide elements until Alpine is ready */
+[x-cloak] { display: none !important; }
+
 /* Dark mode */
 [data-theme="dark"] {
     --pd-navy:          #5bb3f5;
