@@ -108,6 +108,7 @@
         .footer-col a{display:block;font-size:0.82rem;color:rgba(255,255,255,0.55);text-decoration:none;margin-bottom:0.4rem;transition:color 0.2s}
         .footer-col a:hover{color:white}
         .footer-bottom{display:flex;justify-content:space-between;align-items:center}
+
         .footer-copy{font-size:0.78rem;color:rgba(255,255,255,0.3)}
         .footer-legal{display:flex;gap:1.5rem}
         .footer-legal a{font-size:0.78rem;color:rgba(255,255,255,0.3);text-decoration:none}
@@ -132,39 +133,10 @@
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
             <a href="https://github.com/jpbosse/pladigit" target="_blank" class="btn-source">Source</a>
-            <div style="position:relative">
-                <button onclick="this.nextElementSibling.classList.toggle('hidden')" class="btn-nav" style="cursor:pointer;border:none">Connexion ▾</button>
-                <div class="hidden" id="org-dropdown" style="position:absolute;right:0;top:44px;background:white;border:1px solid #e5e7eb;border-radius:8px;padding:16px;min-width:260px;box-shadow:0 8px 24px rgba(0,0,0,0.12);z-index:200">
-                    <p style="font-size:0.75rem;color:#374151;margin-bottom:8px;font-weight:600">Identifiant de votre organisation :</p>
-                    <div style="display:flex;gap:6px">
-                        <input id="org-input" type="text" placeholder="ex: mairie-soullans" style="flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:4px;font-size:0.85rem;outline:none" onkeydown="if(event.key==='Enter')document.getElementById('org-btn').click()">
-                        <button id="org-btn" onclick="checkOrg()" style="padding:6px 12px;background:#1E3A5F;color:white;border:none;border-radius:4px;font-size:0.85rem;cursor:pointer;font-weight:600">→</button>
-                    </div>
-                    <p id="org-error" style="font-size:0.75rem;color:#dc2626;margin-top:8px;display:none">❌ Organisation introuvable. Vérifiez votre identifiant.</p>
-                    <p id="org-loading" style="font-size:0.75rem;color:#6b7280;margin-top:8px;display:none">⏳ Vérification...</p>
-                    <p style="font-size:0.7rem;color:#9ca3af;margin-top:8px">Fourni par votre administrateur.</p>
-                </div>
-            </div>
-            <script>
-            function checkOrg() {
-                var v = document.getElementById('org-input').value.trim();
-                if (!v) return;
-                document.getElementById('org-error').style.display = 'none';
-                document.getElementById('org-loading').style.display = 'block';
-                document.getElementById('org-btn').disabled = true;
-                fetch('/check-org-ajax/' + v)
-                    .then(r => r.json())
-                    .then(data => {
-                        if (data.exists) {
-                            window.location.href = '/check-org/' + v;
-                        } else {
-                            document.getElementById('org-loading').style.display = 'none';
-                            document.getElementById('org-error').style.display = 'block';
-                            document.getElementById('org-btn').disabled = false;
-                        }
-                    });
-            }
-            </script>
+
+
+<button onclick="openLoginModal()" class="btn-nav" style="cursor:pointer;border:none">Connexion</button>
+
             </div>
         </div>
     </div>
@@ -360,6 +332,179 @@
     </div>
 </footer>
 
+
+{{-- ── Modal de connexion ─────────────────────────────────── --}}
+<div id="login-modal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(15,25,40,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+    <div style="background:white;border-radius:12px;padding:2.5rem;width:100%;max-width:420px;margin:1rem;box-shadow:0 24px 64px rgba(0,0,0,0.25);position:relative">
+
+        {{-- Fermeture --}}
+        <button onclick="closeLoginModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.25rem;color:#9ca3af;cursor:pointer;line-height:1">✕</button>
+
+        {{-- En-tête --}}
+        <div style="margin-bottom:1.75rem">
+            <div style="font-family:'Libre Baskerville',serif;font-size:1.3rem;font-weight:700;color:#1E3A5F;margin-bottom:0.25rem">Connexion à Pladigit</div>
+            <div style="font-size:0.82rem;color:#6B7A8D">Accédez à l'espace de votre organisation.</div>
+        </div>
+
+        {{-- Champ Organisation --}}
+        <div style="margin-bottom:1rem">
+            <label style="display:block;font-size:0.78rem;font-weight:600;color:#1E3A5F;margin-bottom:0.35rem">
+                Identifiant de l'organisation
+                <span style="font-weight:400;color:#9ca3af;font-size:0.72rem;margin-left:0.4rem">fourni par votre administrateur</span>
+            </label>
+            <input id="modal-org" type="text" placeholder="ex: mairie-soullans" autocomplete="organization"
+                style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.9rem;font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color 0.2s"
+                onfocus="this.style.borderColor='#1E3A5F'" onblur="this.style.borderColor='#d1d5db'"
+                onkeydown="if(event.key==='Enter')document.getElementById('modal-email').focus()">
+        </div>
+
+        {{-- Champ Email --}}
+        <div style="margin-bottom:1rem">
+            <label style="display:block;font-size:0.78rem;font-weight:600;color:#1E3A5F;margin-bottom:0.35rem">Adresse email</label>
+            <input id="modal-email" type="email" placeholder="vous@organisation.fr" autocomplete="email"
+                style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.9rem;font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color 0.2s"
+                onfocus="this.style.borderColor='#1E3A5F'" onblur="this.style.borderColor='#d1d5db'"
+                onkeydown="if(event.key==='Enter')document.getElementById('modal-pwd').focus()">
+        </div>
+
+        {{-- Champ Mot de passe --}}
+        <div style="margin-bottom:1.5rem">
+            <label style="display:block;font-size:0.78rem;font-weight:600;color:#1E3A5F;margin-bottom:0.35rem">Mot de passe</label>
+            <input id="modal-pwd" type="password" placeholder="••••••••" autocomplete="current-password"
+                style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.9rem;font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color 0.2s"
+                onfocus="this.style.borderColor='#1E3A5F'" onblur="this.style.borderColor='#d1d5db'"
+                onkeydown="if(event.key==='Enter')submitLogin()">
+        </div>
+
+        {{-- Message d'erreur --}}
+        <div id="modal-error" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:4px;padding:0.65rem 0.875rem;font-size:0.82rem;color:#DC2626;margin-bottom:1rem"></div>
+
+        {{-- Bouton connexion --}}
+        <button id="modal-btn" onclick="submitLogin()"
+            style="width:100%;padding:0.85rem;background:#1E3A5F;color:white;border:none;border-radius:4px;font-family:'Source Sans 3',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s"
+            onmouseover="this.style.background='#162D4A'" onmouseout="this.style.background='#1E3A5F'">
+            Se connecter
+        </button>
+
+        {{-- Aide --}}
+        <p style="font-size:0.72rem;color:#9ca3af;text-align:center;margin-top:1rem">
+            Problème de connexion ? Contactez votre administrateur.
+        </p>
+    </div>
+</div>
+
+<script>
+// ── Helpers cookie ───────────────────────────────────────────
+function setCookie(name, value, days) {
+    var expires = '';
+    if (days) {
+        var d = new Date();
+        d.setTime(d.getTime() + days * 864e5);
+        expires = ';expires=' + d.toUTCString();
+    }
+    document.cookie = name + '=' + encodeURIComponent(value) + expires + ';path=/;SameSite=Lax';
+}
+function getCookie(name) {
+    var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : '';
+}
+
+// ── Modal ────────────────────────────────────────────────────
+function openLoginModal() {
+    // Pré-remplir l'org depuis le cookie si disponible
+    var savedOrg = getCookie('pladigit_org');
+    if (savedOrg) {
+        document.getElementById('modal-org').value = savedOrg;
+        // Focus sur email si org déjà connue
+        setTimeout(function() { document.getElementById('modal-email').focus(); }, 100);
+    } else {
+        setTimeout(function() { document.getElementById('modal-org').focus(); }, 100);
+    }
+    document.getElementById('modal-error').style.display = 'none';
+    document.getElementById('login-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeLoginModal() {
+    document.getElementById('login-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+// Fermeture en cliquant sur le fond
+document.getElementById('login-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeLoginModal();
+});
+// Fermeture avec Escape
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeLoginModal();
+});
+
+// ── Soumission ───────────────────────────────────────────────
+function submitLogin() {
+    var slug  = document.getElementById('modal-org').value.trim().toLowerCase();
+    var email = document.getElementById('modal-email').value.trim();
+    var pwd   = document.getElementById('modal-pwd').value;
+    var btn   = document.getElementById('modal-btn');
+    var err   = document.getElementById('modal-error');
+
+    err.style.display = 'none';
+
+    if (!slug) { showModalError('Veuillez saisir l\'identifiant de votre organisation.'); return; }
+    if (!email) { showModalError('Veuillez saisir votre adresse email.'); return; }
+    if (!pwd)   { showModalError('Veuillez saisir votre mot de passe.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Vérification...';
+
+    // 1. Vérifier que l'org existe
+    fetch('/check-org-ajax/' + encodeURIComponent(slug))
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (!data.exists) {
+                showModalError('❌ Organisation « ' + slug + ' » introuvable. Vérifiez l\'identifiant.');
+                resetBtn();
+                return;
+            }
+            // 2. Org valide → sauvegarder dans le cookie (1 an)
+            setCookie('pladigit_org', slug, 365);
+
+            // 3. Construire et soumettre le formulaire vers {slug}.pladigit.fr/login
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'http://' + slug + '.pladigit.fr/login';
+            form.style.display = 'none';
+
+            // Le token CSRF sera rejeté car on vient d'un autre domaine —
+            // on envoie sans token, le LoginController doit être exempté du CSRF
+            // pour les requêtes cross-origin (voir routes/web.php côté tenant).
+            [['email', email], ['password', pwd]].forEach(function(pair) {
+                var input = document.createElement('input');
+                input.type  = 'hidden';
+                input.name  = pair[0];
+                input.value = pair[1];
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+        })
+        .catch(function() {
+            showModalError('Erreur réseau. Vérifiez votre connexion et réessayez.');
+            resetBtn();
+        });
+}
+function showModalError(msg) {
+    var err = document.getElementById('modal-error');
+    err.textContent = msg;
+    err.style.display = 'block';
+}
+function resetBtn() {
+    var btn = document.getElementById('modal-btn');
+    btn.disabled = false;
+    btn.textContent = 'Se connecter';
+}
+</script>
+
+
+
 <script>
 const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry, i) => {
@@ -371,5 +516,9 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 </script>
+
+
+
+
 </body>
 </html>

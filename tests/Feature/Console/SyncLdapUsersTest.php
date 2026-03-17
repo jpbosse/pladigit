@@ -9,9 +9,8 @@ use Tests\TestCase;
 
 /**
  * SyncLdapUsersTest — Tests de la commande pladigit:sync-ldap (§6.6)
- *
- * @group console
  */
+#[\PHPUnit\Framework\Attributes\Group('console')]
 class SyncLdapUsersTest extends TestCase
 {
     private Organization $orgA;

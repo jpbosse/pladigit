@@ -94,40 +94,29 @@ class MediaService
             throw new RuntimeException("Échec de l'écriture sur le NAS : {$nasPath}");
         }
 
-        // Miniature (images uniquement)
-        $thumbPath = null;
-        if (str_starts_with($file->getMimeType() ?? '', 'image/')) {
-            $thumbPath = $this->generateThumbnail($contents, $nasPath, $nas);
-        }
-
-        // Extraction EXIF (JPEG/TIFF uniquement)
-        $exifData = $this->extractExif($file->getRealPath(), $file->getMimeType() ?? '');
-
-        // Dimensions
-        [$width, $height] = $this->getImageDimensions($file->getRealPath(), $file->getMimeType() ?? '');
-
-        // Transaction BDD — si create() échoue, on supprime les fichiers NAS
-        // pour éviter de laisser un fichier orphelin sur le NAS.
+        // Transaction BDD — créer le MediaItem en statut 'pending'
+        // La miniature, l'EXIF et les dimensions sont traités en queue.
         try {
             $item = \DB::connection('tenant')->transaction(function () use (
-                $album, $uploader, $file, $nasPath, $thumbPath,
-                $contents, $exifData, $sha256, $width, $height
+                $album, $uploader, $file, $nasPath, $contents, $sha256
             ): MediaItem {
                 return MediaItem::create([
                     'album_id' => $album->id,
                     'uploaded_by' => $uploader->id,
                     'file_name' => $file->getClientOriginalName(),
                     'file_path' => $nasPath,
-                    'thumb_path' => $thumbPath,
+                    'thumb_path' => null,
                     'mime_type' => $file->getMimeType() ?? 'application/octet-stream',
                     'file_size_bytes' => strlen($contents),
-                    'width_px' => $width,
-                    'height_px' => $height,
-                    'exif_data' => $exifData ?: null,
+                    'width_px' => null,
+                    'height_px' => null,
+                    'exif_data' => null,
                     'sha256_hash' => $sha256,
                     'caption' => null,
+                    'processing_status' => 'pending',
                 ]);
             });
+
         } catch (\Throwable $e) {
             // Compensation : supprimer les fichiers NAS pour éviter les orphelins
             try {
@@ -150,6 +139,15 @@ class MediaService
                 previous: $e
             );
         }
+
+        // Dispatch du Job de traitement en arrière-plan
+        $org = app(\App\Services\TenantManager::class)->current();
+        \App\Jobs\ProcessMediaUpload::dispatch(
+            $item->id,
+            $org->slug,
+            $nasPath,
+            $item->mime_type,
+        );
 
         $this->auditService->log('media.upload', $uploader, [
             'model_type' => MediaItem::class,
@@ -350,8 +348,11 @@ class MediaService
         ?User $owner,
         array &$stats,
     ): ?MediaAlbum {
-        // Chercher un album existant avec ce nas_path
-        $existing = MediaAlbum::where('nas_path', $nasPath)->first();
+
+        // Chercher un album existant avec ce nas_path ET ce parent_id
+        $existing = MediaAlbum::where('nas_path', $nasPath)
+            ->where('parent_id', $parentId)
+            ->first();
 
         if ($existing) {
             $stats['albums_found']++;
@@ -1015,7 +1016,7 @@ class MediaService
      *
      * @return array{int|null, int|null}
      */
-    private function getImageDimensions(string $path, string $mimeType): array
+    public function getImageDimensions(string $path, string $mimeType): array
     {
         if (! str_starts_with($mimeType, 'image/')) {
             return [null, null];

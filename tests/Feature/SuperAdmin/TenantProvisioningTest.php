@@ -49,11 +49,9 @@ class TenantProvisioningTest extends TestCase
 
     // ── Provisioning nominal ───────────────────────────────────────────
     // Les tests nominaux nécessitent CREATE DATABASE — droit non disponible
-    // sur le CI. Ils sont marqués @group integration pour être exclus du pipeline.
+    // sur le CI. Ils sont marqués #[Group('integration')] pour être exclus du pipeline.
 
-    /**
-     * @group integration
-     */
+    #[\PHPUnit\Framework\Attributes\Group('integration')]
     public function test_provisioning_nominal_active_org(): void
     {
         $org = $this->makeOrg('ok');
@@ -64,9 +62,7 @@ class TenantProvisioningTest extends TestCase
         $this->assertSame('active', $org->status);
     }
 
-    /**
-     * @group integration
-     */
+    #[\PHPUnit\Framework\Attributes\Group('integration')]
     public function test_provisioning_nominal_cree_tenant_settings(): void
     {
         $org = $this->makeOrg('ok');

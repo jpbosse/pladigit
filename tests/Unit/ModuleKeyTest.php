@@ -71,15 +71,23 @@ class ModuleKeyTest extends TestCase
 
     public function test_ged_n_est_pas_encore_disponible(): void
     {
-        $this->assertFalse(ModuleKey::GED->isAvailable());
+        // GED est en phase 5 — isAvailable() retourne true (phase <= 5)
+        // Ce test documente que GED vient d'être activé avec Phase 5bis
+        $this->assertTrue(ModuleKey::GED->isAvailable());
     }
 
     public function test_available_contient_uniquement_media(): void
     {
         $available = ModuleKey::available();
 
-        $this->assertCount(1, $available);
-        $this->assertSame(ModuleKey::MEDIA, $available[0]);
+        // Phase 5bis : media (phase 3), projects (phase 5), ged (phase 5) sont disponibles
+        $availableValues = array_map(fn ($m) => $m->value, $available);
+        $this->assertContains('media', $availableValues);
+        $this->assertContains('projects', $availableValues);
+        $this->assertContains('ged', $availableValues);
+        // Les modules des phases > 5 ne sont pas encore disponibles
+        $this->assertNotContains('collabora', $availableValues);
+        $this->assertNotContains('chat', $availableValues);
     }
 
     // ── Helpers statiques ─────────────────────────────────────────────

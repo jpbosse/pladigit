@@ -185,6 +185,7 @@ Route::middleware('tenant')->group(function () {
             // Médias (imbriqués sous album)
             Route::get('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'create'])->name('items.create');
             Route::post('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'store'])->name('items.store');
+            Route::post('albums/{album}/import-zip', [\App\Http\Controllers\Media\MediaItemController::class, 'importZip'])->name('items.import-zip');
             Route::get('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'show'])->name('items.show');
             Route::delete('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'destroy'])->name('items.destroy');
             Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
@@ -194,11 +195,18 @@ Route::middleware('tenant')->group(function () {
             // Servir les fichiers (inline et téléchargement)
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');
             Route::get('albums/{album}/items/{item}/download', [\App\Http\Controllers\Media\MediaItemController::class, 'download'])->name('items.download');
+
+            require base_path('routes/projects.php');
+
         });
 
         // ── Zone DGS et plus ──────────────────────────────
         Route::middleware('role:dgs')->group(function () {
             // Rapports, exports… (phases futures)
+
         });
+
+        require base_path('routes/projects.php');
+
     });
 });
