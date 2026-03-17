@@ -216,7 +216,6 @@ function taskSlideover() {
                 this.loadError = true;
             });
         },
-        },
 
         openNew(status) {
             this.open      = true;
