@@ -34,6 +34,9 @@ class MediaItemControllerTest extends TestCase
     {
         parent::setUp();
 
+        // Nettoyage explicite des media_items pour éviter la contamination entre tests
+        \DB::connection('tenant')->table('media_items')->delete();
+
         $this->nasRoot = sys_get_temp_dir().'/pladigit_ctrl_test_'.uniqid();
         mkdir($this->nasRoot, 0755, true);
 
