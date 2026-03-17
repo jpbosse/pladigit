@@ -52,8 +52,14 @@ class TaskController extends Controller
                 'due_date'        => $task->due_date?->format('Y-m-d'),
                 'estimated_hours' => $task->estimated_hours,
                 'actual_hours'    => $task->actual_hours,
-                'assignee'        => $task->assignee ? ['id' => $task->assignee->id, 'name' => $task->assignee->name] : null,
-                'milestone'       => $task->milestone ? ['id' => $task->milestone->id, 'title' => $task->milestone->title] : null,
+
+
+'assigned_to'     => $task->assigned_to,
+'assignee'        => $task->assignee ? ['id' => $task->assignee->id, 'name' => $task->assignee->name] : null,
+'milestone_id'    => $task->milestone_id,
+'milestone'       => $task->milestone ? ['id' => $task->milestone->id, 'title' => $task->milestone->title] : null,
+
+
                 'subtasks_total'  => $task->children->count(),
                 'subtasks_done'   => $task->children->where('status', 'done')->count(),
             ],
