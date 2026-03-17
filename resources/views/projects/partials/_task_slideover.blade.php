@@ -191,6 +191,15 @@ function taskSlideover() {
         newComment: '',
         newTask: { title: '', status: 'todo', priority: 'medium', description: '', start_date: '', due_date: '' },
 
+        init() {
+            // Fermer avec Escape
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && this.open) {
+                    this.close();
+                }
+            });
+        },
+
         openTask(taskId) {
             this.open    = true;
             this.newMode = false;
