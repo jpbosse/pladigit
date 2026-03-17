@@ -113,6 +113,7 @@ class Project extends Model
      * ADR-010 couche 1 :
      *   - Admin / Président / DGS → tous les projets du tenant
      *   - Autres rôles → uniquement les projets dont l'user est membre
+     *   - Les brouillons (draft) ne sont visibles que par leur créateur
      *
      * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
      */
@@ -125,10 +126,14 @@ class Project extends Model
             return $query;
         }
 
-        // Les autres ne voient que leurs projets
-        return $query->whereHas('projectMembers', function ($q) use ($user) {
-            $q->where('user_id', $user->id);
-        });
+        // Les autres voient :
+        // - leurs projets (dont ils sont membre) non-brouillon
+        // - leurs brouillons (créés par eux)
+        return $query->where(function ($q) use ($user) {
+            $q->whereHas('projectMembers', function ($subQ) use ($user) {
+                $subQ->where('user_id', $user->id);
+            })->where('status', '!=', 'draft');
+        })->orWhere('created_by', $user->id);
     }
 
     /**
@@ -222,10 +227,35 @@ class Project extends Model
     public static function statusLabels(): array
     {
         return [
-            'active' => 'Actif',
-            'on_hold' => 'En pause',
-            'completed' => 'Terminé',
+            'draft'    => 'Brouillon',
+            'active'   => 'Actif',
+            'on_hold'  => 'En pause',
+            'completed'=> 'Terminé',
             'archived' => 'Archivé',
         ];
+    }
+
+    /**
+     * Couleurs associées aux statuts pour l'affichage.
+     *
+     * @return array<string, array{bg: string, text: string}>
+     */
+    public static function statusColors(): array
+    {
+        return [
+            'draft'    => ['bg' => '#E2E8F0', 'text' => '#475569'],
+            'active'   => ['bg' => '#D1FAE5', 'text' => '#065F46'],
+            'on_hold'  => ['bg' => '#FEF3C7', 'text' => '#92400E'],
+            'completed'=> ['bg' => '#DBEAFE', 'text' => '#1E40AF'],
+            'archived' => ['bg' => '#E2E8F0', 'text' => '#475569'],
+        ];
+    }
+
+    /**
+     * Vérifie si le projet est un brouillon.
+     */
+    public function isDraft(): bool
+    {
+        return $this->status === 'draft';
     }
 }

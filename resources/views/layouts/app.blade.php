@@ -179,13 +179,12 @@
 @if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
     <a href="{{ route('projects.index') }}"
        class="pd-nav-item {{ str_starts_with($route, 'projects.') ? 'active' : '' }}">
-        <svg class="pd-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-             stroke-width="1.8" stroke-linecap="round">
+        <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24">
             <rect x="3" y="3" width="7" height="7"/>
             <rect x="14" y="3" width="7" height="7"/>
             <rect x="14" y="14" width="7" height="7"/>
             <rect x="3" y="14" width="7" height="7"/>
-        </svg>
+        </svg></span>
         <span class="pd-nav-label">Projets</span>
         <span class="pd-nav-tip">Projets</span>
     </a>
