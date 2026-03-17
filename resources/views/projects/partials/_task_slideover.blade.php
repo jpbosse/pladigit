@@ -160,7 +160,7 @@
                             Aucun commentaire pour l'instant.
                         </div>
 
-                        @if($canEdit)
+                        @if(isset($canEdit) && $canEdit)
                         <form @submit.prevent="submitComment()"
                               style="display:flex;gap:8px;margin-top:12px;">
                             <input type="text"
