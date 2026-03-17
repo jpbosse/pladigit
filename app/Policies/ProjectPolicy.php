@@ -38,10 +38,15 @@ class ProjectPolicy
 
     /**
      * Peut voir le projet (liste et détail).
-     * → Être membre du projet.
+     * → Être membre du projet (les brouillons sont filtrés par scopeVisibleFor).
      */
     public function view(User $user, Project $project): bool
     {
+        // Les brouillons ne sont visibles que par leur créateur
+        if ($project->isDraft()) {
+            return $project->created_by === $user->id;
+        }
+
         return $project->isMember($user);
     }
 
@@ -57,20 +62,31 @@ class ProjectPolicy
     }
 
     /**
-     * Peut modifier les paramètres du projet (nom, description, dates, couleur).
+     * Peut modifier les paramètres du projet (nom, description, dates, couleur, statut).
      * → Owner du projet uniquement (Admin+ intercepté par before()).
+     * → Pour un brouillon : seul le créateur.
      */
     public function update(User $user, Project $project): bool
     {
+        // Brouillon : seul le créateur
+        if ($project->isDraft()) {
+            return $project->created_by === $user->id;
+        }
+
         return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
     }
 
     /**
      * Peut supprimer le projet.
      * → Owner uniquement.
+     * → Pour un brouillon : seul le créateur.
      */
     public function delete(User $user, Project $project): bool
     {
+        if ($project->isDraft()) {
+            return $project->created_by === $user->id;
+        }
+
         return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
     }
 

@@ -43,6 +43,7 @@
 .proj-badge {
     font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
 }
+.proj-badge-draft    { background: #F1F5F9; color: #475569; border: 1px dashed #CBD5E1; }
 .proj-badge-active    { background: #D1FAE5; color: #065F46; }
 .proj-badge-on_hold   { background: #FEF3C7; color: #92400E; }
 .proj-badge-completed { background: #DBEAFE; color: #1E40AF; }
@@ -68,7 +69,7 @@
 
 {{-- Filtres --}}
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:1.5rem;">
-    @foreach([''=>'Tous', 'active'=>'Actifs', 'on_hold'=>'En pause', 'completed'=>'Terminés', 'archived'=>'Archivés'] as $val => $label)
+    @foreach([''=>'Tous', 'draft'=>'Brouillons', 'active'=>'Actifs', 'on_hold'=>'En pause', 'completed'=>'Terminés', 'archived'=>'Archivés'] as $val => $label)
     <a href="{{ request()->fullUrlWithQuery(['status' => $val ?: null]) }}"
        class="proj-filter-chip {{ request('status', '') === $val ? 'active' : '' }}">
         {{ $label }}
