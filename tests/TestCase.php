@@ -36,7 +36,7 @@ abstract class TestCase extends BaseTestCase
             'plan' => 'communautaire',
             'max_users' => 200,
             'primary_color' => '#1E3A5F',
-            'enabled_modules' => ['media'],
+            'enabled_modules' => ['media', 'projects'],
         ]);
         app(TenantManager::class)->connectTo($org);
     }
@@ -122,9 +122,14 @@ abstract class TestCase extends BaseTestCase
             $db->statement('SET FOREIGN_KEY_CHECKS=0');
             foreach ([
                 'users', 'departments', 'user_department',
+                'invitations',
                 'media_albums', 'media_items', 'album_permissions',
-                'album_user_permissions', 'tenant_settings',
-                'audit_logs', 'sessions', 'notifications',
+                'album_user_permissions', 'media_share_links', 'shares',
+                'tenant_settings',
+                'audit_logs', 'sessions', 'notifications', 'email_logs',
+                'task_dependencies', 'task_comments', 'tasks',
+                'project_milestones', 'project_members', 'projects',
+                'event_participants', 'events',
             ] as $t) {
                 $db->table($t)->delete();
             }

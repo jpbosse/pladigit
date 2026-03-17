@@ -176,6 +176,21 @@
         @endif
 
 
+@if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
+    <a href="{{ route('projects.index') }}"
+       class="pd-nav-item {{ str_starts_with($route, 'projects.') ? 'active' : '' }}">
+        <svg class="pd-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="1.8" stroke-linecap="round">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span class="pd-nav-label">Projets</span>
+        <span class="pd-nav-tip">Projets</span>
+    </a>
+    @endif
+
 
         @if(\App\Enums\UserRole::tryFrom($user?->role ?? '')?->atLeast(\App\Enums\UserRole::ADMIN))
         <span class="pd-nav-section">Administration</span>

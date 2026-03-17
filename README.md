@@ -54,23 +54,24 @@ Chaque organisation cliente dispose d'un espace **isolé, sécurisé et personna
 - ✅ Profil utilisateur avec gestion 2FA et changement de mot de passe
 - ✅ Invitation par email avec token d'activation (72h)
 - ✅ Personnalisation visuelle par organisation (logo, couleurs, nom)
-- ✅ Photothèque connectée au NAS (galerie, upload, EXIF, sync automatique)
-- ✅ CI/CD GitHub Actions — 148 tests / 337 assertions
+- ✅ Photothèque connectée au NAS (galerie, upload, EXIF, sync automatique, watermark, queue)
+- ✅ Gestion de projet — Kanban, Gantt, tâches, jalons, agenda (Phase 5bis)
+- ✅ CI/CD GitHub Actions — 399 tests / ~900 assertions
 
-### Planifiées (Phases 3–13)
+### Planifiées / En cours (Phases 3–13)
 
-| Module | Phase | Période |
-|--------|-------|---------|
-| Photothèque avancée (droits, watermark) | 3–4 | 2026 |
-| GED & recherche plein texte | 5 | Oct–Déc 2026 |
-| Éditeur Collabora Online (WOPI) | 6 | Jan–Mar 2027 |
-| ERP DataGrid no-code | 7 | Avr–Jun 2027 |
-| Gestion de projet & Agenda | 8 | Jul–Sep 2027 |
-| Chat temps réel (WebSocket) | 9 | Oct–Déc 2027 |
-| Fil d'actualités RSS | 10 | Jan–Mar 2028 |
-| Sondages & questionnaires | 11 | Avr–Jun 2028 |
-| Production & audit sécurité | 12 | Jul–Sep 2028 |
-| Publication open source & communauté | 13 | Oct 2028–Sep 2029 |
+| Module | Phase | Période | Statut |
+|--------|-------|---------|--------|
+| Photothèque avancée (albums, EXIF, ZIP, partage) | 3–4 | Avr–Sep 2026 | 🔧 En cours |
+| **Gestion de projet** — Kanban, Gantt, agenda | **5bis** | **Oct–Déc 2026** | **📋 CDC prêt** |
+| GED & recherche plein texte | 5 | Jan–Mar 2027 | 📋 Planifié |
+| Éditeur Collabora Online (WOPI) | 6 | Avr–Jun 2027 | 📋 Planifié |
+| ERP DataGrid no-code | 7 | Jul–Sep 2027 | 📋 Planifié |
+| Chat temps réel (WebSocket Soketi) | 8 | Oct–Déc 2027 | 📋 Planifié |
+| Fil d'actualités RSS | 9 | Jan–Mar 2028 | 📋 Planifié |
+| Sondages & questionnaires | 10 | Avr–Jun 2028 | 📋 Planifié |
+| Production & audit sécurité | 11 | Jul–Sep 2028 | 📋 Planifié |
+| Publication open source & communauté | 12 | Oct 2028–Sep 2029 | 📋 Planifié |
 
 ---
 
@@ -227,19 +228,20 @@ php artisan test tests/Feature/Auth/LoginTest.php
 
 | Check | Outil | Résultat |
 |-------|-------|----------|
-| Tests | PHPUnit 11 | 148 tests / 337 assertions ✅ |
+| Tests | PHPUnit 11 | 399 tests / ~900 assertions ✅ |
 | Style | Laravel Pint | PSR-12 ✅ |
-| Types | PHPStan niveau 6 | ✅ |
+| Types | PHPStan niveau 5 | ✅ |
+| Sécurité | Composer audit | 0 vulnérabilité ✅ |
 
 ---
 
 ## Phases du projet
 
 ```
-Oct 2025 ──────────────────────────────────────── Sep 2029
-│ Phase 1 │ Phase 2 │ Phase 3-4 │ Phase 5 │ ... │ Phase 13 │
-│ Socle   │ Auth    │ Photothèq │ GED     │     │ OSS      │
-│ ✅      │ ✅      │ 🔧        │ 📋      │     │ 📋       │
+Oct 2025 ──────────────────────────────────────────────── Sep 2029
+│ Ph.1  │ Ph.2  │ Ph.3-4   │ Ph.5bis │ Ph.5  │ ... │ Ph.12 │
+│ Socle │ Auth  │ Photothèq│ Projets │ GED   │     │ Prod  │
+│  ✅   │  ✅   │   🔧     │   📋    │  📋   │     │  📋   │
 ```
 
 Voir le [Cahier des Charges complet](docs/) pour le détail des 13 phases.
@@ -248,7 +250,7 @@ Voir le [Cahier des Charges complet](docs/) pour le détail des 13 phases.
 
 ## Contribution
 
-Le code sera publié en open source à partir de la **Phase 13 (octobre 2028)**.
+Le code sera publié en open source à partir de la **Phase 12 (octobre 2028)**.
 
 En attendant, les contributions sont acceptées via :
 

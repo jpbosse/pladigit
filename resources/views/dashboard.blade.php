@@ -156,6 +156,9 @@
         if ($org?->hasModule(\App\Enums\ModuleKey::MEDIA)) {
             $activeModules[] = ['icon'=>'📷','name'=>'Photothèque','desc'=>'Albums, médias NAS, watermark, partage','color'=>'#2ECC71','bg'=>'rgba(46,204,113,0.1)','route'=>'media.albums.index'];
         }
+        if ($org?->hasModule(\App\Enums\ModuleKey::PROJECTS)) {
+            $activeModules[] = ['icon'=>'📋','name'=>'Projets','desc'=>'Kanban, Gantt, tâches, agenda partagé','color'=>'#3B82F6','bg'=>'rgba(59,130,246,0.1)','route'=>'projects.index'];
+        }
         @endphp
         @if(count($activeModules) > 0)
         <div class="pd-module-grid" style="margin-bottom:32px;">
@@ -351,6 +354,20 @@
                         Uploader des photos
                         <span class="pd-qa-arrow">→</span>
                     </a>
+                    @if($org?->hasModule(\App\Enums\ModuleKey::PROJECTS))
+                    <a href="{{ route('projects.index') }}" class="pd-qa-btn">
+                        <div class="pd-qa-icon" style="background:rgba(59,130,246,0.12);">📋</div>
+                        Mes projets
+                        <span class="pd-qa-arrow">→</span>
+                    </a>
+                    @can('create', \App\Models\Tenant\Project::class)
+                    <a href="{{ route('projects.create') }}" class="pd-qa-btn">
+                        <div class="pd-qa-icon" style="background:rgba(59,130,246,0.08);">➕</div>
+                        Nouveau projet
+                        <span class="pd-qa-arrow">→</span>
+                    </a>
+                    @endcan
+                    @endif
                     @if($isAdmin)
                     <a href="{{ route('admin.users.create') }}" class="pd-qa-btn">
                         <div class="pd-qa-icon" style="background:rgba(59,154,225,0.12);">👤</div>
@@ -358,8 +375,45 @@
                         <span class="pd-qa-arrow">→</span>
                     </a>
                     @endif
-
                 </div>
+
+                {{-- Widget Mes tâches urgentes --}}
+                @if($org?->hasModule(\App\Enums\ModuleKey::PROJECTS) && ($myUrgentTasks->count() || $myProjectsCount > 0))
+                <div class="pd-quick-card">
+                    <div class="pd-quick-header" style="display:flex;align-items:center;justify-content:space-between;">
+                        <span>Mes tâches urgentes</span>
+                        <a href="{{ route('projects.index') }}" style="font-size:11px;color:var(--pd-accent);font-weight:400;">
+                            {{ $myProjectsCount }} projet{{ $myProjectsCount > 1 ? 's' : '' }} →
+                        </a>
+                    </div>
+                    @forelse($myUrgentTasks as $t)
+                    @php
+                        $pColors = ['urgent' => ['#FEE2E2','#991B1B'], 'high' => ['#FEF3C7','#92400E']];
+                        [$pbg, $ptxt] = $pColors[$t->priority];
+                    @endphp
+                    <a href="{{ route('projects.show', $t->project_id) }}?view=kanban"
+                       class="pd-qa-btn"
+                       style="flex-direction:column;align-items:flex-start;gap:3px;padding:8px 14px;">
+                        <div style="display:flex;align-items:center;gap:6px;width:100%;">
+                            <div style="width:8px;height:8px;border-radius:50%;background:{{ $t->project->color ?? '#1E3A5F' }};flex-shrink:0;"></div>
+                            <span style="font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                {{ $t->title }}
+                            </span>
+                            <span style="font-size:10px;padding:1px 6px;border-radius:8px;background:{{ $pbg }};color:{{ $ptxt }};flex-shrink:0;">
+                                {{ $t->priority === 'urgent' ? 'Urgente' : 'Haute' }}
+                            </span>
+                        </div>
+                        <span style="font-size:11px;color:var(--pd-muted);padding-left:14px;">
+                            {{ Str::limit($t->project->name ?? '—', 30) }}{{ $t->due_date ? ' · ' . $t->due_date->format('d/m') : '' }}
+                        </span>
+                    </a>
+                    @empty
+                    <div style="padding:10px 14px;font-size:12px;color:var(--pd-muted);">
+                        ✓ Aucune tâche urgente assignée.
+                    </div>
+                    @endforelse
+                </div>
+                @endif
 
                 @if($isAdmin)
                 <div class="pd-quick-card">

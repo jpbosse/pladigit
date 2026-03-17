@@ -82,7 +82,7 @@ enum ModuleKey: string
             self::GED => 5,
             self::COLLABORA => 6,
             self::ERP => 7,
-            self::PROJECTS => 8,
+            self::PROJECTS => 5,
             self::CHAT => 9,
             self::NEWS => 10,
             self::SURVEYS => 11,
@@ -95,7 +95,7 @@ enum ModuleKey: string
      */
     public function isAvailable(): bool
     {
-        return $this->phase() <= 3;
+        return $this->phase() <= 5;
     }
 
     /**

@@ -497,11 +497,19 @@
                         📷 Appareil photo
                         <input type="file" multiple class="hidden" accept="image/*,video/*" capture="environment" @change="handleFileInput($event)">
                     </label>
-                    <button class="ph-dz-btn" @click.stop="openImportModal()">
+
+		<button class="ph-dz-btn" @click.stop="openImportModal()">
                         📂 Importer un dossier
                     </button>
+                    <button class="ph-dz-btn" onclick="openZipModal()">
+                        🗜 Importer un ZIP
+                    </button>
                 </div>
-                <p style="font-size:10px;margin-top:7px;color:var(--pd-muted);">JPEG · PNG · WEBP · GIF · MP4 · MOV · PDF — 200 Mo max</p>
+                <p style="font-size:10px;margin-top:7px;color:var(--pd-muted);">JPEG · PNG · WEBP · GIF · MP4 · MOV · PDF — 200 Mo max · ZIP 500 Mo max</p>
+
+
+
+
                 <div x-show="uploading" class="ph-progress">
                     <div class="ph-progress-bar"><div class="ph-progress-fill" :style="'width:' + progress + '%'"></div></div>
                     <p style="font-size:11px;color:var(--pd-muted);margin-top:4px;" x-text="statusText"></p>
@@ -930,11 +938,85 @@ function syncNas() {
 
 // Clavier
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { closeLb(); closeImportModal(); }
+    if (e.key === 'Escape') { closeLb(); closeImportModal(); closeZipModal(); }
     if (document.getElementById('ph-lb').classList.contains('open')) {
         if (e.key === 'ArrowLeft') lbGo(-1);
         if (e.key === 'ArrowRight') lbGo(1);
     }
 });
+
+// ── Import ZIP ───────────────────────────────────────────────
+function openZipModal()  { document.getElementById('ph-zip-modal').classList.add('open'); }
+function closeZipModal() { document.getElementById('ph-zip-modal').classList.remove('open'); resetZip(); }
+function resetZip() {
+    document.getElementById('zip-info').innerHTML = '';
+    document.getElementById('zip-input').value = '';
+    document.getElementById('zip-btn').disabled = true;
+    document.getElementById('zip-btn').textContent = 'Lancer l\'import';
+}
+
+
+
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelector('#ph-zip-modal form')?.addEventListener('submit', function() {
+        const btn = document.getElementById('zip-btn');
+        btn.textContent = '⏳ Upload en cours…';
+        btn.disabled = true;
+    });
+});
+
+
+
+function scanZip(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const fmt = b => b > 1048576 ? (b/1048576).toFixed(1)+' Mo' : Math.round(b/1024)+' Ko';
+    document.getElementById('zip-info').innerHTML = `
+        <div style="background:var(--pd-bg);border:1px solid var(--pd-border);border-radius:6px;padding:10px 14px;font-size:12px;">
+            <div style="font-weight:600;color:var(--pd-text);margin-bottom:4px;">🗜 ${file.name}</div>
+            <div style="color:var(--pd-muted);">${fmt(file.size)} — extraction en arrière-plan</div>
+        </div>
+        <p style="font-size:11px;color:var(--pd-muted);margin-top:8px;">Les photos apparaîtront progressivement dans l'album après l'import.</p>`;
+    document.getElementById('zip-btn').disabled = false;
+}
+
+
+
 </script>
+
+{{-- Modal ZIP --}}
+@can('upload', $album)
+<div id="ph-zip-modal" style="position:fixed;inset:0;z-index:500;background:rgba(15,25,40,0.7);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+    <div style="background:var(--pd-surface);border-radius:12px;padding:2rem;width:100%;max-width:440px;margin:1rem;box-shadow:0 24px 64px rgba(0,0,0,.25);position:relative">
+        <button onclick="closeZipModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.1rem;color:var(--pd-muted);cursor:pointer;">✕</button>
+        <div style="font-size:1rem;font-weight:700;color:var(--pd-text);margin-bottom:0.25rem;">Importer un fichier ZIP</div>
+        <div style="font-size:0.8rem;color:var(--pd-muted);margin-bottom:1.5rem;">Les photos contenues dans le ZIP seront ajoutées à cet album. Les doublons sont ignorés automatiquement.</div>
+        <form method="POST" action="{{ route('media.items.import-zip', $album) }}" enctype="multipart/form-data">
+            @csrf
+            <div style="margin-bottom:1.25rem;">
+                <label style="display:block;font-size:0.78rem;font-weight:600;color:var(--pd-text);margin-bottom:0.4rem;">Fichier ZIP <span style="color:var(--pd-muted);font-weight:400;">(500 Mo max)</span></label>
+                <input id="zip-input" type="file" name="zip_file" accept=".zip,application/zip" required
+                    onchange="scanZip(this)"
+                    style="width:100%;padding:0.6rem;border:1px solid var(--pd-border);border-radius:4px;font-size:0.85rem;color:var(--pd-text);background:var(--pd-bg);cursor:pointer;">
+            </div>
+            <div id="zip-info" style="margin-bottom:1.25rem;"></div>
+         
+
+
+
+		<button id="zip-btn" type="submit" disabled
+	                style="width:100%;padding:0.8rem;background:var(--pd-navy);color:white;border:none;border-radius:4px;font-size:0.9rem;font-weight:700;cursor:pointer;transition:opacity 0.2s;">
+	                Lancer l'import
+        	 </button>
+        </form>
+    </div>
+</div>
+@endcan
+
+<style>
+#ph-zip-modal { display: none; }
+#ph-zip-modal.open { display: flex; }
+</style>
 @endpush

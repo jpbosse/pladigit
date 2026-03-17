@@ -89,6 +89,38 @@ class MediaItemController extends Controller
     }
 
     /**
+     * Import d'un fichier ZIP vers un album.
+     * Le ZIP est extrait en arrière-plan via la queue.
+     */
+    public function importZip(Request $request, MediaAlbum $album)
+    {
+        $this->authorize('upload', $album);
+
+        $request->validate([
+            'zip_file' => ['required', 'file', 'mimes:zip', 'max:512000'], // 500 Mo max
+        ]);
+
+        /** @var User $user */
+        $user = auth()->user();
+
+        $org = app(\App\Services\TenantManager::class)->current();
+        $slug = $org->slug;
+
+        // Stocker le ZIP temporairement
+
+        // Créer le dossier si nécessaire et stocker le ZIP
+        \Storage::makeDirectory('tmp/zip_imports');
+        $path = $request->file('zip_file')->store('tmp/zip_imports');
+
+        // Dispatcher le Job
+        \App\Jobs\ProcessZipImport::dispatch($path, $album->id, $user->id, $slug);
+
+        return redirect()
+            ->route('media.albums.show', $album)
+            ->with('success', 'Import ZIP lancé en arrière-plan. Les photos apparaîtront progressivement dans l\'album.');
+    }
+
+    /**
      * Affichage détaillé d'un média (visionneuse plein écran).
      */
     public function show(MediaAlbum $album, MediaItem $item)

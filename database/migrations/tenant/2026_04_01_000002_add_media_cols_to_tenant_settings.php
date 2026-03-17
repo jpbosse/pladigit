@@ -11,7 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection('tenant')->table('tenant_settings', function (Blueprint $table) {
-            $table->unsignedTinyInteger('media_default_cols')->default(3)->after('nas_last_sync_at');
+            $table->unsignedTinyInteger('media_default_cols')->default(3);
         });
     }
 

@@ -3,6 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Tenant\Department;
+use App\Models\Tenant\Project;
+use App\Models\Tenant\ProjectMember;
+use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -45,7 +48,7 @@ class DashboardTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
-    /** @dataProvider allRolesProvider */
+    #[\PHPUnit\Framework\Attributes\DataProvider('allRolesProvider')]
     public function test_tous_les_rôles_peuvent_accéder_au_dashboard(string $roleKey): void
     {
         $this->actingAs($this->{$roleKey})
@@ -217,5 +220,62 @@ class DashboardTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('dashboard'))
             ->assertViewHas('storagePerOrg', []);
+    }
+
+    // ── Widgets Gestion de projet ──────────────────────────────────────
+
+    public function test_dashboard_reçoit_variables_projets(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('dashboard'))
+            ->assertViewHas('myUrgentTasks')
+            ->assertViewHas('myProjectsCount')
+            ->assertViewHas('myActiveProjects');
+    }
+
+    public function test_my_projects_count_est_zero_sans_projet(): void
+    {
+        $response = $this->actingAs($this->simpleUser)
+            ->get(route('dashboard'));
+
+        $this->assertEquals(0, $response->viewData('myProjectsCount'));
+    }
+
+    public function test_my_urgent_tasks_contient_taches_assignees_urgentes(): void
+    {
+        $project = Project::factory()->create(['created_by' => $this->admin->id]);
+        ProjectMember::create([
+            'project_id' => $project->id,
+            'user_id'    => $this->admin->id,
+            'role'       => 'owner',
+        ]);
+
+        // Tâche urgente assignée à l'admin
+        $urgentTask = Task::factory()->create([
+            'project_id'  => $project->id,
+            'created_by'  => $this->admin->id,
+            'assigned_to' => $this->admin->id,
+            'status'      => 'todo',
+            'priority'    => 'urgent',
+        ]);
+
+        // Tâche basse priorité — ne doit PAS apparaître
+        Task::factory()->create([
+            'project_id'  => $project->id,
+            'created_by'  => $this->admin->id,
+            'assigned_to' => $this->admin->id,
+            'status'      => 'todo',
+            'priority'    => 'low',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('dashboard'));
+
+        $tasks = $response->viewData('myUrgentTasks');
+        $ids = $tasks->pluck('id')->toArray();
+
+        $this->assertContains($urgentTask->id, $ids);
+        // Tâche low priority absente
+        $this->assertCount(1, $tasks);
     }
 }

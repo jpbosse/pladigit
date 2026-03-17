@@ -2,22 +2,27 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeder principal — point d'entrée pour php artisan db:seed.
+ *
+ * Usage courant :
+ *   php artisan db:seed                          → appelle tous les seeders listés
+ *   php artisan db:seed --class=PladigitProjectSeeder  → seeder spécifique
+ *
+ * Prérequis :
+ *   - Connexion tenant active (TenantManager::connectTo() déjà appelé)
+ *   - Toutes les migrations tenant appliquées
+ */
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Jeu de données de démonstration — projet Pladigit complet
+        // (tâches, jalons, événements agenda — ~108 tâches, 13 jalons)
+        $this->call([
+            PladigitProjectSeeder::class,
         ]);
     }
 }

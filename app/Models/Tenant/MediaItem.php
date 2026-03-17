@@ -41,6 +41,7 @@ class MediaItem extends Model
         'exif_data',
         'caption',
         'sha256_hash',
+        'processing_status',
     ];
 
     protected $casts = [

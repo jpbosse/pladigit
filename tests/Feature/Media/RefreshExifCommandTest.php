@@ -68,6 +68,11 @@ class RefreshExifCommandTest extends TestCase
             'exif_data' => null,
         ]);
 
+        // Purger les items des tests précédents pour ne garder que notre PNG
+        \App\Models\Tenant\MediaItem::on('tenant')
+            ->where('album_id', '!=', $album->id)
+            ->forceDelete();
+
         $result = $service->refreshExif($nas);
 
         // PNG non traité — ni updated ni erreur
@@ -115,6 +120,11 @@ class RefreshExifCommandTest extends TestCase
             'exif_data' => null,
             'file_path' => 'albums/1/2026/04/inexistant.jpg',
         ]);
+
+        // Purger les items des tests précédents pour isoler ce test
+        \App\Models\Tenant\MediaItem::on('tenant')
+            ->where('album_id', '!=', $album->id)
+            ->forceDelete();
 
         $result = $service->refreshExif($nas);
 

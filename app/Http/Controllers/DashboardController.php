@@ -2,12 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ModuleKey;
 use App\Enums\UserRole;
 use App\Models\Platform\Organization;
 use App\Models\Tenant\AuditLog;
 use App\Models\Tenant\Department;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\Notification;
+use App\Models\Tenant\Project;
+use App\Models\Tenant\ProjectMember;
+use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Support\Facades\DB;
@@ -148,6 +152,39 @@ class DashboardController extends Controller
             ->unread()
             ->count();
 
+        // ── Gestion de projet (module projects) ──────────────────────
+        $myUrgentTasks = collect();
+        $myProjectsCount = 0;
+        $myActiveProjects = collect();
+
+        if ($org?->hasModule(ModuleKey::PROJECTS)) {
+            try {
+                $myUrgentTasks = Task::on('tenant')
+                    ->where('assigned_to', $user->id)
+                    ->whereIn('status', ['todo', 'in_progress'])
+                    ->whereIn('priority', ['urgent', 'high'])
+                    ->orderByRaw("FIELD(priority,'urgent','high')")
+                    ->orderBy('due_date')
+                    ->with('project:id,name,color')
+                    ->limit(5)
+                    ->get();
+
+                $myProjectsCount = ProjectMember::on('tenant')
+                    ->where('user_id', $user->id)
+                    ->count();
+
+                // Projets actifs visibles pour le dashboard
+                $myActiveProjects = Project::on('tenant')
+                    ->visibleFor($user)
+                    ->where('status', 'active')
+                    ->withCount('tasks')
+                    ->orderByDesc('updated_at')
+                    ->limit(3)
+                    ->get();
+            } catch (\Throwable) {
+            }
+        }
+
         return view('dashboard', compact(
             'user', 'org', 'role', 'isAdmin', 'isDgs', 'onboardingSteps',
             'isAtLeastResp', 'isRespDirection', 'isRespService', 'isSimpleUser',
@@ -161,6 +198,7 @@ class DashboardController extends Controller
             'storageTopUsers', 'storagePerOrg',
             'recentLogins', 'recentAudit',
             'notifications', 'notifCount',
+            'myUrgentTasks', 'myProjectsCount', 'myActiveProjects',
         ));
     }
 
