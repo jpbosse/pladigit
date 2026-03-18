@@ -5,30 +5,20 @@ namespace App\Policies;
 use App\Enums\ProjectRole;
 use App\Enums\UserRole;
 use App\Models\Tenant\Project;
+use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
 
 /**
- * Politique d'accès aux projets.
+ * Politique d'accès aux projets — ADR-010.
  *
- * ADR-010 — deux couches cumulatives :
- *   1. before() : Admin/Président/DGS → retourne true (accès total)
- *   2. Méthodes spécifiques : ProjectRole local (owner/member/viewer)
- *
- * Pattern identique à MediaAlbumPolicy.
- *
- * Enregistrement dans AppServiceProvider :
- *   $this->policy(Project::class, ProjectPolicy::class);
+ * before() : Admin / Président / DGS → accès total (retourne true)
+ * Méthodes : ProjectRole local (owner / member / viewer)
  */
 class ProjectPolicy
 {
-    /**
-     * Admin, Président et DGS ont accès total à tous les projets du tenant.
-     * Retourne null pour les autres rôles → passe aux méthodes spécifiques.
-     */
     public function before(User $user, string $ability): ?bool
     {
         $role = $user->role ? UserRole::tryFrom($user->role) : null;
-
         if ($role && $role->atLeast(UserRole::DGS)) {
             return true;
         }
@@ -36,13 +26,8 @@ class ProjectPolicy
         return null;
     }
 
-    /**
-     * Peut voir le projet (liste et détail).
-     * → Être membre du projet (les brouillons sont filtrés par scopeVisibleFor).
-     */
     public function view(User $user, Project $project): bool
     {
-        // Les brouillons ne sont visibles que par leur créateur
         if ($project->isDraft()) {
             return $project->created_by === $user->id;
         }
@@ -50,10 +35,6 @@ class ProjectPolicy
         return $project->isMember($user);
     }
 
-    /**
-     * Peut créer un projet.
-     * → Resp. Direction et au-dessus.
-     */
     public function create(User $user): bool
     {
         $role = $user->role ? UserRole::tryFrom($user->role) : null;
@@ -61,14 +42,8 @@ class ProjectPolicy
         return $role !== null && $role->atLeast(UserRole::RESP_DIRECTION);
     }
 
-    /**
-     * Peut modifier les paramètres du projet (nom, description, dates, couleur, statut).
-     * → Owner du projet uniquement (Admin+ intercepté par before()).
-     * → Pour un brouillon : seul le créateur.
-     */
     public function update(User $user, Project $project): bool
     {
-        // Brouillon : seul le créateur
         if ($project->isDraft()) {
             return $project->created_by === $user->id;
         }
@@ -76,11 +51,6 @@ class ProjectPolicy
         return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
     }
 
-    /**
-     * Peut supprimer le projet.
-     * → Owner uniquement.
-     * → Pour un brouillon : seul le créateur.
-     */
     public function delete(User $user, Project $project): bool
     {
         if ($project->isDraft()) {
@@ -90,28 +60,43 @@ class ProjectPolicy
         return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
     }
 
-    /**
-     * Peut gérer les membres du projet (ajout, suppression, changement de rôle).
-     * → Owner uniquement.
-     */
     public function manageMembers(User $user, Project $project): bool
     {
         return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
     }
 
-    /**
-     * Peut gérer les jalons (créer, modifier, marquer atteint, supprimer).
-     * → Owner uniquement.
-     */
     public function manageMilestones(User $user, Project $project): bool
     {
         return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
     }
 
     /**
-     * Peut créer des tâches dans ce projet.
-     * → Owner ou Member.
+     * Budget : owner uniquement — engagement financier = responsabilité du chef de projet.
      */
+    public function manageBudget(User $user, Project $project): bool
+    {
+        return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
+    }
+
+    /**
+     * Parties prenantes : owner uniquement — vision stratégique.
+     */
+    public function manageStakeholders(User $user, Project $project): bool
+    {
+        return $this->hasProjectRole($user, $project, ProjectRole::OWNER);
+    }
+
+    /**
+     * Conduite du changement (comm + risques) : owner ET member.
+     * Tout contributeur peut identifier un risque ou planifier une action.
+     */
+    public function manageChange(User $user, Project $project): bool
+    {
+        $role = $project->memberRole($user);
+
+        return $role !== null && $role->canEdit();
+    }
+
     public function createTask(User $user, Project $project): bool
     {
         $role = $project->memberRole($user);
@@ -120,23 +105,22 @@ class ProjectPolicy
     }
 
     /**
-     * Peut exporter l'agenda iCal du projet.
-     * → Tout membre (owner, member, viewer).
+     * Déplacement Kanban : owner ou member.
      */
+    public function move(User $user, Task $task): bool
+    {
+        $role = $task->project?->memberRole($user);
+
+        return $role !== null && $role->canEdit();
+    }
+
     public function exportIcal(User $user, Project $project): bool
     {
         return $project->isMember($user);
     }
 
-    // ── Helper privé ──────────────────────────────────────────────────────
-
-    /**
-     * Vérifie qu'un utilisateur a exactement le rôle demandé dans le projet.
-     */
     private function hasProjectRole(User $user, Project $project, ProjectRole $required): bool
     {
-        $role = $project->memberRole($user);
-
-        return $role === $required;
+        return $project->memberRole($user) === $required;
     }
 }

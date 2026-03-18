@@ -39,3 +39,12 @@ Schedule::command('media:refresh-exif')
     ->onFailure(function () {
         \Log::error('Re-extraction EXIF échouée');
     });
+
+// Génération des occurrences de tâches récurrentes — chaque jour à 06h00
+Schedule::command('pladigit:generate-recurring-tasks')
+    ->dailyAt('06:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onFailure(function () {
+        \Log::error('Génération tâches récurrentes échouée');
+    });

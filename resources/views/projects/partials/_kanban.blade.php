@@ -1,118 +1,286 @@
-{{-- resources/views/projects/partials/_kanban.blade.php --}}
+{{-- _kanban.blade.php — Kanban par jalon, ADR-008 révisé --}}
 {{--
-    Kanban Alpine.js pur — ADR-008 révisé.
-    Drag & drop via l'API HTML5 Drag and Drop + fetch() PATCH vers KanbanController.
-    Pas de Livewire (non initialisé dans le projet).
-    TODO: migrer vers Livewire en Phase 5 une fois le build pipeline validé.
+    - Jalons atteints      : repliés, ligne compacte verte
+    - Jalons en retard     : repliés, ligne compacte rouge
+    - Prochain jalon actif : déplié automatiquement (1 seul)
+    - Sans jalon           : replié
+    - Terminées masquées par défaut
+    - Heures estimées/réalisées sur les cartes
 --}}
 
 @php
 $columns = [
-    'todo'        => ['label' => 'À faire',   'color' => '#94A3B8'],
-    'in_progress' => ['label' => 'En cours',  'color' => '#3B82F6'],
-    'in_review'   => ['label' => 'En revue',  'color' => '#8B5CF6'],
-    'done'        => ['label' => 'Terminé',   'color' => '#16A34A'],
+    'todo'        => ['label' => 'À faire',  'color' => '#94A3B8'],
+    'in_progress' => ['label' => 'En cours', 'color' => '#3B82F6'],
+    'in_review'   => ['label' => 'En revue', 'color' => '#8B5CF6'],
+    'done'        => ['label' => 'Terminé',  'color' => '#16A34A'],
 ];
 $priorityColors = [
-    'urgent' => ['bg'=>'#FEE2E2','text'=>'#991B1B'],
-    'high'   => ['bg'=>'#FEF3C7','text'=>'#92400E'],
-    'medium' => ['bg'=>'#DBEAFE','text'=>'#1E40AF'],
-    'low'    => ['bg'=>'#D1FAE5','text'=>'#065F46'],
+    'urgent' => ['bg' => '#FEE2E2', 'text' => '#991B1B'],
+    'high'   => ['bg' => '#FEF3C7', 'text' => '#92400E'],
+    'medium' => ['bg' => '#DBEAFE', 'text' => '#1E40AF'],
+    'low'    => ['bg' => '#D1FAE5', 'text' => '#065F46'],
 ];
+
+// Compteurs globaux (hors done)
+$colCounts = ['todo' => 0, 'in_progress' => 0, 'in_review' => 0, 'done' => 0];
+foreach ($tasksByMilestone as $group) {
+    foreach ($group['tasks'] as $t) {
+        if (isset($colCounts[$t->status])) $colCounts[$t->status]++;
+    }
+}
+
+// Identifier le prochain jalon actif à déplier automatiquement
+// = premier jalon non atteint dont la due_date est dans le futur
+$nextActiveGroupId = null;
+foreach ($tasksByMilestone as $group) {
+    $ms = $group['milestone'];
+    if ($ms && !$ms->isReached() && $ms->due_date && $ms->due_date->isFuture()) {
+        $nextActiveGroupId = 'group-' . $ms->id;
+        break;
+    }
+}
+// Si aucun jalon futur, déplier le premier groupe non atteint
+if (!$nextActiveGroupId) {
+    foreach ($tasksByMilestone as $group) {
+        $ms = $group['milestone'];
+        if (!$ms || !$ms->isReached()) {
+            $nextActiveGroupId = 'group-' . ($ms ? $ms->id : 'unassigned');
+            break;
+        }
+    }
+}
 @endphp
 
-<div x-data="kanban()" x-init="init()" style="overflow-x:auto;">
+<div x-data="kanban()" x-init="init()">
 
-    {{-- Bouton nouvelle tâche --}}
+{{-- ── Barre d'outils ── --}}
+<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;">
     @if($canEdit)
-    <div style="margin-bottom:12px;">
-        <button @click="openNewTask('todo')"
-                class="pd-btn pd-btn-sm pd-btn-secondary">
-            + Nouvelle tâche
-        </button>
-    </div>
+    <button @click="openNewTask('todo')" class="pd-btn pd-btn-sm pd-btn-primary">
+        + Nouvelle tâche
+    </button>
     @endif
+    <div style="display:flex;gap:6px;margin-left:auto;align-items:center;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--pd-muted);cursor:pointer;">
+            <input type="checkbox" x-model="showDone" style="accent-color:var(--pd-navy);">
+            Afficher terminées
+            <span style="font-size:11px;padding:1px 6px;background:var(--pd-bg2);border-radius:10px;border:0.5px solid var(--pd-border);">
+                {{ $colCounts['done'] }}
+            </span>
+        </label>
+    </div>
+</div>
 
-    <div style="display:grid;grid-template-columns:repeat(4,minmax(220px,1fr));gap:12px;min-width:900px;">
+{{-- ── En-têtes colonnes fixes ── --}}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:4px;padding:6px 4px;background:var(--pd-surface2);border-radius:8px;border:0.5px solid var(--pd-border);">
+    @foreach($columns as $status => $col)
+    <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+        <div style="width:7px;height:7px;border-radius:50%;background:{{ $col['color'] }};flex-shrink:0;"></div>
+        <span style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pd-muted);">
+            {{ $col['label'] }}
+        </span>
+        <span style="font-size:10px;padding:1px 6px;background:var(--pd-bg);border:0.5px solid var(--pd-border);border-radius:10px;color:var(--pd-muted);">
+            {{ $colCounts[$status] }}
+        </span>
+    </div>
+    @endforeach
+</div>
 
-        @foreach($columns as $status => $col)
-        <div data-col="{{ $status }}"
-             @dragover.prevent="onDragOver($event, '{{ $status }}')"
-             @drop.prevent="onDrop($event, '{{ $status }}')"
-             @dragleave="onDragLeave($event)"
-             :class="{ 'pd-kanban-col-over': dragOver === '{{ $status }}' }"
-             style="background:var(--pd-surface);border-radius:10px;padding:12px;border:0.5px solid var(--pd-border);">
+{{-- ── Groupes par jalon ── --}}
+@foreach($tasksByMilestone as $groupIndex => $group)
+@php
+    $milestone   = $group['milestone'];
+    $groupTasks  = $group['tasks'];
+    $groupId     = 'group-' . ($milestone ? $milestone->id : 'unassigned');
+    $isReached   = $milestone && $milestone->isReached();
+    $isLate      = $milestone && $milestone->isLate();
+    $activeCount = $groupTasks->where('status', '!=', 'done')->count();
+    $doneCount   = $groupTasks->where('status', 'done')->count();
+    $isDefaultOpen = ($groupId === $nextActiveGroupId);
 
-            {{-- En-tête colonne --}}
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-                <div style="width:8px;height:8px;border-radius:50%;background:{{ $col['color'] }};"></div>
-                <span style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--pd-muted);">
-                    {{ $col['label'] }}
-                </span>
-                <span style="font-size:11px;padding:1px 6px;background:var(--pd-bg);border:0.5px solid var(--pd-border);border-radius:10px;color:var(--pd-muted);margin-left:auto;">
-                    {{ ($tasksByStatus[$status] ?? collect())->count() }}
-                </span>
-            </div>
+    // Heures totales du jalon
+    $totalEstimated = $groupTasks->sum('estimated_hours');
+    $totalActual    = $groupTasks->sum('actual_hours');
 
-            {{-- Cartes --}}
-            <div class="pd-kanban-cards" id="col-{{ $status }}" style="min-height:60px;display:flex;flex-direction:column;gap:8px;">
-                @foreach($tasksByStatus[$status] ?? [] as $task)
-                <div class="pd-kanban-card"
-                     draggable="true"
-                     data-task-id="{{ $task->id }}"
-                     data-status="{{ $status }}"
-                     @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
-                     @dragend="onDragEnd()"
-                     @click="openTask({{ $task->id }})"
-                     style="background:var(--pd-bg);border:0.5px solid var(--pd-border);border-radius:8px;padding:10px 12px;cursor:grab;">
+    // État visuel de l'en-tête
+    if ($isReached) {
+        $headerBg   = '#F0FDF4';
+        $headerBdr  = '#86EFAC';
+        $dotColor   = '#16A34A';
+        $statusIcon = '✓';
+        $statusColor= '#16A34A';
+    } elseif ($isLate) {
+        $headerBg   = '#FFF5F5';
+        $headerBdr  = '#FCA5A5';
+        $dotColor   = '#E24B4A';
+        $statusIcon = '!';
+        $statusColor= '#E24B4A';
+    } else {
+        $headerBg   = 'var(--pd-surface)';
+        $headerBdr  = 'var(--pd-border)';
+        $dotColor   = $milestone->color ?? '#94A3B8';
+        $statusIcon = '';
+        $statusColor= 'var(--pd-muted)';
+    }
+@endphp
 
-                    <div style="font-size:13px;color:var(--pd-text);line-height:1.4;margin-bottom:8px;">
-                        {{ $task->title }}
-                    </div>
+<div x-data="{ open: {{ $isDefaultOpen ? 'true' : 'false' }} }"
+     style="margin-top:10px;border:0.5px solid {{ $headerBdr }};border-radius:10px;overflow:hidden;background:{{ $isReached ? '#F0FDF4' : 'var(--pd-surface)' }};">
 
-                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-                        {{-- Priorité --}}
-                        <span style="font-size:10px;padding:2px 6px;border-radius:10px;font-weight:500;background:{{ $priorityColors[$task->priority]['bg'] }};color:{{ $priorityColors[$task->priority]['text'] }};">
-                            {{ \App\Models\Tenant\Task::priorityLabels()[$task->priority] }}
-                        </span>
+    {{-- En-tête du groupe --}}
+    <div @click="open = !open"
+         style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;user-select:none;background:{{ $headerBg }};">
 
-                        {{-- Sous-tâches --}}
-                        @if($task->children->count())
-                        <span style="font-size:11px;color:var(--pd-muted);">
-                            {{ $task->children->where('status','done')->count() }}/{{ $task->children->count() }}
-                        </span>
-                        @endif
+        {{-- Indicateur statut --}}
+        @if($isReached)
+        <div style="width:20px;height:20px;border-radius:50%;background:#16A34A;color:#fff;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;">✓</div>
+        @elseif($isLate)
+        <div style="width:20px;height:20px;border-radius:50%;background:#FEE2E2;border:1.5px solid #E24B4A;color:#E24B4A;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-weight:700;">!</div>
+        @else
+        <div style="width:20px;height:20px;border-radius:50%;background:{{ $dotColor }};opacity:.85;flex-shrink:0;"></div>
+        @endif
 
-                        {{-- Assigné --}}
-                        @if($task->assignee)
-                        <div style="width:20px;height:20px;border-radius:50%;background:var(--pd-navy-light);color:var(--pd-navy);font-size:9px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-left:auto;">
-                            {{ strtoupper(substr($task->assignee->name, 0, 2)) }}
+        {{-- Titre + date --}}
+        <div style="flex:1;min-width:0;">
+            <span style="font-size:13px;font-weight:700;color:{{ $isReached ? '#065F46' : 'var(--pd-text)' }};">
+                {{ $milestone ? $milestone->title : 'Sans jalon' }}
+            </span>
+            @if($milestone?->due_date)
+            <span style="font-size:11px;color:{{ $statusColor }};margin-left:8px;">
+                {{ $milestone->due_date->translatedFormat('d M Y') }}
+                @if($isReached) · Atteint @elseif($isLate) · En retard @endif
+            </span>
+            @endif
+        </div>
+
+        {{-- Compteurs --}}
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--pd-muted);">
+            @if($activeCount > 0)
+            <span style="background:var(--pd-bg2);padding:2px 8px;border-radius:10px;border:0.5px solid var(--pd-border);">
+                {{ $activeCount }} active{{ $activeCount > 1 ? 's' : '' }}
+            </span>
+            @endif
+            @if($doneCount > 0)
+            <span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;">
+                {{ $doneCount }} ✓
+            </span>
+            @endif
+            @if($totalEstimated > 0)
+            <span style="color:var(--pd-muted);">
+                {{ number_format($totalActual ?? 0, 1) }}h / {{ number_format($totalEstimated, 1) }}h
+            </span>
+            @endif
+        </div>
+
+        {{-- Chevron --}}
+        <div :style="open ? 'transform:rotate(0deg)' : 'transform:rotate(-90deg)'"
+             style="transition:transform .2s;color:var(--pd-muted);font-size:14px;flex-shrink:0;">▾</div>
+    </div>
+
+    {{-- Corps kanban (4 colonnes) — visible seulement si déplié --}}
+    <div x-show="open"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 -translate-y-1"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         style="padding:10px;border-top:0.5px solid {{ $headerBdr }};">
+
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
+            @foreach($columns as $status => $col)
+            @php $cellTasks = $groupTasks->where('status', $status)->values(); @endphp
+
+            <div data-col="{{ $status }}"
+                 data-group="{{ $groupId }}"
+                 @dragover.prevent="onDragOver($event, '{{ $status }}')"
+                 @drop.prevent="onDrop($event, '{{ $status }}')"
+                 @dragleave="onDragLeave($event)"
+                 :class="{ 'pd-kanban-col-over': dragOver === '{{ $status }}' }"
+                 style="background:var(--pd-bg);border-radius:8px;padding:8px;border:0.5px solid var(--pd-border);min-height:50px;">
+
+                <div class="pd-kanban-cards" id="col-{{ $status }}-{{ $groupId }}"
+                     style="display:flex;flex-direction:column;gap:6px;">
+
+                    @foreach($cellTasks as $task)
+                    @php
+                        $hasHours = $task->estimated_hours > 0;
+                        $hoursPct = $hasHours ? min(100, round(($task->actual_hours ?? 0) / $task->estimated_hours * 100)) : 0;
+                        $hoursOver = $hasHours && ($task->actual_hours ?? 0) > $task->estimated_hours;
+                    @endphp
+                    <div class="pd-kanban-card"
+                         draggable="true"
+                         data-task-id="{{ $task->id }}"
+                         data-status="{{ $status }}"
+                         @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
+                         @dragend="onDragEnd()"
+                         @click="openTask({{ $task->id }})"
+                         @if($status === 'done') x-show="showDone" @endif
+                         style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:8px;padding:9px 10px;cursor:grab;transition:box-shadow .12s,opacity .15s;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
+
+                        {{-- Titre --}}
+                        <div style="font-size:12px;font-weight:500;color:var(--pd-text);line-height:1.4;margin-bottom:7px;">
+                            {{ $task->title }}
+                        </div>
+
+                        {{-- Barre heures (si estimées) --}}
+                        @if($hasHours)
+                        <div style="margin-bottom:6px;">
+                            <div style="height:3px;background:var(--pd-bg2);border-radius:2px;overflow:hidden;">
+                                <div style="height:100%;width:{{ $hoursPct }}%;background:{{ $hoursOver ? '#E24B4A' : '#3B82F6' }};border-radius:2px;transition:width .3s;"></div>
+                            </div>
+                            <div style="font-size:10px;color:{{ $hoursOver ? 'var(--pd-danger)' : 'var(--pd-muted)' }};margin-top:2px;text-align:right;">
+                                {{ number_format($task->actual_hours ?? 0, 1) }}h / {{ number_format($task->estimated_hours, 1) }}h
+                            </div>
                         </div>
                         @endif
 
-                        {{-- Échéance --}}
-                        @if($task->due_date)
-                        <span style="font-size:11px;color:{{ $task->due_date->isPast() && $task->status !== 'done' ? 'var(--pd-danger)' : 'var(--pd-muted)' }};margin-left:{{ $task->assignee ? '0' : 'auto' }};">
-                            {{ $task->due_date->format('d/m') }}
-                        </span>
-                        @endif
+                        {{-- Pied de carte --}}
+                        <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                            <span style="font-size:9px;padding:2px 5px;border-radius:7px;font-weight:700;background:{{ $priorityColors[$task->priority]['bg'] }};color:{{ $priorityColors[$task->priority]['text'] }};">
+                                {{ \App\Models\Tenant\Task::priorityLabels()[$task->priority] }}
+                            </span>
+
+                            @if($task->children->count())
+                            <span style="font-size:10px;color:var(--pd-muted);">
+                                {{ $task->children->where('status','done')->count() }}/{{ $task->children->count() }}
+                            </span>
+                            @endif
+
+                            @if($task->assignee)
+                            <div style="width:18px;height:18px;border-radius:50%;background:var(--pd-navy);color:#fff;font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto;flex-shrink:0;">
+                                {{ strtoupper(substr($task->assignee->name,0,2)) }}
+                            </div>
+                            @endif
+
+                            @if($task->due_date)
+                            <span style="font-size:10px;color:{{ $task->due_date->isPast() && $task->status !== 'done' ? 'var(--pd-danger)' : 'var(--pd-muted)' }};{{ $task->assignee ? '' : 'margin-left:auto;' }}">
+                                {{ $task->due_date->format('d/m') }}
+                            </span>
+                            @endif
+                        </div>
+
                     </div>
+                    @endforeach
+
                 </div>
-                @endforeach
+
+                @if($canEdit && $status === 'todo')
+                <button @click.stop="openNewTask('todo', {{ $milestone ? $milestone->id : 'null' }})"
+                        style="width:100%;margin-top:5px;padding:4px;font-size:11px;color:var(--pd-muted);background:none;border:0.5px dashed var(--pd-border);border-radius:6px;cursor:pointer;"
+                        onmouseover="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'"
+                        onmouseout="this.style.borderColor='var(--pd-border)';this.style.color='var(--pd-muted)'">
+                    + Ajouter
+                </button>
+                @endif
+
             </div>
-
-            {{-- Ajouter une tâche dans cette colonne --}}
-            @if($canEdit)
-            <button @click="openNewTask('{{ $status }}')"
-                    style="width:100%;margin-top:8px;padding:6px;font-size:12px;color:var(--pd-muted);background:none;border:0.5px dashed var(--pd-border);border-radius:6px;cursor:pointer;text-align:left;">
-                + Ajouter une tâche
-            </button>
-            @endif
-
+            @endforeach
         </div>
-        @endforeach
 
     </div>
+</div>
+
+@endforeach
+
 </div>
 
 <script>
@@ -121,6 +289,7 @@ function kanban() {
         dragOver: null,
         dragging: null,
         draggingStatus: null,
+        showDone: false,
 
         init() {},
 
@@ -129,13 +298,13 @@ function kanban() {
             this.draggingStatus = status;
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', taskId);
-            e.currentTarget.style.opacity = '0.5';
+            e.currentTarget.style.opacity = '0.4';
         },
 
         onDragEnd() {
             this.dragging = null;
             this.draggingStatus = null;
-            document.querySelectorAll('.pd-kanban-card').forEach(c => c.style.opacity = '1');
+            document.querySelectorAll('.pd-kanban-card').forEach(c => c.style.opacity = '');
         },
 
         onDragOver(e, status) {
@@ -153,13 +322,13 @@ function kanban() {
             e.preventDefault();
             this.dragOver = null;
             const taskId = parseInt(e.dataTransfer.getData('text/plain'));
-
             if (!taskId || this.draggingStatus === newStatus) return;
 
-            // Calculer le nouvel ordre dans la colonne cible
-            const col = document.getElementById('col-' + newStatus);
-            const cards = [...col.querySelectorAll('.pd-kanban-card')];
-            const orderedIds = cards.map(c => parseInt(c.dataset.taskId)).filter(id => id !== taskId);
+            let orderedIds = [];
+            document.querySelectorAll(`[data-col="${newStatus}"] .pd-kanban-card`).forEach(c => {
+                const id = parseInt(c.dataset.taskId);
+                if (id !== taskId) orderedIds.push(id);
+            });
             orderedIds.push(taskId);
 
             this.patchMove(taskId, newStatus, orderedIds.length - 1, orderedIds);
@@ -178,34 +347,23 @@ function kanban() {
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    // Déplacer la carte dans le DOM sans rechargement
                     const card = document.querySelector(`[data-task-id="${taskId}"]`);
                     if (card) {
                         card.dataset.status = newStatus;
-                        document.getElementById('col-' + newStatus).appendChild(card);
-                        this.updateColCounts();
+                        const targetCol = document.querySelector(`[data-col="${newStatus}"] .pd-kanban-cards`);
+                        if (targetCol) targetCol.appendChild(card);
                     }
                 }
             })
             .catch(err => console.error('Kanban move error:', err));
         },
 
-        updateColCounts() {
-            document.querySelectorAll('[data-col]').forEach(col => {
-                const status = col.dataset.col;
-                const count = col.querySelectorAll('.pd-kanban-card').length;
-                const badge = col.querySelector('.pd-kanban-count');
-                if (badge) badge.textContent = count;
-            });
-        },
-
         openTask(taskId) {
-            // Déclenche le slide-over tâche
             window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId } }));
         },
 
-        openNewTask(status) {
-            window.dispatchEvent(new CustomEvent('open-new-task', { detail: { status } }));
+        openNewTask(status, milestoneId = null) {
+            window.dispatchEvent(new CustomEvent('open-new-task', { detail: { status, milestoneId } }));
         },
     };
 }

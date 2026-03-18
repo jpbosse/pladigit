@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -48,11 +49,17 @@ class Task extends Model
         'estimated_hours',
         'actual_hours',
         'sort_order',
+        'recurrence_type',
+        'recurrence_every',
+        'recurrence_ends',
+        'recurrence_parent_id',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'due_date' => 'date',
+        'recurrence_ends' => 'date',
+        'recurrence_every' => 'integer',
     ];
 
     // ── Relations ─────────────────────────────────────────────────────────
@@ -115,7 +122,7 @@ class Task extends Model
      * Tâches dont celle-ci dépend (bloquantes).
      * Cette tâche ne peut démarrer tant qu'elles ne sont pas done.
      *
-     * @return BelongsToMany<Task>
+     * @return BelongsToMany<Task, Pivot>
      */
     public function blockedBy(): BelongsToMany
     {
@@ -130,7 +137,7 @@ class Task extends Model
     /**
      * Tâches bloquées par celle-ci.
      *
-     * @return BelongsToMany<Task>
+     * @return BelongsToMany<Task, Pivot>
      */
     public function blocking(): BelongsToMany
     {

@@ -40,15 +40,17 @@ class ModuleAccessTest extends TestCase
     {
         $current = app(TenantManager::class)->current();
 
-        $org = Organization::forceCreate(array_merge([
-            'slug' => $current->slug ?? 'test',
-            'name' => $current->name ?? 'Test Org',
-            'db_name' => $current->db_name ?? env('DB_TENANT_DATABASE'),
-            'status' => 'active',
-            'plan' => 'communautaire',
-            'primary_color' => '#1E3A5F',
-            'enabled_modules' => [],
-        ], $extra));
+        $org = Organization::updateOrCreate(
+            ['slug' => $current->slug ?? 'test'],
+            array_merge([
+                'name' => $current->name ?? 'Test Org',
+                'db_name' => $current->db_name ?? env('DB_TENANT_DATABASE'),
+                'status' => 'active',
+                'plan' => 'communautaire',
+                'primary_color' => '#1E3A5F',
+                'enabled_modules' => [],
+            ], $extra)
+        );
 
         app(TenantManager::class)->connectTo($org);
 

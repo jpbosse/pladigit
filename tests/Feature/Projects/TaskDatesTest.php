@@ -41,9 +41,9 @@ class TaskDatesTest extends TestCase
     {
         parent::setUp();
 
-        $this->owner    = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->member   = User::factory()->create(['role' => 'user',  'status' => 'active']);
-        $this->viewer   = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->owner = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->member = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->viewer = User::factory()->create(['role' => 'user',  'status' => 'active']);
         $this->outsider = User::factory()->create(['role' => 'user',  'status' => 'active']);
 
         $this->project = Project::factory()->create(['created_by' => $this->owner->id]);
@@ -53,10 +53,10 @@ class TaskDatesTest extends TestCase
         ProjectMember::create(['project_id' => $this->project->id, 'user_id' => $this->viewer->id, 'role' => 'viewer']);
 
         $this->task = Task::factory()->create([
-            'project_id'  => $this->project->id,
-            'created_by'  => $this->owner->id,
-            'start_date'  => '2026-04-01',
-            'due_date'    => '2026-04-15',
+            'project_id' => $this->project->id,
+            'created_by' => $this->owner->id,
+            'start_date' => '2026-04-01',
+            'due_date' => '2026-04-15',
         ]);
     }
 
@@ -74,9 +74,9 @@ class TaskDatesTest extends TestCase
         $response->assertOk()->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('tasks', [
-            'id'         => $this->task->id,
+            'id' => $this->task->id,
             'start_date' => '2026-05-01',
-            'due_date'   => '2026-05-20',
+            'due_date' => '2026-05-20',
         ], 'tenant');
     }
 

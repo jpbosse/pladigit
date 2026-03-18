@@ -40,9 +40,9 @@ class TaskShowTest extends TestCase
     {
         parent::setUp();
 
-        $this->owner    = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->member   = User::factory()->create(['role' => 'user',  'status' => 'active']);
-        $this->viewer   = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->owner = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->member = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->viewer = User::factory()->create(['role' => 'user',  'status' => 'active']);
         $this->outsider = User::factory()->create(['role' => 'user',  'status' => 'active']);
 
         $this->project = Project::factory()->create(['created_by' => $this->owner->id]);
@@ -52,15 +52,15 @@ class TaskShowTest extends TestCase
         ProjectMember::create(['project_id' => $this->project->id, 'user_id' => $this->viewer->id,  'role' => 'viewer']);
 
         $this->task = Task::factory()->create([
-            'project_id'      => $this->project->id,
-            'created_by'      => $this->owner->id,
-            'assigned_to'     => $this->member->id,
-            'title'           => 'Tâche de test slide-over',
-            'description'     => 'Description détaillée.',
-            'status'          => 'in_progress',
-            'priority'        => 'high',
+            'project_id' => $this->project->id,
+            'created_by' => $this->owner->id,
+            'assigned_to' => $this->member->id,
+            'title' => 'Tâche de test slide-over',
+            'description' => 'Description détaillée.',
+            'status' => 'in_progress',
+            'priority' => 'high',
             'estimated_hours' => 8,
-            'due_date'        => '2026-06-30',
+            'due_date' => '2026-06-30',
         ]);
     }
 
@@ -142,8 +142,8 @@ class TaskShowTest extends TestCase
     public function test_tache_sans_assignee_retourne_null(): void
     {
         $task = Task::factory()->create([
-            'project_id'  => $this->project->id,
-            'created_by'  => $this->owner->id,
+            'project_id' => $this->project->id,
+            'created_by' => $this->owner->id,
             'assigned_to' => null,
         ]);
 
@@ -160,12 +160,12 @@ class TaskShowTest extends TestCase
         TaskComment::create([
             'task_id' => $this->task->id,
             'user_id' => $this->owner->id,
-            'body'    => 'Premier commentaire de test.',
+            'body' => 'Premier commentaire de test.',
         ]);
         TaskComment::create([
             'task_id' => $this->task->id,
             'user_id' => $this->member->id,
-            'body'    => 'Deuxième commentaire.',
+            'body' => 'Deuxième commentaire.',
         ]);
 
         $this->actingAs($this->owner);
@@ -208,7 +208,7 @@ class TaskShowTest extends TestCase
         TaskComment::create([
             'task_id' => $this->task->id,
             'user_id' => $this->owner->id,
-            'body'    => 'Commentaire du owner.',
+            'body' => 'Commentaire du owner.',
         ]);
 
         // Owner voit is_mine = true pour son propre commentaire
