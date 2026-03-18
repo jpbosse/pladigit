@@ -121,18 +121,65 @@ class ProjectController extends Controller
         $project->load([
             'projectMembers.user',
             'milestones',
+            'budgets',
+            'stakeholders.user',
+            'commActions.responsible',
+            'risks.owner',
+            'observations.user',
         ]);
 
         $taskStats = $project->taskStats();
         $progression = $project->progressionPercent();
         $userRole = $project->memberRole($user);
 
-        // Tâches pour le Kanban : racine uniquement, ordonnées par sort_order
-        $tasksByStatus = $project->rootTasks()
-            ->with(['assignee', 'children' => fn ($q) => $q->select('id', 'parent_task_id', 'status')])
+        // Données finances
+        $budgetSummary = $project->budgetSummary();
+
+        // Données conduite du changement
+        $activeRisks = $project->activeRisks();
+        $criticalRisksCount = $activeRisks->filter(fn ($r) => $r->criticality() === 'critique')->count();
+
+        // Alertes budget (dépassements prévisibles)
+        $budgetAlerts = $project->budgets
+            ->filter(fn ($b) => $b->variance() > 0)
+            ->values();
+
+        // Utilisateurs du tenant pour les selects
+        $tenantUsers = \App\Models\Tenant\User::on('tenant')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name', 'role']);
+
+        // Tâches pour le Kanban : racine uniquement, ordonnées par priorité puis sort_order
+        $allRootTasks = $project->rootTasks()
+            ->with(['assignee', 'milestone', 'children' => fn ($q) => $q->select('id', 'parent_task_id', 'status')])
+            ->orderByRaw("FIELD(priority, 'urgent', 'high', 'medium', 'low')")
             ->orderBy('sort_order')
-            ->get()
-            ->groupBy('status');
+            ->get();
+
+        // Vue à plat par statut (Kanban classique — conservé pour compatibilité)
+        $tasksByStatus = $allRootTasks->groupBy('status');
+
+        // Vue par jalon : milestones ordonnés par due_date + tâches non rattachées
+        // Chaque entrée : ['milestone' => ProjectMilestone|null, 'tasks' => Collection]
+        $tasksByMilestone = collect();
+
+        foreach ($project->milestones as $milestone) {
+            $milestoneTasks = $allRootTasks->where('milestone_id', $milestone->id)->values();
+            $tasksByMilestone->push([
+                'milestone' => $milestone,
+                'tasks' => $milestoneTasks,
+            ]);
+        }
+
+        // Tâches sans jalon regroupées en dernier
+        $unassignedTasks = $allRootTasks->whereNull('milestone_id')->values();
+        if ($unassignedTasks->isNotEmpty()) {
+            $tasksByMilestone->push([
+                'milestone' => null,
+                'tasks' => $unassignedTasks,
+            ]);
+        }
 
         // Tâches pour le Gantt : toutes celles avec start_date
         $ganttTasks = $project->tasks()
@@ -142,7 +189,9 @@ class ProjectController extends Controller
 
         return view('projects.show', compact(
             'project', 'taskStats', 'progression',
-            'userRole', 'tasksByStatus', 'ganttTasks'
+            'userRole', 'tasksByStatus', 'tasksByMilestone', 'ganttTasks',
+            'budgetSummary', 'activeRisks', 'criticalRisksCount',
+            'budgetAlerts', 'tenantUsers'
         ));
     }
 

@@ -43,14 +43,17 @@ class BrandingTest extends TestCase
     private function persistCurrentOrg(array $extra = []): Organization
     {
         $current = app(TenantManager::class)->current();
+        $slug = $current->slug ?? 'test';
 
-        $org = Organization::forceCreate(array_merge([
-            'slug' => $current->slug ?? 'test',
-            'name' => $current->name ?? 'Test Org',
-            'db_name' => $current->db_name ?? env('DB_TENANT_DATABASE'),
-            'status' => 'active',
-            'primary_color' => '#1E3A5F',
-        ], $extra));
+        $org = Organization::updateOrCreate(
+            ['slug' => $slug],
+            array_merge([
+                'name' => $current->name ?? 'Test Org',
+                'db_name' => $current->db_name ?? env('DB_TENANT_DATABASE'),
+                'status' => 'active',
+                'primary_color' => '#1E3A5F',
+            ], $extra)
+        );
 
         app(TenantManager::class)->connectTo($org);
 

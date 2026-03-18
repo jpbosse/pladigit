@@ -51,4 +51,4 @@ parameters:
             reportUnmatched: false
     excludePaths:
         analyseAndScan:
-            - app/Http/Middleware/TrustProxies.php
+            - app/Http/Middleware/TrustProxies.php (?)

@@ -33,15 +33,15 @@ class ProjectIcalTest extends TestCase
     {
         parent::setUp();
 
-        $this->owner    = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->viewer   = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->owner = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $this->viewer = User::factory()->create(['role' => 'user',  'status' => 'active']);
         $this->outsider = User::factory()->create(['role' => 'user',  'status' => 'active']);
 
         $this->project = Project::factory()->create([
             'created_by' => $this->owner->id,
-            'name'       => 'Projet iCal Test',
+            'name' => 'Projet iCal Test',
             'start_date' => '2026-01-01',
-            'due_date'   => '2026-12-31',
+            'due_date' => '2026-12-31',
         ]);
 
         ProjectMember::create(['project_id' => $this->project->id, 'user_id' => $this->owner->id,  'role' => 'owner']);
@@ -74,14 +74,14 @@ class ProjectIcalTest extends TestCase
     public function test_export_inclut_les_evenements_publics(): void
     {
         Event::on('tenant')->create([
-            'project_id'  => $this->project->id,
-            'created_by'  => $this->owner->id,
-            'title'       => 'Réunion de lancement',
-            'starts_at'   => '2026-03-01 10:00:00',
-            'ends_at'     => '2026-03-01 12:00:00',
-            'visibility'  => 'public',
-            'all_day'     => false,
-            'color'       => '#1E3A5F',
+            'project_id' => $this->project->id,
+            'created_by' => $this->owner->id,
+            'title' => 'Réunion de lancement',
+            'starts_at' => '2026-03-01 10:00:00',
+            'ends_at' => '2026-03-01 12:00:00',
+            'visibility' => 'public',
+            'all_day' => false,
+            'color' => '#1E3A5F',
         ]);
 
         $this->actingAs($this->viewer);
@@ -94,14 +94,14 @@ class ProjectIcalTest extends TestCase
     public function test_export_exclut_evenements_prives_pour_non_createur(): void
     {
         Event::on('tenant')->create([
-            'project_id'  => $this->project->id,
-            'created_by'  => $this->owner->id,
-            'title'       => 'Note privée owner',
-            'starts_at'   => '2026-03-01 10:00:00',
-            'ends_at'     => '2026-03-01 11:00:00',
-            'visibility'  => 'private',
-            'all_day'     => false,
-            'color'       => '#1E3A5F',
+            'project_id' => $this->project->id,
+            'created_by' => $this->owner->id,
+            'title' => 'Note privée owner',
+            'starts_at' => '2026-03-01 10:00:00',
+            'ends_at' => '2026-03-01 11:00:00',
+            'visibility' => 'private',
+            'all_day' => false,
+            'color' => '#1E3A5F',
         ]);
 
         // Le viewer ne doit pas voir l'événement privé du owner
@@ -113,14 +113,14 @@ class ProjectIcalTest extends TestCase
     public function test_export_inclut_evenement_prive_pour_son_createur(): void
     {
         Event::on('tenant')->create([
-            'project_id'  => $this->project->id,
-            'created_by'  => $this->owner->id,
-            'title'       => 'Note privée owner',
-            'starts_at'   => '2026-03-01 10:00:00',
-            'ends_at'     => '2026-03-01 11:00:00',
-            'visibility'  => 'private',
-            'all_day'     => false,
-            'color'       => '#1E3A5F',
+            'project_id' => $this->project->id,
+            'created_by' => $this->owner->id,
+            'title' => 'Note privée owner',
+            'starts_at' => '2026-03-01 10:00:00',
+            'ends_at' => '2026-03-01 11:00:00',
+            'visibility' => 'private',
+            'all_day' => false,
+            'color' => '#1E3A5F',
         ]);
 
         // Le owner voit son propre événement privé
@@ -133,9 +133,9 @@ class ProjectIcalTest extends TestCase
     {
         ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title'      => 'Jalon Phase 3',
-            'due_date'   => '2026-06-30',
-            'color'      => '#EA580C',
+            'title' => 'Jalon Phase 3',
+            'due_date' => '2026-06-30',
+            'color' => '#EA580C',
         ]);
 
         $this->actingAs($this->owner);

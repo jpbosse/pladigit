@@ -1,10 +1,14 @@
 <?php
 
 use App\Http\Controllers\Projects\KanbanController;
+use App\Http\Controllers\Projects\ProjectBudgetController;
+use App\Http\Controllers\Projects\ProjectChangeController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectEventController;
 use App\Http\Controllers\Projects\ProjectMemberController;
 use App\Http\Controllers\Projects\ProjectMilestoneController;
+use App\Http\Controllers\Projects\ProjectObservationController;
+use App\Http\Controllers\Projects\ProjectStakeholderController;
 use App\Http\Controllers\Projects\TaskCommentController;
 use App\Http\Controllers\Projects\TaskController;
 
@@ -68,4 +72,28 @@ Route::prefix('projects')
 
         // ── Événements agenda ─────────────────────────────────────────────
         Route::post('/{project}/events', [ProjectEventController::class, 'store'])->name('events.store');
+
+        // ── Budget ────────────────────────────────────────────────────────
+        Route::post('/{project}/budgets', [ProjectBudgetController::class, 'store'])->name('budgets.store');
+        Route::patch('/{project}/budgets/{budget}', [ProjectBudgetController::class, 'update'])->name('budgets.update');
+        Route::delete('/{project}/budgets/{budget}', [ProjectBudgetController::class, 'destroy'])->name('budgets.destroy');
+
+        // ── Parties prenantes ─────────────────────────────────────────────
+        Route::post('/{project}/stakeholders', [ProjectStakeholderController::class, 'store'])->name('stakeholders.store');
+        Route::patch('/{project}/stakeholders/{stakeholder}', [ProjectStakeholderController::class, 'update'])->name('stakeholders.update');
+        Route::delete('/{project}/stakeholders/{stakeholder}', [ProjectStakeholderController::class, 'destroy'])->name('stakeholders.destroy');
+
+        // ── Conduite du changement : communication ────────────────────────
+        Route::post('/{project}/comm-actions', [ProjectChangeController::class, 'storeCommAction'])->name('comm_actions.store');
+        Route::patch('/{project}/comm-actions/{action}', [ProjectChangeController::class, 'updateCommAction'])->name('comm_actions.update');
+        Route::delete('/{project}/comm-actions/{action}', [ProjectChangeController::class, 'destroyCommAction'])->name('comm_actions.destroy');
+
+        // ── Conduite du changement : risques ──────────────────────────────
+        Route::post('/{project}/risks', [ProjectChangeController::class, 'storeRisk'])->name('risks.store');
+        Route::patch('/{project}/risks/{risk}', [ProjectChangeController::class, 'updateRisk'])->name('risks.update');
+        Route::delete('/{project}/risks/{risk}', [ProjectChangeController::class, 'destroyRisk'])->name('risks.destroy');
+
+        // ── Observations élus ─────────────────────────────────────────────
+        Route::post('/{project}/observations', [ProjectObservationController::class, 'store'])->name('observations.store');
+        Route::delete('/{project}/observations/{observation}', [ProjectObservationController::class, 'destroy'])->name('observations.destroy');
     });

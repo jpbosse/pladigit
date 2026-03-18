@@ -134,13 +134,15 @@ class TenantMailerTest extends TestCase
 
     public function test_admin_can_save_smtp_settings(): void
     {
-        $org = Organization::create([
-            'slug' => 'test',
-            'name' => 'Test Org',
-            'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
-            'status' => 'active',
-            'plan' => 'communautaire',
-        ]);
+        $org = Organization::updateOrCreate(
+            ['slug' => 'test'],
+            [
+                'name' => 'Test Org',
+                'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
+                'status' => 'active',
+                'plan' => 'communautaire',
+            ]
+        );
         // Pointer le TenantManager vers l'org persistée en base
         app(\App\Services\TenantManager::class)->connectTo($org);
 
@@ -168,16 +170,18 @@ class TenantMailerTest extends TestCase
     public function test_smtp_password_unchanged_when_field_empty(): void
     {
         $enc = Crypt::encryptString('ancienmdp');
-        $org = Organization::create([
-            'slug' => 'test',
-            'name' => 'Test Org',
-            'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
-            'status' => 'active',
-            'plan' => 'communautaire',
-            'smtp_host' => 'old.smtp.fr',
-            'smtp_user' => 'u@old.fr',
-            'smtp_password_enc' => $enc,
-        ]);
+        $org = Organization::updateOrCreate(
+            ['slug' => 'test'],
+            [
+                'name' => 'Test Org',
+                'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
+                'status' => 'active',
+                'plan' => 'communautaire',
+                'smtp_host' => 'old.smtp.fr',
+                'smtp_user' => 'u@old.fr',
+                'smtp_password_enc' => $enc,
+            ]
+        );
         // Pointer le TenantManager vers l'org persistée en base
         app(\App\Services\TenantManager::class)->connectTo($org);
 

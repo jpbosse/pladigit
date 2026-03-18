@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -20,8 +21,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  *   $project->projectMembers()→ HasMany ProjectMember (avec le rôle)
  *   $project->tasks()        → HasMany Task
  *   $project->milestones()   → HasMany ProjectMilestone
- *   $project->events()       → HasMany Event (agenda lié au projet)
- *   $project->comments()     → HasMany TaskComment via tasks (agrégé)
+ *   $project->events()        → HasMany Event (agenda lié au projet)
+ *   $project->comments()      → HasMany TaskComment via tasks (agrégé)
+ *   $project->budgets()       → HasMany ProjectBudget
+ *   $project->stakeholders()  → HasMany ProjectStakeholder
+ *   $project->commActions()   → HasMany ProjectCommAction
+ *   $project->risks()         → HasMany ProjectRisk
+ *   $project->observations()  → HasMany ProjectObservation
  *
  * Scopes :
  *   Project::visibleFor($user)  → projets où l'utilisateur est membre
@@ -62,7 +68,7 @@ class Project extends Model
      * Membres du projet (table pivot project_members).
      * Inclut le rôle via ->withPivot('role').
      *
-     * @return BelongsToMany<User>
+     * @return BelongsToMany<User, Pivot>
      */
     public function members(): BelongsToMany
     {
@@ -103,6 +109,36 @@ class Project extends Model
     public function events(): HasMany
     {
         return $this->hasMany(Event::class)->orderBy('starts_at');
+    }
+
+    /** @return HasMany<ProjectBudget, $this> */
+    public function budgets(): HasMany
+    {
+        return $this->hasMany(ProjectBudget::class)->orderBy('year')->orderBy('type');
+    }
+
+    /** @return HasMany<ProjectStakeholder, $this> */
+    public function stakeholders(): HasMany
+    {
+        return $this->hasMany(ProjectStakeholder::class)->orderByRaw("FIELD(adhesion,'resistant','vigilant','neutre','supporter','champion')");
+    }
+
+    /** @return HasMany<ProjectCommAction, $this> */
+    public function commActions(): HasMany
+    {
+        return $this->hasMany(ProjectCommAction::class)->orderBy('planned_at');
+    }
+
+    /** @return HasMany<ProjectRisk, $this> */
+    public function risks(): HasMany
+    {
+        return $this->hasMany(ProjectRisk::class)->orderByRaw('FIELD(status,"identified","monitored","mitigated","closed")');
+    }
+
+    /** @return HasMany<ProjectObservation, $this> */
+    public function observations(): HasMany
+    {
+        return $this->hasMany(ProjectObservation::class)->latest();
     }
 
     // ── Scopes ────────────────────────────────────────────────────────────
@@ -153,6 +189,54 @@ class Project extends Model
     }
 
     // ── Méthodes métier ───────────────────────────────────────────────────
+
+    /**
+     * Synthèse budgétaire par type — utilisée par la vue élus et la vue finances.
+     *
+     * @return array{invest: array{planned: float, committed: float, paid: float}, fonct: array{planned: float, committed: float, paid: float}, total: array{planned: float, committed: float, paid: float}}
+     */
+    public function budgetSummary(): array
+    {
+        $rows = $this->budgets;
+
+        $sum = fn (string $type, string $field) => (float) $rows
+            ->where('type', $type)
+            ->sum($field);
+
+        $invest = [
+            'planned' => $sum('invest', 'amount_planned'),
+            'committed' => $sum('invest', 'amount_committed'),
+            'paid' => $sum('invest', 'amount_paid'),
+        ];
+        $fonct = [
+            'planned' => $sum('fonct', 'amount_planned'),
+            'committed' => $sum('fonct', 'amount_committed'),
+            'paid' => $sum('fonct', 'amount_paid'),
+        ];
+
+        return [
+            'invest' => $invest,
+            'fonct' => $fonct,
+            'total' => [
+                'planned' => $invest['planned'] + $fonct['planned'],
+                'committed' => $invest['committed'] + $fonct['committed'],
+                'paid' => $invest['paid'] + $fonct['paid'],
+            ],
+        ];
+    }
+
+    /**
+     * Risques actifs (non clôturés), triés par score décroissant.
+     *
+     * @return \Illuminate\Support\Collection<int, ProjectRisk>
+     */
+    public function activeRisks(): \Illuminate\Support\Collection
+    {
+        return $this->risks
+            ->whereNotIn('status', ['closed'])
+            ->sortByDesc(fn (ProjectRisk $r) => $r->score())
+            ->values();
+    }
 
     /**
      * Vérifie si un utilisateur est membre de ce projet.
@@ -227,10 +311,10 @@ class Project extends Model
     public static function statusLabels(): array
     {
         return [
-            'draft'    => 'Brouillon',
-            'active'   => 'Actif',
-            'on_hold'  => 'En pause',
-            'completed'=> 'Terminé',
+            'draft' => 'Brouillon',
+            'active' => 'Actif',
+            'on_hold' => 'En pause',
+            'completed' => 'Terminé',
             'archived' => 'Archivé',
         ];
     }
@@ -243,10 +327,10 @@ class Project extends Model
     public static function statusColors(): array
     {
         return [
-            'draft'    => ['bg' => '#E2E8F0', 'text' => '#475569'],
-            'active'   => ['bg' => '#D1FAE5', 'text' => '#065F46'],
-            'on_hold'  => ['bg' => '#FEF3C7', 'text' => '#92400E'],
-            'completed'=> ['bg' => '#DBEAFE', 'text' => '#1E40AF'],
+            'draft' => ['bg' => '#E2E8F0', 'text' => '#475569'],
+            'active' => ['bg' => '#D1FAE5', 'text' => '#065F46'],
+            'on_hold' => ['bg' => '#FEF3C7', 'text' => '#92400E'],
+            'completed' => ['bg' => '#DBEAFE', 'text' => '#1E40AF'],
             'archived' => ['bg' => '#E2E8F0', 'text' => '#475569'],
         ];
     }

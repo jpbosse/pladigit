@@ -246,26 +246,26 @@ class DashboardTest extends TestCase
         $project = Project::factory()->create(['created_by' => $this->admin->id]);
         ProjectMember::create([
             'project_id' => $project->id,
-            'user_id'    => $this->admin->id,
-            'role'       => 'owner',
+            'user_id' => $this->admin->id,
+            'role' => 'owner',
         ]);
 
         // Tâche urgente assignée à l'admin
         $urgentTask = Task::factory()->create([
-            'project_id'  => $project->id,
-            'created_by'  => $this->admin->id,
+            'project_id' => $project->id,
+            'created_by' => $this->admin->id,
             'assigned_to' => $this->admin->id,
-            'status'      => 'todo',
-            'priority'    => 'urgent',
+            'status' => 'todo',
+            'priority' => 'urgent',
         ]);
 
         // Tâche basse priorité — ne doit PAS apparaître
         Task::factory()->create([
-            'project_id'  => $project->id,
-            'created_by'  => $this->admin->id,
+            'project_id' => $project->id,
+            'created_by' => $this->admin->id,
             'assigned_to' => $this->admin->id,
-            'status'      => 'todo',
-            'priority'    => 'low',
+            'status' => 'todo',
+            'priority' => 'low',
         ]);
 
         $response = $this->actingAs($this->admin)

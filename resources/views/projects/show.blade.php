@@ -1,185 +1,149 @@
 {{-- resources/views/projects/show.blade.php --}}
 @extends('layouts.app')
-
 @section('title', $project->name)
 
 @push('styles')
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2.0.8/dist/trix.css">
+    <style>
+    .trix-content { font-size:13px; line-height:1.7; color:var(--pd-text); }
+    .trix-content strong { font-weight:700; }
+    .trix-content em { font-style:italic; }
+    .trix-content ul, .trix-content ol { padding-left:1.5em; margin:.5em 0; }
+    .trix-content li { margin:.2em 0; }
+    .trix-content h1 { font-size:16px; font-weight:700; margin:.8em 0 .3em; }
+    .trix-content blockquote { border-left:3px solid var(--pd-border); padding-left:12px; color:var(--pd-muted); margin:.5em 0; }
+    </style>
 <style>
-.proj-header      { display:flex; align-items:flex-start; gap:16px; margin-bottom:1.5rem; padding-bottom:1rem; border-bottom: 0.5px solid var(--pd-border); max-width:100%; }
-.proj-header-actions { display:flex; gap:8px; flex-shrink:0; }
-.proj-color-dot   { width:14px; height:14px; border-radius:50%; flex-shrink:0; margin-top:5px; }
-.proj-tabs        { display:flex; gap:0; border-bottom: 0.5px solid var(--pd-border); margin-bottom:1.5rem; }
-.proj-tab         { padding:10px 18px; font-size:13px; font-weight:500; color:var(--pd-muted); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; transition:color .15s,border-color .15s; }
-.proj-tab.active  { color:var(--pd-navy); border-bottom-color:var(--pd-navy); }
-.proj-layout      { display:grid; grid-template-columns:1fr 240px; gap:20px; }
-.proj-sidebar     { display:flex; flex-direction:column; gap:14px; }
-.proj-sidebar-card{ background:var(--pd-surface); border:0.5px solid var(--pd-border); border-radius:10px; padding:14px; }
-.proj-sidebar-title{ font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color:var(--pd-muted); margin-bottom:10px; }
-.stat-row         { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:13px; }
-.stat-label       { color:var(--pd-muted); }
-.member-item      { display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px; }
-.member-avatar    { width:26px; height:26px; border-radius:50%; background:var(--pd-navy-light); color:var(--pd-navy); font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.proj-shell    { display:grid; grid-template-columns:220px 1fr; gap:0; }
+.proj-sidenav  { background:var(--pd-surface); border-right:0.5px solid var(--pd-border); display:flex; flex-direction:column; position:sticky; top:0; max-height:calc(100vh - 60px); overflow-y:auto; }
+.proj-main     { padding:20px; overflow:auto; }
+.sn-project    { padding:14px 16px 12px; border-bottom:0.5px solid var(--pd-border); }
+.sn-proj-name  { font-size:13px; font-weight:700; color:var(--pd-text); line-height:1.3; }
+.sn-section    { padding:10px 8px 4px; }
+.sn-lbl        { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--pd-muted); padding:0 8px; margin-bottom:3px; display:block; }
+.sn-item       { display:flex; align-items:center; gap:9px; padding:7px 10px; border-radius:8px; cursor:pointer; transition:background .12s; border:none; background:none; width:100%; text-align:left; color:var(--pd-text); }
+.sn-item:hover { background:var(--pd-bg2); }
+.sn-item.active{ background:var(--pd-bg2); color:var(--pd-navy); }
+.sn-icon       { width:15px; height:15px; opacity:.5; flex-shrink:0; }
+.sn-item.active .sn-icon { opacity:1; }
+.sn-label      { font-size:12px; font-weight:500; flex:1; }
+.sn-badge      { font-size:10px; padding:1px 5px; border-radius:8px; background:var(--pd-bg2); color:var(--pd-muted); border:0.5px solid var(--pd-border); }
+.sn-badge.warn { background:#FEF3C7; color:#92400E; border-color:#FCD34D; }
+.sn-badge.danger{ background:#FEE2E2; color:#991B1B; border-color:#FCA5A5; }
+.sn-elus       { margin-top:auto; border-top:0.5px solid var(--pd-border); padding:8px 8px 12px; }
+.section-hdr   { margin-bottom:18px; padding-bottom:12px; border-bottom:0.5px solid var(--pd-border); display:flex; align-items:flex-start; justify-content:space-between; }
+.section-title { font-size:16px; font-weight:700; color:var(--pd-navy); }
+.section-sub   { font-size:12px; color:var(--pd-muted); margin-top:2px; }
+.pd-card       { background:var(--pd-surface); border:0.5px solid var(--pd-border); border-radius:10px; padding:14px 16px; }
+.stat-grid     { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:16px; }
+.stat-card     { background:var(--pd-surface); border:0.5px solid var(--pd-border); border-radius:10px; padding:12px 14px; }
+.stat-lbl      { font-size:10px; color:var(--pd-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:4px; }
+.stat-val      { font-size:20px; font-weight:700; color:var(--pd-navy); }
+.stat-sub      { font-size:11px; color:var(--pd-muted); margin-top:2px; }
+.pd-table      { width:100%; border-collapse:collapse; font-size:12px; }
+.pd-table th   { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--pd-muted); padding:6px 10px; border-bottom:0.5px solid var(--pd-border); text-align:left; }
+.pd-table td   { padding:9px 10px; border-bottom:0.5px solid var(--pd-border); vertical-align:middle; }
+.pd-table tr:last-child td { border-bottom:none; }
+.pd-badge      { display:inline-flex; align-items:center; font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; }
+.btn-sm        { padding:5px 10px; font-size:11px; border-radius:7px; border:0.5px solid var(--pd-border); background:var(--pd-surface); color:var(--pd-text); cursor:pointer; transition:background .12s; }
+.btn-sm:hover  { background:var(--pd-bg2); }
+.btn-navy      { background:var(--pd-navy); color:#fff; border-color:var(--pd-navy); }
+.btn-navy:hover{ opacity:.9; }
+.bbar-wrap     { height:6px; background:var(--pd-bg2); border-radius:3px; overflow:hidden; margin-top:4px; }
+.bbar-fill     { height:100%; border-radius:3px; }
+.sub-tabs      { display:flex; gap:0; border-bottom:0.5px solid var(--pd-border); margin-bottom:16px; }
+.sub-tab       { padding:8px 16px; font-size:12px; font-weight:500; color:var(--pd-muted); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; transition:all .15s; }
+.sub-tab.active{ color:var(--pd-navy); border-bottom-color:var(--pd-navy); }
+.sh-avatar     { width:30px; height:30px; border-radius:50%; font-size:10px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.obs-item      { display:flex; gap:10px; padding:10px 0; border-bottom:0.5px solid var(--pd-border); }
+.obs-item:last-child{ border:none; }
 </style>
 @endpush
 
 @section('content')
-<div style="padding:20px;">
-
 @php
-    $canManage = $userRole?->canManage() || in_array(auth()->user()?->role, ['admin','president','dgs']);
-    $canEdit   = $userRole?->canEdit()   || $canManage;
-    $initView  = request('view', 'kanban');
+$canManage = $userRole?->canManage() || in_array(auth()->user()?->role, ['admin','president','dgs']);
+$canEdit   = $userRole?->canEdit() || $canManage;
 @endphp
 
-{{-- En-tête projet --}}
-<div class="proj-header">
-    <div class="proj-color-dot" style="background:{{ $project->color }};"></div>
-    <div style="flex:1;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-            <h1 style="font-size:20px;font-weight:600;margin:0;">{{ $project->name }}</h1>
-            <span class="pd-badge pd-badge-{{ $project->status }}">
-                {{ \App\Models\Tenant\Project::statusLabels()[$project->status] ?? $project->status }}
-            </span>
-        </div>
-        @if($project->description)
-            <p style="font-size:13px;color:var(--pd-muted);margin:0;">{{ $project->description }}</p>
-        @endif
-        <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--pd-muted);">
-            @if($project->start_date)
-                <span>Du {{ $project->start_date->format('d/m/Y') }}</span>
-            @endif
-            @if($project->due_date)
-                <span>au {{ $project->due_date->format('d/m/Y') }}</span>
-            @endif
-            <span>{{ $progression }}% complété</span>
-        </div>
-    </div>
-    @if($canManage)
-    <div class="proj-header-actions">
-        <a href="{{ route('projects.edit', $project) }}" class="pd-btn pd-btn-sm pd-btn-secondary">Modifier</a>
-    </div>
-    @endif
-</div>
+<div class="proj-shell" x-data="{ section: '{{ request('section','but') }}', go(s){ this.section=s; const u=new URL(location); u.searchParams.set('section',s); history.replaceState(null,'',u); } }">
 
-{{-- Onglets — état géré par Alpine.js, tab actif mémorisé dans l'URL --}}
-<div x-data="{ tab: '{{ $initView }}' }">
+{{-- ── SIDEBAR ─────────────────────────────────────────────────── --}}
+<nav class="proj-sidenav">
+    <div class="sn-project">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">
+            <div style="width:10px;height:10px;border-radius:50%;background:{{ $project->color }};flex-shrink:0;"></div>
+            <div class="sn-proj-name">{{ $project->name }}</div>
+        </div>
+        <span class="pd-badge" style="background:{{ \App\Models\Tenant\Project::statusColors()[$project->status]['bg'] }};color:{{ \App\Models\Tenant\Project::statusColors()[$project->status]['text'] }};">
+            {{ \App\Models\Tenant\Project::statusLabels()[$project->status] }}
+        </span>
+        <span style="font-size:11px;color:var(--pd-muted);margin-left:6px;">{{ $progression }}%</span>
+    </div>
 
-    <div class="proj-tabs">
-        @foreach(['kanban'=>'Kanban', 'gantt'=>'Gantt', 'list'=>'Liste', 'agenda'=>'Agenda'] as $key => $label)
-        <button class="proj-tab" :class="{ active: tab === '{{ $key }}' }"
-                @click="tab = '{{ $key }}'; history.replaceState(null,'',`?view={{ $key }}`)">
-            {{ $label }}
+    <div class="sn-section">
+        <span class="sn-lbl">Projet</span>
+        <button class="sn-item" :class="{active:section==='but'}" @click="go('but')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2.5" fill="currentColor"/></svg>
+            <span class="sn-label">But &amp; description</span>
         </button>
-        @endforeach
+        <button class="sn-item" :class="{active:section==='finances'}" @click="go('finances')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 5V4a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.2"/><path d="M8 9v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="sn-label">Finances</span>
+            @if($budgetAlerts->count())<span class="sn-badge warn">{{ $budgetAlerts->count() }} alerte{{ $budgetAlerts->count()>1?'s':'' }}</span>@endif
+        </button>
     </div>
 
-    <div class="proj-layout">
-
-        {{-- Contenu principal --}}
-        <div>
-            {{-- Kanban --}}
-            <div x-show="tab === 'kanban'" x-cloak>
-                @include('projects.partials._kanban')
-            </div>
-
-            {{-- Gantt --}}
-            <div x-show="tab === 'gantt'" x-cloak>
-                @include('projects.partials._gantt')
-            </div>
-
-            {{-- Liste --}}
-            <div x-show="tab === 'list'" x-cloak>
-                @include('projects.partials._list')
-            </div>
-
-            {{-- Agenda --}}
-            <div x-show="tab === 'agenda'" x-cloak>
-                @include('projects.partials._agenda')
-            </div>
-        </div>
-
-        {{-- Sidebar --}}
-        <aside class="proj-sidebar">
-
-            {{-- Progression --}}
-            <div class="proj-sidebar-card">
-                <div class="proj-sidebar-title">Progression</div>
-                <div style="text-align:center;font-size:28px;font-weight:700;color:var(--pd-navy);margin-bottom:8px;">
-                    {{ $progression }}%
-                </div>
-                <div class="pd-progress-bar" style="margin-bottom:12px;">
-                    <div class="pd-progress-fill" style="width:{{ $progression }}%;background:{{ $project->color }};"></div>
-                </div>
-                @foreach(['todo'=>'À faire','in_progress'=>'En cours','in_review'=>'En revue','done'=>'Terminé'] as $s => $label)
-                <div class="stat-row">
-                    <span class="stat-label">{{ $label }}</span>
-                    <span style="font-weight:500;">{{ $taskStats[$s] }}</span>
-                </div>
-                @endforeach
-                <div class="stat-row" style="border-top:0.5px solid var(--pd-border);padding-top:6px;margin-top:4px;">
-                    <span class="stat-label">Total</span>
-                    <span style="font-weight:600;">{{ $taskStats['total'] }}</span>
-                </div>
-            </div>
-
-            {{-- Jalons --}}
-            @if($project->milestones->count())
-            <div class="proj-sidebar-card">
-                <div class="proj-sidebar-title">Jalons</div>
-                @foreach($project->milestones->take(5) as $milestone)
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:12px;">
-                    <div style="width:10px;height:10px;transform:rotate(45deg);border:2px solid {{ $milestone->color }};flex-shrink:0;{{ $milestone->isReached() ? 'background:'.$milestone->color.';' : '' }}"></div>
-                    <span style="{{ $milestone->isReached() ? 'text-decoration:line-through;color:var(--pd-muted);' : ($milestone->isLate() ? 'color:var(--pd-danger);' : '') }}">
-                        {{ Str::limit($milestone->title, 30) }}
-                    </span>
-                    <span style="margin-left:auto;color:var(--pd-muted);">{{ $milestone->due_date->format('d/m') }}</span>
-                </div>
-                @endforeach
-            </div>
-            @endif
-
-            {{-- Membres --}}
-            <div class="proj-sidebar-card">
-                <div class="proj-sidebar-title">Membres ({{ $project->projectMembers->count() }})</div>
-                @foreach($project->projectMembers->take(8) as $member)
-                <div class="member-item">
-                    <div class="member-avatar">{{ strtoupper(substr($member->user->name ?? '?', 0, 2)) }}</div>
-                    <div style="flex:1;overflow:hidden;">
-                        <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $member->user->name ?? '—' }}</div>
-                        <div style="font-size:11px;color:var(--pd-muted);">{{ \App\Enums\ProjectRole::from($member->role)->label() }}</div>
-                    </div>
-                </div>
-                @endforeach
-                @if($canManage)
-                <a href="{{ route('projects.edit', $project) }}#membres" style="font-size:12px;color:var(--pd-navy);">
-                    Gérer les membres →
-                </a>
-                @endif
-            </div>
-
-            {{-- Actions --}}
-            <div class="proj-sidebar-card">
-                <div class="proj-sidebar-title">Actions</div>
-                <a href="{{ route('projects.export.ical', $project) }}" class="pd-btn pd-btn-sm pd-btn-secondary" style="width:100%;text-align:center;margin-bottom:6px;display:block;">
-                    Exporter iCal
-                </a>
-                @if($canManage)
-                <form method="POST" action="{{ route('projects.destroy', $project) }}"
-                      onsubmit="return confirm('Supprimer ce projet ? Cette action est irréversible.')">
-                    @csrf @method('DELETE')
-                    <button type="submit" class="pd-btn pd-btn-sm pd-btn-danger" style="width:100%;">
-                        Supprimer le projet
-                    </button>
-                </form>
-                @endif
-            </div>
-
-        </aside>
+    <div class="sn-section">
+        <span class="sn-lbl">Planification</span>
+        <button class="sn-item" :class="{active:section==='planif'}" @click="go('planif')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="4" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><rect x="6" y="3" width="4" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="3" width="4" height="5" rx="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span class="sn-label">Tâches &amp; planning</span>
+            @php $activeTasks = $taskStats['todo']+$taskStats['in_progress']+$taskStats['in_review']; @endphp
+            @if($activeTasks)<span class="sn-badge">{{ $activeTasks }}</span>@endif
+        </button>
     </div>
+
+    <div class="sn-section">
+        <span class="sn-lbl">Conduite du changement</span>
+        <button class="sn-item" :class="{active:section==='parties'}" @click="go('parties')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="11" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M1 13c0-2.2 2.2-4 5-4s5 1.8 5 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10c1.7.3 3 1.4 3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span class="sn-label">Parties prenantes</span>
+            @php $resistant=$project->stakeholders->where('adhesion','resistant')->count(); @endphp
+            @if($resistant)<span class="sn-badge danger">{{ $resistant }} résistant{{ $resistant>1?'s':'' }}</span>@endif
+        </button>
+        <button class="sn-item" :class="{active:section==='comcom'}" @click="go('comcom')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H9l-3 2V11H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+            <span class="sn-label">Plan de communication</span>
+            @php $lateComm=$project->commActions->filter(fn($a)=>$a->isLate())->count(); @endphp
+            @if($lateComm)<span class="sn-badge warn">{{ $lateComm }} en retard</span>@endif
+        </button>
+        <button class="sn-item" :class="{active:section==='risques'}" @click="go('risques')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 6v3M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="sn-label">Freins &amp; risques</span>
+            @if($criticalRisksCount)<span class="sn-badge danger">{{ $criticalRisksCount }} critique{{ $criticalRisksCount>1?'s':'' }}</span>@endif
+        </button>
+    </div>
+
+    <div class="sn-elus">
+        <button class="sn-item" :class="{active:section==='elus'}" @click="go('elus')" style="background:var(--pd-bg2);border-radius:8px;">
+            <svg class="sn-icon" style="opacity:1;" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
+            <span class="sn-label" style="font-weight:700;color:var(--pd-navy);">Tableau de bord élus</span>
+        </button>
+    </div>
+</nav>
+
+{{-- ── CONTENU ──────────────────────────────────────────────────── --}}
+<div class="proj-main">
+    <div x-show="section==='but'"      x-cloak>@include('projects.partials._but')</div>
+    <div x-show="section==='finances'" x-cloak>@include('projects.partials._finances')</div>
+    <div x-show="section==='planif'"   x-cloak>@include('projects.partials._planif')</div>
+    <div x-show="section==='parties'"  x-cloak>@include('projects.partials._stakeholders')</div>
+    <div x-show="section==='comcom'"   x-cloak>@include('projects.partials._comcom')</div>
+    <div x-show="section==='risques'"  x-cloak>@include('projects.partials._risques')</div>
+    <div x-show="section==='elus'"     x-cloak>@include('projects.partials._elus')</div>
+    @include('projects.partials._task_slideover')
 </div>
-
-{{-- Slide-over tâche — masqué par défaut --}}
-@include('projects.partials._task_slideover')
 
 </div>
 @endsection

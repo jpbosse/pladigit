@@ -1,457 +1,355 @@
-{{-- resources/views/projects/partials/_gantt.blade.php --}}
+{{-- _gantt.blade.php — ADR-009 révisé v3 --}}
 {{--
-    Gantt — rendu SVG côté PHP, drag horizontal Alpine.js (ADR-009).
-    Amélioré : zoom, largeur adaptative, meilleure lisibilité.
-    La mise à jour des dates se fait par PATCH AJAX vers TaskController::updateDates().
+    - Jalon actif déplié automatiquement
+    - En-têtes repliés : mini timeline avec losange positionné
+    - Par défaut : tâches "en cours" uniquement, toggle pour tout voir
 --}}
 
 @php
 use Carbon\Carbon;
 
-$tasksForGantt = $ganttTasks ?? collect();
+$projectStart = $project->start_date ?? now()->startOfMonth();
+$projectEnd   = $project->due_date   ?? now()->addMonths(3)->endOfMonth();
+$viewStart    = $projectStart->copy()->startOfMonth();
+$viewEnd      = $projectEnd->copy()->endOfMonth();
+$totalDays    = max(1, $viewStart->diffInDays($viewEnd));
+$totalMonths  = $viewStart->diffInMonths($viewEnd);
 
-// Calculer l'étendue temporelle du projet
-$allDates = $tasksForGantt->flatMap(fn($t) => [$t->start_date, $t->due_date])->filter();
-$milestonesDates = $project->milestones->pluck('due_date')->filter();
-$allDates = $allDates->merge($milestonesDates);
+$labelWidth = 200;
+$dayWidth   = max(3, min(14, 3600 / max(1, $totalDays)));
+$barArea    = max(500, $totalDays * $dayWidth);
+$svgWidth   = $labelWidth + $barArea;
 
-$projectStart = $project->start_date ?? ($allDates->min() ?? now());
-$projectEnd   = $project->due_date   ?? ($allDates->max() ?? now()->addMonths(3));
+$xPos = fn($date) => $labelWidth + (max(0, $viewStart->diffInDays($date)) / $totalDays * $barArea);
 
-// Étendre pour la lisibilité
-$viewStart = $projectStart->copy()->startOfMonth();
-$viewEnd   = $projectEnd->copy()->endOfMonth();
-$totalDays = max(1, $viewStart->diffInDays($viewEnd));
-$totalMonths = $viewStart->diffInMonths($viewEnd);
+// Mini timeline (en-tête replié) : position proportionnelle 0-100%
+$xPct = fn($date) => max(0, min(100, $viewStart->diffInDays($date) / $totalDays * 100));
+$todayPct = $xPct(now());
 
-// ── Largeur SVG adaptative selon la durée avec zoom ───────────────────────────
-$labelWidth = 220; // Largeur fixe pour les labels (augmentée)
-$minBarArea = 600; // Minimum pour la zone des barres
-$dayWidth   = max(3, min(12, 4000 / max(1, $totalDays))); // 3-12px par jour
-
-// Calcul automatique de la largeur
-$barArea = max($minBarArea, $totalDays * $dayWidth);
-$svgWidth = $labelWidth + $barArea;
-
-$rowHeight  = 40;  // Augmenté pour meilleure lisibilité
-$barH       = 22;  // Hauteur des barres
-$barY       = ($rowHeight - $barH) / 2;
-$headerH    = 60;  // En-tête plus grand
-
-$rowCount  = $tasksForGantt->count() + $project->milestones->count();
-$svgHeight = $headerH + ($rowCount * $rowHeight) + 30;
-
-// Helper : position X d'une date
-$xPos = fn($date) => $labelWidth + ($viewStart->diffInDays($date) / $totalDays * $barArea);
-
-// Couleurs priorité
-$prioBg     = ['urgent'=>'#FCA5A5','high'=>'#FCD34D','medium'=>'#93C5FD','low'=>'#86EFAC'];
-$prioStroke = ['urgent'=>'#DC2626','high'=>'#D97706','medium'=>'#2563EB','low'=>'#16A34A'];
-
-// ── Axe temporel adaptatif ───────────────────────────────────────────────────
+// Périodes axe temporel
 $periods = [];
-$cursor  = $viewStart->copy();
-
-if ($totalMonths > 48) {
-    // Semestres
-    $cursor->startOfYear();
-    while ($cursor->lte($viewEnd)) {
-        $periods[] = [
-            'label'    => 'S'.($cursor->month <= 6 ? '1' : '2').' '.$cursor->year,
-            'sublabel' => '',
-            'x'        => $xPos($cursor),
-            'major'    => true,
-        ];
-        $cursor->addMonths(6);
-    }
-} elseif ($totalMonths > 18) {
-    // Trimestres avec année
+$cursor  = $viewStart->copy()->startOfMonth();
+if ($totalMonths > 24) {
     $cursor->startOfQuarter();
     while ($cursor->lte($viewEnd)) {
-        $q = $cursor->quarter;
-        $periods[] = [
-            'label'    => 'T'.$q.' '.$cursor->year,
-            'sublabel' => $cursor->translatedFormat('M').'–'.Carbon::parse($cursor)->addMonths(2)->translatedFormat('M'),
-            'x'        => $xPos($cursor),
-            'major'    => ($q === 1),
-        ];
+        $periods[] = ['label' => 'T'.$cursor->quarter.' '.$cursor->year, 'x' => $xPos($cursor), 'major' => $cursor->quarter === 1];
         $cursor->addMonths(3);
     }
 } else {
-    // Mensuel classique
-    $cursor->startOfMonth();
     while ($cursor->lte($viewEnd)) {
-        $periods[] = [
-            'label'    => $cursor->translatedFormat('M'),
-            'sublabel' => ($cursor->month === 1) ? (string)$cursor->year : '',
-            'x'        => $xPos($cursor),
-            'major'    => ($cursor->month === 1),
-        ];
+        $periods[] = ['label' => $cursor->translatedFormat('M'), 'sub' => $cursor->month === 1 ? (string)$cursor->year : '', 'x' => $xPos($cursor), 'major' => $cursor->month === 1];
         $cursor->addMonth();
     }
 }
+
+// Jalon actif à déplier
+$nextActiveMs = null;
+foreach ($project->milestones->sortBy('due_date') as $ms) {
+    if (!$ms->isReached() && $ms->due_date && $ms->due_date->isFuture()) {
+        $nextActiveMs = $ms->id;
+        break;
+    }
+}
+if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
+    $nextActiveMs = $project->milestones->sortBy('due_date')->first()->id;
+}
+
+$prioBg     = ['urgent' => '#FCA5A5', 'high' => '#FCD34D', 'medium' => '#93C5FD', 'low' => '#86EFAC'];
+$prioStroke = ['urgent' => '#DC2626', 'high' => '#D97706', 'medium' => '#2563EB', 'low' => '#16A34A'];
+$rowH = 36; $barH = 20; $barY = ($rowH - $barH) / 2; $headH = 44;
+$todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
 @endphp
 
-<div x-data="ganttZoom()" x-init="init()" style="margin-bottom:10px;">
-    
-    {{-- Contrôles zoom --}}
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
-        <span style="font-size:13px;color:var(--pd-muted);">
-            {{ $tasksForGantt->count() }} tâche{{ $tasksForGantt->count() > 1 ? 's' : '' }} planifiée{{ $tasksForGantt->count() > 1 ? 's' : '' }}
-            @if($tasksForGantt->count() < ($taskStats['total'] ?? 0))
-                <span style="color:var(--pd-warning);"> — {{ ($taskStats['total'] ?? 0) - $tasksForGantt->count() }} sans date</span>
+<div x-data="ganttCtrl()" x-init="init()">
+
+{{-- ── Barre d'outils ── --}}
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+    <span style="font-size:12px;color:var(--pd-muted);">
+        {{ $project->tasks()->whereNotNull('start_date')->whereNotNull('due_date')->count() }} tâches planifiées
+        @php $unplanned = $taskStats['total'] - $project->tasks()->whereNotNull('start_date')->whereNotNull('due_date')->count(); @endphp
+        @if($unplanned > 0)<span style="color:var(--pd-muted);"> · {{ $unplanned }} sans date</span>@endif
+    </span>
+    <div style="display:flex;align-items:center;gap:8px;">
+        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--pd-muted);cursor:pointer;">
+            <input type="checkbox" x-model="showAll" style="accent-color:var(--pd-navy);">
+            Toutes les tâches
+        </label>
+        <span style="color:var(--pd-border);">|</span>
+        <span style="font-size:11px;color:var(--pd-muted);">Zoom</span>
+        <button @click="zoom=Math.max(0.5,zoom-0.15)" class="pd-btn pd-btn-xs pd-btn-secondary">−</button>
+        <span style="font-size:11px;font-weight:600;min-width:36px;text-align:center;" x-text="Math.round(zoom*100)+'%'"></span>
+        <button @click="zoom=Math.min(2.5,zoom+0.15)" class="pd-btn pd-btn-xs pd-btn-secondary">+</button>
+        <button @click="zoom=1" class="pd-btn pd-btn-xs pd-btn-secondary">↺</button>
+    </div>
+</div>
+
+<div style="overflow-x:auto;">
+<div :style="'width:'+Math.round({{ $svgWidth }}*zoom)+'px'">
+
+{{-- ── Axe temporel (header commun) ── --}}
+<svg width="{{ $svgWidth }}" height="{{ $headH }}"
+     :style="'transform:scaleX('+zoom+');transform-origin:left top;width:'+Math.round({{ $svgWidth }}*zoom)+'px'"
+     style="display:block;font-family:\'DM Sans\',sans-serif;background:var(--pd-surface2);border-radius:8px 8px 0 0;border:0.5px solid var(--pd-border);">
+    <rect x="0" y="0" width="{{ $labelWidth }}" height="{{ $headH }}" fill="var(--pd-surface2)"/>
+    <text x="12" y="{{ $headH/2+4 }}" font-size="10" font-weight="700" fill="var(--pd-muted)" letter-spacing="1">TÂCHE</text>
+    @foreach($periods as $p)
+    <line x1="{{ $p['x'] }}" y1="0" x2="{{ $p['x'] }}" y2="{{ $headH }}"
+          stroke="var(--pd-border)" stroke-width="{{ ($p['major']??false)?'1':'0.5' }}"/>
+    <text x="{{ $p['x']+6 }}" y="20" font-size="11"
+          font-weight="{{ ($p['major']??false)?'700':'500' }}"
+          fill="{{ ($p['major']??false)?'var(--pd-navy)':'var(--pd-muted)' }}">{{ $p['label'] }}</text>
+    @if(!empty($p['sub']))
+    <text x="{{ $p['x']+6 }}" y="36" font-size="10" fill="var(--pd-muted)">{{ $p['sub'] }}</text>
+    @endif
+    @endforeach
+    @if($todayX)
+    <rect x="{{ $todayX-18 }}" y="26" width="36" height="14" rx="4" fill="#DC2626"/>
+    <text x="{{ $todayX }}" y="36" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">Auj.</text>
+    @endif
+</svg>
+
+{{-- ── Groupes ── --}}
+@foreach($tasksByMilestone as $group)
+@php
+    $milestone  = $group['milestone'];
+    $allTasks   = $group['tasks']->filter(fn($t) => $t->start_date && $t->due_date)->values();
+    $inProgress = $allTasks->where('status','in_progress')->values();
+    $isReached  = $milestone && $milestone->isReached();
+    $isLate     = $milestone && $milestone->isLate();
+    $isOpen     = $milestone && $milestone->id === $nextActiveMs;
+    $msColor    = $isReached ? '#16A34A' : ($isLate ? '#DC2626' : ($milestone->color ?? '#EA580C'));
+    $msPct      = $milestone?->due_date ? $xPct($milestone->due_date) : null;
+    $activeCount = $group['tasks']->where('status','!=','done')->count();
+    $doneCount   = $group['tasks']->where('status','done')->count();
+    if ($isReached)  { $hdrBg='#F0FDF4'; $hdrBdr='#86EFAC'; }
+    elseif ($isLate) { $hdrBg='#FFF5F5'; $hdrBdr='#FCA5A5'; }
+    else             { $hdrBg='var(--pd-surface)'; $hdrBdr='var(--pd-border)'; }
+@endphp
+
+<div x-data="{ open: {{ $isOpen ? 'true' : 'false' }} }"
+     style="border:0.5px solid {{ $hdrBdr }};border-radius:8px;overflow:hidden;margin-bottom:6px;">
+
+    {{-- ── En-tête (avec mini timeline si replié) ── --}}
+    <div @click="open=!open" style="cursor:pointer;user-select:none;background:{{ $hdrBg }};">
+
+        {{-- Ligne principale --}}
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
+            @if($isReached)
+            <div style="width:18px;height:18px;border-radius:50%;background:#16A34A;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">✓</div>
+            @elseif($isLate)
+            <div style="width:18px;height:18px;border-radius:50%;background:#FEE2E2;border:1.5px solid #E24B4A;color:#E24B4A;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">!</div>
+            @else
+            <div style="width:18px;height:18px;border-radius:50%;background:{{ $milestone->color ?? '#94A3B8' }};flex-shrink:0;"></div>
             @endif
-        </span>
-        <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:12px;color:var(--pd-muted);">Zoom :</span>
-            <button @click="zoomOut()" class="pd-btn pd-btn-sm pd-btn-secondary" style="padding:4px 10px;">−</button>
-            <span style="font-size:12px;font-weight:600;min-width:40px;text-align:center;" x-text="Math.round(zoom * 100) + '%'"></span>
-            <button @click="zoomIn()" class="pd-btn pd-btn-sm pd-btn-secondary" style="padding:4px 10px;">+</button>
-            <button @click="resetZoom()" class="pd-btn pd-btn-sm pd-btn-secondary" style="padding:4px 10px;margin-left:4px;">Reset</button>
+            <div style="flex:1;font-size:13px;font-weight:700;color:{{ $isReached ? '#065F46' : 'var(--pd-text)' }};">
+                {{ $milestone ? $milestone->title : 'Sans jalon' }}
+            </div>
+            @if($milestone?->due_date)
+            <span style="font-size:11px;color:{{ $isLate ? '#E24B4A' : 'var(--pd-muted)' }};">
+                {{ $milestone->due_date->translatedFormat('d M Y') }}
+                @if($isReached) · ✓ @elseif($isLate) · En retard @endif
+            </span>
+            @endif
+            <div style="display:flex;gap:5px;font-size:10px;">
+                @if($activeCount > 0)<span style="background:var(--pd-bg2);padding:2px 7px;border-radius:8px;color:var(--pd-muted);">{{ $activeCount }} active{{ $activeCount>1?'s':'' }}</span>@endif
+                @if($doneCount > 0)<span style="background:#D1FAE5;color:#065F46;padding:2px 7px;border-radius:8px;">{{ $doneCount }} ✓</span>@endif
+            </div>
+            <div :style="open?'transform:rotate(0deg)':'transform:rotate(-90deg)'"
+                 style="transition:transform .2s;color:var(--pd-muted);font-size:13px;flex-shrink:0;">▾</div>
         </div>
-    </div>
-    
-    {{-- Conteneur scrollable --}}
-    <div class="gantt-container" 
-         style="overflow-x:auto;overflow-y:auto;max-height:65vh;border:1px solid var(--pd-border);border-radius:10px;background:var(--pd-surface);"
-         @wheel="handleWheel($event)">
-        
-        <div :style="'transform:scaleX(' + zoom + ');transform-origin:left top;width:' + ({{ $svgWidth }} * zoom) + 'px;'">
-            <svg width="{{ $svgWidth }}" height="{{ $svgHeight }}"
-                 xmlns="http://www.w3.org/2000/svg"
-                 id="gantt-svg"
-                 style="font-family:'DM Sans',Arial,sans-serif;display:block;">
 
-                {{-- Fond --}}
-                <rect x="0" y="0" width="{{ $svgWidth }}" height="{{ $svgHeight }}" fill="var(--pd-bg, #fff)"/>
-
-                {{-- En-tête labels --}}
-                <rect x="0" y="0" width="{{ $labelWidth }}" height="{{ $headerH }}" fill="var(--pd-surface, #f5f7fa)"/>
-                <text x="12" y="{{ $headerH / 2 + 5 }}" font-size="12" fill="var(--pd-muted, #64748B)" font-weight="600">TÂCHE</text>
-
-                {{-- En-tête mois/trimestres/semestres --}}
-                <rect x="{{ $labelWidth }}" y="0" width="{{ $barArea }}" height="{{ $headerH }}" fill="var(--pd-surface, #f5f7fa)"/>
-                @foreach($periods as $period)
-                {{-- Ligne verticale de séparation --}}
-                <line x1="{{ $period['x'] }}" y1="0" x2="{{ $period['x'] }}" y2="{{ $svgHeight }}"
-                      stroke="{{ $period['major'] ? 'var(--pd-border, #CBD5E1)' : 'var(--pd-border, #E2E8F0)' }}"
-                      stroke-width="{{ $period['major'] ? '1' : '0.5' }}"/>
-                {{-- Label principal --}}
-                <text x="{{ $period['x'] + 8 }}" y="24"
-                      font-size="12" font-weight="{{ $period['major'] ? '700' : '500' }}"
-                      fill="{{ $period['major'] ? 'var(--pd-navy, #1E3A5F)' : 'var(--pd-muted, #64748B)' }}">
-                    {{ $period['label'] }}
-                </text>
-                {{-- Sous-label --}}
-                @if($period['sublabel'])
-                <text x="{{ $period['x'] + 8 }}" y="42" font-size="11" fill="var(--pd-muted, #94A3B8)">
-                    {{ $period['sublabel'] }}
-                </text>
+        {{-- ── Mini timeline (visible uniquement si replié) ── --}}
+        <div x-show="!open" style="padding:0 12px 8px;">
+            <div style="position:relative;height:20px;background:var(--pd-bg2);border-radius:4px;overflow:visible;">
+                {{-- Barre de progression globale du jalon --}}
+                @if($allTasks->isNotEmpty())
+                @php
+                    $msStart = $allTasks->min('start_date') ?? $viewStart;
+                    $msEnd   = $milestone?->due_date ?? $allTasks->max('due_date') ?? $viewEnd;
+                    $startPct = $xPct($msStart);
+                    $endPct   = $xPct($msEnd);
+                    $width    = max(1, $endPct - $startPct);
+                    $donePct  = $allTasks->count() > 0 ? ($allTasks->where('status','done')->count() / $allTasks->count() * $width) : 0;
+                @endphp
+                {{-- Fond de la durée --}}
+                <div style="position:absolute;top:4px;height:12px;left:{{ $startPct }}%;width:{{ $width }}%;background:{{ $isReached ? '#86EFAC' : 'color-mix(in srgb,'.($milestone->color??'#94A3B8').' 30%,#fff)' }};border-radius:3px;"></div>
+                {{-- Progression done --}}
+                <div style="position:absolute;top:4px;height:12px;left:{{ $startPct }}%;width:{{ $donePct }}%;background:{{ $isReached ? '#16A34A' : ($milestone->color??'#94A3B8') }};border-radius:3px;opacity:.7;"></div>
                 @endif
+
+                {{-- Tâches en cours : petits points bleus --}}
+                @foreach($inProgress as $t)
+                @php $tPct = $xPct($t->due_date); @endphp
+                <div style="position:absolute;top:3px;left:calc({{ $tPct }}% - 7px);width:14px;height:14px;border-radius:50%;background:#3B82F6;border:2px solid #fff;z-index:2;"
+                     title="{{ $t->title }}"></div>
                 @endforeach
 
-                {{-- Ligne "aujourd'hui" --}}
+                {{-- Aujourd'hui --}}
                 @if(now()->between($viewStart, $viewEnd))
-                @php $todayX = $xPos(now()); @endphp
-                <line x1="{{ $todayX }}" y1="{{ $headerH }}" x2="{{ $todayX }}" y2="{{ $svgHeight }}"
-                      stroke="#DC2626" stroke-width="2" stroke-dasharray="6,4" opacity="0.8"/>
-                <rect x="{{ $todayX - 25 }}" y="4" width="50" height="18" rx="4" fill="#DC2626"/>
-                <text x="{{ $todayX }}" y="16" text-anchor="middle" font-size="10" fill="#fff" font-weight="600">Aujourd'hui</text>
+                <div style="position:absolute;top:0;left:{{ $todayPct }}%;width:2px;height:20px;background:#DC2626;border-radius:1px;z-index:3;"></div>
                 @endif
 
-                {{-- Lignes des tâches --}}
-                @php $row = 0; @endphp
-                @foreach($tasksForGantt as $task)
-                @php
-                    $y     = $headerH + $row * $rowHeight;
-                    $x1    = $xPos($task->start_date);
-                    $x2    = $xPos($task->due_date);
-                    $barW  = max(8, $x2 - $x1);
-                    $bg    = $prioBg[$task->priority] ?? '#93C5FD';
-                    $stroke= $prioStroke[$task->priority] ?? '#2563EB';
-                    $isDone = $task->status === 'done';
-                    $row++;
-                @endphp
-
-                {{-- Fond alternance --}}
-                <rect x="0" y="{{ $y }}" width="{{ $svgWidth }}" height="{{ $rowHeight }}"
-                      fill="{{ $loop->odd ? 'var(--pd-surface, #f5f7fa)' : 'var(--pd-bg, #fff)' }}" opacity="0.6"/>
-
-                {{-- Séparateur --}}
-                <line x1="0" y1="{{ $y + $rowHeight }}" x2="{{ $svgWidth }}" y2="{{ $y + $rowHeight }}"
-                      stroke="var(--pd-border, #E2E8F0)" stroke-width="0.5"/>
-
-                {{-- Label tâche --}}
-                <text x="12" y="{{ $y + $rowHeight / 2 + 4 }}" font-size="12"
-                      fill="{{ $isDone ? 'var(--pd-muted, #64748B)' : 'var(--pd-text, #1A1A1A)' }}"
-                      text-decoration="{{ $isDone ? 'line-through' : 'none' }}"
-                      font-weight="{{ $task->priority === 'urgent' ? '600' : '400' }}">
-                    {{ Str::limit($task->title, 30) }}
-                </text>
-
-                {{-- Barre Gantt --}}
-                <g class="gantt-bar-group" data-task-id="{{ $task->id }}"
-                   data-start="{{ $task->start_date->format('Y-m-d') }}"
-                   data-end="{{ $task->due_date->format('Y-m-d') }}"
-                   style="cursor:{{ $canEdit ? 'ew-resize' : 'pointer' }};">
-                    
-                    {{-- Ombre portée --}}
-                    <rect x="{{ $x1 + 2 }}" y="{{ $y + $barY + 2 }}" width="{{ $barW }}" height="{{ $barH }}"
-                          rx="5" fill="rgba(0,0,0,0.08)"/>
-                    
-                    {{-- Barre principale --}}
-                    <rect x="{{ $x1 }}" y="{{ $y + $barY }}" width="{{ $barW }}" height="{{ $barH }}"
-                          rx="5" fill="{{ $isDone ? '#D1FAE5' : $bg }}"
-                          stroke="{{ $isDone ? '#16A34A' : $stroke }}" stroke-width="1.5"
-                          opacity="{{ $isDone ? '0.8' : '1' }}"
-                          class="gantt-bar"/>
-
-                    {{-- Indicateur priorité (point coloré) --}}
-                    @if($task->priority === 'urgent' || $task->priority === 'high')
-                    <circle cx="{{ $x1 + 8 }}" cy="{{ $y + $barY + 8 }}" r="4" 
-                            fill="{{ $stroke }}" opacity="0.9"/>
-                    @endif
-                </g>
-
-                {{-- Statut dans la barre si assez large --}}
-                @if($barW > 60)
-                <text x="{{ $x1 + $barW / 2 }}" y="{{ $y + $barY + $barH / 2 + 4 }}"
-                      text-anchor="middle" font-size="10" font-weight="500"
-                      fill="{{ $isDone ? '#065F46' : $stroke }}">
-                    {{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}
-                </text>
-                @endif
-
-                {{-- Dépendances : flèches SVG vers les tâches bloquées --}}
-                @foreach($task->blocking ?? [] as $blocked)
-                @php
-                    $blockedTask = $tasksForGantt->firstWhere('id', $blocked->id);
-                    if (!$blockedTask) continue;
-                    $blockedRow = $tasksForGantt->search(fn($t) => $t->id === $blocked->id);
-                    $yB = $headerH + $blockedRow * $rowHeight + $rowHeight / 2;
-                    $yA = $y + $rowHeight / 2;
-                    $xA = $x2;
-                    $xB = $xPos($blockedTask->start_date);
-                @endphp
-                <path d="M{{ $xA }} {{ $yA }} C{{ $xA + 25 }} {{ $yA }}, {{ $xB - 25 }} {{ $yB }}, {{ $xB }} {{ $yB }}"
-                      fill="none" stroke="#94A3B8" stroke-width="1.5" stroke-dasharray="5,3"
-                      marker-end="url(#dep-arrow)" opacity="0.7"/>
-                @endforeach
-
-                @endforeach
-
-                {{-- Jalons --}}
-                @foreach($project->milestones as $milestone)
-                @php
-                    if (!$milestone->due_date || $milestone->due_date->lt($viewStart) || $milestone->due_date->gt($viewEnd)) continue;
-                    $y   = $headerH + $row * $rowHeight;
-                    $xM  = $xPos($milestone->due_date);
-                    $row++;
-                @endphp
-                <rect x="0" y="{{ $y }}" width="{{ $svgWidth }}" height="{{ $rowHeight }}"
-                      fill="#FEF3C7" opacity="0.4"/>
-                <text x="12" y="{{ $y + $rowHeight / 2 + 4 }}" font-size="12" fill="#92400E" font-weight="600">
-                    🏁 {{ Str::limit($milestone->title, 28) }}
-                </text>
                 {{-- Losange jalon --}}
-                <rect x="{{ $xM - 9 }}" y="{{ $y + $rowHeight/2 - 9 }}" width="18" height="18"
-                      transform="rotate(45, {{ $xM }}, {{ $y + $rowHeight/2 }})"
-                      fill="{{ $milestone->isReached() ? '#16A34A' : $milestone->color }}"
-                      stroke="{{ $milestone->isLate() ? '#DC2626' : 'none' }}" stroke-width="2.5"/>
-                @endforeach
-
-                {{-- Marqueur flèche dépendance --}}
-                <defs>
-                    <marker id="dep-arrow" viewBox="0 0 10 10" refX="8" refY="5"
-                            markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                        <path d="M2 1L8 5L2 9" fill="none" stroke="#94A3B8" stroke-width="1.5"
-                              stroke-linecap="round" stroke-linejoin="round"/>
-                    </marker>
-                </defs>
-
-            </svg>
+                @if($msPct !== null)
+                <div style="position:absolute;top:50%;left:{{ $msPct }}%;transform:translate(-50%,-50%) rotate(45deg);width:12px;height:12px;background:{{ $msColor }};border:2px solid #fff;z-index:4;border-radius:1px;"
+                     title="{{ $milestone->title }}"></div>
+                @endif
+            </div>
         </div>
+
     </div>
 
-    {{-- Légende priorités --}}
-    <div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;font-size:12px;">
-        @foreach(\App\Models\Tenant\Task::priorityLabels() as $prio => $label)
-        <div style="display:flex;align-items:center;gap:6px;color:var(--pd-muted);">
-            <div style="width:16px;height:16px;border-radius:4px;background:{{ $prioBg[$prio] }};border:1.5px solid {{ $prioStroke[$prio] }};"></div>
-            {{ $label }}
-        </div>
+    {{-- ── Corps SVG (visible si déplié) ── --}}
+    <div x-show="open"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         style="border-top:0.5px solid {{ $hdrBdr }};">
+
+    @php
+        // Par défaut : en cours uniquement, showAll = toutes
+        // Le filtre se fait côté JS via x-show sur les lignes SVG
+        $svgTaskCount = $allTasks->count() + ($milestone ? 1 : 0);
+        $svgHeight    = max(40, $svgTaskCount * $rowH);
+    @endphp
+
+    @if($allTasks->isEmpty())
+    <div style="padding:14px 16px;font-size:12px;color:var(--pd-muted);">
+        Aucune tâche avec des dates de début et de fin.
+    </div>
+    @else
+
+    <svg width="{{ $svgWidth }}" height="{{ $svgHeight }}"
+         :style="'transform:scaleX('+zoom+');transform-origin:left top;width:'+Math.round({{ $svgWidth }}*zoom)+'px'"
+         style="display:block;font-family:\'DM Sans\',sans-serif;"
+         xmlns="http://www.w3.org/2000/svg">
+
+        {{-- Grille verticale --}}
+        @foreach($periods as $p)
+        <line x1="{{ $p['x'] }}" y1="0" x2="{{ $p['x'] }}" y2="{{ $svgHeight }}"
+              stroke="var(--pd-border)" stroke-width="{{ ($p['major']??false)?'0.8':'0.4' }}"
+              stroke-dasharray="{{ ($p['major']??false)?'':'4,4' }}"/>
         @endforeach
-        <div style="display:flex;align-items:center;gap:6px;color:var(--pd-muted);">
-            <div style="width:14px;height:14px;transform:rotate(45deg);background:#EA580C;"></div>
-            Jalon
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;color:var(--pd-muted);">
-            <div style="width:16px;height:0;border-top:2px dashed #DC2626;"></div>
-            Aujourd'hui
-        </div>
+
+        {{-- Ligne aujourd'hui --}}
+        @if($todayX)
+        <line x1="{{ $todayX }}" y1="0" x2="{{ $todayX }}" y2="{{ $svgHeight }}"
+              stroke="#DC2626" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
+        @endif
+
+        {{-- Tâches --}}
+        @foreach($allTasks as $ti => $task)
+        @php
+            $y    = $ti * $rowH;
+            $x1   = $xPos($task->start_date);
+            $x2   = $xPos($task->due_date);
+            $bw   = max(8, $x2 - $x1);
+            $bg   = $task->status === 'done' ? '#D1FAE5' : ($prioBg[$task->priority] ?? '#93C5FD');
+            $str  = $task->status === 'done' ? '#16A34A' : ($prioStroke[$task->priority] ?? '#2563EB');
+            $isLateTask = $task->due_date->isPast() && $task->status !== 'done';
+            $isInProgress = $task->status === 'in_progress';
+        @endphp
+
+        {{-- La ligne est masquée si !showAll ET pas en cours --}}
+        <g :class="showAll || {{ $isInProgress ? 'true' : 'false' }} ? '' : 'gantt-hidden'"
+           style="transition:opacity .15s;">
+
+            <rect x="0" y="{{ $y }}" width="{{ $svgWidth }}" height="{{ $rowH }}"
+                  fill="{{ $ti%2===0 ? 'var(--pd-surface)' : 'var(--pd-surface2)' }}" opacity="0.7"/>
+            <line x1="0" y1="{{ $y+$rowH }}" x2="{{ $svgWidth }}" y2="{{ $y+$rowH }}"
+                  stroke="var(--pd-border)" stroke-width="0.4"/>
+
+            {{-- Indicateur "en cours" --}}
+            @if($isInProgress)
+            <rect x="0" y="{{ $y }}" width="3" height="{{ $rowH }}" fill="#3B82F6"/>
+            @endif
+
+            <text x="10" y="{{ $y+$rowH/2+4 }}" font-size="11"
+                  fill="{{ $task->status==='done' ? 'var(--pd-muted)' : 'var(--pd-text)' }}"
+                  text-decoration="{{ $task->status==='done' ? 'line-through' : 'none' }}">
+                {{ Str::limit($task->title, 28) }}
+            </text>
+
+            <rect x="{{ $x1 }}" y="{{ $y+$barY }}" width="{{ $bw }}" height="{{ $barH }}"
+                  rx="4" fill="{{ $bg }}"
+                  stroke="{{ $isLateTask ? '#DC2626' : $str }}"
+                  stroke-width="{{ $isLateTask ? '2' : '1' }}"
+                  style="cursor:pointer;"
+                  onclick="window.dispatchEvent(new CustomEvent('open-task',{detail:{taskId:{{ $task->id }}}}))"/>
+
+            @if($bw > 50)
+            <text x="{{ $x1+$bw/2 }}" y="{{ $y+$barY+$barH/2+4 }}"
+                  text-anchor="middle" font-size="9" font-weight="600"
+                  fill="{{ $task->status==='done' ? '#065F46' : $str }}">
+                {{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}
+            </text>
+            @endif
+
+        </g>
+        @endforeach
+
+        {{-- Ligne jalon --}}
+        @if($milestone && $milestone->due_date)
+        @php
+            $yMs     = $allTasks->count() * $rowH;
+            $xMs     = $xPos($milestone->due_date);
+            $msClr   = $isReached ? '#16A34A' : ($isLate ? '#DC2626' : ($milestone->color ?? '#EA580C'));
+        @endphp
+        <rect x="0" y="{{ $yMs }}" width="{{ $svgWidth }}" height="{{ $rowH }}"
+              fill="{{ $isReached ? '#F0FDF4' : '#FEF3C7' }}" opacity="0.6"/>
+        <text x="10" y="{{ $yMs+$rowH/2+4 }}" font-size="11" font-weight="700"
+              fill="{{ $isReached ? '#065F46' : '#92400E' }}">
+            {{ Str::limit($milestone->title, 28) }}
+        </text>
+        <line x1="{{ $xMs }}" y1="0" x2="{{ $xMs }}" y2="{{ $yMs }}"
+              stroke="{{ $msClr }}" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+        <polygon points="{{ $xMs }},{{ $yMs+4 }} {{ $xMs+10 }},{{ $yMs+$rowH/2 }} {{ $xMs }},{{ $yMs+$rowH-4 }} {{ $xMs-10 }},{{ $yMs+$rowH/2 }}"
+                 fill="{{ $msClr }}" stroke="#fff" stroke-width="1.5"/>
+        @endif
+
+    </svg>
+    @endif
     </div>
 
 </div>
+@endforeach
 
-@if($canEdit)
+</div>
+</div>
+
+{{-- Légende --}}
+<div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wrap;font-size:11px;color:var(--pd-muted);align-items:center;">
+    @foreach(\App\Models\Tenant\Task::priorityLabels() as $p => $l)
+    <div style="display:flex;align-items:center;gap:5px;">
+        <div style="width:14px;height:10px;border-radius:3px;background:{{ $prioBg[$p] }};border:1px solid {{ $prioStroke[$p] }};"></div>{{ $l }}
+    </div>
+    @endforeach
+    <div style="display:flex;align-items:center;gap:5px;">
+        <div style="width:3px;height:14px;background:#3B82F6;border-radius:1px;"></div> En cours
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;">
+        <div style="width:10px;height:10px;transform:rotate(45deg);background:#EA580C;border-radius:1px;"></div> Jalon
+    </div>
+    <div style="display:flex;align-items:center;gap:5px;">
+        <div style="width:16px;height:2px;background:#DC2626;"></div> Aujourd'hui
+    </div>
+</div>
+
+</div>
+
+<style>
+.gantt-hidden { display: none; }
+</style>
+
 <script>
-function ganttZoom() {
+function ganttCtrl() {
     return {
         zoom: 1,
-        minZoom: 0.5,
-        maxZoom: 2,
-        
+        showAll: false,
         init() {
-            // Restaurer le zoom depuis localStorage
-            const saved = localStorage.getItem('gantt_zoom');
-            if (saved) {
-                this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, parseFloat(saved)));
-            }
+            const s = localStorage.getItem('gantt_zoom_v3');
+            if (s) this.zoom = Math.max(0.5, Math.min(2.5, parseFloat(s)));
         },
-        
-        zoomIn() {
-            this.zoom = Math.min(this.maxZoom, this.zoom + 0.1);
-            localStorage.setItem('gantt_zoom', this.zoom);
-        },
-        
-        zoomOut() {
-            this.zoom = Math.max(this.minZoom, this.zoom - 0.1);
-            localStorage.setItem('gantt_zoom', this.zoom);
-        },
-        
-        resetZoom() {
-            this.zoom = 1;
-            localStorage.removeItem('gantt_zoom');
-        },
-        
-        handleWheel(e) {
-            // Zoom avec Ctrl + molette
-            if (e.ctrlKey) {
-                e.preventDefault();
-                if (e.deltaY < 0) {
-                    this.zoomIn();
-                } else {
-                    this.zoomOut();
-                }
-            }
-        }
-    };
-}
-
-// Drag horizontal Alpine.js sur les barres Gantt (ADR-009)
-document.querySelectorAll('.gantt-bar-group').forEach(bar => {
-    let startX, origStart, origEnd, dayWidth;
-    const totalDays = {{ $totalDays }};
-    const barAreaW  = {{ $barArea }};
-    const labelW    = {{ $labelWidth }};
-
-    bar.addEventListener('mousedown', e => {
-        // Clic sur le groupe, mais on veut le rect principal
-        const rect = bar.querySelector('.gantt-bar');
-        if (!rect) return;
-        
-        startX    = e.clientX;
-        origStart = bar.dataset.start;
-        origEnd   = bar.dataset.end;
-        dayWidth  = barAreaW / totalDays;
-        e.preventDefault();
-
-        const onMove = mv => {
-            const dx       = mv.clientX - startX;
-            const daysDelta= Math.round(dx / dayWidth);
-            if (daysDelta === 0) return;
-
-            const newStart = dayjs(origStart).add(daysDelta, 'day').format('YYYY-MM-DD');
-            const newEnd   = dayjs(origEnd).add(daysDelta, 'day').format('YYYY-MM-DD');
-            bar.setAttribute('data-start', newStart);
-            bar.setAttribute('data-end', newEnd);
-        };
-
-        const onUp = () => {
-            document.removeEventListener('mousemove', onMove);
-            document.removeEventListener('mouseup', onUp);
-
-            const taskId  = bar.dataset.taskId;
-            const newStart= bar.dataset.start;
-            const newEnd  = bar.dataset.end;
-
-            if (newStart === origStart) return;
-
-            fetch(`{{ url('projects/' . $project->id . '/tasks') }}/${taskId}/dates`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                    'Accept': 'application/json',
-                },
-                body: JSON.stringify({ start_date: newStart, due_date: newEnd }),
-            })
-            .then(r => r.json())
-            .then(d => { 
-                if (!d.success) { 
-                    bar.setAttribute('data-start', origStart); 
-                    bar.setAttribute('data-end', origEnd); 
-                } else {
-                    // Afficher notification succès
-                    if (window.showToast) {
-                        window.showToast('Dates mises à jour', 'success');
-                    }
-                }
-            });
-        };
-
-        document.addEventListener('mousemove', onMove);
-        document.addEventListener('mouseup', onUp);
-    });
-    
-    // Clic pour ouvrir le slideover
-    bar.addEventListener('click', e => {
-        if (e.target.classList.contains('gantt-bar')) {
-            const taskId = bar.dataset.taskId;
-            window.dispatchEvent(new CustomEvent('open-task', { detail: { taskId: parseInt(taskId) } }));
-        }
-    });
-});
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
-@else
-<script>
-function ganttZoom() {
-    return {
-        zoom: 1,
-        minZoom: 0.5,
-        maxZoom: 2,
-        
-        init() {
-            const saved = localStorage.getItem('gantt_zoom');
-            if (saved) {
-                this.zoom = Math.max(this.minZoom, Math.min(this.maxZoom, parseFloat(saved)));
-            }
-        },
-        
-        zoomIn() {
-            this.zoom = Math.min(this.maxZoom, this.zoom + 0.1);
-            localStorage.setItem('gantt_zoom', this.zoom);
-        },
-        
-        zoomOut() {
-            this.zoom = Math.max(this.minZoom, this.zoom - 0.1);
-            localStorage.setItem('gantt_zoom', this.zoom);
-        },
-        
-        resetZoom() {
-            this.zoom = 1;
-            localStorage.removeItem('gantt_zoom');
-        },
-        
-        handleWheel(e) {
-            if (e.ctrlKey) {
-                e.preventDefault();
-                if (e.deltaY < 0) this.zoomIn();
-                else this.zoomOut();
-            }
-        }
     };
 }
 </script>
-@endif

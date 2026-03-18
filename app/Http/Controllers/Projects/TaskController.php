@@ -34,34 +34,32 @@ class TaskController extends Controller
             ->latest()
             ->get()
             ->map(fn ($c) => [
-                'id'         => $c->id,
-                'author'     => $c->author?->name ?? '—',
-                'body'       => $c->body,
+                'id' => $c->id,
+                'author' => $c->author?->name ?? '—', // @phpstan-ignore-line nullsafe.neverNull
+                'body' => $c->body,
                 'created_at' => $c->created_at->locale('fr')->diffForHumans(),
-                'is_mine'    => $c->user_id === auth()->id(),
+                'is_mine' => $c->user_id === auth()->id(),
             ]);
 
         return response()->json([
             'task' => [
-                'id'              => $task->id,
-                'title'           => $task->title,
-                'description'     => $task->description,
-                'status'          => $task->status,
-                'priority'        => $task->priority,
-                'start_date'      => $task->start_date?->format('Y-m-d'),
-                'due_date'        => $task->due_date?->format('Y-m-d'),
+                'id' => $task->id,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => $task->status,
+                'priority' => $task->priority,
+                'start_date' => $task->start_date?->format('Y-m-d'),
+                'due_date' => $task->due_date?->format('Y-m-d'),
                 'estimated_hours' => $task->estimated_hours,
-                'actual_hours'    => $task->actual_hours,
+                'actual_hours' => $task->actual_hours,
 
+                'assigned_to' => $task->assigned_to,
+                'assignee' => $task->assignee ? ['id' => $task->assignee->id, 'name' => $task->assignee->name] : null,
+                'milestone_id' => $task->milestone_id,
+                'milestone' => $task->milestone ? ['id' => $task->milestone->id, 'title' => $task->milestone->title] : null,
 
-'assigned_to'     => $task->assigned_to,
-'assignee'        => $task->assignee ? ['id' => $task->assignee->id, 'name' => $task->assignee->name] : null,
-'milestone_id'    => $task->milestone_id,
-'milestone'       => $task->milestone ? ['id' => $task->milestone->id, 'title' => $task->milestone->title] : null,
-
-
-                'subtasks_total'  => $task->children->count(),
-                'subtasks_done'   => $task->children->where('status', 'done')->count(),
+                'subtasks_total' => $task->children->count(),
+                'subtasks_done' => $task->children->where('status', 'done')->count(),
             ],
             'comments' => $comments,
         ]);
@@ -85,6 +83,9 @@ class TaskController extends Controller
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'estimated_hours' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'recurrence_type' => ['nullable', 'in:daily,weekly,monthly'],
+            'recurrence_every' => ['nullable', 'integer', 'min:1', 'max:52'],
+            'recurrence_ends' => ['nullable', 'date'],
         ]);
 
         /** @var User $user */
@@ -132,6 +133,9 @@ class TaskController extends Controller
             'start_date' => ['nullable', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'estimated_hours' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'recurrence_type' => ['nullable', 'in:daily,weekly,monthly'],
+            'recurrence_every' => ['nullable', 'integer', 'min:1', 'max:52'],
+            'recurrence_ends' => ['nullable', 'date'],
             'actual_hours' => ['nullable', 'integer', 'min:0', 'max:9999'],
         ]);
 
