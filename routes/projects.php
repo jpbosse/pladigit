@@ -103,6 +103,8 @@ Route::prefix('projects')
 
         // ── Événements agenda ─────────────────────────────────────────────
         Route::post('/{project}/events', [ProjectEventController::class, 'store'])->name('events.store');
+        Route::patch('/{project}/events/{event}', [ProjectEventController::class, 'update'])->name('events.update');
+        Route::delete('/{project}/events/{event}', [ProjectEventController::class, 'destroy'])->name('events.destroy');
 
         // ── Budget ────────────────────────────────────────────────────────
         Route::post('/{project}/budgets', [ProjectBudgetController::class, 'store'])->name('budgets.store');

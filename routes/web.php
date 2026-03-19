@@ -196,8 +196,6 @@ Route::middleware('tenant')->group(function () {
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');
             Route::get('albums/{album}/items/{item}/download', [\App\Http\Controllers\Media\MediaItemController::class, 'download'])->name('items.download');
 
-            require base_path('routes/projects.php');
-
         });
 
         // ── Zone DGS et plus ──────────────────────────────

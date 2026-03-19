@@ -30,7 +30,14 @@ foreach ($milestones as $ms) {
 }
 @endphp
 
-<div x-data="{ showAll: false, showEventForm: false }" @open-new-event.window="showEventForm = true">
+<div x-data="{
+    showAll: false,
+    showEventForm: false,
+    showEditForm: false
+}"
+@open-new-event.window="showEventForm = true"
+@open-edit-event.window="showEditForm = true"
+@close-event-slideover.window="showEventForm = false; showEditForm = false">
 
 {{-- ── Barre d'outils ── --}}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
@@ -67,8 +74,32 @@ foreach ($milestones as $ms) {
         À venir
     </div>
     @foreach($upcomingEvents as $event)
-    @php $starts = \Carbon\Carbon::parse($event->starts_at); @endphp
-    <div style="display:flex;gap:12px;padding:12px;border:0.5px solid var(--pd-border);border-radius:8px;margin-bottom:6px;border-left:4px solid {{ $event->color ?? $project->color }};background:var(--pd-surface);">
+    @php
+        $starts   = \Carbon\Carbon::parse($event->starts_at);
+        $canEditEv = $canEdit && auth()->id() === $event->created_by;
+        $editArgs  = $event->id . ", '" . addslashes($event->title) . "', '" . ($event->description ? addslashes($event->description) : '') . "', '" . ($event->location ?? '') . "', '" . \Carbon\Carbon::parse($event->starts_at)->format('Y-m-d\TH:i') . "', '" . \Carbon\Carbon::parse($event->ends_at)->format('Y-m-d\TH:i') . "', '" . $event->visibility . "', '" . ($event->color ?? $project->color) . "'";
+        $viewArgs  = json_encode([
+            'id'          => $event->id,
+            'title'       => $event->title,
+            'description' => $event->description,
+            'location'    => $event->location,
+            'starts_at'   => \Carbon\Carbon::parse($event->starts_at)->translatedFormat('l d M Y à H:i'),
+            'ends_at'     => \Carbon\Carbon::parse($event->ends_at)->format('H:i'),
+            'all_day'     => $event->all_day,
+            'visibility'  => $event->visibility,
+            'color'       => $event->color ?? $project->color,
+            'creator'     => $event->creator?->name ?? '—',
+            'can_edit'    => $canEditEv,
+            'raw_title'   => $event->title,
+            'raw_desc'    => $event->description ?? '',
+            'raw_location'=> $event->location ?? '',
+            'raw_starts'  => \Carbon\Carbon::parse($event->starts_at)->format('Y-m-d\TH:i'),
+            'raw_ends'    => \Carbon\Carbon::parse($event->ends_at)->format('Y-m-d\TH:i'),
+            'delete_url'  => route('projects.events.destroy', [$project, $event]),
+        ]);
+    @endphp
+    <div style="display:flex;gap:12px;padding:12px;border:0.5px solid var(--pd-border);border-radius:8px;margin-bottom:6px;border-left:4px solid {{ $event->color ?? $project->color }};background:var(--pd-surface);cursor:pointer;"
+         onclick="window.dispatchEvent(new CustomEvent('open-view-event', { detail: {{ $viewArgs }} }))">
         <div style="flex-shrink:0;text-align:center;width:40px;">
             <div style="font-size:20px;font-weight:700;color:var(--pd-navy);line-height:1;">{{ $starts->format('d') }}</div>
             <div style="font-size:10px;color:var(--pd-muted);">{{ $starts->translatedFormat('M') }}</div>
@@ -84,9 +115,11 @@ foreach ($milestones as $ms) {
             <div style="font-size:11px;color:var(--pd-muted);margin-top:3px;">{{ Str::limit($event->description, 100) }}</div>
             @endif
         </div>
-        <span style="font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;align-self:flex-start;background:{{ $visColors[$event->visibility]['bg'] }};color:{{ $visColors[$event->visibility]['text'] }};">
-            {{ ['private'=>'Privé','restricted'=>'Restreint','public'=>'Public'][$event->visibility] }}
-        </span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+            <span style="font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;background:{{ $visColors[$event->visibility]['bg'] }};color:{{ $visColors[$event->visibility]['text'] }};">
+                {{ ['private'=>'Privé','restricted'=>'Restreint','public'=>'Public'][$event->visibility] }}
+            </span>
+        </div>
     </div>
     @endforeach
 </div>
@@ -173,6 +206,68 @@ foreach ($milestones as $ms) {
             <div class="pd-modal-footer">
                 <button type="button" class="pd-btn pd-btn-secondary pd-btn-sm" @click="showEventForm=false">Annuler</button>
                 <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm">Créer</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+
+{{-- ── Modal édition événement ── --}}
+@if($canEdit)
+<div id="modal-event-edit" class="pd-modal-overlay" x-show="showEditForm" x-cloak
+     @click="if($event.target===$el) showEditForm=false"
+     @keydown.escape.window="showEditForm=false">
+    <div class="pd-modal pd-modal-md" @click.stop>
+        <div style="background:#0891B2;border-radius:14px 14px 0 0;padding:18px 20px;display:flex;align-items:flex-start;justify-content:space-between;">
+            <div>
+                <div style="font-size:15px;font-weight:700;color:#fff;">Modifier l'événement</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;" x-text="editEvent.title"></div>
+            </div>
+            <button type="button" @click="showEditForm=false" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:20px;line-height:1;margin-left:12px;">×</button>
+        </div>
+        <form id="form-event-edit" method="POST">
+            @csrf @method('PATCH')
+            <div class="pd-modal-body">
+                <div class="pd-form-group">
+                    <label class="pd-label pd-label-req">Titre</label>
+                    <input type="text" name="title" id="edit-event-title" class="pd-input" required style="width:100%;">
+                </div>
+                <div class="pd-form-group">
+                    <label class="pd-label">Description</label>
+                    <textarea name="description" id="edit-event-desc" class="pd-input" rows="2" style="width:100%;"></textarea>
+                </div>
+                <div class="pd-form-group">
+                    <label class="pd-label">Lieu</label>
+                    <input type="text" id="edit-event-location" name="location" class="pd-input" style="width:100%;">
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                    <div class="pd-form-group" style="margin-bottom:0;">
+                        <label class="pd-label pd-label-req">Début</label>
+                        <input type="datetime-local" name="starts_at" id="edit-event-start" class="pd-input" required style="width:100%;">
+                    </div>
+                    <div class="pd-form-group" style="margin-bottom:0;">
+                        <label class="pd-label pd-label-req">Fin</label>
+                        <input type="datetime-local" name="ends_at" id="edit-event-end" class="pd-input" required style="width:100%;">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
+                    <div class="pd-form-group" style="margin-bottom:0;">
+                        <label class="pd-label">Visibilité</label>
+                        <select name="visibility" id="edit-event-vis" class="pd-input" style="width:100%;">
+                            <option value="private">Privé</option>
+                            <option value="restricted">Restreint</option>
+                            <option value="public">Public</option>
+                        </select>
+                    </div>
+                    <div class="pd-form-group" style="margin-bottom:0;">
+                        <label class="pd-label">Couleur</label>
+                        <input type="color" name="color" id="edit-event-color" class="pd-input" style="width:100%;">
+                    </div>
+                </div>
+            </div>
+            <div class="pd-modal-footer">
+                <button type="button" @click="showEditForm=false" class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
+                <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm">Enregistrer</button>
             </div>
         </form>
     </div>

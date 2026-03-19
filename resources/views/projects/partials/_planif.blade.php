@@ -6,7 +6,7 @@ $hoursPct       = $totalEstimated > 0 ? min(100, round($totalActual / $totalEsti
 $hoursOver      = $totalEstimated > 0 && $totalActual > $totalEstimated;
 @endphp
 
-<div x-data="{ tab: '{{ request('view','kanban') }}' }">
+<div x-data="{ tab: '{{ request('view','liste') }}', switchTab(t) { this.tab = t; window.dispatchEvent(new CustomEvent('close-event-slideover')); } }">
 
 {{-- ── Bandeau heures total ── --}}
 @if($totalEstimated > 0)
@@ -75,11 +75,11 @@ $hoursOver      = $totalEstimated > 0 && $totalActual > $totalEstimated;
 
 {{-- ── Onglets ── --}}
 <div class="sub-tabs">
-    <button class="sub-tab" :class="{active:tab==='kanban'}"   @click="tab='kanban'">Kanban</button>
-    <button class="sub-tab" :class="{active:tab==='gantt'}"    @click="tab='gantt'">Gantt</button>
-    <button class="sub-tab" :class="{active:tab==='liste'}"    @click="tab='liste'">Liste</button>
-    <button class="sub-tab" :class="{active:tab==='agenda'}"   @click="tab='agenda'">Agenda</button>
-    <button class="sub-tab" :class="{active:tab==='workload'}" @click="tab='workload'">Charge</button>
+    <button class="sub-tab" :class="{active:tab==='liste'}"    @click="switchTab('liste')">Liste</button>
+    <button class="sub-tab" :class="{active:tab==='kanban'}"   @click="switchTab('kanban')">Kanban</button>
+    <button class="sub-tab" :class="{active:tab==='gantt'}"    @click="switchTab('gantt')">Gantt</button>
+    <button class="sub-tab" :class="{active:tab==='agenda'}"   @click="switchTab('agenda')">Agenda</button>
+    <button class="sub-tab" :class="{active:tab==='workload'}" @click="switchTab('workload')">Charge</button>
 </div>
 
 <div x-show="tab==='kanban'"   x-cloak>@include('projects.partials._kanban')</div>

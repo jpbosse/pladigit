@@ -9,13 +9,17 @@ use App\Models\Tenant\User;
 use Illuminate\Http\Request;
 
 /**
- * Création d'événements liés à un projet (onglet Agenda).
+ * Gestion des événements liés à un projet (onglet Agenda).
+ *
+ * Droits :
+ *   - store  : tout membre du projet
+ *   - update : créateur de l'événement ou owner du projet
+ *   - destroy: créateur de l'événement ou owner du projet
  */
 class ProjectEventController extends Controller
 {
     public function store(Request $request, Project $project)
     {
-        // Tout membre peut créer un événement dans le projet
         $this->authorize('view', $project);
 
         $validated = $request->validate([
@@ -27,12 +31,13 @@ class ProjectEventController extends Controller
             'all_day' => ['boolean'],
             'visibility' => ['required', 'in:private,restricted,public'],
             'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'visio_url' => ['nullable', 'url', 'max:500'],
         ]);
 
         /** @var User $user */
         $user = auth()->user();
 
-        $event = Event::create([
+        $event = Event::on('tenant')->create([
             ...$validated,
             'created_by' => $user->id,
             'project_id' => $project->id,
@@ -40,7 +45,6 @@ class ProjectEventController extends Controller
             'all_day' => $validated['all_day'] ?? false,
         ]);
 
-        // Le créateur est automatiquement ajouté comme participant accepté
         $event->participants()->create([
             'user_id' => $user->id,
             'status' => 'accepted',
@@ -51,5 +55,58 @@ class ProjectEventController extends Controller
         }
 
         return back()->with('success', 'Événement créé.');
+    }
+
+    public function update(Request $request, Project $project, Event $event)
+    {
+        $this->authorize('view', $project);
+        $this->authorizeEventAction($event);
+
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'location' => ['nullable', 'string', 'max:500'],
+            'starts_at' => ['required', 'date'],
+            'ends_at' => ['required', 'date', 'after_or_equal:starts_at'],
+            'all_day' => ['boolean'],
+            'visibility' => ['required', 'in:private,restricted,public'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'visio_url' => ['nullable', 'url', 'max:500'],
+        ]);
+
+        $event->update($validated);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true]);
+        }
+
+        return back()->with('success', 'Événement mis à jour.');
+    }
+
+    public function destroy(Project $project, Event $event)
+    {
+        $this->authorize('view', $project);
+        $this->authorizeEventAction($event);
+
+        $event->delete();
+
+        return back()->with('success', 'Événement supprimé.');
+    }
+
+    /**
+     * Seul le créateur de l'événement ou un owner/DGS du projet peut modifier/supprimer.
+     */
+    private function authorizeEventAction(Event $event): void
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $role = $user->role ? \App\Enums\UserRole::tryFrom($user->role) : null;
+        $isAdmin = $role && $role->atLeast(\App\Enums\UserRole::DGS);
+
+        $project = $event->project;
+        $isOwner = $project && $project->memberRole($user) === \App\Enums\ProjectRole::OWNER;
+        $isCreator = $event->created_by === $user->id;
+
+        abort_unless($isCreator || $isOwner || $isAdmin, 403, 'Vous ne pouvez pas modifier cet événement.');
     }
 }
