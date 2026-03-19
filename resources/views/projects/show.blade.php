@@ -150,6 +150,7 @@ $canEdit   = $userRole?->canEdit() || $canManage;
     <div x-show="section==='elus'"     x-cloak>@include('projects.partials._elus')</div>
     <div x-show="section==='observations'" x-cloak>@include('projects.partials._observations')</div>
     @include('projects.partials._task_slideover')
+    @include('projects.partials._event_slideover')
 </div>
 
 </div>

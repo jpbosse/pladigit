@@ -82,7 +82,7 @@ enum ModuleKey: string
             self::GED => 5,
             self::COLLABORA => 6,
             self::ERP => 7,
-            self::PROJECTS => 5,
+            self::PROJECTS => 5,  // Phase 5bis
             self::CHAT => 9,
             self::NEWS => 10,
             self::SURVEYS => 11,
@@ -91,11 +91,11 @@ enum ModuleKey: string
 
     /**
      * Indique si le module est déployé (phase livrée ou en cours).
-     * Phase 3 en cours → media = disponible, ged = pas encore.
+     * Phases 1–5bis livrées → media + projects + ged disponibles.
      */
     public function isAvailable(): bool
     {
-        return $this->phase() <= 5;
+        return in_array($this, [self::MEDIA, self::PROJECTS], true);
     }
 
     /**

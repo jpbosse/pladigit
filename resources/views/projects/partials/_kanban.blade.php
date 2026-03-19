@@ -249,7 +249,7 @@ if (!$nextActiveGroupId) {
                                  @dragend="onDragEnd()"
                                  @dragover.prevent="onCardDragOver($event, $el)"
                                  @drop.prevent.stop="onCardDrop($event, {{ $task->id }}, '{{ $status }}', $el)"
-                                 @click="openTask({{ $task->id }})"
+                                 @click="if(!isDragging) openTask({{ $task->id }})"
                                  @if($status === 'done') x-show="showDone" @endif
                                  style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:7px;padding:8px 9px;cursor:grab;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
                                 <div style="font-size:12px;font-weight:500;color:var(--pd-text);line-height:1.4;margin-bottom:6px;">{{ $task->title }}</div>
@@ -324,7 +324,7 @@ if (!$nextActiveGroupId) {
                          @dragend="onDragEnd()"
                          @dragover.prevent="onCardDragOver($event, $el)"
                          @drop.prevent.stop="onCardDrop($event, {{ $task->id }}, '{{ $status }}', $el)"
-                         @click="openTask({{ $task->id }})"
+                         @click="if(!isDragging) openTask({{ $task->id }})"
                          @if($status === 'done') x-show="showDone" @endif
                          style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:8px;padding:9px 10px;cursor:grab;transition:box-shadow .12s,opacity .15s;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
 
@@ -541,16 +541,6 @@ function kanban() {
             this.patchMove(taskId, newStatus, sortOrder, orderedIds, dropTarget);
         },
 
-            let orderedIds = [];
-            dropTarget.querySelectorAll('.pd-kanban-card').forEach(c => {
-                const id = parseInt(c.dataset.taskId);
-                if (id !== taskId) orderedIds.push(id);
-            });
-            orderedIds.push(taskId);
-
-            this.patchMove(taskId, newStatus, orderedIds.length - 1, orderedIds, dropTarget);
-        },
-
         patchMove(taskId, newStatus, sortOrder, orderedIds, targetColEl) {
             fetch(`{{ route('projects.kanban.move', $project) }}`, {
                 method: 'PATCH',
@@ -657,7 +647,7 @@ function kanban() {
                 const sortOrder = orderedIds.indexOf(draggingId);
 
                 // PATCH vers le serveur
-                fetch('{{ route('projects.kanban.move', $project) }}', {
+                fetch(`{{ route('projects.kanban.move', $project) }}`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',
@@ -679,9 +669,12 @@ function kanban() {
     }
 
     // Intercepter dragstart sur toutes les cartes pour mémoriser la carte active
+    let isDragging = false;
+
     document.addEventListener('dragstart', function (e) {
         const card = e.target.closest('.pd-kanban-card');
         if (!card) return;
+        isDragging   = true;
         draggingId   = parseInt(card.dataset.taskId);
         draggingCard = card;
     });
@@ -690,7 +683,13 @@ function kanban() {
         clearIndicators();
         draggingId   = null;
         draggingCard = null;
+        // Laisser un tick avant de remettre isDragging à false
+        // pour que le click qui suit dragend ne déclenche pas openTask
+        setTimeout(() => { isDragging = false; }, 50);
     });
+
+    // Clic sur carte — géré par Alpine @click sur chaque carte
+    // (pas de listener global pour éviter les conflits avec les autres vues)
 
     // Attacher au chargement + après chaque rechargement de section Alpine
     document.addEventListener('DOMContentLoaded', attachEvents);
