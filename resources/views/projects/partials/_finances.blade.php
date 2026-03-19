@@ -107,7 +107,7 @@ $fonctPct  = $bs['fonct']['planned']  > 0 ? round($bs['fonct']['committed']  / $
 @if($canManage)
 <div id="modal-budget" class="pd-modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div>
                 <div class="pd-modal-title">Nouvelle ligne budgétaire</div>
                 <div class="pd-modal-subtitle">Investissement ou fonctionnement</div>

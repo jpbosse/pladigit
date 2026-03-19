@@ -49,11 +49,13 @@ class Project extends Model
         'start_date',
         'due_date',
         'color',
+        'is_private',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'due_date' => 'date',
+        'is_private' => 'boolean',
     ];
 
     // ── Relations ─────────────────────────────────────────────────────────
@@ -102,7 +104,7 @@ class Project extends Model
     /** @return HasMany<ProjectMilestone> */
     public function milestones(): HasMany
     {
-        return $this->hasMany(ProjectMilestone::class)->orderBy('due_date');
+        return $this->hasMany(ProjectMilestone::class);
     }
 
     /** @return HasMany<Event> */
@@ -144,12 +146,17 @@ class Project extends Model
     // ── Scopes ────────────────────────────────────────────────────────────
 
     /**
-     * Projets visibles pour un utilisateur donné.
+     * Projets visibles pour un utilisateur donné — ADR-010 + ADR-011.
      *
-     * ADR-010 couche 1 :
-     *   - Admin / Président / DGS → tous les projets du tenant
-     *   - Autres rôles → uniquement les projets dont l'user est membre
-     *   - Les brouillons (draft) ne sont visibles que par leur créateur
+     * Trois couches :
+     *   1. Admin/Président/DGS → tous les projets du tenant (privés inclus)
+     *   2. Resp. Direction/Service (ADR-011) → projets NON PRIVÉS dont au moins
+     *      un membre appartient à leur périmètre hiérarchique
+     *   3. Autres → uniquement les projets dont l'user est membre explicite
+     *      (brouillons uniquement par leur créateur)
+     *
+     * Les projets privés sont toujours visibles par leurs membres explicites,
+     * quelle que soit leur couche d'accès.
      *
      * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
      */
@@ -157,18 +164,36 @@ class Project extends Model
     {
         $role = $user->role ? UserRole::tryFrom($user->role) : null;
 
-        // Admin/Président/DGS voient tout
+        // Couche 1 : Admin/Président/DGS voient tout (privés inclus)
         if ($role && $role->atLeast(UserRole::DGS)) {
             return $query;
         }
 
-        // Les autres voient :
-        // - leurs projets (dont ils sont membre) non-brouillon
-        // - leurs brouillons (créés par eux)
+        // Couche 2 (ADR-011) : Resp. Direction / Resp. Service
+        if ($role && $role->atLeast(UserRole::RESP_SERVICE)) {
+            $visibleUserIds = $user->visibleUsers()->pluck('id');
+
+            return $query->where(function ($q) use ($user, $visibleUserIds) {
+                // Membre explicite du projet (non-brouillon) — privé ou non
+                $q->where(function ($q2) use ($user) {
+                    $q2->whereHas('projectMembers', fn ($s) => $s->where('user_id', $user->id))
+                        ->where('status', '!=', 'draft');
+                })
+                // OU projet non-privé avec un membre dans le périmètre hiérarchique
+                    ->orWhere(function ($q2) use ($visibleUserIds) {
+                        $q2->where('is_private', false)
+                            ->whereHas('projectMembers', fn ($s) => $s->whereIn('user_id', $visibleUserIds))
+                            ->where('status', '!=', 'draft');
+                    })
+                // OU brouillon créé par l'user
+                    ->orWhere('created_by', $user->id);
+            });
+        }
+
+        // Couche 3 : membres explicites uniquement
         return $query->where(function ($q) use ($user) {
-            $q->whereHas('projectMembers', function ($subQ) use ($user) {
-                $subQ->where('user_id', $user->id);
-            })->where('status', '!=', 'draft');
+            $q->whereHas('projectMembers', fn ($subQ) => $subQ->where('user_id', $user->id))
+                ->where('status', '!=', 'draft');
         })->orWhere('created_by', $user->id);
     }
 

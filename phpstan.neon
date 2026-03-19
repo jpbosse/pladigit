@@ -37,7 +37,7 @@ parameters:
             path: app/Models/Tenant/Task.php
             reportUnmatched: false
         -
-            message: '#^Method App\\Models\\Tenant\\ProjectMilestone::tasks\(\) should return#'
+            message: '#^Method App\\Models\\Tenant\\ProjectMilestone::(tasks|children)\(\) should return#'
             path: app/Models/Tenant/ProjectMilestone.php
             reportUnmatched: false
         -

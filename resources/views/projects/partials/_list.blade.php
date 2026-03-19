@@ -47,13 +47,20 @@ if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
 {{-- ── Groupes par jalon ── --}}
 @foreach($tasksByMilestone as $group)
 @php
-    $milestone   = $group['milestone'];
-    $groupTasks  = $group['tasks'];
-    $isReached   = $milestone && $milestone->isReached();
-    $isLate      = $milestone && $milestone->isLate();
-    $isOpen      = $milestone && $milestone->id === $nextActiveMs;
-    $activeCount = $groupTasks->where('status','!=','done')->count();
-    $doneCount   = $groupTasks->where('status','done')->count();
+    $milestone    = $group['milestone'];
+    $groupTasks   = $group['tasks'];
+    $children     = $group['children'] ?? collect();
+    $isPhaseGroup = $milestone && $milestone->isPhase() && $children->isNotEmpty();
+    $isReached    = $milestone && $milestone->isReached();
+    $isLate       = $milestone && $milestone->isLate();
+    $isOpen       = $milestone && $milestone->id === $nextActiveMs;
+    // Pour les phases : compter les tâches de tous les enfants
+    $activeCount  = $isPhaseGroup
+        ? $children->sum(fn($c) => $c['tasks']->where('status','!=','done')->count())
+        : $groupTasks->where('status','!=','done')->count();
+    $doneCount    = $isPhaseGroup
+        ? $children->sum(fn($c) => $c['tasks']->where('status','done')->count())
+        : $groupTasks->where('status','done')->count();
     if ($isReached)  { $hdrBg='#F0FDF4'; $hdrBdr='#86EFAC'; }
     elseif ($isLate) { $hdrBg='#FFF5F5'; $hdrBdr='#FCA5A5'; }
     else             { $hdrBg='var(--pd-surface)'; $hdrBdr='var(--pd-border)'; }
@@ -100,76 +107,48 @@ if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100">
 
+        @if($isPhaseGroup)
+        {{-- Phase : sous-groupes par jalon enfant --}}
+        @foreach($children as $child)
+        @php
+            $childMs    = $child['milestone'];
+            $childTasks = $child['tasks'];
+            $childReach = $childMs->isReached();
+            $childLate  = $childMs->isLate();
+            $childColor = $childMs->color ?? ($milestone->color ?? '#EA580C');
+        @endphp
+        <div style="margin:6px 10px;border:0.5px solid var(--pd-border);border-radius:8px;overflow:hidden;"
+             x-data="{ childOpen: {{ !$childReach ? 'true' : 'false' }} }">
+            <div @click="childOpen=!childOpen"
+                 style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;
+                        background:{{ $childReach ? '#F0FDF4' : ($childLate ? '#FEF2F2' : 'var(--pd-surface2)') }};">
+                <div style="width:7px;height:7px;border-radius:50%;background:{{ $childColor }};"></div>
+                <span style="font-size:11px;font-weight:600;flex:1;color:{{ $childReach ? '#065F46' : 'var(--pd-text)' }};">
+                    🏁 {{ $childMs->title }}
+                </span>
+                <span style="font-size:10px;color:{{ $childLate ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
+                    {{ $childMs->due_date?->format('d/m/Y') }}
+                    @if($childReach) ✓ @elseif($childLate) · Retard @endif
+                </span>
+                <span style="font-size:10px;color:var(--pd-muted);">{{ $childTasks->count() }} tâche{{ $childTasks->count()>1?'s':'' }}</span>
+                <span :style="childOpen ? '' : 'transform:rotate(-90deg)'" style="transition:transform .15s;color:var(--pd-muted);font-size:12px;">▾</span>
+            </div>
+            <div x-show="childOpen">
+                @if($childTasks->isEmpty())
+                <div style="padding:10px 14px;font-size:12px;color:var(--pd-muted);">Aucune tâche dans ce jalon.</div>
+                @else
+                @include('projects.partials._list_table', ['tasks' => $childTasks])
+                @endif
+            </div>
+        </div>
+        @endforeach
+        @else
+        {{-- Jalon autonome ou sans jalon --}}
         @if($groupTasks->isEmpty())
         <div style="padding:14px 16px;font-size:12px;color:var(--pd-muted);">Aucune tâche dans ce jalon.</div>
         @else
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead>
-            <tr style="background:var(--pd-surface2);border-bottom:0.5px solid var(--pd-border);">
-                <th style="padding:8px 14px;text-align:left;font-weight:600;color:var(--pd-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;width:38%;">Tâche</th>
-                <th style="padding:8px 10px;font-weight:600;color:var(--pd-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;">Statut</th>
-                <th style="padding:8px 10px;font-weight:600;color:var(--pd-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;">Priorité</th>
-                <th style="padding:8px 10px;font-weight:600;color:var(--pd-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;">Assigné</th>
-                <th style="padding:8px 10px;font-weight:600;color:var(--pd-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;">Échéance</th>
-                <th style="padding:8px 10px;font-weight:600;color:var(--pd-muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;">Heures</th>
-            </tr>
-            </thead>
-            <tbody>
-            @foreach($groupTasks->sortByDesc(fn($t) => match($t->status){'in_progress'=>3,'in_review'=>2,'todo'=>1,default=>0}) as $task)
-            @php
-                $sc = $statusColors[$task->status] ?? ['bg'=>'#F1F5F9','text'=>'#475569'];
-                $pc = $pColors[$task->priority]    ?? ['bg'=>'#F1F5F9','text'=>'#475569'];
-                $isInProgress = $task->status === 'in_progress';
-            @endphp
-            <tr x-show="showAll || {{ $isInProgress ? 'true' : 'false' }} || (filter && '{{ addslashes(strtolower($task->title)) }}'.includes(filter.toLowerCase()))"
-                style="border-bottom:0.5px solid var(--pd-border);cursor:pointer;transition:background .1s;{{ $task->status==='done' ? 'opacity:.6;' : '' }}"
-                @click="$dispatch('open-task',{taskId:{{ $task->id }}})"
-                @mouseenter="$el.style.background='var(--pd-surface2)'"
-                @mouseleave="$el.style.background='transparent'">
-
-                <td style="padding:9px 14px;">
-                    {{-- Indicateur en cours --}}
-                    @if($isInProgress)
-                    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#3B82F6;margin-right:6px;vertical-align:middle;"></span>
-                    @endif
-                    <span style="{{ $task->status==='done' ? 'text-decoration:line-through;color:var(--pd-muted);' : '' }}">
-                        {{ $task->title }}
-                    </span>
-                </td>
-                <td style="padding:9px 10px;">
-                    <span style="font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;background:{{ $sc['bg'] }};color:{{ $sc['text'] }};">
-                        {{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}
-                    </span>
-                </td>
-                <td style="padding:9px 10px;">
-                    <span style="font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;background:{{ $pc['bg'] }};color:{{ $pc['text'] }};">
-                        {{ \App\Models\Tenant\Task::priorityLabels()[$task->priority] }}
-                    </span>
-                </td>
-                <td style="padding:9px 10px;color:var(--pd-muted);">
-                    @if($task->assignee)
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <div style="width:20px;height:20px;border-radius:50%;background:var(--pd-navy);color:#fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                            {{ strtoupper(substr($task->assignee->name,0,2)) }}
-                        </div>
-                        {{ $task->assignee->name }}
-                    </div>
-                    @else —
-                    @endif
-                </td>
-                <td style="padding:9px 10px;font-size:11px;color:{{ $task->due_date?->isPast() && $task->status!=='done' ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
-                    {{ $task->due_date?->translatedFormat('d M Y') ?? '—' }}
-                </td>
-                <td style="padding:9px 10px;font-size:11px;color:var(--pd-muted);">
-                    @if($task->estimated_hours)
-                    {{ number_format($task->actual_hours??0,1) }}h / {{ number_format($task->estimated_hours,1) }}h
-                    @else —
-                    @endif
-                </td>
-            </tr>
-            @endforeach
-            </tbody>
-        </table>
+        @include('projects.partials._list_table', ['tasks' => $groupTasks])
+        @endif
         @endif
     </div>
 

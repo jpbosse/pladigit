@@ -9,6 +9,7 @@ use App\Http\Controllers\Projects\ProjectMemberController;
 use App\Http\Controllers\Projects\ProjectMilestoneController;
 use App\Http\Controllers\Projects\ProjectObservationController;
 use App\Http\Controllers\Projects\ProjectStakeholderController;
+use App\Http\Controllers\Projects\ProjectTemplateController;
 use App\Http\Controllers\Projects\TaskCommentController;
 use App\Http\Controllers\Projects\TaskController;
 
@@ -33,6 +34,20 @@ Route::prefix('projects')
     ->middleware('module:projects')
     ->group(function () {
 
+        // ── Tableau de bord multi-projets ────────────────────────────────
+        Route::get('/dashboard', [ProjectController::class, 'dashboard'])->name('dashboard');
+
+        // ── Modèles de projets (templates) ────────────────────────────────
+        Route::prefix('templates')->name('templates.')->group(function () {
+            Route::get('/', [ProjectTemplateController::class, 'index'])->name('index');
+            Route::get('/create', [ProjectTemplateController::class, 'create'])->name('create');
+            Route::post('/', [ProjectTemplateController::class, 'store'])->name('store');
+            Route::get('/{template}/edit', [ProjectTemplateController::class, 'edit'])->name('edit');
+            Route::put('/{template}', [ProjectTemplateController::class, 'update'])->name('update');
+            Route::delete('/{template}', [ProjectTemplateController::class, 'destroy'])->name('destroy');
+            Route::post('/{template}/apply', [ProjectTemplateController::class, 'apply'])->name('apply');
+        });
+
         // ── Projets ───────────────────────────────────────────────────────
         Route::get('/', [ProjectController::class, 'index'])->name('index');
         Route::get('/create', [ProjectController::class, 'create'])->name('create');
@@ -42,9 +57,23 @@ Route::prefix('projects')
         Route::put('/{project}', [ProjectController::class, 'update'])->name('update');
         Route::delete('/{project}', [ProjectController::class, 'destroy'])->name('destroy');
 
+        // Duplication
+        Route::post('/{project}/duplicate', [ProjectController::class, 'duplicate'])->name('duplicate');
+
+        // Créer un template depuis un projet existant
+        Route::post('/{project}/save-as-template', [ProjectTemplateController::class, 'fromProject'])->name('save_as_template');
+
         // Export iCal
         Route::get('/{project}/export/ical', [ProjectController::class, 'exportIcal'])
             ->name('export.ical');
+
+        // Export PDF tableau de bord élus
+        Route::get('/{project}/export/pdf', [ProjectController::class, 'exportPdf'])
+            ->name('export.pdf');
+
+        // Export ZIP élus (PDF + pièces jointes)
+        Route::get('/{project}/export/zip', [ProjectController::class, 'exportZip'])
+            ->name('export.zip');
 
         // ── Kanban AJAX (Alpine.js — ADR-008 révisé, pas de Livewire) ─────
         Route::patch('/{project}/kanban/move', [KanbanController::class, 'move'])->name('kanban.move');
@@ -65,9 +94,11 @@ Route::prefix('projects')
         Route::post('/{project}/members', [ProjectMemberController::class, 'store'])->name('members.store');
         Route::delete('/{project}/members/{user}', [ProjectMemberController::class, 'destroy'])->name('members.destroy');
 
-        // ── Jalons ────────────────────────────────────────────────────────
+        // ── Jalons & Phases ──────────────────────────────────────────────────
+        Route::post('/{project}/phases', [ProjectMilestoneController::class, 'storePhase'])->name('phases.store');
         Route::post('/{project}/milestones', [ProjectMilestoneController::class, 'store'])->name('milestones.store');
         Route::patch('/{project}/milestones/{milestone}', [ProjectMilestoneController::class, 'update'])->name('milestones.update');
+        Route::patch('/{project}/milestones/{milestone}/move', [ProjectMilestoneController::class, 'move'])->name('milestones.move');
         Route::delete('/{project}/milestones/{milestone}', [ProjectMilestoneController::class, 'destroy'])->name('milestones.destroy');
 
         // ── Événements agenda ─────────────────────────────────────────────

@@ -280,7 +280,7 @@ $svgH   = $headH + max(1, $pending->count()) * $rowH + 10;
 @if($canManage)
 <div id="modal-comm" class="pd-modal-overlay">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div>
                 <div class="pd-modal-title">Nouvelle action de communication</div>
                 <div class="pd-modal-subtitle">Ajoutée automatiquement à la timeline</div>
@@ -343,7 +343,7 @@ $svgH   = $headH + max(1, $pending->count()) * $rowH + 10;
 {{-- ── Modal ÉDITION action comm ── --}}
 <div id="modal-comm-edit" class="pd-modal-overlay">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div><div class="pd-modal-title">Modifier l'action de communication</div></div>
             <button class="pd-modal-close" onclick="document.getElementById('modal-comm-edit').classList.remove('open')">×</button>
         </div>

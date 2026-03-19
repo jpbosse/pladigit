@@ -161,7 +161,7 @@ foreach ($inflOrder as $infl) {
 @if($canManage)
 <div id="modal-sh" class="pd-modal-overlay">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div><div class="pd-modal-title">Nouvelle partie prenante</div><div class="pd-modal-subtitle">Positionnée automatiquement sur la carte</div></div>
             <button class="pd-modal-close" onclick="document.getElementById('modal-sh').classList.remove('open')">×</button>
         </div>
@@ -213,7 +213,7 @@ foreach ($inflOrder as $infl) {
 {{-- ── Modal ÉDITION ── --}}
 <div id="modal-sh-edit" class="pd-modal-overlay">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div><div class="pd-modal-title">Modifier la partie prenante</div></div>
             <button class="pd-modal-close" onclick="document.getElementById('modal-sh-edit').classList.remove('open')">×</button>
         </div>
