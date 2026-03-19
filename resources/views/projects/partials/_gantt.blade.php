@@ -132,7 +132,7 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
     else             { $hdrBg='var(--pd-surface)'; $hdrBdr='var(--pd-border)'; }
 @endphp
 
-<div x-data="{ open: {{ $isOpen ? 'true' : 'false' }} }"
+<div x-data="{ open: false }"
      style="border:0.5px solid {{ $hdrBdr }};border-radius:8px;overflow:hidden;margin-bottom:6px;">
 
     {{-- ── En-tête (avec mini timeline si replié) ── --}}

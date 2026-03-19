@@ -174,6 +174,43 @@ class ProjectMilestoneController extends Controller
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ]);
 
+        // Vérifier que la nouvelle due_date ne coupe pas des tâches existantes
+        if (isset($validated['due_date'])) {
+            $newDueDate = \Carbon\Carbon::parse($validated['due_date']);
+
+            // Récupérer les jalons concernés (ce jalon + ses enfants si c'est une phase)
+            $milestoneIds = [$milestone->id];
+            if ($milestone->isPhase()) {
+                $milestoneIds = array_merge(
+                    $milestoneIds,
+                    $milestone->children()->pluck('id')->toArray()
+                );
+            }
+
+            // Trouver la tâche la plus tardive rattachée à ces jalons
+            $latestTask = \App\Models\Tenant\Task::on('tenant')
+                ->whereIn('milestone_id', $milestoneIds)
+                ->whereNotNull('due_date')
+                ->whereNull('deleted_at')
+                ->orderByDesc('due_date')
+                ->first();
+
+            if ($latestTask && $latestTask->due_date->gt($newDueDate)) {
+                $errorMsg = sprintf(
+                    'La date de fin ne peut pas être avancée au %s : la tâche « %s » est prévue le %s. Modifiez d\'abord cette tâche.',
+                    $newDueDate->translatedFormat('d M Y'),
+                    $latestTask->title,
+                    $latestTask->due_date->translatedFormat('d M Y')
+                );
+
+                if ($request->wantsJson()) {
+                    return response()->json(['success' => false, 'error' => $errorMsg], 422);
+                }
+
+                return back()->withErrors(['due_date' => $errorMsg])->withInput();
+            }
+        }
+
         // Marquer comme atteint
         if (isset($validated['reached']) && $validated['reached'] && ! $milestone->isReached()) {
             $milestone->markReached();

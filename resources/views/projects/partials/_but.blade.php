@@ -55,7 +55,27 @@
 @endif
 
 {{-- Phases & Jalons --}}
-<div class="pd-card" style="margin-bottom:14px;" x-data="{ showModalPhase: false, showModalJalon: false, selectedPhase: null }">
+<div class="pd-card" style="margin-bottom:14px;" x-data="{
+    showModalPhase: false,
+    showModalJalon: false,
+    showModalEdit: false,
+    selectedPhase: null,
+    editMs: { id: null, title: '', due_date: '', start_date: '', color: '#1E3A5F' },
+    openEdit(id, title, due_date, start_date, color) {
+        this.editMs = { id, title, due_date: due_date || '', start_date: start_date || '', color: color || '#1E3A5F' };
+        this.showModalEdit = true;
+        this.$nextTick(() => {
+            document.dispatchEvent(new CustomEvent('open-edit-ms', {
+                detail: { id, title, due_date, start_date, color }
+            }));
+        });
+    },
+    init() {
+        @if($errors->has('due_date'))
+        this.showModalEdit = true;
+        @endif
+    }
+}">
 
     {{-- En-tête --}}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -124,6 +144,9 @@
                                     style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
                         </form>
                         @endif
+                        <button @click="openEdit({{ $ms->id }}, '{{ addslashes($ms->title) }}', '{{ $ms->due_date?->format('Y-m-d') }}', '{{ $ms->start_date?->format('Y-m-d') }}', '{{ $ms->color }}')"
+                                style="padding:1px 7px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
+                                title="Modifier cette phase">✏️</button>
                         <button @click="selectedPhase={{ $ms->id }};showModalJalon=true"
                                 style="padding:1px 7px;font-size:10px;font-weight:600;background:none;color:var(--pd-navy);border:0.5px solid var(--pd-navy);border-radius:4px;cursor:pointer;">
                             + Jalon
@@ -166,6 +189,9 @@
                         </span>
                         <span style="font-size:11px;color:var(--pd-muted);">{{ $cpct }}%</span>
                         @if($canManage)
+                        <button @click="openEdit({{ $child->id }}, '{{ addslashes($child->title) }}', '{{ $child->due_date?->format('Y-m-d') }}', '{{ $child->start_date?->format('Y-m-d') }}', '{{ $child->color }}')"
+                                style="padding:1px 6px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
+                                title="Modifier ce jalon">✏️</button>
                         <form method="POST" action="{{ route('projects.milestones.destroy', [$project, $child]) }}"
                               onsubmit="return confirm('Supprimer ce jalon ?');" style="display:inline;">
                             @csrf @method('DELETE')
@@ -215,6 +241,9 @@
                                 style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
                     </form>
                     @endif
+                    <button @click="openEdit({{ $ms->id }}, '{{ addslashes($ms->title) }}', '{{ $ms->due_date?->format('Y-m-d') }}', '{{ $ms->start_date?->format('Y-m-d') }}', '{{ $ms->color }}')"
+                            style="padding:1px 6px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
+                            title="Modifier">✏️</button>
                     <form method="POST" action="{{ route('projects.milestones.destroy', [$project, $ms]) }}"
                           onsubmit="return confirm('Supprimer ce jalon ?');" style="display:inline;">
                         @csrf @method('DELETE')
@@ -348,7 +377,90 @@
     </div>
     @endif
 
+    {{-- ── Modal : Modifier phase/jalon ── --}}
+    @if($canManage)
+    <div x-show="showModalEdit" x-cloak
+         style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);"
+         @click.self="showModalEdit=false">
+        <div class="pd-modal pd-modal-md" style="animation:pd-modal-in .18s ease-out;">
+            <div style="background:#1E3A5F;border-radius:14px 14px 0 0;padding:18px 20px;display:flex;align-items:flex-start;justify-content:space-between;">
+                <div>
+                    <div style="font-size:15px;font-weight:700;color:#fff;">Modifier</div>
+                    <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;" x-text="editMs.title"></div>
+                </div>
+                <button @click="showModalEdit=false" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:20px;line-height:1;margin-left:12px;">×</button>
+            </div>
+            <form id="form-edit-milestone" method="POST">
+                @csrf
+                <input type="hidden" name="_method" value="PATCH">
+                <div class="pd-modal-body">
+                    @if($errors->has('due_date'))
+                    <div style="padding:10px 12px;background:#FEE2E2;color:#991B1B;border-radius:8px;margin-bottom:12px;font-size:12px;line-height:1.5;">
+                        ⚠ {{ $errors->first('due_date') }}
+                    </div>
+                    @endif
+                    <div class="pd-form-group">
+                        <label class="pd-label pd-label-req">Titre</label>
+                        <input type="text" name="title" id="edit-ms-title" class="pd-input" required style="width:100%;">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <div class="pd-form-group" style="margin-bottom:0;">
+                            <label class="pd-label">Début</label>
+                            <input type="date" name="start_date" id="edit-ms-start" class="pd-input" style="width:100%;">
+                        </div>
+                        <div class="pd-form-group" style="margin-bottom:0;">
+                            <label class="pd-label pd-label-req">Fin prévue</label>
+                            <input type="date" name="due_date" id="edit-ms-due" class="pd-input" required style="width:100%;">
+                        </div>
+                    </div>
+                    <div class="pd-form-group" style="margin-top:14px;margin-bottom:0;">
+                        <label class="pd-label">Couleur</label>
+                        <input type="hidden" name="color" id="edit-ms-color" value="#1E3A5F">
+                        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;" id="edit-ms-colors">
+                            @foreach(['#1E3A5F','#16A34A','#EA580C','#8B5CF6','#0891B2','#DC2626','#D97706'] as $c)
+                            <div data-color="{{ $c }}"
+                                 onclick="selectMsColor('{{ $c }}')"
+                                 style="width:38px;height:38px;border-radius:50%;background:{{ $c }};cursor:pointer;box-shadow:0 2px 4px rgba(0,0,0,.3);border:3px solid transparent;transition:all .12s;">
+                            </div>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <div class="pd-modal-footer">
+                    <button type="button" @click="showModalEdit=false" class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
+                    <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    @endif
+
 </div>
+
+<script>
+function selectMsColor(color) {
+    document.getElementById('edit-ms-color').value = color;
+    document.querySelectorAll('#edit-ms-colors [data-color]').forEach(function(el) {
+        el.style.border = el.dataset.color === color
+            ? '3px solid #000'
+            : '3px solid transparent';
+        el.style.transform = el.dataset.color === color ? 'scale(1.15)' : 'scale(1)';
+    });
+}
+
+document.addEventListener('alpine:init', function () {
+    // Patch openEdit pour remplir les champs natifs
+    document.addEventListener('open-edit-ms', function (e) {
+        const d = e.detail;
+        const base = '{{ url('projects/' . $project->id . '/milestones') }}/';
+        document.getElementById('form-edit-milestone').action = base + d.id;
+        document.getElementById('edit-ms-title').value   = d.title;
+        document.getElementById('edit-ms-start').value   = d.start_date || '';
+        document.getElementById('edit-ms-due').value     = d.due_date   || '';
+        selectMsColor(d.color || '#1E3A5F');
+    });
+});
+</script>
 
 {{-- Membres --}}
 <div class="pd-card">

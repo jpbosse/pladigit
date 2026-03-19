@@ -66,7 +66,7 @@ if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
     else             { $hdrBg='var(--pd-surface)'; $hdrBdr='var(--pd-border)'; }
 @endphp
 
-<div x-data="{ open: {{ $isOpen ? 'true' : 'false' }} }"
+<div x-data="{ open: false }"
      style="border:0.5px solid {{ $hdrBdr }};border-radius:10px;overflow:hidden;margin-bottom:8px;">
 
     {{-- En-tête groupe --}}
