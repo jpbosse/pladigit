@@ -1048,7 +1048,7 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
     height: 1px; background: var(--pd-border); margin: 16px 0;
 }
 .pd-card {
-    background: var(--pd-navy-dark);
+    background: var(--pd-surface);
     border-radius: var(--pd-radius);
     border: 1.5px solid var(--pd-border);
     box-shadow: var(--pd-shadow);
@@ -1463,6 +1463,33 @@ input[type="number"].pd-input::-webkit-outer-spin-button {
     flex-shrink: 0;
     border-radius: 0 0 14px 14px;
 }
+
+/* ── Variante bandeau coloré ─────────────────────────────────────────
+   Usage : ajouter pd-modal-header--colored + data-color sur .pd-modal
+   Le bandeau prend la couleur définie, titre et icône en blanc.
+   ─────────────────────────────────────────────────────────────────── */
+.pd-modal-header--colored {
+    background: var(--pd-navy);
+    border-bottom: none;
+    border-radius: 14px 14px 0 0;
+    padding: 20px 20px 16px;
+}
+.pd-modal-header--colored .pd-modal-title    { color: #fff; font-size: 16px; }
+.pd-modal-header--colored .pd-modal-subtitle { color: rgba(255,255,255,.75); }
+.pd-modal-header--colored .pd-modal-close    { color: rgba(255,255,255,.8); }
+.pd-modal-header--colored .pd-modal-close:hover {
+    background: rgba(255,255,255,.15);
+    color: #fff;
+}
+
+/* Couleurs de bandeau disponibles */
+.pd-modal-header--navy   { background: #1E3A5F; }
+.pd-modal-header--orange { background: #EA580C; }
+.pd-modal-header--green  { background: #16A34A; }
+.pd-modal-header--red    { background: #DC2626; }
+.pd-modal-header--purple { background: #7C3AED; }
+.pd-modal-header--teal   { background: #0891B2; }
+
 
 /* ═══════════════════════════════════════════════════════════════════
    SLIDE-OVER

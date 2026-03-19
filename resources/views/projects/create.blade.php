@@ -117,6 +117,34 @@
         </div>
     </div>
 
+    {{-- Visibilité --}}
+    <div style="background:var(--pd-surface2);border-radius:10px;border:0.5px solid var(--pd-border);margin-bottom:20px;overflow:hidden;">
+        {{-- Mode Normal --}}
+        <div style="padding:12px 16px;border-bottom:0.5px solid var(--pd-border);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#16A34A;flex-shrink:0;"></div>
+                <span style="font-size:12px;font-weight:600;color:var(--pd-text);">Normal (par défaut)</span>
+            </div>
+            <p style="font-size:11px;color:var(--pd-muted);margin:0;line-height:1.6;padding-left:16px;">
+                Les membres explicites peuvent modifier selon leur rôle (Chef de projet / Contributeur).<br>
+                La hiérarchie organisationnelle (Resp. Direction / Service) voit ce projet en <strong>lecture seule</strong> automatiquement.<br>
+                Pour qu'un supérieur puisse modifier, ajoutez-le comme membre avec le rôle Chef de projet ou Contributeur.
+            </p>
+        </div>
+        {{-- Mode Privé --}}
+        <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:12px 16px;">
+            <input type="checkbox" name="is_private" value="1" {{ old('is_private') ? 'checked' : '' }}
+                   style="width:15px;height:15px;accent-color:#6D28D9;cursor:pointer;margin-top:2px;flex-shrink:0;">
+            <div>
+                <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">🔒 Rendre ce projet privé</div>
+                <p style="font-size:11px;color:var(--pd-muted);margin:0;line-height:1.6;">
+                    Membres explicites uniquement — la hiérarchie ne voit pas ce projet.<br>
+                    Pour donner accès, ajoutez la personne directement dans les membres du projet.
+                </p>
+            </div>
+        </label>
+    </div>
+
     <div style="display:flex;justify-content:flex-end;gap:8px;">
         <a href="{{ route('projects.index') }}" class="pd-btn pd-btn-secondary">Annuler</a>
         <button type="submit" class="pd-btn pd-btn-primary">Créer le projet</button>

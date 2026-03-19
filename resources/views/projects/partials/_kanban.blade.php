@@ -28,6 +28,12 @@ foreach ($tasksByMilestone as $group) {
     foreach ($group['tasks'] as $t) {
         if (isset($colCounts[$t->status])) $colCounts[$t->status]++;
     }
+    // Compter aussi les tâches dans les jalons enfants d'une phase
+    foreach (($group['children'] ?? collect()) as $child) {
+        foreach ($child['tasks'] as $t) {
+            if (isset($colCounts[$t->status])) $colCounts[$t->status]++;
+        }
+    }
 }
 
 // Identifier le prochain jalon actif à déplier automatiquement
@@ -92,6 +98,8 @@ if (!$nextActiveGroupId) {
 @php
     $milestone   = $group['milestone'];
     $groupTasks  = $group['tasks'];
+    $children    = $group['children'] ?? collect();
+    $isPhaseGroup = $milestone && $milestone->isPhase() && $children->isNotEmpty();
     $groupId     = 'group-' . ($milestone ? $milestone->id : 'unassigned');
     $isReached   = $milestone && $milestone->isReached();
     $isLate      = $milestone && $milestone->isLate();
@@ -144,10 +152,12 @@ if (!$nextActiveGroupId) {
         {{-- Titre + date --}}
         <div style="flex:1;min-width:0;">
             <span style="font-size:13px;font-weight:700;color:{{ $isReached ? '#065F46' : 'var(--pd-text)' }};">
+                @if($isPhaseGroup)<span style="font-size:9px;font-weight:700;background:var(--pd-navy);color:#fff;padding:1px 5px;border-radius:4px;margin-right:5px;letter-spacing:.04em;">PHASE</span>@endif
                 {{ $milestone ? $milestone->title : 'Sans jalon' }}
             </span>
             @if($milestone?->due_date)
             <span style="font-size:11px;color:{{ $statusColor }};margin-left:8px;">
+                @if($milestone->start_date){{ $milestone->start_date->format('d/m') }} → @endif
                 {{ $milestone->due_date->translatedFormat('d M Y') }}
                 @if($isReached) · Atteint @elseif($isLate) · En retard @endif
             </span>
@@ -185,6 +195,104 @@ if (!$nextActiveGroupId) {
          x-transition:enter-end="opacity-100 translate-y-0"
          style="padding:10px;border-top:0.5px solid {{ $headerBdr }};">
 
+        @if($isPhaseGroup)
+        {{-- ── Phase : sous-groupes par jalon enfant ── --}}
+        @foreach($children as $child)
+        @php
+            $childMs    = $child['milestone'];
+            $childTasks = $child['tasks'];
+            $childId    = 'group-child-' . $childMs->id;
+            $childReach = $childMs->isReached();
+            $childLate  = $childMs->isLate();
+            $childColor = $childMs->color ?? ($milestone->color ?? '#EA580C');
+        @endphp
+        <div style="margin-bottom:10px;border:0.5px solid var(--pd-border);border-radius:8px;overflow:hidden;"
+             x-data="{ childOpen: {{ !$childReach ? 'true' : 'false' }} }">
+            {{-- En-tête jalon enfant --}}
+            <div @click="childOpen=!childOpen"
+                 style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;
+                        background:{{ $childReach ? '#F0FDF4' : ($childLate ? '#FEF2F2' : 'var(--pd-surface2)') }};">
+                <div style="width:8px;height:8px;border-radius:50%;background:{{ $childColor }};flex-shrink:0;"></div>
+                <span style="font-size:11px;font-weight:600;flex:1;color:{{ $childReach ? '#065F46' : 'var(--pd-text)' }};">
+                    🏁 {{ $childMs->title }}
+                </span>
+                <span style="font-size:10px;color:{{ $childLate ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
+                    {{ $childMs->due_date?->format('d/m/Y') }}
+                    @if($childReach) ✓ @elseif($childLate) · Retard @endif
+                </span>
+                <span style="font-size:10px;color:var(--pd-muted);">{{ $childTasks->count() }} tâche{{ $childTasks->count()>1?'s':'' }}</span>
+                <span :style="childOpen ? 'transform:rotate(0deg)' : 'transform:rotate(-90deg)'"
+                      style="transition:transform .15s;color:var(--pd-muted);font-size:12px;">▾</span>
+            </div>
+            {{-- Colonnes enfant --}}
+            <div x-show="childOpen" style="padding:8px;">
+                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+                    @foreach($columns as $status => $col)
+                    @php $childCellTasks = $childTasks->where('status', $status)->values(); @endphp
+                    <div data-col="{{ $status }}" data-group="{{ $childId }}"
+                         @dragover.prevent="onDragOver($event, '{{ $status }}')"
+                         @drop.prevent="onDrop($event, '{{ $status }}')"
+                         @dragleave="onDragLeave($event)"
+                         :class="{ 'pd-kanban-col-over': dragOver === '{{ $status }}' }"
+                         style="background:var(--pd-bg);border-radius:6px;padding:6px;border:0.5px solid var(--pd-border);min-height:40px;">
+                        <div class="pd-kanban-cards" id="col-{{ $status }}-{{ $childId }}"
+                             style="display:flex;flex-direction:column;gap:5px;">
+                            @foreach($childCellTasks as $task)
+                            @php
+                                $hasHours  = $task->estimated_hours > 0;
+                                $hoursPct  = $hasHours ? min(100, round(($task->actual_hours ?? 0) / $task->estimated_hours * 100)) : 0;
+                                $hoursOver = $hasHours && ($task->actual_hours ?? 0) > $task->estimated_hours;
+                            @endphp
+                            <div class="pd-kanban-card" draggable="true"
+                                 data-task-id="{{ $task->id }}" data-status="{{ $status }}"
+                                 @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
+                                 @dragend="onDragEnd()"
+                                 @click="openTask({{ $task->id }})"
+                                 @if($status === 'done') x-show="showDone" @endif
+                                 style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:7px;padding:8px 9px;cursor:grab;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
+                                <div style="font-size:12px;font-weight:500;color:var(--pd-text);line-height:1.4;margin-bottom:6px;">{{ $task->title }}</div>
+                                @if($hasHours)
+                                <div style="margin-bottom:5px;">
+                                    <div style="height:3px;background:var(--pd-bg2);border-radius:2px;overflow:hidden;">
+                                        <div style="height:100%;width:{{ $hoursPct }}%;background:{{ $hoursOver ? '#E24B4A' : '#3B82F6' }};border-radius:2px;"></div>
+                                    </div>
+                                </div>
+                                @endif
+                                <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+                                    <span style="font-size:9px;padding:2px 5px;border-radius:7px;font-weight:700;background:{{ $priorityColors[$task->priority]['bg'] }};color:{{ $priorityColors[$task->priority]['text'] }};">
+                                        {{ \App\Models\Tenant\Task::priorityLabels()[$task->priority] }}
+                                    </span>
+                                    @if($task->assignee)
+                                    <div style="width:16px;height:16px;border-radius:50%;background:var(--pd-navy);color:#fff;font-size:7px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-left:auto;">
+                                        {{ strtoupper(substr($task->assignee->name,0,2)) }}
+                                    </div>
+                                    @endif
+                                    @if($task->due_date)
+                                    <span style="font-size:10px;color:{{ $task->due_date->isPast() && $task->status !== 'done' ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
+                                        {{ $task->due_date->format('d/m') }}
+                                    </span>
+                                    @endif
+                                </div>
+                            </div>
+                            @endforeach
+                        </div>
+                        @if($canEdit && $status === 'todo')
+                        <button @click.stop="openNewTask('todo', {{ $childMs->id }})"
+                                style="width:100%;margin-top:4px;padding:3px;font-size:11px;color:var(--pd-muted);background:none;border:0.5px dashed var(--pd-border);border-radius:5px;cursor:pointer;"
+                                onmouseover="this.style.borderColor='#3B82F6';this.style.color='#3B82F6'"
+                                onmouseout="this.style.borderColor='var(--pd-border)';this.style.color='var(--pd-muted)'">
+                            + Ajouter
+                        </button>
+                        @endif
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endforeach
+
+        @else
+        {{-- ── Jalon autonome ou sans jalon : colonnes classiques ── --}}
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">
             @foreach($columns as $status => $col)
             @php $cellTasks = $groupTasks->where('status', $status)->values(); @endphp
@@ -216,12 +324,10 @@ if (!$nextActiveGroupId) {
                          @if($status === 'done') x-show="showDone" @endif
                          style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:8px;padding:9px 10px;cursor:grab;transition:box-shadow .12s,opacity .15s;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
 
-                        {{-- Titre --}}
                         <div style="font-size:12px;font-weight:500;color:var(--pd-text);line-height:1.4;margin-bottom:7px;">
                             {{ $task->title }}
                         </div>
 
-                        {{-- Barre heures (si estimées) --}}
                         @if($hasHours)
                         <div style="margin-bottom:6px;">
                             <div style="height:3px;background:var(--pd-bg2);border-radius:2px;overflow:hidden;">
@@ -233,7 +339,6 @@ if (!$nextActiveGroupId) {
                         </div>
                         @endif
 
-                        {{-- Pied de carte --}}
                         <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
                             <span style="font-size:9px;padding:2px 5px;border-radius:7px;font-weight:700;background:{{ $priorityColors[$task->priority]['bg'] }};color:{{ $priorityColors[$task->priority]['text'] }};">
                                 {{ \App\Models\Tenant\Task::priorityLabels()[$task->priority] }}
@@ -275,6 +380,7 @@ if (!$nextActiveGroupId) {
             </div>
             @endforeach
         </div>
+        @endif
 
     </div>
 </div>

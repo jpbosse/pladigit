@@ -220,7 +220,7 @@ $cellBgMap = [
 @if($canManage)
 <div id="modal-risk" class="pd-modal-overlay">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div>
                 <div class="pd-modal-title">Nouveau risque / frein</div>
                 <div class="pd-modal-subtitle">Positionné automatiquement dans la matrice</div>
@@ -336,7 +336,7 @@ $cellBgMap = [
 {{-- ── Modal ÉDITION risque ── --}}
 <div id="modal-risk-edit" class="pd-modal-overlay">
     <div class="pd-modal pd-modal-md">
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div><div class="pd-modal-title">Modifier le risque</div></div>
             <button class="pd-modal-close" onclick="document.getElementById('modal-risk-edit').classList.remove('open')">×</button>
         </div>

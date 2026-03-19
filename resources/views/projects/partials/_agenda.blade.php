@@ -126,7 +126,7 @@ foreach ($milestones as $ms) {
      @click="if($event.target===$el) showEventForm=false"
      @keydown.escape.window="showEventForm=false">
     <div class="pd-modal pd-modal-md" @click.stop>
-        <div class="pd-modal-header">
+        <div class="pd-modal-header pd-modal-header--colored pd-modal-header--navy">
             <div class="pd-modal-title">Nouvel événement</div>
             <button type="button" class="pd-modal-close" @click="showEventForm=false">×</button>
         </div>

@@ -18,6 +18,16 @@ $obsTypes    = \App\Models\Tenant\ProjectObservation::typeConfig();
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="3" y="1" width="10" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><path d="M3 11H1V7a2 2 0 012-2h10a2 2 0 012 2v4h-2" stroke="currentColor" stroke-width="1.2"/><rect x="3" y="10" width="10" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
         Imprimer
     </button>
+    <a href="{{ route('projects.export.pdf', $project) }}"
+       class="btn-sm" style="display:flex;align-items:center;gap:5px;text-decoration:none;">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2v3h3" stroke="currentColor" stroke-width="1.2"/><path d="M6 9h4M6 11h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        PDF
+    </a>
+    <a href="{{ route('projects.export.zip', $project) }}"
+       class="btn-sm" style="display:flex;align-items:center;gap:5px;text-decoration:none;">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2v3h3" stroke="currentColor" stroke-width="1.2"/><path d="M8 6v4M6 8l2 2 2-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        ZIP
+    </a>
 </div>
 
 {{-- ── 4 métriques clés ── --}}

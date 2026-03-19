@@ -60,11 +60,19 @@
         <h1 class="proj-page-title">Projets</h1>
         <p class="proj-page-sub">{{ $projects->total() }} projet{{ $projects->total() > 1 ? 's' : '' }}</p>
     </div>
-    @can('create', \App\Models\Tenant\Project::class)
-    <a href="{{ route('projects.create') }}" class="pd-btn pd-btn-primary">
-        + Nouveau projet
-    </a>
-    @endcan
+    <div style="display:flex;gap:8px;">
+        <a href="{{ route('projects.templates.index') }}" class="pd-btn pd-btn-secondary">
+            📋 Modèles
+        </a>
+        <a href="{{ route('projects.dashboard') }}" class="pd-btn pd-btn-secondary">
+            📊 Tableau de bord
+        </a>
+        @can('create', \App\Models\Tenant\Project::class)
+        <a href="{{ route('projects.create') }}" class="pd-btn pd-btn-primary">
+            + Nouveau projet
+        </a>
+        @endcan
+    </div>
 </div>
 
 {{-- Filtres --}}
@@ -98,6 +106,9 @@
             <span class="proj-badge proj-badge-{{ $project->status }}">
                 {{ \App\Models\Tenant\Project::statusLabels()[$project->status] ?? $project->status }}
             </span>
+            @if($project->is_private)
+            <span class="proj-badge" style="background:#EDE9FE;color:#6D28D9;border:1px solid #C4B5FD;">🔒 Privé</span>
+            @endif
         </div>
 
         @if($project->description)

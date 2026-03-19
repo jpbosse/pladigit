@@ -123,6 +123,12 @@ $canEdit   = $userRole?->canEdit() || $canManage;
             <span class="sn-label">Freins &amp; risques</span>
             @if($criticalRisksCount)<span class="sn-badge danger">{{ $criticalRisksCount }} critique{{ $criticalRisksCount>1?'s':'' }}</span>@endif
         </button>
+        <button class="sn-item" :class="{active:section==='observations'}" @click="go('observations')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v9H9.5L8 13l-1.5-2H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 6h6M5 8.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span class="sn-label">Observations &amp; décisions</span>
+            @php $obsCount = $project->observations->count(); @endphp
+            @if($obsCount)<span class="sn-badge">{{ $obsCount }}</span>@endif
+        </button>
     </div>
 
     <div class="sn-elus">
@@ -142,6 +148,7 @@ $canEdit   = $userRole?->canEdit() || $canManage;
     <div x-show="section==='comcom'"   x-cloak>@include('projects.partials._comcom')</div>
     <div x-show="section==='risques'"  x-cloak>@include('projects.partials._risques')</div>
     <div x-show="section==='elus'"     x-cloak>@include('projects.partials._elus')</div>
+    <div x-show="section==='observations'" x-cloak>@include('projects.partials._observations')</div>
     @include('projects.partials._task_slideover')
 </div>
 

@@ -133,7 +133,15 @@
                         <select x-model="newTask.milestone_id" class="pd-input">
                             <option value="">— Aucun jalon —</option>
                             @foreach($project->milestones as $ms)
-                            <option value="{{ $ms->id }}">{{ $ms->title }}</option>
+                            @if($ms->isPhase() && $ms->children->isNotEmpty())
+                            <optgroup label="📦 {{ $ms->title }}">
+                                @foreach($ms->children as $child)
+                                <option value="{{ $child->id }}">🏁 {{ $child->title }}</option>
+                                @endforeach
+                            </optgroup>
+                            @else
+                            <option value="{{ $ms->id }}">🏁 {{ $ms->title }}</option>
+                            @endif
                             @endforeach
                         </select>
                     </div>
@@ -314,7 +322,15 @@
                         <select x-model="taskData.milestone_id" class="pd-input">
                             <option value="">— Aucun jalon —</option>
                             @foreach($project->milestones as $ms)
-                            <option value="{{ $ms->id }}">{{ $ms->title }}</option>
+                            @if($ms->isPhase() && $ms->children->isNotEmpty())
+                            <optgroup label="📦 {{ $ms->title }}">
+                                @foreach($ms->children as $child)
+                                <option value="{{ $child->id }}">🏁 {{ $child->title }}</option>
+                                @endforeach
+                            </optgroup>
+                            @else
+                            <option value="{{ $ms->id }}">🏁 {{ $ms->title }}</option>
+                            @endif
                             @endforeach
                         </select>
                     </div>
@@ -337,11 +353,18 @@
                         </div>
                     </div>
 
-                    <div class="pd-form-actions" style="margin-top:20px;">
-                        <button type="button" @click="editMode = false"
-                                class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
-                        <button type="submit"
-                                class="pd-btn pd-btn-primary pd-btn-sm">Enregistrer</button>
+                    <div class="pd-form-actions" style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;">
+                        <button type="button" @click="deleteTask()"
+                                class="pd-btn pd-btn-danger pd-btn-sm"
+                                style="background:#FEE2E2;color:#991B1B;border-color:#FCA5A5;">
+                            🗑 Supprimer
+                        </button>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" @click="editMode = false"
+                                    class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
+                            <button type="submit"
+                                    class="pd-btn pd-btn-primary pd-btn-sm">Enregistrer</button>
+                        </div>
                     </div>
                 </form>
             </template>
@@ -430,6 +453,20 @@ function taskSlideover() {
             })
             .then(r => r.json())
             .then(d => { if (d.success) { this.editMode = false; window.location.reload(); } });
+        },
+
+        deleteTask() {
+            if (!this.taskData || !confirm(`Supprimer la tâche « ${this.taskData.title} » ?`)) return;
+            fetch(`{{ url('projects/' . $project->id . '/tasks') }}/${this.taskData.id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json', 'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+            })
+            .then(r => r.json())
+            .then(d => { if (d.success) { this.open = false; window.location.reload(); } })
+            .catch(() => alert('Erreur lors de la suppression.'));
         },
 
         submitComment() {
