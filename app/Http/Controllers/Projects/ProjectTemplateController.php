@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Projects;
 
+use App\Enums\ProjectRole;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
 use App\Models\Tenant\ProjectTemplate;
-use App\Enums\ProjectRole;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 
@@ -41,6 +41,7 @@ class ProjectTemplateController extends Controller
     public function create()
     {
         $this->authorizeCreate();
+
         return view('projects.templates.create');
     }
 
@@ -52,21 +53,21 @@ class ProjectTemplateController extends Controller
         $this->authorizeCreate();
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
         $template = ProjectTemplate::on('tenant')->create([
             ...$validated,
-            'color'               => $validated['color'] ?? '#1E3A5F',
-            'created_by'          => auth()->id(),
+            'color' => $validated['color'] ?? '#1E3A5F',
+            'created_by' => auth()->id(),
             'milestone_templates' => [],
-            'task_templates'      => [],
+            'task_templates' => [],
         ]);
 
         $this->audit->log('template.created', auth()->user(), [
-            'template_id'   => $template->id,
+            'template_id' => $template->id,
             'template_name' => $template->name,
         ]);
 
@@ -81,6 +82,7 @@ class ProjectTemplateController extends Controller
     public function edit(ProjectTemplate $template)
     {
         $this->authorizeCreate();
+
         return view('projects.templates.edit', compact('template'));
     }
 
@@ -92,21 +94,21 @@ class ProjectTemplateController extends Controller
         $this->authorizeCreate();
 
         $validated = $request->validate([
-            'name'                => ['required', 'string', 'max:255'],
-            'description'         => ['nullable', 'string', 'max:2000'],
-            'color'               => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:2000'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'milestone_templates' => ['nullable', 'json'],
-            'task_templates'      => ['nullable', 'json'],
+            'task_templates' => ['nullable', 'json'],
         ]);
 
         $template->update([
-            'name'                => $validated['name'],
-            'description'         => $validated['description'] ?? null,
-            'color'               => $validated['color'] ?? $template->color,
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'color' => $validated['color'] ?? $template->color,
             'milestone_templates' => isset($validated['milestone_templates'])
                 ? json_decode($validated['milestone_templates'], true)
                 : $template->milestone_templates,
-            'task_templates'      => isset($validated['task_templates'])
+            'task_templates' => isset($validated['task_templates'])
                 ? json_decode($validated['task_templates'], true)
                 : $template->task_templates,
         ]);
@@ -132,7 +134,7 @@ class ProjectTemplateController extends Controller
         $template->delete();
 
         $this->audit->log('template.deleted', auth()->user(), [
-            'template_id'   => $template->id,
+            'template_id' => $template->id,
             'template_name' => $template->name,
         ]);
 
@@ -149,40 +151,40 @@ class ProjectTemplateController extends Controller
         $this->authorizeCreate();
 
         $validated = $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'start_date' => ['required', 'date'],
-            'status'     => ['required', 'in:active,on_hold,draft'],
+            'status' => ['required', 'in:active,on_hold,draft'],
         ]);
 
         $startDate = \Carbon\Carbon::parse($validated['start_date']);
 
         // Créer le projet
         $project = Project::on('tenant')->create([
-            'created_by'  => auth()->id(),
-            'name'        => $validated['name'],
+            'created_by' => auth()->id(),
+            'name' => $validated['name'],
             'description' => $template->description,
-            'status'      => $validated['status'],
-            'start_date'  => $startDate,
-            'color'       => $template->color,
-            'is_private'  => false,
+            'status' => $validated['status'],
+            'start_date' => $startDate,
+            'color' => $template->color,
+            'is_private' => false,
         ]);
 
         // Créateur = owner
         ProjectMember::on('tenant')->create([
             'project_id' => $project->id,
-            'user_id'    => auth()->id(),
-            'role'       => ProjectRole::OWNER->value,
+            'user_id' => auth()->id(),
+            'role' => ProjectRole::OWNER->value,
         ]);
 
         // Appliquer la structure du template
         $result = $template->applyTo($project, $startDate);
 
         $this->audit->log('template.applied', auth()->user(), [
-            'template_id'  => $template->id,
-            'project_id'   => $project->id,
+            'template_id' => $template->id,
+            'project_id' => $project->id,
             'project_name' => $project->name,
-            'milestones'   => $result['milestones'],
-            'tasks'        => $result['tasks'],
+            'milestones' => $result['milestones'],
+            'tasks' => $result['tasks'],
         ]);
 
         return redirect()
@@ -199,7 +201,7 @@ class ProjectTemplateController extends Controller
         $this->authorize('view', $project);
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -219,15 +221,15 @@ class ProjectTemplateController extends Controller
             ->get();
 
         // Construire milestone_templates
-        $msTemplates  = [];
-        $msIndexMap   = []; // id → index dans msTemplates
+        $msTemplates = [];
+        $msIndexMap = []; // id → index dans msTemplates
 
         foreach ($milestones as $ms) {
             $idx = count($msTemplates);
             $msTemplates[] = [
-                'title'        => $ms->title,
-                'color'        => $ms->color,
-                'offset_days'  => $project->start_date
+                'title' => $ms->title,
+                'color' => $ms->color,
+                'offset_days' => $project->start_date
                     ? $project->start_date->diffInDays($ms->due_date)
                     : 30,
                 'parent_index' => null,
@@ -237,9 +239,9 @@ class ProjectTemplateController extends Controller
             foreach ($ms->children as $child) {
                 $cidx = count($msTemplates);
                 $msTemplates[] = [
-                    'title'        => $child->title,
-                    'color'        => $child->color,
-                    'offset_days'  => $project->start_date
+                    'title' => $child->title,
+                    'color' => $child->color,
+                    'offset_days' => $project->start_date
                         ? $project->start_date->diffInDays($child->due_date)
                         : 30,
                     'parent_index' => $idx,
@@ -252,11 +254,11 @@ class ProjectTemplateController extends Controller
         $taskTemplates = [];
         foreach ($tasks as $task) {
             $taskTemplates[] = [
-                'title'           => $task->title,
-                'description'     => $task->description,
-                'priority'        => $task->priority,
+                'title' => $task->title,
+                'description' => $task->description,
+                'priority' => $task->priority,
                 'estimated_hours' => $task->estimated_hours,
-                'offset_days'     => $project->start_date && $task->due_date
+                'offset_days' => $project->start_date && $task->due_date
                     ? $project->start_date->diffInDays($task->due_date)
                     : 7,
                 'milestone_index' => $task->milestone_id
@@ -266,17 +268,17 @@ class ProjectTemplateController extends Controller
         }
 
         $template = ProjectTemplate::on('tenant')->create([
-            'name'                => $validated['name'],
-            'description'         => $validated['description'] ?? $project->description,
-            'color'               => $project->color,
-            'created_by'          => auth()->id(),
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? $project->description,
+            'color' => $project->color,
+            'created_by' => auth()->id(),
             'milestone_templates' => $msTemplates,
-            'task_templates'      => $taskTemplates,
+            'task_templates' => $taskTemplates,
         ]);
 
         $this->audit->log('template.from_project', auth()->user(), [
             'template_id' => $template->id,
-            'project_id'  => $project->id,
+            'project_id' => $project->id,
         ]);
 
         return redirect()

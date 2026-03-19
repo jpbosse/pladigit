@@ -42,7 +42,7 @@ class ProjectTemplate extends Model
     ];
 
     protected $casts = [
-        'task_templates'      => 'array',
+        'task_templates' => 'array',
         'milestone_templates' => 'array',
     ];
 
@@ -72,15 +72,13 @@ class ProjectTemplate extends Model
      * Applique ce template à un projet existant à partir d'une date de démarrage.
      * Crée les phases, jalons et tâches avec les dates calculées.
      *
-     * @param  Project  $project
-     * @param  \Carbon\Carbon  $startDate
      * @return array{milestones: int, tasks: int}
      */
     public function applyTo(Project $project, \Carbon\Carbon $startDate): array
     {
         $milestoneMap = []; // index template → id créé
-        $msCount      = 0;
-        $taskCount    = 0;
+        $msCount = 0;
+        $taskCount = 0;
 
         // 1. Créer les phases et jalons
         foreach ($this->milestone_templates ?? [] as $idx => $ms) {
@@ -93,11 +91,11 @@ class ProjectTemplate extends Model
 
             $created = ProjectMilestone::on('tenant')->create([
                 'project_id' => $project->id,
-                'parent_id'  => $parentId,
-                'title'      => $ms['title'],
-                'description'=> $ms['description'] ?? null,
-                'color'      => $ms['color'] ?? '#EA580C',
-                'due_date'   => $startDate->copy()->addDays($ms['offset_days'] ?? 30),
+                'parent_id' => $parentId,
+                'title' => $ms['title'],
+                'description' => $ms['description'] ?? null,
+                'color' => $ms['color'] ?? '#EA580C',
+                'due_date' => $startDate->copy()->addDays($ms['offset_days'] ?? 30),
                 'start_date' => isset($ms['start_offset_days'])
                     ? $startDate->copy()->addDays($ms['start_offset_days'])
                     : null,
@@ -116,16 +114,16 @@ class ProjectTemplate extends Model
             }
 
             Task::on('tenant')->create([
-                'project_id'      => $project->id,
-                'created_by'      => $project->created_by,
-                'milestone_id'    => $milestoneId,
-                'title'           => $task['title'],
-                'description'     => $task['description'] ?? null,
-                'status'          => 'todo',
-                'priority'        => $task['priority'] ?? 'medium',
-                'due_date'        => $startDate->copy()->addDays($task['offset_days'] ?? 7),
+                'project_id' => $project->id,
+                'created_by' => $project->created_by,
+                'milestone_id' => $milestoneId,
+                'title' => $task['title'],
+                'description' => $task['description'] ?? null,
+                'status' => 'todo',
+                'priority' => $task['priority'] ?? 'medium',
+                'due_date' => $startDate->copy()->addDays($task['offset_days'] ?? 7),
                 'estimated_hours' => $task['estimated_hours'] ?? null,
-                'sort_order'      => 0,
+                'sort_order' => 0,
             ]);
 
             $taskCount++;

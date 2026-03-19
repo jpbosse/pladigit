@@ -41,7 +41,7 @@ class MigratePhasesCommand extends Command
     public function handle(): int
     {
         $dryRun = $this->option('dry-run');
-        $slug   = $this->option('tenant');
+        $slug = $this->option('tenant');
 
         if ($dryRun) {
             $this->warn('⚠  Mode dry-run — aucune modification ne sera appliquée.');
@@ -54,6 +54,7 @@ class MigratePhasesCommand extends Command
             $query->where('slug', $slug);
             if ($query->doesntExist()) {
                 $this->error("Tenant « {$slug} » introuvable ou inactif.");
+
                 return Command::FAILURE;
             }
         }
@@ -63,7 +64,7 @@ class MigratePhasesCommand extends Command
         $this->newLine();
 
         $totalMilestones = 0;
-        $totalProjects   = 0;
+        $totalProjects = 0;
 
         foreach ($orgs as $org) {
             $this->tenantManager->connectTo($org);
@@ -92,8 +93,8 @@ class MigratePhasesCommand extends Command
                 $this->line("   📁 {$project->name} — {$milestones->count()} jalons/phases");
 
                 foreach ($milestones as $i => $ms) {
-                    $newOrder   = ($i + 1) * 10;
-                    $taskCount  = DB::connection('tenant')
+                    $newOrder = ($i + 1) * 10;
+                    $taskCount = DB::connection('tenant')
                         ->table('tasks')
                         ->where('milestone_id', $ms->id)
                         ->whereNull('deleted_at')

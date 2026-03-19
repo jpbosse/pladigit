@@ -73,13 +73,13 @@ class ProjectController extends Controller
         $this->authorize('create', Project::class);
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'status'      => ['required', 'in:active,on_hold,completed,archived'],
-            'start_date'  => ['nullable', 'date'],
-            'due_date'    => ['nullable', 'date', 'after_or_equal:start_date'],
-            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'is_private'  => ['sometimes', 'boolean'],
+            'status' => ['required', 'in:active,on_hold,completed,archived'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'is_private' => ['sometimes', 'boolean'],
         ]);
 
         /** @var User $user */
@@ -88,7 +88,7 @@ class ProjectController extends Controller
         $project = Project::create([
             ...$validated,
             'created_by' => $user->id,
-            'color'      => $validated['color'] ?? '#1E3A5F',
+            'color' => $validated['color'] ?? '#1E3A5F',
             'is_private' => $validated['is_private'] ?? false,
         ]);
 
@@ -181,16 +181,16 @@ class ProjectController extends Controller
                 }
                 $tasksByMilestone->push([
                     'milestone' => $milestone,
-                    'tasks'     => collect(), // les tâches sont dans les enfants
-                    'children'  => $phaseChildren,
+                    'tasks' => collect(), // les tâches sont dans les enfants
+                    'children' => $phaseChildren,
                 ]);
             } else {
                 // Jalon autonome (sans enfants) ou phase sans jalons rattachés
                 $milestoneTasks = $allRootTasks->where('milestone_id', $milestone->id)->values();
                 $tasksByMilestone->push([
                     'milestone' => $milestone,
-                    'tasks'     => $milestoneTasks,
-                    'children'  => collect(),
+                    'tasks' => $milestoneTasks,
+                    'children' => collect(),
                 ]);
             }
         }
@@ -200,8 +200,8 @@ class ProjectController extends Controller
         if ($unassignedTasks->isNotEmpty()) {
             $tasksByMilestone->push([
                 'milestone' => null,
-                'tasks'     => $unassignedTasks,
-                'children'  => collect(),
+                'tasks' => $unassignedTasks,
+                'children' => collect(),
             ]);
         }
 
@@ -237,13 +237,13 @@ class ProjectController extends Controller
         $this->authorize('update', $project);
 
         $validated = $request->validate([
-            'name'        => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'status'      => ['required', 'in:active,on_hold,completed,archived'],
-            'start_date'  => ['nullable', 'date'],
-            'due_date'    => ['nullable', 'date', 'after_or_equal:start_date'],
-            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'is_private'  => ['sometimes', 'boolean'],
+            'status' => ['required', 'in:active,on_hold,completed,archived'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:start_date'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'is_private' => ['sometimes', 'boolean'],
         ]);
 
         $project->update($validated);
@@ -282,7 +282,7 @@ class ProjectController extends Controller
             ->get();
 
         // ── KPIs globaux ────────────────────────────────────────────────
-        $totalProjects  = $projects->count();
+        $totalProjects = $projects->count();
         $activeProjects = $projects->where('status', 'active')->count();
         $onHoldProjects = $projects->where('status', 'on_hold')->count();
 
@@ -296,7 +296,7 @@ class ProjectController extends Controller
             ->limit(15)
             ->get();
 
-        $myUrgentTasks  = $myTasks->whereIn('priority', ['urgent', 'high'])->count();
+        $myUrgentTasks = $myTasks->whereIn('priority', ['urgent', 'high'])->count();
         $myOverdueTasks = $myTasks->filter(fn ($t) => $t->due_date && $t->due_date->isPast())->count();
 
         // ── Jalons à venir (30 jours) ───────────────────────────────────
@@ -318,10 +318,10 @@ class ProjectController extends Controller
 
         // ── Budget global (sur les projets visibles) ────────────────────
         $projectIds = $projects->pluck('id');
-        $budgetPlanned   = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_planned');
+        $budgetPlanned = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_planned');
         $budgetCommitted = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_committed');
-        $budgetPaid      = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_paid');
-        $budgetPct       = $budgetPlanned > 0 ? round($budgetCommitted / $budgetPlanned * 100) : 0;
+        $budgetPaid = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_paid');
+        $budgetPct = $budgetPlanned > 0 ? round($budgetCommitted / $budgetPlanned * 100) : 0;
 
         // ── Risques critiques actifs ────────────────────────────────────
         $criticalRisks = \App\Models\Tenant\ProjectRisk::on('tenant')
@@ -382,13 +382,13 @@ class ProjectController extends Controller
         $this->authorize('view', $project);
 
         $validated = $request->validate([
-            'name'       => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'start_date' => ['nullable', 'date'],
-            'status'     => ['sometimes', 'in:draft,active'],
+            'status' => ['sometimes', 'in:draft,active'],
         ]);
 
         /** @var \App\Models\Tenant\User $user */
-        $user      = auth()->user();
+        $user = auth()->user();
         $startDate = isset($validated['start_date'])
             ? \Carbon\Carbon::parse($validated['start_date'])
             : now();
@@ -400,21 +400,21 @@ class ProjectController extends Controller
 
         // 1. Créer le projet
         $newProject = Project::create([
-            'created_by'  => $user->id,
-            'name'        => $validated['name'],
+            'created_by' => $user->id,
+            'name' => $validated['name'],
             'description' => $project->description,
-            'status'      => $validated['status'] ?? 'draft',
-            'start_date'  => $startDate,
-            'due_date'    => $project->due_date?->copy()->addDays($offset),
-            'color'       => $project->color,
-            'is_private'  => $project->is_private,
+            'status' => $validated['status'] ?? 'draft',
+            'start_date' => $startDate,
+            'due_date' => $project->due_date?->copy()->addDays($offset),
+            'color' => $project->color,
+            'is_private' => $project->is_private,
         ]);
 
         // 2. Owner
         ProjectMember::create([
             'project_id' => $newProject->id,
-            'user_id'    => $user->id,
-            'role'       => \App\Enums\ProjectRole::OWNER->value,
+            'user_id' => $user->id,
+            'role' => \App\Enums\ProjectRole::OWNER->value,
         ]);
 
         // 3. Phases & jalons (deux passes)
@@ -424,10 +424,10 @@ class ProjectController extends Controller
         foreach ($project->milestones as $ms) {
             $newMs = \App\Models\Tenant\ProjectMilestone::on('tenant')->create([
                 'project_id' => $newProject->id,
-                'parent_id'  => null,
-                'title'      => $ms->title,
-                'color'      => $ms->color,
-                'due_date'   => $ms->due_date ? $ms->due_date->copy()->addDays($offset) : null,
+                'parent_id' => null,
+                'title' => $ms->title,
+                'color' => $ms->color,
+                'due_date' => $ms->due_date ? $ms->due_date->copy()->addDays($offset) : null,
                 'start_date' => $ms->start_date ? $ms->start_date->copy()->addDays($offset) : null,
                 'sort_order' => $ms->sort_order,
             ]);
@@ -436,10 +436,10 @@ class ProjectController extends Controller
             foreach ($ms->children as $child) {
                 $newChild = \App\Models\Tenant\ProjectMilestone::on('tenant')->create([
                     'project_id' => $newProject->id,
-                    'parent_id'  => $newMs->id,
-                    'title'      => $child->title,
-                    'color'      => $child->color,
-                    'due_date'   => $child->due_date ? $child->due_date->copy()->addDays($offset) : null,
+                    'parent_id' => $newMs->id,
+                    'title' => $child->title,
+                    'color' => $child->color,
+                    'due_date' => $child->due_date ? $child->due_date->copy()->addDays($offset) : null,
                     'start_date' => $child->start_date ? $child->start_date->copy()->addDays($offset) : null,
                     'sort_order' => $child->sort_order,
                 ]);
@@ -458,43 +458,43 @@ class ProjectController extends Controller
 
         foreach ($srcTasks->whereNull('parent_task_id') as $task) {
             $newTask = \App\Models\Tenant\Task::on('tenant')->create([
-                'project_id'      => $newProject->id,
-                'created_by'      => $user->id,
-                'milestone_id'    => $task->milestone_id ? ($milestoneMap[$task->milestone_id] ?? null) : null,
-                'title'           => $task->title,
-                'description'     => $task->description,
-                'status'          => 'todo',
-                'priority'        => $task->priority,
-                'due_date'        => $task->due_date?->copy()->addDays($offset),
-                'start_date'      => $task->start_date?->copy()->addDays($offset),
+                'project_id' => $newProject->id,
+                'created_by' => $user->id,
+                'milestone_id' => $task->milestone_id ? ($milestoneMap[$task->milestone_id] ?? null) : null,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => 'todo',
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->copy()->addDays($offset),
+                'start_date' => $task->start_date?->copy()->addDays($offset),
                 'estimated_hours' => $task->estimated_hours,
-                'sort_order'      => $task->sort_order,
+                'sort_order' => $task->sort_order,
             ]);
             $taskMap[$task->id] = $newTask->id;
         }
 
         foreach ($srcTasks->whereNotNull('parent_task_id') as $task) {
             $newTask = \App\Models\Tenant\Task::on('tenant')->create([
-                'project_id'      => $newProject->id,
-                'created_by'      => $user->id,
-                'parent_task_id'  => $taskMap[$task->parent_task_id] ?? null,
-                'milestone_id'    => $task->milestone_id ? ($milestoneMap[$task->milestone_id] ?? null) : null,
-                'title'           => $task->title,
-                'description'     => $task->description,
-                'status'          => 'todo',
-                'priority'        => $task->priority,
-                'due_date'        => $task->due_date?->copy()->addDays($offset),
-                'start_date'      => $task->start_date?->copy()->addDays($offset),
+                'project_id' => $newProject->id,
+                'created_by' => $user->id,
+                'parent_task_id' => $taskMap[$task->parent_task_id] ?? null,
+                'milestone_id' => $task->milestone_id ? ($milestoneMap[$task->milestone_id] ?? null) : null,
+                'title' => $task->title,
+                'description' => $task->description,
+                'status' => 'todo',
+                'priority' => $task->priority,
+                'due_date' => $task->due_date?->copy()->addDays($offset),
+                'start_date' => $task->start_date?->copy()->addDays($offset),
                 'estimated_hours' => $task->estimated_hours,
-                'sort_order'      => $task->sort_order,
+                'sort_order' => $task->sort_order,
             ]);
             $taskMap[$task->id] = $newTask->id;
         }
 
         $this->audit->log('project.duplicated', auth()->user(), [
-            'source_id'  => $project->id,
-            'new_id'     => $newProject->id,
-            'new_name'   => $newProject->name,
+            'source_id' => $project->id,
+            'new_id' => $newProject->id,
+            'new_name' => $newProject->name,
         ]);
 
         return redirect()
@@ -572,12 +572,12 @@ class ProjectController extends Controller
             'observations.user',
         ]);
 
-        $taskStats        = $project->taskStats();
-        $progression      = $project->progressionPercent();
-        $budgetSummary    = $project->budgetSummary();
-        $activeRisks      = $project->activeRisks();
+        $taskStats = $project->taskStats();
+        $progression = $project->progressionPercent();
+        $budgetSummary = $project->budgetSummary();
+        $activeRisks = $project->activeRisks();
         $criticalRisksCount = $activeRisks->filter(fn ($r) => $r->criticality() === 'critique')->count();
-        $budgetAlerts     = $project->budgets->filter(fn ($b) => $b->variance() > 0)->values();
+        $budgetAlerts = $project->budgets->filter(fn ($b) => $b->variance() > 0)->values();
 
         $data = compact(
             'project', 'taskStats', 'progression',
@@ -616,15 +616,15 @@ class ProjectController extends Controller
             'observations.user',
         ]);
 
-        $taskStats        = $project->taskStats();
-        $progression      = $project->progressionPercent();
-        $budgetSummary    = $project->budgetSummary();
-        $activeRisks      = $project->activeRisks();
+        $taskStats = $project->taskStats();
+        $progression = $project->progressionPercent();
+        $budgetSummary = $project->budgetSummary();
+        $activeRisks = $project->activeRisks();
         $criticalRisksCount = $activeRisks->filter(fn ($r) => $r->criticality() === 'critique')->count();
-        $budgetAlerts     = $project->budgets->filter(fn ($b) => $b->variance() > 0)->values();
+        $budgetAlerts = $project->budgets->filter(fn ($b) => $b->variance() > 0)->values();
 
-        $slug    = \Illuminate\Support\Str::slug($project->name);
-        $tmpDir  = storage_path("app/private/tmp/zip_exports/{$slug}_" . time());
+        $slug = \Illuminate\Support\Str::slug($project->name);
+        $tmpDir = storage_path("app/private/tmp/zip_exports/{$slug}_".time());
         mkdir($tmpDir, 0775, true);
 
         try {
@@ -693,7 +693,7 @@ class ProjectController extends Controller
 
             // 5. Créer le ZIP
             $zipPath = storage_path("app/private/tmp/rapport-{$slug}.zip");
-            $zip = new \ZipArchive();
+            $zip = new \ZipArchive;
             $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
 
             foreach (glob("{$tmpDir}/*") as $file) {
@@ -714,8 +714,8 @@ class ProjectController extends Controller
                 rmdir($tmpDir);
             }
             \Illuminate\Support\Facades\Log::error('exportZip failed', ['error' => $e->getMessage(), 'project_id' => $project->id]);
+
             return back()->with('error', 'Erreur lors de la génération du ZIP : '.$e->getMessage());
         }
     }
 }
-
