@@ -133,7 +133,7 @@ if (!$nextActiveGroupId) {
     }
 @endphp
 
-<div x-data="{ open: {{ $isDefaultOpen ? 'true' : 'false' }} }"
+<div x-data="{ open: false }"
      style="margin-top:10px;border:0.5px solid {{ $headerBdr }};border-radius:10px;overflow:hidden;background:{{ $isReached ? '#F0FDF4' : 'var(--pd-surface)' }};">
 
     {{-- En-tête du groupe --}}
@@ -207,7 +207,7 @@ if (!$nextActiveGroupId) {
             $childColor = $childMs->color ?? ($milestone->color ?? '#EA580C');
         @endphp
         <div style="margin-bottom:10px;border:0.5px solid var(--pd-border);border-radius:8px;overflow:hidden;"
-             x-data="{ childOpen: {{ !$childReach ? 'true' : 'false' }} }">
+             x-data="{ childOpen: false }">
             {{-- En-tête jalon enfant --}}
             <div @click="childOpen=!childOpen"
                  style="display:flex;align-items:center;gap:8px;padding:7px 10px;cursor:pointer;
@@ -247,6 +247,8 @@ if (!$nextActiveGroupId) {
                                  data-task-id="{{ $task->id }}" data-status="{{ $status }}"
                                  @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
                                  @dragend="onDragEnd()"
+                                 @dragover.prevent="onCardDragOver($event, $el)"
+                                 @drop.prevent.stop="onCardDrop($event, {{ $task->id }}, '{{ $status }}', $el)"
                                  @click="openTask({{ $task->id }})"
                                  @if($status === 'done') x-show="showDone" @endif
                                  style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:7px;padding:8px 9px;cursor:grab;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
@@ -320,6 +322,8 @@ if (!$nextActiveGroupId) {
                          data-status="{{ $status }}"
                          @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
                          @dragend="onDragEnd()"
+                         @dragover.prevent="onCardDragOver($event, $el)"
+                         @drop.prevent.stop="onCardDrop($event, {{ $task->id }}, '{{ $status }}', $el)"
                          @click="openTask({{ $task->id }})"
                          @if($status === 'done') x-show="showDone" @endif
                          style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:8px;padding:9px 10px;cursor:grab;transition:box-shadow .12s,opacity .15s;{{ $status === 'done' ? 'opacity:.55;' : '' }}">
@@ -410,7 +414,11 @@ function kanban() {
         onDragEnd() {
             this.dragging = null;
             this.draggingStatus = null;
-            document.querySelectorAll('.pd-kanban-card').forEach(c => c.style.opacity = '');
+            document.querySelectorAll('.pd-kanban-card').forEach(c => {
+                c.style.opacity = '';
+                c.style.borderTop = '';
+                c.style.borderBottom = '';
+            });
         },
 
         onDragOver(e, status) {
@@ -424,23 +432,126 @@ function kanban() {
             }
         },
 
+        // Drag over une carte — indicateur visuel de position
+        onCardDragOver(e, cardEl) {
+            e.preventDefault();
+            e.stopPropagation();
+            const rect   = cardEl.getBoundingClientRect();
+            const isTop  = e.clientY < rect.top + rect.height / 2;
+            document.querySelectorAll('.pd-kanban-card').forEach(c => {
+                c.style.borderTop    = '';
+                c.style.borderBottom = '';
+            });
+            if (isTop) {
+                cardEl.style.borderTop    = '2px solid var(--pd-navy)';
+                cardEl.style.borderBottom = '';
+            } else {
+                cardEl.style.borderBottom = '2px solid var(--pd-navy)';
+                cardEl.style.borderTop    = '';
+            }
+        },
+
+        // Drop sur une carte — insertion avant ou après
+        onCardDrop(e, targetTaskId, targetStatus, cardEl) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.dragOver = null;
+
+            const taskId = parseInt(e.dataTransfer.getData('text/plain'));
+            if (!taskId || taskId === targetTaskId) return;
+
+            // Réinitialiser les bordures
+            document.querySelectorAll('.pd-kanban-card').forEach(c => {
+                c.style.borderTop = '';
+                c.style.borderBottom = '';
+            });
+
+            const rect    = cardEl.getBoundingClientRect();
+            const isTop   = e.clientY < rect.top + rect.height / 2;
+            const colEl   = cardEl.closest('[data-col]');
+            const container = colEl ? colEl.querySelector('.pd-kanban-cards') : null;
+
+            // Construire l'ordre final
+            let orderedIds = [];
+            if (container) {
+                container.querySelectorAll('.pd-kanban-card').forEach(c => {
+                    const id = parseInt(c.dataset.taskId);
+                    if (id !== taskId) orderedIds.push(id);
+                });
+            }
+
+            // Insérer à la bonne position
+            const insertIdx = orderedIds.indexOf(targetTaskId);
+            if (isTop) {
+                orderedIds.splice(insertIdx, 0, taskId);
+            } else {
+                orderedIds.splice(insertIdx + 1, 0, taskId);
+            }
+
+            const sortOrder = orderedIds.indexOf(taskId);
+
+            // Mettre à jour le DOM immédiatement
+            if (container) {
+                const draggingCard = document.querySelector(`[data-task-id="${taskId}"]`);
+                if (draggingCard) {
+                    draggingCard.dataset.status = targetStatus;
+                    if (isTop) {
+                        container.insertBefore(draggingCard, cardEl);
+                    } else {
+                        cardEl.after(draggingCard);
+                    }
+                }
+            }
+
+            this.patchMove(taskId, targetStatus, sortOrder, orderedIds, colEl);
+        },
+
         onDrop(e, newStatus) {
             e.preventDefault();
             this.dragOver = null;
             const taskId = parseInt(e.dataTransfer.getData('text/plain'));
-            if (!taskId || this.draggingStatus === newStatus) return;
+            if (!taskId) return;
 
+            // Réinitialiser les bordures
+            document.querySelectorAll('.pd-kanban-card').forEach(c => {
+                c.style.borderTop = '';
+                c.style.borderBottom = '';
+            });
+
+            const dropTarget = e.currentTarget;
+
+            // Si même colonne et drop sur la colonne (pas sur une carte) → fin de liste
             let orderedIds = [];
-            document.querySelectorAll(`[data-col="${newStatus}"] .pd-kanban-card`).forEach(c => {
+            dropTarget.querySelectorAll('.pd-kanban-card').forEach(c => {
                 const id = parseInt(c.dataset.taskId);
                 if (id !== taskId) orderedIds.push(id);
             });
             orderedIds.push(taskId);
 
-            this.patchMove(taskId, newStatus, orderedIds.length - 1, orderedIds);
+            const sortOrder = orderedIds.length - 1;
+
+            // Mettre à jour le DOM immédiatement
+            const card = document.querySelector(`[data-task-id="${taskId}"]`);
+            if (card) {
+                card.dataset.status = newStatus;
+                const cardsContainer = dropTarget.querySelector('.pd-kanban-cards');
+                if (cardsContainer) cardsContainer.appendChild(card);
+            }
+
+            this.patchMove(taskId, newStatus, sortOrder, orderedIds, dropTarget);
         },
 
-        patchMove(taskId, newStatus, sortOrder, orderedIds) {
+            let orderedIds = [];
+            dropTarget.querySelectorAll('.pd-kanban-card').forEach(c => {
+                const id = parseInt(c.dataset.taskId);
+                if (id !== taskId) orderedIds.push(id);
+            });
+            orderedIds.push(taskId);
+
+            this.patchMove(taskId, newStatus, orderedIds.length - 1, orderedIds, dropTarget);
+        },
+
+        patchMove(taskId, newStatus, sortOrder, orderedIds, targetColEl) {
             fetch(`{{ route('projects.kanban.move', $project) }}`, {
                 method: 'PATCH',
                 headers: {
@@ -454,10 +565,12 @@ function kanban() {
             .then(data => {
                 if (data.success) {
                     const card = document.querySelector(`[data-task-id="${taskId}"]`);
-                    if (card) {
+                    if (card && targetColEl) {
                         card.dataset.status = newStatus;
-                        const targetCol = document.querySelector(`[data-col="${newStatus}"] .pd-kanban-cards`);
-                        if (targetCol) targetCol.appendChild(card);
+                        const cardsContainer = targetColEl.querySelector('.pd-kanban-cards');
+                        if (cardsContainer) {
+                            cardsContainer.appendChild(card);
+                        }
                     }
                 }
             })
@@ -473,4 +586,121 @@ function kanban() {
         },
     };
 }
+</script>
+
+<script>
+// ── Réordonnancement interne Kanban — JS natif (indépendant d'Alpine) ──────────
+(function () {
+    let draggingId   = null;
+    let draggingCard = null;
+
+    function getCards() {
+        return document.querySelectorAll('.pd-kanban-card');
+    }
+
+    function clearIndicators() {
+        document.querySelectorAll('.pd-kanban-card').forEach(c => {
+            c.style.borderTop    = '';
+            c.style.borderBottom = '';
+            c.style.marginTop    = '';
+            c.style.marginBottom = '';
+        });
+    }
+
+    function attachEvents() {
+        getCards().forEach(card => {
+            if (card.dataset.sortBound) return;
+            card.dataset.sortBound = '1';
+
+            card.addEventListener('dragover', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!draggingId || parseInt(this.dataset.taskId) === draggingId) return;
+                clearIndicators();
+                const rect  = this.getBoundingClientRect();
+                const isTop = e.clientY < rect.top + rect.height / 2;
+                this.style.borderTop    = isTop  ? '2px solid #1E3A5F' : '';
+                this.style.borderBottom = !isTop ? '2px solid #1E3A5F' : '';
+            });
+
+            card.addEventListener('drop', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                clearIndicators();
+
+                const targetId = parseInt(this.dataset.taskId);
+                if (!draggingId || draggingId === targetId) return;
+
+                const rect    = this.getBoundingClientRect();
+                const isTop   = e.clientY < rect.top + rect.height / 2;
+                const colEl   = this.closest('[data-col]');
+                const container = colEl ? colEl.querySelector('.pd-kanban-cards') : null;
+
+                if (!container || !draggingCard) return;
+
+                // Déplacer dans le DOM
+                if (isTop) {
+                    container.insertBefore(draggingCard, this);
+                } else {
+                    this.after(draggingCard);
+                }
+
+                // Construire le nouvel ordre
+                const newStatus = colEl.dataset.col;
+                draggingCard.dataset.status = newStatus;
+
+                const orderedIds = [];
+                container.querySelectorAll('.pd-kanban-card').forEach(c => {
+                    orderedIds.push(parseInt(c.dataset.taskId));
+                });
+
+                const sortOrder = orderedIds.indexOf(draggingId);
+
+                // PATCH vers le serveur
+                fetch('{{ route('projects.kanban.move', $project) }}', {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        task_id:     draggingId,
+                        new_status:  newStatus,
+                        sort_order:  sortOrder,
+                        ordered_ids: orderedIds,
+                    }),
+                })
+                .then(r => r.json())
+                .then(data => { if (!data.success) console.error('Kanban sort error', data); })
+                .catch(err => console.error('Kanban sort error:', err));
+            });
+        });
+    }
+
+    // Intercepter dragstart sur toutes les cartes pour mémoriser la carte active
+    document.addEventListener('dragstart', function (e) {
+        const card = e.target.closest('.pd-kanban-card');
+        if (!card) return;
+        draggingId   = parseInt(card.dataset.taskId);
+        draggingCard = card;
+    });
+
+    document.addEventListener('dragend', function () {
+        clearIndicators();
+        draggingId   = null;
+        draggingCard = null;
+    });
+
+    // Attacher au chargement + après chaque rechargement de section Alpine
+    document.addEventListener('DOMContentLoaded', attachEvents);
+    // Ré-attacher si Alpine met à jour le DOM (sections dépliées)
+    document.addEventListener('alpine:initialized', attachEvents);
+    // Ré-attacher après une mutation DOM (ouverture jalons)
+    const observer = new MutationObserver(attachEvents);
+    document.addEventListener('DOMContentLoaded', function () {
+        const kanban = document.querySelector('[x-data="kanban()"]') || document.body;
+        observer.observe(kanban, { childList: true, subtree: true });
+    });
+})();
 </script>
