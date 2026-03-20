@@ -172,6 +172,7 @@ class ProjectMilestoneController extends Controller
             'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'reached' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
+            'comment' => ['nullable', 'string', 'max:2000'],
         ]);
 
         // Vérifier que la nouvelle due_date ne coupe pas des tâches existantes

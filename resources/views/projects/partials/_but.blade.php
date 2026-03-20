@@ -205,6 +205,35 @@
                     <div style="height:100%;width:{{ $cpct }}%;background:{{ $cc }};border-radius:2px;"></div>
                 </div>
                 @endif
+                {{-- Commentaire jalon atteint ou en retard --}}
+                @if($creach || $clate)
+                <div style="margin-top:6px;" x-data="{ editing: false }">
+                    @if($child->comment && !$canManage)
+                    <div style="font-size:11px;color:var(--pd-muted);font-style:italic;padding:4px 0;">💬 {{ $child->comment }}</div>
+                    @elseif($canManage)
+                    <div x-show="!editing" style="display:flex;align-items:center;gap:6px;cursor:pointer;" @click="editing=true">
+                        @if($child->comment)
+                        <div style="font-size:11px;color:var(--pd-muted);font-style:italic;flex:1;">💬 {{ $child->comment }}</div>
+                        <span style="font-size:10px;color:var(--pd-muted);">✏️</span>
+                        @else
+                        <span style="font-size:10px;color:var(--pd-muted);border:0.5px dashed var(--pd-border);border-radius:4px;padding:2px 7px;">+ Ajouter un commentaire</span>
+                        @endif
+                    </div>
+                    <div x-show="editing" x-cloak>
+                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $child]) }}" style="display:flex;gap:6px;align-items:flex-end;margin-top:2px;">
+                            @csrf @method('PATCH')
+                            <textarea name="comment" rows="2"
+                                      style="flex:1;font-size:11px;padding:5px 8px;border:0.5px solid var(--pd-border);border-radius:6px;background:var(--pd-surface);color:var(--pd-text);resize:none;font-family:inherit;"
+                                      placeholder="Note sur ce jalon…">{{ $child->comment }}</textarea>
+                            <div style="display:flex;flex-direction:column;gap:4px;">
+                                <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✓</button>
+                                <button type="button" @click="editing=false" class="pd-btn pd-btn-secondary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✕</button>
+                            </div>
+                        </form>
+                    </div>
+                    @endif
+                </div>
+                @endif
             </div>
         </div>
         @endforeach
@@ -255,6 +284,35 @@
             <div class="bbar-wrap" style="margin-top:4px;">
                 <div class="bbar-fill" style="width:{{ $pct }}%;background:{{ $msColor }};"></div>
             </div>
+            {{-- Commentaire jalon atteint ou en retard --}}
+            @if($reached || $late)
+            <div style="margin-top:6px;" x-data="{ editing: false }">
+                @if($ms->comment && !$canManage)
+                <div style="font-size:11px;color:var(--pd-muted);font-style:italic;padding:4px 0;">💬 {{ $ms->comment }}</div>
+                @elseif($canManage)
+                <div x-show="!editing" style="display:flex;align-items:center;gap:6px;cursor:pointer;" @click="editing=true">
+                    @if($ms->comment)
+                    <div style="font-size:11px;color:var(--pd-muted);font-style:italic;flex:1;">💬 {{ $ms->comment }}</div>
+                    <span style="font-size:10px;color:var(--pd-muted);">✏️</span>
+                    @else
+                    <span style="font-size:10px;color:var(--pd-muted);border:0.5px dashed var(--pd-border);border-radius:4px;padding:2px 7px;">+ Ajouter un commentaire</span>
+                    @endif
+                </div>
+                <div x-show="editing" x-cloak>
+                    <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:flex;gap:6px;align-items:flex-end;margin-top:2px;">
+                        @csrf @method('PATCH')
+                        <textarea name="comment" rows="2"
+                                  style="flex:1;font-size:11px;padding:5px 8px;border:0.5px solid var(--pd-border);border-radius:6px;background:var(--pd-surface);color:var(--pd-text);resize:none;font-family:inherit;"
+                                  placeholder="Note sur ce jalon…">{{ $ms->comment }}</textarea>
+                        <div style="display:flex;flex-direction:column;gap:4px;">
+                            <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✓</button>
+                            <button type="button" @click="editing=false" class="pd-btn pd-btn-secondary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✕</button>
+                        </div>
+                    </form>
+                </div>
+                @endif
+            </div>
+            @endif
         </div>
         <span style="font-size:11px;color:var(--pd-muted);min-width:28px;text-align:right;">{{ $pct }}%</span>
     </div>

@@ -178,15 +178,26 @@
 
 @if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
     <a href="{{ route('projects.index') }}"
-       class="pd-nav-item {{ str_starts_with($route, 'projects.') ? 'active' : '' }}">
-        <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24">
-            <rect x="3" y="3" width="7" height="7"/>
-            <rect x="14" y="3" width="7" height="7"/>
-            <rect x="14" y="14" width="7" height="7"/>
-            <rect x="3" y="14" width="7" height="7"/>
+       class="pd-nav-item {{ str_starts_with($route, 'projects.') ? 'active' : '' }}"
+       style="position:relative;">
+        <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="4" rx="1.5"/>
+            <rect x="3" y="10" width="13" height="4" rx="1.5"/>
+            <rect x="3" y="17" width="16" height="4" rx="1.5"/>
         </svg></span>
         <span class="pd-nav-label">Projets</span>
         <span class="pd-nav-tip">Projets</span>
+        @php
+            $alertCount = 0;
+            try {
+                $alertCount = \App\Models\Tenant\Project::on('tenant')
+                    ->whereIn('status', ['delayed', 'at_risk'])
+                    ->count();
+            } catch (\Throwable) {}
+        @endphp
+        @if($alertCount > 0)
+        <span style="position:absolute;top:6px;right:6px;min-width:16px;height:16px;background:#DC2626;color:#fff;border-radius:8px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--pd-surface);">{{ $alertCount > 9 ? '9+' : $alertCount }}</span>
+        @endif
     </a>
     @endif
 

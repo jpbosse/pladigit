@@ -1567,3 +1567,67 @@ input[type="number"].pd-input::-webkit-outer-spin-button {
     .pd-modal       { border-radius: 16px 16px 0 0; align-self: flex-end; max-height: 88vh; }
     .pd-slideover-panel { width: 100%; }
 }
+
+/* ── Agenda calendrier ─────────────────────────────────────── */
+.pd-cal-toggle {
+    display: flex;
+    gap: 6px;
+}
+.pd-cal-toggle-btn {
+    padding: 5px 14px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 0.5px solid var(--pd-border);
+    border-radius: 8px;
+    background: var(--pd-surface);
+    color: var(--pd-muted);
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+    font-family: 'DM Sans', system-ui, sans-serif;
+}
+.pd-cal-toggle-btn.active,
+.pd-cal-toggle-btn[aria-pressed="true"] {
+    background: var(--pd-surface);
+    color: var(--pd-navy);
+    border-color: var(--pd-navy);
+    font-weight: 700;
+}
+.pd-cal-cell {
+    min-height: 100px;
+    max-height: 120px;
+    padding: 5px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--pd-surface);
+}
+.pd-cal-cell.today { background: rgba(30,58,95,0.04); }
+.pd-cal-ev {
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 3px;
+    cursor: pointer;
+    margin-left: 1px;
+    margin-right: 1px;
+}
+.pd-cal-ev-bar { height: 2px; }
+.pd-cal-ev-body { padding: 2px 5px 3px; }
+.pd-cal-ms {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 5px;
+    border-radius: 5px;
+    border: 0.5px solid;
+    overflow: hidden;
+    margin-bottom: 3px;
+    margin-left: 1px;
+    margin-right: 1px;
+}
+.pd-cal-ms-title {
+    font-size: 10px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
