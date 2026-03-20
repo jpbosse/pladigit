@@ -53,6 +53,12 @@ foreach ($milestones as $ms) {
         @endif
     </div>
     <div style="display:flex;gap:8px;">
+        <button onclick="startVisio({{ $project->id }})"
+                class="pd-btn pd-btn-sm"
+                style="background:#0891B2;color:#fff;border:none;"
+                title="Démarrer une visioconférence Jitsi">
+            📹 Visio
+        </button>
         <a href="{{ route('projects.export.ical', $project) }}"
            class="pd-btn pd-btn-sm pd-btn-secondary">Exporter iCal</a>
         @if($canEdit)

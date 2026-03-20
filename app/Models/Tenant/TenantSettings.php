@@ -78,6 +78,8 @@ class TenantSettings extends Model
         'nas_ged_share',
         'nas_ged_root_path',
         'nas_ged_sync_interval_minutes',
+        // Visioconférence
+        'jitsi_base_url',
         'nas_ged_last_sync_at',
         // Timestamp
         'updated_at',
