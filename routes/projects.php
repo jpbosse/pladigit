@@ -59,6 +59,7 @@ Route::prefix('projects')
 
         // Duplication
         Route::post('/{project}/duplicate', [ProjectController::class, 'duplicate'])->name('duplicate');
+        Route::get('/{project}/visio', [ProjectController::class, 'visio'])->name('visio');
 
         // Créer un template depuis un projet existant
         Route::post('/{project}/save-as-template', [ProjectTemplateController::class, 'fromProject'])->name('save_as_template');

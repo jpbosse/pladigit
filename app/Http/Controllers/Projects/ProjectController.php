@@ -377,6 +377,16 @@ class ProjectController extends Controller
      * Duplique un projet — copie la structure (phases, jalons, tâches) sans les données métier
      * (pas de budget, risques, observations — repartir d'une base propre).
      */
+    public function visio(Project $project)
+    {
+        $this->authorize('view', $project);
+
+        $slug = \Illuminate\Support\Str::slug($project->name);
+        $url = app(\App\Services\JitsiService::class)->roomUrl($slug);
+
+        return response()->json(['url' => $url]);
+    }
+
     public function duplicate(Request $request, Project $project)
     {
         $this->authorize('view', $project);

@@ -75,10 +75,17 @@ $canEdit   = $userRole?->canEdit() || $canManage;
             <div style="width:10px;height:10px;border-radius:50%;background:{{ $project->color }};flex-shrink:0;"></div>
             <div class="sn-proj-name">{{ $project->name }}</div>
         </div>
-        <span class="pd-badge" style="background:{{ \App\Models\Tenant\Project::statusColors()[$project->status]['bg'] }};color:{{ \App\Models\Tenant\Project::statusColors()[$project->status]['text'] }};">
-            {{ \App\Models\Tenant\Project::statusLabels()[$project->status] }}
-        </span>
-        <span style="font-size:11px;color:var(--pd-muted);margin-left:6px;">{{ $progression }}%</span>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+            <span class="pd-badge" style="background:{{ \App\Models\Tenant\Project::statusColors()[$project->status]['bg'] }};color:{{ \App\Models\Tenant\Project::statusColors()[$project->status]['text'] }};">
+                {{ \App\Models\Tenant\Project::statusLabels()[$project->status] }}
+            </span>
+            <span style="font-size:11px;color:var(--pd-muted);">{{ $progression }}%</span>
+            <button onclick="startVisio({{ $project->id }})"
+                    title="Démarrer une visioconférence Jitsi"
+                    style="margin-left:auto;display:flex;align-items:center;gap:4px;padding:4px 8px;font-size:11px;font-weight:600;background:#0891B2;color:#fff;border:none;border-radius:6px;cursor:pointer;white-space:nowrap;">
+                📹 Visio
+            </button>
+        </div>
     </div>
 
     <div class="sn-section">
@@ -154,4 +161,86 @@ $canEdit   = $userRole?->canEdit() || $canManage;
 </div>
 
 </div>
+
+{{-- ── Modal Visio ── --}}
+<div id="visio-modal" style="display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div style="background:var(--pd-surface);border-radius:14px;padding:0;width:440px;max-width:95vw;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="background:#0891B2;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+                <div style="font-size:15px;font-weight:700;color:#fff;">📹 Visioconférence Jitsi</div>
+                <div style="font-size:11px;color:rgba(255,255,255,.75);margin-top:2px;">meet.numerique.gouv.fr — RGPD · Open Source</div>
+            </div>
+            <button onclick="closeVisio()" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:22px;line-height:1;">×</button>
+        </div>
+        <div style="padding:20px;">
+            <div style="font-size:12px;color:var(--pd-muted);margin-bottom:8px;">Lien de la salle :</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <input id="visio-url" type="text" readonly
+                       style="flex:1;padding:8px 12px;border:0.5px solid var(--pd-border);border-radius:8px;font-size:12px;background:var(--pd-bg);color:var(--pd-text);font-family:monospace;">
+                <button onclick="copyVisioUrl()" id="visio-copy-btn"
+                        style="padding:8px 14px;background:var(--pd-navy);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap;">
+                    Copier
+                </button>
+            </div>
+            <div style="font-size:11px;color:var(--pd-muted);margin-top:8px;">
+                Partagez ce lien avec les participants. Chaque clic sur "Visio" génère une nouvelle salle.
+            </div>
+        </div>
+        <div style="padding:0 20px 20px;display:flex;gap:8px;justify-content:flex-end;">
+            <button onclick="closeVisio()" class="pd-btn pd-btn-secondary pd-btn-sm">Fermer</button>
+            <a id="visio-open-btn" href="#" target="_blank" rel="noopener"
+               class="pd-btn pd-btn-primary pd-btn-sm">
+                Rejoindre →
+            </a>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+<script>
+function startVisio(projectId) {
+    const modal = document.getElementById('visio-modal');
+    const urlInput = document.getElementById('visio-url');
+    const openBtn = document.getElementById('visio-open-btn');
+
+    // Afficher le modal avec un état de chargement
+    urlInput.value = 'Génération en cours…';
+    modal.style.display = 'flex';
+
+    fetch(`{{ url('projects') }}/${projectId}/visio`, {
+        headers: {
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        urlInput.value = data.url;
+        openBtn.href = data.url;
+    })
+    .catch(() => {
+        urlInput.value = 'Erreur — réessayez';
+    });
+}
+
+function closeVisio() {
+    document.getElementById('visio-modal').style.display = 'none';
+}
+
+function copyVisioUrl() {
+    const url = document.getElementById('visio-url').value;
+    navigator.clipboard.writeText(url).then(() => {
+        const btn = document.getElementById('visio-copy-btn');
+        btn.textContent = '✓ Copié';
+        setTimeout(() => btn.textContent = 'Copier', 2000);
+    });
+}
+
+// Fermer au clic en dehors
+document.getElementById('visio-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeVisio();
+});
+</script>
+@endpush
+
 @endsection

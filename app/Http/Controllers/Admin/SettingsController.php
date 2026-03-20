@@ -330,4 +330,23 @@ class SettingsController extends Controller
             ], 500);
         }
     }
+
+    public function visio()
+    {
+        $settings = \App\Models\Tenant\TenantSettings::on('tenant')->firstOrCreate([]);
+
+        return view('admin.settings.visio', compact('settings'));
+    }
+
+    public function updateVisio(Request $request)
+    {
+        $validated = $request->validate([
+            'jitsi_base_url' => ['required', 'url', 'max:255'],
+        ]);
+
+        $settings = \App\Models\Tenant\TenantSettings::on('tenant')->firstOrCreate([]);
+        $settings->update($validated);
+
+        return back()->with('success', 'Paramètres visio enregistrés.');
+    }
 }
