@@ -4,10 +4,20 @@
      JS  : openStorage() / closeStorage() dans app.blade.php
 --}}
 @php
+    $storageByModule      = $storageByModule ?? [];
+    $storageQuotaMb       = $storageQuotaMb ?? 10240;
+    $storageUsedMb        = $storageUsedMb ?? 0;
+    $storageUsedPct       = $storageUsedPct ?? 0;
+    $storageGrowthPerMonth= $storageGrowthPerMonth ?? 0;
+    $storageTopUsers      = $storageTopUsers ?? collect();
+    $storagePerOrg        = $storagePerOrg ?? [];
+    $storageUsedBytes     = ($storageByModule['media'] ?? 0) + ($storageByModule['ged'] ?? 0);
     $quotaGo    = round($storageQuotaMb / 1024, 1);
     $usedGo     = round($storageUsedBytes / 1024 / 1024 / 1024, 1);
     $freeGo     = max(0, round($quotaGo - $usedGo, 1));
     $pct        = $storageUsedPct;
+    $isAdmin    = $isAdmin ?? (auth()->user()?->role && \App\Enums\UserRole::tryFrom(auth()->user()->role)?->atLeast(\App\Enums\UserRole::ADMIN));
+    try { $settingsRoute = $settingsRoute ?? route('admin.settings.media'); } catch (\Throwable) { $settingsRoute = '#'; }
     $barColor   = $pct > 80 ? '#E74C3C' : ($pct > 60 ? '#F39C12' : '#2ECC71');
 
     $modules = [

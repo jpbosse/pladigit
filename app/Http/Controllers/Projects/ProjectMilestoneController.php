@@ -219,6 +219,10 @@ class ProjectMilestoneController extends Controller
                 'milestone_id' => $milestone->id,
                 'milestone_name' => $milestone->title,
             ]);
+            // Notifier les membres du projet
+            /** @var \App\Models\Tenant\User $user */
+            $user = auth()->user();
+            app(\App\Services\NotificationService::class)->milestoneReached($milestone->title, $project, $user);
         }
 
         unset($validated['reached']);

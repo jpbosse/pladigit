@@ -109,6 +109,14 @@ class TaskController extends Controller
             'task_title' => $task->title,
         ]);
 
+        // Notifier l'assigné si différent du créateur
+        if ($task->assigned_to && $task->assigned_to !== $user->id) {
+            $assignee = \App\Models\Tenant\User::on('tenant')->find($task->assigned_to);
+            if ($assignee) {
+                app(\App\Services\NotificationService::class)->taskAssigned($task, $assignee, $user);
+            }
+        }
+
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'task_id' => $task->id]);
         }
@@ -140,6 +148,7 @@ class TaskController extends Controller
         ]);
 
         $oldStatus = $task->status;
+        $oldAssignedTo = $task->assigned_to;
         $task->update($validated);
 
         if (isset($validated['status']) && $validated['status'] !== $oldStatus) {
@@ -149,6 +158,25 @@ class TaskController extends Controller
                 'from' => $oldStatus,
                 'to' => $validated['status'],
             ]);
+
+            // Notifier les owners si tâche terminée
+            if ($validated['status'] === 'done') {
+                /** @var User $user */
+                $user = auth()->user();
+                app(\App\Services\NotificationService::class)->taskCompleted($task, $user);
+            }
+        }
+
+        // Notifier le nouvel assigné si l'assignation a changé
+        if (array_key_exists('assigned_to', $validated)
+            && $validated['assigned_to']
+            && $validated['assigned_to'] !== $oldAssignedTo) {
+            /** @var User $user */
+            $user = auth()->user();
+            $assignee = \App\Models\Tenant\User::on('tenant')->find($validated['assigned_to']);
+            if ($assignee && $assignee->id !== $user->id) {
+                app(\App\Services\NotificationService::class)->taskAssigned($task, $assignee, $user);
+            }
         }
 
         if ($request->wantsJson()) {
