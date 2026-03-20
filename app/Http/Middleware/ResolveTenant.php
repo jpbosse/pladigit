@@ -70,8 +70,8 @@ class ResolveTenant
                     ->selectRaw('SUM(file_size_bytes) as total, COUNT(*) as cnt')
                     ->first();
 
-                $org = \App\Services\TenantManager::current();
-                $quotaMb = $org?->storage_quota_mb ?? 10240;
+                $org = app(\App\Services\TenantManager::class)->current();
+                $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
                 $usedBytes = (int) ($media->total ?? 0);
                 $usedMb = round($usedBytes / 1024 / 1024, 1);
 
