@@ -28,8 +28,9 @@ class NotificationService
             return;
         }
 
+        /** @var \App\Models\Tenant\Project $project */
         $project = $event->project;
-        if (! $project) {
+        if (! $project instanceof \App\Models\Tenant\Project) {
             return;
         }
 
@@ -55,8 +56,9 @@ class NotificationService
             return;
         }
 
+        /** @var \App\Models\Tenant\Project $project */
         $project = $event->project;
-        if (! $project) {
+        if (! $project instanceof \App\Models\Tenant\Project) {
             return;
         }
 
@@ -108,7 +110,7 @@ class NotificationService
             'user_id' => $assignee->id,
             'type' => 'project.task_assigned',
             'title' => '✅ Tâche assignée : '.$task->title,
-            'body' => 'Assignée par '.$assigner->name.' dans « '.($project?->name ?? 'projet').' ».',
+            'body' => 'Assignée par '.$assigner->name.' dans « '.($project !== null ? $project->name : 'projet').' ».',
             'link' => $project ? route('projects.show', $project).'?section=planif' : null,
         ]);
     }

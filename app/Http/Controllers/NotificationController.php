@@ -31,9 +31,10 @@ class NotificationController extends Controller
             ->limit(30)
             ->get()
             ->map(function ($n) {
-                $n->created_at_diff = $n->created_at->locale('fr')->diffForHumans();
-
-                return $n;
+                /** @var \App\Models\Tenant\Notification $n */
+                return array_merge($n->toArray(), [
+                    'created_at_diff' => $n->created_at->locale('fr')->diffForHumans(),
+                ]);
             });
 
         $unreadCount = Notification::on('tenant')
@@ -48,6 +49,7 @@ class NotificationController extends Controller
             ]);
         }
 
+        // @phpstan-ignore argument.type
         return view('notifications.index', compact('notifications', 'unreadCount'));
     }
 

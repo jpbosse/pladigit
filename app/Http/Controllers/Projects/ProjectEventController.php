@@ -118,8 +118,10 @@ class ProjectEventController extends Controller
         $role = $user->role ? \App\Enums\UserRole::tryFrom($user->role) : null;
         $isAdmin = $role && $role->atLeast(\App\Enums\UserRole::DGS);
 
+        /** @var \App\Models\Tenant\Project|null $project */
         $project = $event->project;
-        $isOwner = $project && $project->memberRole($user) === \App\Enums\ProjectRole::OWNER;
+        $isOwner = $project instanceof \App\Models\Tenant\Project
+                      && $project->memberRole($user) === \App\Enums\ProjectRole::OWNER;
         $isCreator = $event->created_by === $user->id;
 
         abort_unless($isCreator || $isOwner || $isAdmin, 403, 'Vous ne pouvez pas modifier cet événement.');
