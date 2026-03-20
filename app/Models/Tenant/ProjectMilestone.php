@@ -42,6 +42,7 @@ class ProjectMilestone extends Model
         'start_date',
         'due_date',
         'reached_at',
+        'comment',
         'color',
         'sort_order',
     ];

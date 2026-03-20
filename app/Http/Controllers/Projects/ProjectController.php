@@ -41,9 +41,36 @@ class ProjectController extends Controller
             $query->byStatus($status);
         }
 
-        $projects = $query->orderByDesc('updated_at')->paginate(12)->withQueryString();
+        $projects = $query->orderByDesc('updated_at')->paginate(24)->withQueryString();
 
-        return view('projects.index', compact('projects'));
+        // Stats globales (tous les projets visibles, sans filtre de statut)
+        $allProjects = Project::visibleFor($user)->get();
+
+        $stats = [
+            'total' => $allProjects->count(),
+            'active' => $allProjects->whereIn('status', ['active'])->count(),
+            'delayed' => $allProjects->whereIn('status', ['delayed', 'at_risk'])->count(),
+            'completed' => $allProjects->where('status', 'completed')->count(),
+            'avg_pct' => $allProjects->count() > 0
+                ? (int) round($allProjects->avg(fn ($p) => $p->progressionPercent()))
+                : 0,
+        ];
+
+        // Jalons des 30 prochains jours
+        $upcomingMilestones = \App\Models\Tenant\ProjectMilestone::on('tenant')
+            ->whereNull('reached_at')
+            ->whereNotNull('due_date')
+            ->whereBetween('due_date', [now(), now()->addDays(30)])
+            ->with('project')
+            ->orderBy('due_date')
+            ->limit(8)
+            ->get()
+            ->filter(fn ($m) => $m->project && Project::visibleFor($user)->where('id', $m->project_id)->exists());
+
+        // Projets en alerte (delayed/at_risk ou budget dépassé)
+        $alertProjects = $allProjects->whereIn('status', ['delayed', 'at_risk']);
+
+        return view('projects.index', compact('projects', 'stats', 'upcomingMilestones', 'alertProjects'));
     }
 
     /**

@@ -1,4 +1,4 @@
-{{-- _agenda.blade.php — Agenda par jalon, à venir par défaut --}}
+{{-- _agenda.blade.php — Agenda événements projet --}}
 @php
 $allEvents = $project->events()
     ->where(function ($q) {
@@ -11,119 +11,75 @@ $allEvents = $project->events()
 $upcomingEvents = $allEvents->filter(fn($e) => \Carbon\Carbon::parse($e->starts_at)->isFuture() || \Carbon\Carbon::parse($e->starts_at)->isToday());
 $pastEvents     = $allEvents->filter(fn($e) => \Carbon\Carbon::parse($e->starts_at)->isPast() && !\Carbon\Carbon::parse($e->starts_at)->isToday());
 
-// Grouper les événements par jalon (via starts_at dans la plage du jalon)
-$milestones = $project->milestones->sortBy('due_date');
-
 $visColors = [
     'private'    => ['bg'=>'#E2E8F0','text'=>'#475569'],
     'restricted' => ['bg'=>'#DBEAFE','text'=>'#1E40AF'],
     'public'     => ['bg'=>'#D1FAE5','text'=>'#065F46'],
 ];
-
-// Jalon actif
-$nextActiveMs = null;
-foreach ($milestones as $ms) {
-    if (!$ms->isReached() && $ms->due_date && $ms->due_date->isFuture()) {
-        $nextActiveMs = $ms->id;
-        break;
-    }
-}
 @endphp
 
-<div x-data="{
-    showAll: false,
-    showEventForm: false,
-    showEditForm: false
-}"
-@open-new-event.window="showEventForm = true"
-@open-edit-event.window="showEditForm = true"
-@close-event-slideover.window="showEventForm = false; showEditForm = false">
+<div x-data="{ showAll:false, showEventForm:false, showEditForm:false, editEvent:{} }"
+@open-new-event.window="showEventForm=true"
+@open-edit-event.window="showEditForm=true"
+@close-event-slideover.window="showEventForm=false; showEditForm=false">
 
-{{-- ── Barre d'outils ── --}}
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
-    <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:12px;color:var(--pd-muted);">
-            {{ $upcomingEvents->count() }} à venir · {{ $pastEvents->count() }} passé{{ $pastEvents->count()>1?'s':'' }}
-        </span>
+<div style="font-size:11px;color:var(--pd-muted);margin-bottom:12px;padding:8px 12px;background:var(--pd-bg2);border-radius:7px;border-left:3px solid var(--pd-accent);">
+    ℹ️ Cet agenda regroupe les <strong>rendez-vous et réunions</strong> du projet. Il ne reflète pas le planning des tâches (voir <em>Planification</em>).
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+    <div style="font-size:12px;color:var(--pd-muted);">
+        {{ $upcomingEvents->count() }} à venir · {{ $pastEvents->count() }} passé{{ $pastEvents->count()>1?'s':'' }}
         @if($pastEvents->count() > 0)
-        <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--pd-muted);cursor:pointer;">
-            <input type="checkbox" x-model="showAll" style="accent-color:var(--pd-navy);">
-            Afficher les passés
+        <label style="display:inline-flex;align-items:center;gap:6px;margin-left:12px;cursor:pointer;">
+            <input type="checkbox" x-model="showAll" style="accent-color:var(--pd-navy);"> Afficher les passés
         </label>
         @endif
     </div>
     <div style="display:flex;gap:8px;">
-        <button onclick="startVisio({{ $project->id }})"
-                class="pd-btn pd-btn-sm"
-                style="background:#0891B2;color:#fff;border:none;"
-                title="Démarrer une visioconférence Jitsi">
-            📹 Visio
-        </button>
-        <a href="{{ route('projects.export.ical', $project) }}"
-           class="pd-btn pd-btn-sm pd-btn-secondary">Exporter iCal</a>
+        <button onclick="startVisio({{ $project->id }})" class="pd-btn pd-btn-sm" style="background:#0891B2;color:#fff;border:none;">📹 Visio</button>
+        <a href="{{ route('projects.export.ical', $project) }}" class="pd-btn pd-btn-sm pd-btn-secondary">⬇ iCal</a>
         @if($canEdit)
-        <button @click="showEventForm = true" class="pd-btn pd-btn-sm pd-btn-primary">
-            + Événement
-        </button>
+        <button @click="showEventForm=true" class="pd-btn pd-btn-sm pd-btn-primary">+ Événement</button>
         @endif
     </div>
 </div>
 
-{{-- ── Événements à venir ── --}}
 @if($upcomingEvents->isEmpty())
-<div style="text-align:center;padding:32px;color:var(--pd-muted);font-size:12px;">
-    Aucun événement à venir. Cliquez sur + Événement pour en créer un.
+<div style="text-align:center;padding:40px 20px;color:var(--pd-muted);font-size:12px;">
+    <div style="font-size:2rem;margin-bottom:8px;">📅</div>
+    Aucun événement à venir.
 </div>
 @else
-<div style="margin-bottom:16px;">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pd-muted);margin-bottom:8px;">
-        À venir
-    </div>
+<div style="margin-bottom:20px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pd-muted);margin-bottom:10px;">À venir</div>
     @foreach($upcomingEvents as $event)
     @php
-        $starts   = \Carbon\Carbon::parse($event->starts_at);
-        $canEditEv = $canEdit && auth()->id() === $event->created_by;
-        $editArgs  = $event->id . ", '" . addslashes($event->title) . "', '" . ($event->description ? addslashes($event->description) : '') . "', '" . ($event->location ?? '') . "', '" . \Carbon\Carbon::parse($event->starts_at)->format('Y-m-d\TH:i') . "', '" . \Carbon\Carbon::parse($event->ends_at)->format('Y-m-d\TH:i') . "', '" . $event->visibility . "', '" . ($event->color ?? $project->color) . "'";
-        $viewArgs  = json_encode([
-            'id'          => $event->id,
-            'title'       => $event->title,
-            'description' => $event->description,
-            'location'    => $event->location,
-            'starts_at'   => \Carbon\Carbon::parse($event->starts_at)->translatedFormat('l d M Y à H:i'),
-            'ends_at'     => \Carbon\Carbon::parse($event->ends_at)->format('H:i'),
-            'all_day'     => $event->all_day,
-            'visibility'  => $event->visibility,
-            'color'       => $event->color ?? $project->color,
-            'creator'     => $event->creator?->name ?? '—',
-            'can_edit'    => $canEditEv,
-            'raw_title'   => $event->title,
-            'raw_desc'    => $event->description ?? '',
-            'raw_location'=> $event->location ?? '',
-            'raw_starts'  => \Carbon\Carbon::parse($event->starts_at)->format('Y-m-d\TH:i'),
-            'raw_ends'    => \Carbon\Carbon::parse($event->ends_at)->format('Y-m-d\TH:i'),
-            'delete_url'  => route('projects.events.destroy', [$project, $event]),
-        ]);
+        $starts=$e = \Carbon\Carbon::parse($event->starts_at);
+        $ends=\Carbon\Carbon::parse($event->ends_at);
+        $canEditEv=$canEdit && auth()->id()===$event->created_by;
+        $viewArgs=json_encode(['id'=>$event->id,'title'=>$event->title,'description'=>$event->description,'location'=>$event->location,'starts_at'=>$starts->translatedFormat('l d M Y à H:i'),'ends_at'=>$ends->format('H:i'),'all_day'=>$event->all_day,'visibility'=>$event->visibility,'color'=>$event->color??$project->color,'creator'=>$event->creator?->name??'—','can_edit'=>$canEditEv,'raw_title'=>$event->title,'raw_desc'=>$event->description??'','raw_location'=>$event->location??'','raw_starts'=>$starts->format('Y-m-d\TH:i'),'raw_ends'=>$ends->format('Y-m-d\TH:i')]);
     @endphp
-    <div style="display:flex;gap:12px;padding:12px;border:0.5px solid var(--pd-border);border-radius:8px;margin-bottom:6px;border-left:4px solid {{ $event->color ?? $project->color }};background:var(--pd-surface);cursor:pointer;"
-         onclick="window.dispatchEvent(new CustomEvent('open-view-event', { detail: {{ $viewArgs }} }))">
-        <div style="flex-shrink:0;text-align:center;width:40px;">
-            <div style="font-size:20px;font-weight:700;color:var(--pd-navy);line-height:1;">{{ $starts->format('d') }}</div>
-            <div style="font-size:10px;color:var(--pd-muted);">{{ $starts->translatedFormat('M') }}</div>
+    <div style="display:flex;border-radius:10px;overflow:hidden;border:0.5px solid var(--pd-border);margin-bottom:8px;cursor:pointer;background:var(--pd-surface);"
+         onclick="window.dispatchEvent(new CustomEvent('open-view-event',{detail:{{ $viewArgs }}}))">
+        <div style="width:4px;flex-shrink:0;background:{{ $event->color ?? $project->color }};"></div>
+        <div style="flex-shrink:0;width:54px;text-align:center;padding:12px 6px;border-right:0.5px solid var(--pd-border);display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="font-size:22px;font-weight:700;color:var(--pd-navy);line-height:1;">{{ $starts->format('d') }}</div>
+            <div style="font-size:10px;font-weight:600;text-transform:uppercase;color:var(--pd-muted);">{{ $starts->translatedFormat('M') }}</div>
+            <div style="font-size:10px;color:var(--pd-muted);">{{ $starts->format('Y') }}</div>
         </div>
-        <div style="flex:1;">
-            <div style="font-size:13px;font-weight:600;color:var(--pd-text);">{{ $event->title }}</div>
-            <div style="font-size:11px;color:var(--pd-muted);margin-top:2px;">
-                {{ $starts->format('H:i') }}
-                @if(!$event->all_day) → {{ \Carbon\Carbon::parse($event->ends_at)->format('H:i') }} @endif
-                @if($event->location) · {{ $event->location }} @endif
+        <div style="flex:1;padding:10px 14px;">
+            <div style="font-size:13px;font-weight:700;color:var(--pd-text);margin-bottom:4px;">{{ $event->title }}</div>
+            <div style="font-size:11px;color:var(--pd-muted);display:flex;flex-wrap:wrap;gap:10px;">
+                <span>🕐 {{ $starts->format('H:i') }}@if(!$event->all_day) → {{ $ends->format('H:i') }}@endif</span>
+                @if($event->location)<span>📍 {{ $event->location }}</span>@endif
             </div>
-            @if($event->description)
-            <div style="font-size:11px;color:var(--pd-muted);margin-top:3px;">{{ Str::limit($event->description, 100) }}</div>
-            @endif
+            @if($event->description)<div style="font-size:11px;color:var(--pd-muted);margin-top:5px;line-height:1.4;">{{ Str::limit($event->description,120) }}</div>@endif
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
-            <span style="font-size:10px;padding:2px 7px;border-radius:8px;font-weight:600;background:{{ $visColors[$event->visibility]['bg'] }};color:{{ $visColors[$event->visibility]['text'] }};">
-                {{ ['private'=>'Privé','restricted'=>'Restreint','public'=>'Public'][$event->visibility] }}
+        <div style="flex-shrink:0;padding:10px 12px;display:flex;align-items:flex-start;">
+            <span style="font-size:10px;padding:2px 8px;border-radius:8px;font-weight:600;background:{{ $visColors[$event->visibility]['bg'] }};color:{{ $visColors[$event->visibility]['text'] }};"
+                  title="{{ ['private'=>'Visible par vous seul','restricted'=>'Visible par les membres','public'=>'Visible par tous'][$event->visibility] }}">
+                {{ ['private'=>'🔒 Privé','restricted'=>'🔵 Restreint','public'=>'🟢 Public'][$event->visibility] }}
             </span>
         </div>
     </div>
@@ -131,37 +87,29 @@ foreach ($milestones as $ms) {
 </div>
 @endif
 
-{{-- ── Événements passés (masqués par défaut) ── --}}
 @if($pastEvents->count() > 0)
-<div x-show="showAll"
-     x-transition:enter="transition ease-out duration-150"
-     x-transition:enter-start="opacity-0"
-     x-transition:enter-end="opacity-100">
-    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pd-muted);margin-bottom:8px;">
-        Passés ({{ $pastEvents->count() }})
-    </div>
+<div x-show="showAll" x-transition:enter="transition ease-out duration-150" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pd-muted);margin-bottom:10px;">Passés ({{ $pastEvents->count() }})</div>
     @foreach($pastEvents->sortByDesc(fn($e) => $e->starts_at) as $event)
-    @php $starts = \Carbon\Carbon::parse($event->starts_at); @endphp
-    <div style="display:flex;gap:12px;padding:10px 12px;border:0.5px solid var(--pd-border);border-radius:8px;margin-bottom:6px;border-left:4px solid {{ $event->color ?? $project->color }};opacity:.6;background:var(--pd-surface2);">
-        <div style="flex-shrink:0;text-align:center;width:40px;">
+    @php $starts=\Carbon\Carbon::parse($event->starts_at); @endphp
+    <div style="display:flex;border-radius:10px;overflow:hidden;border:0.5px solid var(--pd-border);margin-bottom:6px;opacity:.55;background:var(--pd-surface2);">
+        <div style="width:4px;flex-shrink:0;background:{{ $event->color ?? $project->color }};opacity:.4;"></div>
+        <div style="flex-shrink:0;width:54px;text-align:center;padding:10px 6px;border-right:0.5px solid var(--pd-border);display:flex;flex-direction:column;align-items:center;justify-content:center;">
             <div style="font-size:18px;font-weight:700;color:var(--pd-muted);line-height:1;">{{ $starts->format('d') }}</div>
-            <div style="font-size:10px;color:var(--pd-muted);">{{ $starts->translatedFormat('M') }}</div>
+            <div style="font-size:10px;text-transform:uppercase;color:var(--pd-muted);">{{ $starts->translatedFormat('M') }}</div>
         </div>
-        <div style="flex:1;">
-            <div style="font-size:12px;font-weight:500;color:var(--pd-muted);text-decoration:line-through;">{{ $event->title }}</div>
-            <div style="font-size:11px;color:var(--pd-muted);margin-top:2px;">
-                {{ $starts->translatedFormat('d M Y') }} · {{ $starts->format('H:i') }}
-                @if($event->location) · {{ $event->location }} @endif
-            </div>
+        <div style="flex:1;padding:10px 14px;">
+            <div style="font-size:12px;font-weight:600;color:var(--pd-muted);text-decoration:line-through;">{{ $event->title }}</div>
+            <div style="font-size:11px;color:var(--pd-muted);margin-top:2px;">{{ $starts->translatedFormat('d M Y') }} · {{ $starts->format('H:i') }}</div>
         </div>
     </div>
     @endforeach
 </div>
 @endif
 
-{{-- ── Modal création événement ── --}}
 @if($canEdit)
-<div id="modal-event" class="pd-modal-overlay" x-show="showEventForm" x-cloak
+<div id="modal-event" x-show="showEventForm" x-cloak
+     style="position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);padding:20px;"
      @click="if($event.target===$el) showEventForm=false"
      @keydown.escape.window="showEventForm=false">
     <div class="pd-modal pd-modal-md" @click.stop>
@@ -182,9 +130,9 @@ foreach ($milestones as $ms) {
                 </div>
                 <div class="pd-form-group">
                     <label class="pd-label">Lieu</label>
-                    <input type="text" name="location" class="pd-input" placeholder="Salle, visio…">
+                    <input type="text" name="location" class="pd-input" placeholder="Salle, adresse…">
                 </div>
-                <div class="pd-form-row pd-form-row-2">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div class="pd-form-group" style="margin-bottom:0;">
                         <label class="pd-label pd-label-req">Début</label>
                         <input type="datetime-local" name="starts_at" class="pd-input" required value="{{ now()->format('Y-m-d\TH:i') }}">
@@ -194,13 +142,13 @@ foreach ($milestones as $ms) {
                         <input type="datetime-local" name="ends_at" class="pd-input" required value="{{ now()->addHour()->format('Y-m-d\TH:i') }}">
                     </div>
                 </div>
-                <div class="pd-form-row pd-form-row-2">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
                     <div class="pd-form-group" style="margin-bottom:0;">
                         <label class="pd-label">Visibilité</label>
                         <select name="visibility" class="pd-input">
-                            <option value="private">Privé</option>
-                            <option value="restricted" selected>Restreint</option>
-                            <option value="public">Public</option>
+                            <option value="private">🔒 Privé (vous seul)</option>
+                            <option value="restricted" selected>🔵 Restreint (membres)</option>
+                            <option value="public">🟢 Public (tous)</option>
                         </select>
                     </div>
                     <div class="pd-form-group" style="margin-bottom:0;">
@@ -218,9 +166,9 @@ foreach ($milestones as $ms) {
 </div>
 @endif
 
-{{-- ── Modal édition événement ── --}}
 @if($canEdit)
-<div id="modal-event-edit" class="pd-modal-overlay" x-show="showEditForm" x-cloak
+<div id="modal-event-edit" x-show="showEditForm" x-cloak
+     style="position:fixed;inset:0;z-index:900;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);padding:20px;"
      @click="if($event.target===$el) showEditForm=false"
      @keydown.escape.window="showEditForm=false">
     <div class="pd-modal pd-modal-md" @click.stop>
@@ -229,45 +177,45 @@ foreach ($milestones as $ms) {
                 <div style="font-size:15px;font-weight:700;color:#fff;">Modifier l'événement</div>
                 <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:2px;" x-text="editEvent.title"></div>
             </div>
-            <button type="button" @click="showEditForm=false" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:20px;line-height:1;margin-left:12px;">×</button>
+            <button type="button" @click="showEditForm=false" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:20px;line-height:1;">×</button>
         </div>
-        <form id="form-event-edit" method="POST">
+        <form id="form-event-edit" method="POST" data-project-id="{{ $project->id }}">
             @csrf @method('PATCH')
             <div class="pd-modal-body">
                 <div class="pd-form-group">
                     <label class="pd-label pd-label-req">Titre</label>
-                    <input type="text" name="title" id="edit-event-title" class="pd-input" required style="width:100%;">
+                    <input type="text" name="title" id="edit-event-title" class="pd-input" required>
                 </div>
                 <div class="pd-form-group">
                     <label class="pd-label">Description</label>
-                    <textarea name="description" id="edit-event-desc" class="pd-input" rows="2" style="width:100%;"></textarea>
+                    <textarea name="description" id="edit-event-desc" class="pd-input" rows="2"></textarea>
                 </div>
                 <div class="pd-form-group">
                     <label class="pd-label">Lieu</label>
-                    <input type="text" id="edit-event-location" name="location" class="pd-input" style="width:100%;">
+                    <input type="text" id="edit-event-location" name="location" class="pd-input">
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
                     <div class="pd-form-group" style="margin-bottom:0;">
                         <label class="pd-label pd-label-req">Début</label>
-                        <input type="datetime-local" name="starts_at" id="edit-event-start" class="pd-input" required style="width:100%;">
+                        <input type="datetime-local" name="starts_at" id="edit-event-start" class="pd-input" required>
                     </div>
                     <div class="pd-form-group" style="margin-bottom:0;">
                         <label class="pd-label pd-label-req">Fin</label>
-                        <input type="datetime-local" name="ends_at" id="edit-event-end" class="pd-input" required style="width:100%;">
+                        <input type="datetime-local" name="ends_at" id="edit-event-end" class="pd-input" required>
                     </div>
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;">
                     <div class="pd-form-group" style="margin-bottom:0;">
                         <label class="pd-label">Visibilité</label>
-                        <select name="visibility" id="edit-event-vis" class="pd-input" style="width:100%;">
-                            <option value="private">Privé</option>
-                            <option value="restricted">Restreint</option>
-                            <option value="public">Public</option>
+                        <select name="visibility" id="edit-event-vis" class="pd-input">
+                            <option value="private">🔒 Privé</option>
+                            <option value="restricted">🔵 Restreint</option>
+                            <option value="public">🟢 Public</option>
                         </select>
                     </div>
                     <div class="pd-form-group" style="margin-bottom:0;">
                         <label class="pd-label">Couleur</label>
-                        <input type="color" name="color" id="edit-event-color" class="pd-input" style="width:100%;">
+                        <input type="color" name="color" id="edit-event-color" class="pd-input">
                     </div>
                 </div>
             </div>

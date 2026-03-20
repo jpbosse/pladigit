@@ -13,15 +13,15 @@ return new class extends Migration
 
     public function up(): void
     {
-        Schema::connection('tenant')->table('tenant_settings', function (Blueprint $table) {
-            $table->string('jitsi_base_url', 255)->default('https://meet.numerique.gouv.fr');
+        Schema::connection('tenant')->table('project_milestones', function (Blueprint $table) {
+            $table->text('comment')->nullable()->after('reached_at');
         });
     }
 
     public function down(): void
     {
-        Schema::connection('tenant')->table('tenant_settings', function (Blueprint $table) {
-            $table->dropColumn('jitsi_base_url');
+        Schema::connection('tenant')->table('project_milestones', function (Blueprint $table) {
+            $table->dropColumn('comment');
         });
     }
 };
