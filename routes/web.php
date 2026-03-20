@@ -105,6 +105,14 @@ Route::middleware('tenant')->group(function () {
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+        // ── Notifications ──────────────────────────────────
+        Route::prefix('notifications')->name('notifications.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\NotificationController::class, 'index'])->name('index');
+            Route::patch('/{notification}', [\App\Http\Controllers\NotificationController::class, 'markRead'])->name('read');
+            Route::post('/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('read-all');
+            Route::delete('/{notification}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('destroy');
+        });
+
         // ── Zone Admin Organisation ────────────────────────
         Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
 

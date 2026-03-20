@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\Event;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\User;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 /**
@@ -50,6 +51,9 @@ class ProjectEventController extends Controller
             'status' => 'accepted',
         ]);
 
+        // Notifier les membres du projet
+        app(NotificationService::class)->eventCreated($event, $user);
+
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'event_id' => $event->id]);
         }
@@ -76,6 +80,10 @@ class ProjectEventController extends Controller
 
         $event->update($validated);
 
+        /** @var User $user */
+        $user = auth()->user();
+        app(NotificationService::class)->eventUpdated($event, $user);
+
         if ($request->wantsJson()) {
             return response()->json(['success' => true]);
         }
@@ -88,7 +96,14 @@ class ProjectEventController extends Controller
         $this->authorize('view', $project);
         $this->authorizeEventAction($event);
 
+        $title = $event->title;
+
+        /** @var User $user */
+        $user = auth()->user();
+
         $event->delete();
+
+        app(NotificationService::class)->eventDeleted($title, $project, $user);
 
         return back()->with('success', 'Événement supprimé.');
     }

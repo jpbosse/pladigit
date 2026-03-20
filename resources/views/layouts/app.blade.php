@@ -84,7 +84,7 @@
 
         <button class="pd-tb-btn" id="pd-notif-open" type="button" aria-label="Notifications">
             <svg class="pd-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            @if($notifCount > 0)<span class="pd-notif-dot"></span>@endif
+            @if($notifCount > 0)<span class="pd-notif-dot">{{ $notifCount > 9 ? '9+' : $notifCount }}</span>@endif
         </button>
 
         <button class="pd-theme-toggle" id="pd-theme-toggle" type="button" aria-label="Basculer le thème">
@@ -367,9 +367,7 @@
 
 {{-- ══════════ DRAWER ESPACE DE STOCKAGE ══════════ --}}
 @auth
-@if(isset($storageByModule))
 @include('partials.storage-drawer')
-@endif
 @endauth
 
 {{-- ══════════ COMMAND PALETTE ══════════ --}}
@@ -492,10 +490,122 @@
         });
     }
 
-    // Notifications drawer
+    // Notifications drawer — chargement AJAX
     var notifDrawer = document.getElementById('pd-notif-drawer');
-    function openNotif(){ notifDrawer?.classList.add('open'); }
-    function closeNotif(){ notifDrawer?.classList.remove('open'); }
+    var notifBody   = notifDrawer?.querySelector('.pd-notif-body');
+    var notifBadge  = document.querySelector('.pd-notif-count');
+    var notifDot    = document.querySelector('.pd-notif-dot');
+    var notifLoaded = false;
+
+    function openNotif() {
+        notifDrawer?.classList.add('open');
+        if (!notifLoaded) loadNotifications();
+    }
+    function closeNotif() { notifDrawer?.classList.remove('open'); }
+
+    function loadNotifications() {
+        if (!notifBody) return;
+        notifBody.innerHTML = '<div style="padding:32px;text-align:center;color:var(--pd-muted);">Chargement…</div>';
+        fetch('{{ route("notifications.index") }}', {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+        })
+        .then(r => r.json())
+        .then(data => {
+            notifLoaded = true;
+            renderNotifications(data.notifications, data.unread_count);
+        })
+        .catch(() => {
+            notifBody.innerHTML = '<div style="padding:24px;text-align:center;color:var(--pd-muted);">Erreur de chargement.</div>';
+        });
+    }
+
+    function renderNotifications(notifications, unreadCount) {
+        if (!notifBody) return;
+
+        // Mise à jour badge
+        if (notifBadge) notifBadge.textContent = unreadCount;
+        if (notifDot) notifDot.style.display = unreadCount > 0 ? 'block' : 'none';
+
+        if (!notifications || notifications.length === 0) {
+            notifBody.innerHTML = `
+                <div style="padding:32px 20px;text-align:center;color:var(--pd-muted);">
+                    <div style="font-size:2rem;margin-bottom:8px;">🔔</div>
+                    <div style="font-size:13px;">Aucune notification</div>
+                </div>`;
+            return;
+        }
+
+        const html = notifications.map(n => `
+            <div class="pd-notif-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
+                <div class="pd-notif-ico" style="background:${notifIconBg(n.type)};">${notifIcon(n.type)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="pd-notif-title">${escHtml(n.title)}</div>
+                    ${n.body ? `<div class="pd-notif-desc">${escHtml(n.body)}</div>` : ''}
+                    ${n.link ? `<a href="${n.link}" class="pd-notif-action">Voir →</a>` : ''}
+                    <div class="pd-notif-time">${n.created_at_diff || ''}</div>
+                </div>
+                <button onclick="deleteNotif(${n.id})" style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:14px;padding:2px 4px;flex-shrink:0;" title="Supprimer">×</button>
+            </div>`).join('');
+
+        notifBody.innerHTML = html;
+
+        // Marquer comme lu au clic
+        notifBody.querySelectorAll('.pd-notif-item.unread').forEach(item => {
+            item.addEventListener('click', function() {
+                const id = this.dataset.id;
+                this.classList.remove('unread');
+                fetch(`{{ url('notifications') }}/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+                });
+                const remaining = notifBody.querySelectorAll('.pd-notif-item.unread').length;
+                if (notifBadge) notifBadge.textContent = remaining;
+                if (notifDot && remaining === 0) notifDot.style.display = 'none';
+            });
+        });
+    }
+
+    function deleteNotif(id) {
+        const item = notifBody?.querySelector(`[data-id="${id}"]`);
+        item?.remove();
+        fetch(`{{ url('notifications') }}/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+        });
+    }
+    window.deleteNotif = deleteNotif;
+
+    // Tout marquer comme lu
+    notifDrawer?.querySelector('.pd-notif-mark-all')?.addEventListener('click', function() {
+        fetch('{{ route("notifications.read-all") }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+        }).then(() => {
+            notifBody?.querySelectorAll('.pd-notif-item.unread').forEach(el => el.classList.remove('unread'));
+            if (notifBadge) notifBadge.textContent = '0';
+            if (notifDot) notifDot.style.display = 'none';
+        });
+    });
+
+    function notifIcon(type) {
+        if (type?.startsWith('agenda'))   return '📅';
+        if (type?.startsWith('project'))  return '✅';
+        if (type?.startsWith('document')) return '📄';
+        if (type?.startsWith('storage'))  return '💾';
+        if (type?.startsWith('chat'))     return '💬';
+        return '🔔';
+    }
+    function notifIconBg(type) {
+        if (type?.startsWith('agenda'))   return 'rgba(155,89,182,0.12)';
+        if (type?.startsWith('project'))  return 'rgba(46,204,113,0.12)';
+        if (type?.startsWith('document')) return 'rgba(59,154,225,0.12)';
+        if (type?.startsWith('storage'))  return 'rgba(232,168,56,0.12)';
+        return 'rgba(107,114,128,0.12)';
+    }
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     document.getElementById('pd-notif-open')?.addEventListener('click', openNotif);
     document.getElementById('pd-notif-close')?.addEventListener('click', closeNotif);
 
