@@ -126,10 +126,7 @@ class ProjectController extends Controller
             'role' => ProjectRole::OWNER->value,
         ]);
 
-        $this->audit->log('project.created', auth()->user(), [
-            'project_id' => $project->id,
-            'project_name' => $project->name,
-        ]);
+        $this->audit->log('project.created', auth()->user(), ['new' => ['project_id' => $project->id, 'project_name' => $project->name]]);
 
         return redirect()
             ->route('projects.show', $project)
@@ -275,10 +272,7 @@ class ProjectController extends Controller
 
         $project->update($validated);
 
-        $this->audit->log('project.updated', auth()->user(), [
-            'project_id' => $project->id,
-            'project_name' => $project->name,
-        ]);
+        $this->audit->log('project.updated', auth()->user(), ['new' => ['project_id' => $project->id, 'project_name' => $project->name]]);
 
         return redirect()
             ->route('projects.show', $project)
@@ -390,10 +384,7 @@ class ProjectController extends Controller
 
         $project->delete();
 
-        $this->audit->log('project.deleted', auth()->user(), [
-            'project_id' => $project->id,
-            'project_name' => $project->name,
-        ]);
+        $this->audit->log('project.deleted', auth()->user(), ['new' => ['project_id' => $project->id, 'project_name' => $project->name]]);
 
         return redirect()
             ->route('projects.index')
@@ -528,11 +519,7 @@ class ProjectController extends Controller
             $taskMap[$task->id] = $newTask->id;
         }
 
-        $this->audit->log('project.duplicated', auth()->user(), [
-            'source_id' => $project->id,
-            'new_id' => $newProject->id,
-            'new_name' => $newProject->name,
-        ]);
+        $this->audit->log('project.duplicated', auth()->user(), ['new' => ['project_id' => $project->id, 'source_id' => $project->id, 'new_id' => $newProject->id, 'new_name' => $newProject->name]]);
 
         return redirect()
             ->route('projects.show', $newProject)
@@ -588,6 +575,115 @@ class ProjectController extends Controller
             'Content-Type' => 'text/calendar; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$slug}.ics\"",
         ]);
+    }
+
+    /**
+     * Export iCal des jalons uniquement — destiné aux élus et responsables
+     * souhaitant suivre les échéances dans Outlook / Google Calendar.
+     *
+     * Route : GET /projects/{project}/export/milestones.ics
+     * Name  : projects.export.milestones-ical
+     */
+    public function exportMilestonesIcal(Project $project)
+    {
+        $this->authorize('exportMilestonesIcal', $project);
+
+        $milestones = $project->milestones()
+            ->with(['children', 'tasks'])
+            ->orderBy('sort_order')
+            ->orderBy('due_date')
+            ->get();
+
+        $now = \Carbon\Carbon::now()->format('Ymd\THis\Z');
+        $projectSlug = \Illuminate\Support\Str::slug($project->name);
+
+        $ical = "BEGIN:VCALENDAR\r\n";
+        $ical .= "VERSION:2.0\r\n";
+        $ical .= "PRODID:-//Pladigit//Jalons Projet//FR\r\n";
+        $ical .= "CALSCALE:GREGORIAN\r\n";
+        $ical .= "METHOD:PUBLISH\r\n";
+        $ical .= "X-WR-CALNAME:Jalons — {$project->name}\r\n";
+        $ical .= "X-WR-CALDESC:Échéances du projet {$project->name} — Pladigit\r\n";
+        $ical .= "X-WR-TIMEZONE:Europe/Paris\r\n";
+
+        foreach ($milestones as $milestone) {
+            $isPhase = $milestone->isPhase();
+            $isReached = $milestone->isReached();
+            $isLate = $milestone->isLate();
+
+            if ($isPhase) {
+                $emoji = '📌 ';
+                $category = 'Phase';
+            } elseif ($isReached) {
+                $emoji = '✅ ';
+                $category = 'Jalon Atteint';
+            } elseif ($isLate) {
+                $emoji = '⚠ ';
+                $category = 'Jalon En retard';
+            } else {
+                $emoji = '🏁 ';
+                $category = 'Jalon';
+            }
+
+            $summary = $this->icalEscape($emoji.$milestone->title);
+            $status = $isReached ? 'COMPLETED' : 'IN-PROCESS';
+            $percent = $milestone->progressionPercent();
+
+            if ($milestone->start_date) {
+                $dtstart = 'DTSTART;VALUE=DATE:'.$milestone->start_date->format('Ymd');
+                $dtend = 'DTEND;VALUE=DATE:'.$milestone->due_date->copy()->addDay()->format('Ymd');
+            } else {
+                $dtstart = 'DTSTART;VALUE=DATE:'.$milestone->due_date->format('Ymd');
+                $dtend = 'DTEND;VALUE=DATE:'.$milestone->due_date->copy()->addDay()->format('Ymd');
+            }
+
+            $lastModified = $milestone->updated_at
+                ? $milestone->updated_at->utc()->format('Ymd\THis\Z')
+                : $now;
+
+            $ical .= "BEGIN:VEVENT\r\n";
+            $ical .= "UID:milestone-{$milestone->id}@pladigit\r\n";
+            $ical .= "DTSTAMP:{$now}\r\n";
+            $ical .= "LAST-MODIFIED:{$lastModified}\r\n";
+            $ical .= "{$dtstart}\r\n";
+            $ical .= "{$dtend}\r\n";
+            $ical .= "SUMMARY:{$summary}\r\n";
+            $ical .= "STATUS:{$status}\r\n";
+            $ical .= "CATEGORIES:{$category}\r\n";
+            $ical .= "PERCENT-COMPLETE:{$percent}\r\n";
+
+            if ($isReached && $milestone->reached_at) {
+                $ical .= 'COMPLETED:'.$milestone->reached_at->utc()->format('Ymd\THis\Z')."\r\n";
+            }
+
+            if ($milestone->description) {
+                $clean = strip_tags((string) $milestone->description);
+                $ical .= 'DESCRIPTION:'.$this->icalEscape($clean)."\r\n";
+            }
+
+            $ical .= "END:VEVENT\r\n";
+        }
+
+        $ical .= "END:VCALENDAR\r\n";
+
+        return response($ical, 200, [
+            'Content-Type' => 'text/calendar; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$projectSlug}-jalons.ics\"",
+            'Cache-Control' => 'no-cache, no-store',
+        ]);
+    }
+
+    /**
+     * Échappe une valeur texte pour le format iCal (RFC 5545 §3.3.11).
+     */
+    private function icalEscape(string $value): string
+    {
+        $value = str_replace('\\', '\\\\', $value);
+        $value = str_replace(';', '\;', $value);
+        $value = str_replace(',', '\,', $value);
+        $value = str_replace(["\r\n", "\r", "\n"], '\n', $value);
+
+        return $value;
     }
 
     /**

@@ -156,8 +156,64 @@ class DashboardController extends Controller
         $myUrgentTasks = collect();
         $myProjectsCount = 0;
         $myActiveProjects = collect();
+        $workloadData = null;
 
         if ($org?->hasModule(ModuleKey::PROJECTS)) {
+
+            // ── Charge hebdo/mensuelle de l'équipe ──────────────────
+            if ($isAtLeastResp && count($visibleUserIds) > 1) {
+                try {
+                    $weekStart = now()->startOfWeek();
+                    $weekEnd = now()->endOfWeek();
+                    $monthStart = now()->startOfMonth();
+                    $monthEnd = now()->endOfMonth();
+
+                    $teamTasks = Task::on('tenant')
+                        ->whereIn('assigned_to', $visibleUserIds)
+                        ->whereNotIn('status', ['done'])
+                        ->whereNotNull('assigned_to')
+                        ->with('assignee:id,name')
+                        ->get(['id', 'assigned_to', 'estimated_hours', 'actual_hours',
+                            'due_date', 'start_date', 'status', 'priority']);
+
+                    $weekTasks = $teamTasks->filter(fn ($t) => $t->due_date && $t->due_date->between($weekStart, $weekEnd));
+                    $monthTasks = $teamTasks->filter(fn ($t) => $t->due_date && $t->due_date->between($monthStart, $monthEnd));
+
+                    $weekByUser = $weekTasks->groupBy('assigned_to')->map(fn ($tasks) => [
+                        'name' => $tasks->first()->assignee->name ?? '—',
+                        'estimated' => round($tasks->sum('estimated_hours'), 1),
+                        'actual' => round($tasks->sum('actual_hours'), 1),
+                        'count' => $tasks->count(),
+                    ])->sortByDesc('estimated')->values();
+
+                    $monthByUser = $monthTasks->groupBy('assigned_to')->map(fn ($tasks) => [
+                        'name' => $tasks->first()->assignee->name ?? '—',
+                        'estimated' => round($tasks->sum('estimated_hours'), 1),
+                        'actual' => round($tasks->sum('actual_hours'), 1),
+                        'count' => $tasks->count(),
+                    ])->sortByDesc('estimated')->values();
+
+                    $workloadData = [
+                        'week' => [
+                            'label' => $weekStart->format('d/m').' – '.$weekEnd->format('d/m'),
+                            'byUser' => $weekByUser,
+                            'totalEst' => round($weekTasks->sum('estimated_hours'), 1),
+                            'totalAct' => round($weekTasks->sum('actual_hours'), 1),
+                            'taskCount' => $weekTasks->count(),
+                        ],
+                        'month' => [
+                            'label' => now()->translatedFormat('F Y'),
+                            'byUser' => $monthByUser,
+                            'totalEst' => round($monthTasks->sum('estimated_hours'), 1),
+                            'totalAct' => round($monthTasks->sum('actual_hours'), 1),
+                            'taskCount' => $monthTasks->count(),
+                        ],
+                        'teamSize' => count($visibleUserIds),
+                    ];
+                } catch (\Throwable) {
+                }
+            }
+
             try {
                 $myUrgentTasks = Task::on('tenant')
                     ->where('assigned_to', $user->id)
@@ -177,7 +233,7 @@ class DashboardController extends Controller
                 $myActiveProjects = Project::on('tenant')
                     ->visibleFor($user)
                     ->where('status', 'active')
-                    ->withCount('tasks')
+                    ->withCount(['tasks', 'tasks as done_tasks_count' => fn ($q) => $q->where('status', 'done')])
                     ->orderByDesc('updated_at')
                     ->limit(3)
                     ->get();
@@ -199,6 +255,7 @@ class DashboardController extends Controller
             'recentLogins', 'recentAudit',
             'notifications', 'notifCount',
             'myUrgentTasks', 'myProjectsCount', 'myActiveProjects',
+            'workloadData',
         ));
     }
 

@@ -415,6 +415,126 @@
                 </div>
                 @endif
 
+                {{-- ── Widget Projets actifs ── --}}
+                @if($org?->hasModule(\App\Enums\ModuleKey::PROJECTS) && $myActiveProjects->count())
+                <div class="pd-quick-card">
+                    <div class="pd-quick-header" style="display:flex;align-items:center;justify-content:space-between;">
+                        <span>Projets actifs</span>
+                        <a href="{{ route('projects.index') }}" style="font-size:11px;color:var(--pd-accent);font-weight:400;">
+                            Tous →
+                        </a>
+                    </div>
+                    @foreach($myActiveProjects as $p)
+                    @php
+                        $pPct = $p->tasks_count > 0
+                            ? round($p->done_tasks_count / $p->tasks_count * 100)
+                            : 0;
+                    @endphp
+                    <a href="{{ route('projects.show', $p) }}"
+                       class="pd-qa-btn"
+                       style="flex-direction:column;align-items:flex-start;gap:4px;padding:8px 14px;">
+                        <div style="display:flex;align-items:center;gap:8px;width:100%;">
+                            <div style="width:8px;height:8px;border-radius:50%;background:{{ $p->color ?? '#1E3A5F' }};flex-shrink:0;"></div>
+                            <span style="font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                {{ $p->name }}
+                            </span>
+                            <span style="font-size:10px;color:var(--pd-muted);flex-shrink:0;">
+                                {{ $p->tasks_count }} tâche{{ $p->tasks_count > 1 ? 's' : '' }}
+                            </span>
+                        </div>
+                        <div style="width:100%;height:4px;background:var(--pd-bg2);border-radius:2px;overflow:hidden;">
+                            <div style="height:100%;width:{{ $pPct }}%;background:{{ $p->color ?? 'var(--pd-navy)' }};border-radius:2px;"></div>
+                        </div>
+                    </a>
+                    @endforeach
+                </div>
+                @endif
+
+                {{-- ── Widget Charge de l'équipe (DGS / Resp. Direction / Resp. Service) ── --}}
+                @if($isAtLeastResp && $org?->hasModule(\App\Enums\ModuleKey::PROJECTS) && $workloadData)
+                <div class="pd-quick-card" x-data="{ view: 'week' }">
+                    <div class="pd-quick-header" style="display:flex;align-items:center;justify-content:space-between;">
+                        <span>Charge de l'équipe</span>
+                        <div style="display:flex;gap:4px;">
+                            <button @click="view='week'"
+                                    :style="view==='week' ? 'background:var(--pd-navy);color:#fff;' : 'background:var(--pd-bg2);color:var(--pd-muted);'"
+                                    style="font-size:10px;padding:2px 8px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">
+                                Semaine
+                            </button>
+                            <button @click="view='month'"
+                                    :style="view==='month' ? 'background:var(--pd-navy);color:#fff;' : 'background:var(--pd-bg2);color:var(--pd-muted);'"
+                                    style="font-size:10px;padding:2px 8px;border-radius:6px;border:none;cursor:pointer;font-weight:600;">
+                                Mois
+                            </button>
+                        </div>
+                    </div>
+
+                    {{-- Vue semaine --}}
+                    <div x-show="view==='week'" style="padding:10px 14px;">
+                        <div style="font-size:10px;color:var(--pd-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">
+                            {{ $workloadData['week']['label'] }} ·
+                            {{ $workloadData['week']['taskCount'] }} tâche{{ $workloadData['week']['taskCount'] > 1 ? 's' : '' }} ·
+                            {{ $workloadData['week']['totalEst'] }}h estimées
+                        </div>
+                        @forelse($workloadData['week']['byUser'] as $u)
+                        @php
+                            $pct = $u['estimated'] > 0 ? min(100, round($u['actual'] / $u['estimated'] * 100)) : 0;
+                            $over = $u['estimated'] > 0 && $u['actual'] > $u['estimated'];
+                        @endphp
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+                                <span style="font-weight:500;color:var(--pd-text);">{{ $u['name'] }}</span>
+                                <span style="color:{{ $over ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
+                                    {{ $u['actual'] }}h / {{ $u['estimated'] }}h
+                                    <span style="font-size:10px;color:var(--pd-muted);">({{ $u['count'] }} tâche{{ $u['count'] > 1 ? 's' : '' }})</span>
+                                </span>
+                            </div>
+                            <div style="height:5px;background:var(--pd-bg2);border-radius:3px;overflow:hidden;">
+                                <div style="height:100%;width:{{ $pct }}%;background:{{ $over ? '#E24B4A' : 'var(--pd-navy)' }};border-radius:3px;"></div>
+                            </div>
+                        </div>
+                        @empty
+                        <div style="font-size:12px;color:var(--pd-muted);">Aucune tâche avec échéance cette semaine.</div>
+                        @endforelse
+                    </div>
+
+                    {{-- Vue mois --}}
+                    <div x-show="view==='month'" style="padding:10px 14px;">
+                        <div style="font-size:10px;color:var(--pd-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;">
+                            {{ $workloadData['month']['label'] }} ·
+                            {{ $workloadData['month']['taskCount'] }} tâche{{ $workloadData['month']['taskCount'] > 1 ? 's' : '' }} ·
+                            {{ $workloadData['month']['totalEst'] }}h estimées
+                        </div>
+                        @forelse($workloadData['month']['byUser'] as $u)
+                        @php
+                            $pct = $u['estimated'] > 0 ? min(100, round($u['actual'] / $u['estimated'] * 100)) : 0;
+                            $over = $u['estimated'] > 0 && $u['actual'] > $u['estimated'];
+                        @endphp
+                        <div style="margin-bottom:8px;">
+                            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+                                <span style="font-weight:500;color:var(--pd-text);">{{ $u['name'] }}</span>
+                                <span style="color:{{ $over ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
+                                    {{ $u['actual'] }}h / {{ $u['estimated'] }}h
+                                    <span style="font-size:10px;color:var(--pd-muted);">({{ $u['count'] }} tâche{{ $u['count'] > 1 ? 's' : '' }})</span>
+                                </span>
+                            </div>
+                            <div style="height:5px;background:var(--pd-bg2);border-radius:3px;overflow:hidden;">
+                                <div style="height:100%;width:{{ $pct }}%;background:{{ $over ? '#E24B4A' : 'var(--pd-navy)' }};border-radius:3px;"></div>
+                            </div>
+                        </div>
+                        @empty
+                        <div style="font-size:12px;color:var(--pd-muted);">Aucune tâche avec échéance ce mois-ci.</div>
+                        @endforelse
+                    </div>
+
+                    <div style="padding:6px 14px 10px;border-top:0.5px solid var(--pd-border);">
+                        <a href="{{ route('projects.index') }}" style="font-size:11px;color:var(--pd-accent);">
+                            Voir tous les projets → {{ $workloadData['teamSize'] }} membre{{ $workloadData['teamSize'] > 1 ? 's' : '' }} dans l'équipe
+                        </a>
+                    </div>
+                </div>
+                @endif
+
                 @if($isAdmin)
                 <div class="pd-quick-card">
                     <div class="pd-quick-header">Administration</div>

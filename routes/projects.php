@@ -5,6 +5,7 @@ use App\Http\Controllers\Projects\ProjectBudgetController;
 use App\Http\Controllers\Projects\ProjectChangeController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectEventController;
+use App\Http\Controllers\Projects\ProjectHistoryController;
 use App\Http\Controllers\Projects\ProjectMemberController;
 use App\Http\Controllers\Projects\ProjectMilestoneController;
 use App\Http\Controllers\Projects\ProjectObservationController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Projects\ProjectStakeholderController;
 use App\Http\Controllers\Projects\ProjectTemplateController;
 use App\Http\Controllers\Projects\TaskCommentController;
 use App\Http\Controllers\Projects\TaskController;
+use App\Http\Controllers\Projects\TaskDependencyController;
 
 /*
 |--------------------------------------------------------------------------
@@ -64,9 +66,13 @@ Route::prefix('projects')
         // Créer un template depuis un projet existant
         Route::post('/{project}/save-as-template', [ProjectTemplateController::class, 'fromProject'])->name('save_as_template');
 
-        // Export iCal
+        // Export iCal agenda complet
         Route::get('/{project}/export/ical', [ProjectController::class, 'exportIcal'])
             ->name('export.ical');
+
+        // Export iCal jalons uniquement (Outlook / Google Calendar — élus)
+        Route::get('/{project}/export/milestones.ics', [ProjectController::class, 'exportMilestonesIcal'])
+            ->name('export.milestones-ical');
 
         // Export PDF tableau de bord élus
         Route::get('/{project}/export/pdf', [ProjectController::class, 'exportPdf'])
@@ -75,6 +81,10 @@ Route::prefix('projects')
         // Export ZIP élus (PDF + pièces jointes)
         Route::get('/{project}/export/zip', [ProjectController::class, 'exportZip'])
             ->name('export.zip');
+
+        // Historique d'activité
+        Route::get('/{project}/history', [ProjectHistoryController::class, 'index'])
+            ->name('history');
 
         // ── Kanban AJAX (Alpine.js — ADR-008 révisé, pas de Livewire) ─────
         Route::patch('/{project}/kanban/move', [KanbanController::class, 'move'])->name('kanban.move');
@@ -86,6 +96,9 @@ Route::prefix('projects')
         Route::patch('/{project}/tasks/{task}', [TaskController::class, 'update'])->name('tasks.update');
         Route::patch('/{project}/tasks/{task}/dates', [TaskController::class, 'updateDates'])->name('tasks.dates');
         Route::delete('/{project}/tasks/{task}', [TaskController::class, 'destroy'])->name('tasks.destroy');
+
+        Route::post('/{project}/tasks/{task}/dependencies', [TaskDependencyController::class, 'store'])->name('tasks.dependencies.store');
+        Route::delete('/{project}/tasks/{task}/dependencies/{predecessor}', [TaskDependencyController::class, 'destroy'])->name('tasks.dependencies.destroy');
 
         // ── Commentaires ──────────────────────────────────────────────────
         Route::post('/{project}/tasks/{task}/comments', [TaskCommentController::class, 'store'])->name('tasks.comments.store');
@@ -130,4 +143,11 @@ Route::prefix('projects')
         // ── Observations élus ─────────────────────────────────────────────
         Route::post('/{project}/observations', [ProjectObservationController::class, 'store'])->name('observations.store');
         Route::delete('/{project}/observations/{observation}', [ProjectObservationController::class, 'destroy'])->name('observations.destroy');
+
+        // ── Documents projet / tâche / jalon ─────────────────────────────
+        Route::get('/{project}/documents', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'index'])->name('documents.index');
+        Route::post('/{project}/documents/upload', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'store'])->name('documents.store');
+        Route::post('/{project}/documents/link', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'storeLink'])->name('documents.link');
+        Route::get('/{project}/documents/{document}/download', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'download'])->name('documents.download');
+        Route::delete('/{project}/documents/{document}', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'destroy'])->name('documents.destroy');
     });

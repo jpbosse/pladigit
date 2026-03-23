@@ -45,11 +45,7 @@ class ProjectMilestoneController extends Controller
             'sort_order' => $maxOrder + 10,
         ]);
 
-        $this->audit->log('phase.created', auth()->user(), [
-            'project_id' => $project->id,
-            'phase_id' => $phase->id,
-            'phase_name' => $phase->title,
-        ]);
+        $this->audit->log('phase.created', auth()->user(), ['new' => ['project_id' => $project->id, 'phase_id' => $phase->id, 'phase_name' => $phase->title]]);
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'milestone_id' => $phase->id]);
@@ -91,12 +87,7 @@ class ProjectMilestoneController extends Controller
             'sort_order' => $maxOrder + 10,
         ]);
 
-        $this->audit->log('milestone.created', auth()->user(), [
-            'project_id' => $project->id,
-            'milestone_id' => $milestone->id,
-            'milestone_name' => $milestone->title,
-            'parent_id' => $milestone->parent_id,
-        ]);
+        $this->audit->log('milestone.created', auth()->user(), ['new' => ['project_id' => $project->id, 'milestone_id' => $milestone->id, 'milestone_name' => $milestone->title]]);
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'milestone_id' => $milestone->id]);
@@ -213,14 +204,17 @@ class ProjectMilestoneController extends Controller
         }
 
         // Marquer comme atteint
-        if (isset($validated['reached']) && $validated['reached'] && ! $milestone->isReached()) {
-            $milestone->markReached();
-            $this->audit->log('milestone.reached', auth()->user(), [
-                'project_id' => $project->id,
-                'milestone_id' => $milestone->id,
-                'milestone_name' => $milestone->title,
-            ]);
-            // Notifier les membres du projet
+        if (isset($validated['reached'])) {
+            if ($validated['reached'] && ! $milestone->isReached()) {
+                $milestone->markReached();
+                $this->audit->log('milestone.reached', auth()->user(), ['new' => ['project_id' => $project->id, 'milestone_id' => $milestone->id, 'milestone_name' => $milestone->title]]);
+            } elseif (! $validated['reached'] && $milestone->isReached()) {
+                // Annuler l'atteinte
+                $milestone->update(['reached_at' => null]);
+            }
+        }
+        if (isset($validated['reached']) && $validated['reached'] && $milestone->isReached()) {
+            // Notifier les membres du projet (seulement lors de l'atteinte initiale)
             /** @var \App\Models\Tenant\User $user */
             $user = auth()->user();
             app(\App\Services\NotificationService::class)->milestoneReached($milestone->title, $project, $user);

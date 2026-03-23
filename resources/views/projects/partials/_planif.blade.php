@@ -6,7 +6,20 @@ $hoursPct       = $totalEstimated > 0 ? min(100, round($totalActual / $totalEsti
 $hoursOver      = $totalEstimated > 0 && $totalActual > $totalEstimated;
 @endphp
 
-<div x-data="{ tab: '{{ request('view','liste') }}', switchTab(t) { this.tab = t; window.dispatchEvent(new CustomEvent('close-event-slideover')); } }">
+<div x-data="{
+    tab:     '{{ request('view','liste') }}',
+    sortBy:  'default',
+    sortDir: 'asc',
+    switchTab(t) { this.tab = t; window.dispatchEvent(new CustomEvent('close-event-slideover')); },
+    toggleDir() { this.sortDir = this.sortDir === 'asc' ? 'desc' : 'asc'; this.applySort(); },
+    changeSort(v) { this.sortBy = v; this.applySort(); },
+    applySort() {
+        const by  = this.sortBy;
+        const dir = this.sortDir;
+        if (by === 'default') { window.dispatchEvent(new CustomEvent('sort-tasks', {detail:{by:'default',dir}})); return; }
+        window.dispatchEvent(new CustomEvent('sort-tasks', {detail:{by, dir}}));
+    }
+}">
 
 {{-- ── Bandeau heures total ── --}}
 @if($totalEstimated > 0)
@@ -72,6 +85,24 @@ $hoursOver      = $totalEstimated > 0 && $totalActual > $totalEstimated;
     </div>
 </div>
 @endif
+
+{{-- ── Barre de tri ── --}}
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+    <span style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Tri</span>
+    <select @change="changeSort($event.target.value)" x-model="sortBy"
+            style="font-size:12px;padding:4px 8px;border:0.5px solid var(--pd-border);border-radius:6px;background:var(--pd-surface);color:var(--pd-text);cursor:pointer;">
+        <option value="default">Par défaut (jalon / sort_order)</option>
+        <option value="title">Nom</option>
+        <option value="due_date">Date d'échéance</option>
+        <option value="priority">Priorité</option>
+        <option value="assignee">Assigné</option>
+    </select>
+    <button @click="toggleDir()" x-show="sortBy !== 'default'"
+            style="font-size:13px;padding:4px 10px;border:0.5px solid var(--pd-border);border-radius:6px;background:var(--pd-surface);color:var(--pd-text);cursor:pointer;line-height:1;"
+            :title="sortDir === 'asc' ? 'Croissant — cliquer pour inverser' : 'Décroissant — cliquer pour inverser'"
+            x-text="sortDir === 'asc' ? '↑ Croissant' : '↓ Décroissant'">
+    </button>
+</div>
 
 {{-- ── Onglets ── --}}
 <div class="sub-tabs">

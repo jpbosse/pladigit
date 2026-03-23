@@ -153,6 +153,11 @@ class ProjectPolicy
         return $project->isMember($user);
     }
 
+    public function exportMilestonesIcal(User $user, Project $project): bool
+    {
+        return $project->isMember($user);
+    }
+
     private function hasProjectRole(User $user, Project $project, ProjectRole $required): bool
     {
         return $project->memberRole($user) === $required;

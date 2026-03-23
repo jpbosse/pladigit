@@ -245,6 +245,10 @@ if (!$nextActiveGroupId) {
                             @endphp
                             <div class="pd-kanban-card" draggable="true"
                                  data-task-id="{{ $task->id }}" data-status="{{ $status }}"
+                                 data-sort-title="{{ strtolower($task->title) }}"
+                                 data-sort-due="{{ $task->due_date?->format('Y-m-d') ?? '9999-99-99' }}"
+                                 data-sort-priority="{{ match($task->priority) { 'urgent'=>4,'high'=>3,'medium'=>2,default=>1 } }}"
+                                 data-sort-assignee="{{ strtolower($task->assignee?->name ?? '') }}"
                                  @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
                                  @dragend="onDragEnd()"
                                  @dragover.prevent="onCardDragOver($event, $el)"
@@ -320,6 +324,10 @@ if (!$nextActiveGroupId) {
                          draggable="true"
                          data-task-id="{{ $task->id }}"
                          data-status="{{ $status }}"
+                         data-sort-title="{{ strtolower($task->title) }}"
+                         data-sort-due="{{ $task->due_date?->format('Y-m-d') ?? '9999-99-99' }}"
+                         data-sort-priority="{{ match($task->priority) { 'urgent'=>4,'high'=>3,'medium'=>2,default=>1 } }}"
+                         data-sort-assignee="{{ strtolower($task->assignee?->name ?? '') }}"
                          @dragstart="onDragStart($event, {{ $task->id }}, '{{ $status }}')"
                          @dragend="onDragEnd()"
                          @dragover.prevent="onCardDragOver($event, $el)"
@@ -690,6 +698,28 @@ function kanban() {
 
     // Clic sur carte — géré par Alpine @click sur chaque carte
     // (pas de listener global pour éviter les conflits avec les autres vues)
+
+    // ── Tri externe (événement sort-tasks depuis _planif) ────────────────
+    const attrMap = { title:'sortTitle', due_date:'sortDue', priority:'sortPriority', assignee:'sortAssignee' };
+    window.addEventListener('sort-tasks', function(e) {
+        const {by, dir} = e.detail;
+        const attr = attrMap[by];
+        if (!attr) return; // 'default' : pas de tri côté Kanban
+        document.querySelectorAll('.pd-kanban-cards').forEach(container => {
+            const cards = Array.from(container.querySelectorAll('.pd-kanban-card'));
+            cards.sort((a, b) => {
+                let va = a.dataset[attr] ?? '';
+                let vb = b.dataset[attr] ?? '';
+                if (by === 'priority') {
+                    va = parseFloat(va) || 0;
+                    vb = parseFloat(vb) || 0;
+                    return dir === 'asc' ? va - vb : vb - va;
+                }
+                return dir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr');
+            });
+            cards.forEach(c => container.appendChild(c));
+        });
+    });
 
     // Attacher au chargement + après chaque rechargement de section Alpine
     document.addEventListener('DOMContentLoaded', attachEvents);

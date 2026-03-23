@@ -62,6 +62,11 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
 
 <div x-data="ganttCtrl()" x-init="init()">
 
+{{-- Note tri actif --}}
+<div x-show="sortNote" style="margin-bottom:10px;padding:7px 12px;background:#FEF3C7;border:0.5px solid #FCD34D;border-radius:8px;font-size:12px;color:#92400E;">
+    ⚠ Le tri s'applique à la vue <strong>Liste</strong> et au <strong>Kanban</strong>. Le Gantt reste ordonné par dates.
+</div>
+
 {{-- ── Barre d'outils ── --}}
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
     <span style="font-size:12px;color:var(--pd-muted);">
@@ -269,8 +274,8 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
                 <line x1="0" y1="{{ $y+$rowH }}" x2="{{ $svgWidth }}" y2="{{ $y+$rowH }}" stroke="var(--pd-border)" stroke-width="0.4"/>
                 @if($isInProgress)<rect x="0" y="{{ $y }}" width="3" height="{{ $rowH }}" fill="#3B82F6"/>@endif
                 <text x="10" y="{{ $y+$rowH/2+4 }}" font-size="11" fill="{{ $task->status==='done'?'var(--pd-muted)':'var(--pd-text)' }}" text-decoration="{{ $task->status==='done'?'line-through':'none' }}">{{ Str::limit($task->title,28) }}</text>
-                <rect x="{{ $x1 }}" y="{{ $y+$barY }}" width="{{ $bw }}" height="{{ $barH }}" rx="4" fill="{{ $bg }}" stroke="{{ $isLateTask?'#DC2626':$str }}" stroke-width="{{ $isLateTask?'2':'1' }}" style="cursor:pointer;" onclick="window.dispatchEvent(new CustomEvent('open-task',{detail:{taskId:{{ $task->id }}}}))"/>
-                @if($bw>50)<text x="{{ $x1+$bw/2 }}" y="{{ $y+$barY+$barH/2+4 }}" text-anchor="middle" font-size="9" font-weight="600" fill="{{ $task->status==='done'?'#065F46':$str }}">{{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}</text>@endif
+                <rect x="{{ $x1 }}" y="{{ $y+$barY }}" width="{{ $bw }}" height="{{ $barH }}" rx="4" fill="{{ $bg }}" stroke="{{ $isLateTask?'#DC2626':$str }}" stroke-width="{{ $isLateTask?'2':'1' }}" style="cursor:grab;" class="gantt-bar" data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}" data-start="{{ $task->start_date->format('Y-m-d') }}" data-due="{{ $task->due_date->format('Y-m-d') }}" data-x1="{{ round($x1) }}" data-bw="{{ round($bw) }}" data-day-width="{{ round($dayWidth, 4) }}" data-view-start="{{ $viewStart->format('Y-m-d') }}" data-can-edit="{{ $canEdit ? '1' : '0' }}"/>
+                @if($bw>50)<text x="{{ $x1+$bw/2 }}" y="{{ $y+$barY+$barH/2+4 }}" text-anchor="middle" font-size="9" font-weight="600" fill="{{ $task->status==='done'?'#065F46':$str }}" style="pointer-events:none;">{{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}</text>@endif
             </g>
             @endforeach
             @if($childMs->due_date)
@@ -312,8 +317,8 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
             <line x1="0" y1="{{ $y+$rowH }}" x2="{{ $svgWidth }}" y2="{{ $y+$rowH }}" stroke="var(--pd-border)" stroke-width="0.4"/>
             @if($isInProgress)<rect x="0" y="{{ $y }}" width="3" height="{{ $rowH }}" fill="#3B82F6"/>@endif
             <text x="10" y="{{ $y+$rowH/2+4 }}" font-size="11" fill="{{ $task->status==='done'?'var(--pd-muted)':'var(--pd-text)' }}" text-decoration="{{ $task->status==='done'?'line-through':'none' }}">{{ Str::limit($task->title,28) }}</text>
-            <rect x="{{ $x1 }}" y="{{ $y+$barY }}" width="{{ $bw }}" height="{{ $barH }}" rx="4" fill="{{ $bg }}" stroke="{{ $isLateTask?'#DC2626':$str }}" stroke-width="{{ $isLateTask?'2':'1' }}" style="cursor:pointer;" onclick="window.dispatchEvent(new CustomEvent('open-task',{detail:{taskId:{{ $task->id }}}}))"/>
-            @if($bw>50)<text x="{{ $x1+$bw/2 }}" y="{{ $y+$barY+$barH/2+4 }}" text-anchor="middle" font-size="9" font-weight="600" fill="{{ $task->status==='done'?'#065F46':$str }}">{{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}</text>@endif
+            <rect x="{{ $x1 }}" y="{{ $y+$barY }}" width="{{ $bw }}" height="{{ $barH }}" rx="4" fill="{{ $bg }}" stroke="{{ $isLateTask?'#DC2626':$str }}" stroke-width="{{ $isLateTask?'2':'1' }}" style="cursor:grab;" class="gantt-bar" data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}" data-start="{{ $task->start_date->format('Y-m-d') }}" data-due="{{ $task->due_date->format('Y-m-d') }}" data-x1="{{ round($x1) }}" data-bw="{{ round($bw) }}" data-day-width="{{ round($dayWidth, 4) }}" data-view-start="{{ $viewStart->format('Y-m-d') }}" data-can-edit="{{ $canEdit ? '1' : '0' }}"/>
+            @if($bw>50)<text x="{{ $x1+$bw/2 }}" y="{{ $y+$barY+$barH/2+4 }}" text-anchor="middle" font-size="9" font-weight="600" fill="{{ $task->status==='done'?'#065F46':$str }}" style="pointer-events:none;">{{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}</text>@endif
         </g>
         @endforeach
         @if($milestone && $milestone->due_date)
@@ -363,10 +368,212 @@ function ganttCtrl() {
     return {
         zoom: 1,
         showAll: false,
+        sortNote: false,
         init() {
             const s = localStorage.getItem('gantt_zoom_v3');
             if (s) this.zoom = Math.max(0.5, Math.min(2.5, parseFloat(s)));
+            window.addEventListener('sort-tasks', e => {
+                this.sortNote = (e.detail.by !== 'default');
+            });
+            // Attacher le drag & drop après le rendu Alpine
+            this.$nextTick(() => ganttDragInit());
         },
     };
+}
+
+// ── Drag & Drop Gantt ────────────────────────────────────────────────────
+function ganttDragInit() {
+    // Éviter la double initialisation
+    if (window._ganttDragInitialized) return;
+    window._ganttDragInitialized = true;
+
+    let dragging  = null;
+    let startX    = 0;
+    let origX1    = 0;
+    let hasMoved  = false;
+    let tooltip   = null;
+
+    function csrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+    }
+
+    function addDays(dateStr, days) {
+        const d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() + Math.round(days));
+        return d.toISOString().slice(0, 10);
+    }
+
+    function formatDateFr(dateStr) {
+        const [y, m, d] = dateStr.split('-');
+        return `${d}/${m}/${y}`;
+    }
+
+    // Lire le zoom depuis le span Alpine affiché dans la barre d'outils
+    function getCurrentZoom() {
+        const span = document.querySelector('[x-text*="zoom"]');
+        if (span) {
+            const pct = parseFloat(span.textContent);
+            if (!isNaN(pct)) return pct / 100;
+        }
+        // Fallback : lire depuis le style transform de n'importe quel SVG Gantt
+        const svg = document.querySelector('.gantt-bar')?.closest('svg');
+        if (svg) {
+            const style = svg.getAttribute('style') || '';
+            const m = style.match(/scaleX\(([\d.]+)\)/);
+            if (m) return parseFloat(m[1]);
+        }
+        return 1;
+    }
+
+    function showTooltip(svg, x, y, text) {
+        removeTooltip();
+        tooltip = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        const tx = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        bg.setAttribute('x', x); bg.setAttribute('y', y - 22);
+        bg.setAttribute('width', 150); bg.setAttribute('height', 18);
+        bg.setAttribute('rx', 4); bg.setAttribute('fill', '#1E3A5F');
+        tx.setAttribute('x', x + 6); tx.setAttribute('y', y - 8);
+        tx.setAttribute('font-size', 10); tx.setAttribute('fill', '#fff');
+        tx.setAttribute('font-family', 'DM Sans, Arial, sans-serif');
+        tx.textContent = text;
+        tooltip.appendChild(bg); tooltip.appendChild(tx);
+        svg.appendChild(tooltip);
+    }
+
+    function removeTooltip() {
+        if (tooltip) { tooltip.remove(); tooltip = null; }
+    }
+
+    function attachBars() {
+        document.querySelectorAll('.gantt-bar:not([data-drag-bound])').forEach(bar => {
+            bar.setAttribute('data-drag-bound', '1');
+
+            if (bar.dataset.canEdit !== '1') {
+                bar.style.cursor = 'pointer';
+                bar.addEventListener('click', () => {
+                    window.dispatchEvent(new CustomEvent('open-task', {
+                        detail: { taskId: parseInt(bar.dataset.taskId) }
+                    }));
+                });
+                return;
+            }
+
+            bar.addEventListener('mousedown', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                dragging = bar;
+                startX   = e.clientX;
+                origX1   = parseFloat(bar.getAttribute('x'));
+                hasMoved = false;
+                bar.style.cursor  = 'grabbing';
+                bar.style.opacity = '0.75';
+            });
+        });
+    }
+
+    // Listeners globaux — une seule fois
+    document.addEventListener('mousemove', e => {
+        if (!dragging) return;
+
+        const deltaX = e.clientX - startX;
+        if (Math.abs(deltaX) > 4) hasMoved = true;
+        if (!hasMoved) return;
+
+        const zoom     = getCurrentZoom();
+        const dayWidth = parseFloat(dragging.dataset.dayWidth) * zoom;
+        const deltaDays = deltaX / dayWidth;
+        const newX      = origX1 + deltaX / zoom;
+
+        dragging.setAttribute('x', newX);
+
+        // Déplacer le label texte synchronisé
+        const svg = dragging.closest('svg');
+        if (svg) {
+            const bw = parseFloat(dragging.dataset.bw);
+            const bars = Array.from(svg.querySelectorAll('.gantt-bar'));
+            const idx  = bars.indexOf(dragging);
+            const texts = svg.querySelectorAll('text[style*="pointer-events"]');
+            if (texts[idx]) texts[idx].setAttribute('x', newX + bw / 2);
+
+            const newStart = addDays(dragging.dataset.start, deltaDays);
+            const newDue   = addDays(dragging.dataset.due,   deltaDays);
+            const barY = parseFloat(dragging.getAttribute('y'));
+            showTooltip(svg, newX, barY, `${formatDateFr(newStart)} → ${formatDateFr(newDue)}`);
+        }
+    });
+
+    document.addEventListener('mouseup', async e => {
+        if (!dragging) return;
+
+        const bar = dragging;
+        dragging  = null;
+        removeTooltip();
+        bar.style.cursor  = 'grab';
+        bar.style.opacity = '1';
+
+        if (!hasMoved) {
+            // Clic simple → ouvrir le slideover
+            window.dispatchEvent(new CustomEvent('open-task', {
+                detail: { taskId: parseInt(bar.dataset.taskId) }
+            }));
+            return;
+        }
+
+        const deltaX    = e.clientX - startX;
+        const zoom      = getCurrentZoom();
+        const dayWidth  = parseFloat(bar.dataset.dayWidth) * zoom;
+        const deltaDays = deltaX / dayWidth;
+
+        if (Math.abs(deltaDays) < 0.5) {
+            bar.setAttribute('x', origX1);
+            return;
+        }
+
+        const newStart = addDays(bar.dataset.start, deltaDays);
+        const newDue   = addDays(bar.dataset.due,   deltaDays);
+
+        try {
+            const r = await fetch(
+                `/projects/${bar.dataset.projectId}/tasks/${bar.dataset.taskId}/dates`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ start_date: newStart, due_date: newDue }),
+                }
+            );
+            const data = await r.json();
+            if (data.success) {
+                bar.dataset.start = newStart;
+                bar.dataset.due   = newDue;
+                bar.dataset.x1    = bar.getAttribute('x');
+            } else {
+                bar.setAttribute('x', origX1);
+            }
+        } catch (err) {
+            bar.setAttribute('x', origX1);
+            console.error('Gantt drag error:', err);
+        }
+    });
+
+    // Annuler si on sort de la fenêtre
+    document.addEventListener('mouseleave', () => {
+        if (dragging) {
+            dragging.setAttribute('x', origX1);
+            dragging.style.cursor  = 'grab';
+            dragging.style.opacity = '1';
+            dragging = null;
+            removeTooltip();
+        }
+    });
+
+    // Attacher aux barres existantes + observer les nouvelles (jalons dépliés)
+    attachBars();
+    const observer = new MutationObserver(attachBars);
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 </script>

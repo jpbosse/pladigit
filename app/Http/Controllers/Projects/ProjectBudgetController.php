@@ -40,13 +40,7 @@ class ProjectBudgetController extends Controller
             'created_by' => auth()->id(),
         ]);
 
-        $this->audit->log('project.budget.created', auth()->user(), [
-            'project_id' => $project->id,
-            'budget_id' => $budget->id,
-            'label' => $budget->label,
-            'type' => $budget->type,
-            'planned' => $budget->amount_planned,
-        ]);
+        $this->audit->log('project.budget.created', auth()->user(), ['new' => ['project_id' => $project->id, 'budget_id' => $budget->id, 'label' => $budget->label]]);
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'budget' => $budget]);
@@ -74,10 +68,7 @@ class ProjectBudgetController extends Controller
 
         $budget->update($validated);
 
-        $this->audit->log('project.budget.updated', auth()->user(), [
-            'project_id' => $project->id,
-            'budget_id' => $budget->id,
-        ]);
+        $this->audit->log('project.budget.updated', auth()->user(), ['new' => ['project_id' => $project->id, 'budget_id' => $budget->id]]);
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'budget' => $budget->fresh()]);
@@ -93,11 +84,7 @@ class ProjectBudgetController extends Controller
 
         $budget->delete();
 
-        $this->audit->log('project.budget.deleted', auth()->user(), [
-            'project_id' => $project->id,
-            'budget_id' => $budget->id,
-            'label' => $budget->label,
-        ]);
+        $this->audit->log('project.budget.deleted', auth()->user(), ['new' => ['project_id' => $project->id, 'budget_id' => $budget->id, 'label' => $budget->label]]);
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true]);

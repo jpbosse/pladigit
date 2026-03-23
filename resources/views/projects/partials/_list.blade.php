@@ -26,7 +26,32 @@ if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
 }
 @endphp
 
-<div x-data="{ showAll: false, filter: '' }">
+<div x-data="{ showAll: false, filter: '' }"
+     x-init="
+        window.addEventListener('sort-tasks', e => {
+            const {by, dir} = e.detail;
+            // Mapping critère → attribut data-sort-*
+            const attrMap = { title:'sortTitle', due_date:'sortDue', priority:'sortPriority', assignee:'sortAssignee' };
+            const attr = attrMap[by];
+            document.querySelectorAll('#list-view-wrap tbody').forEach(tbody => {
+                const rows = Array.from(tbody.querySelectorAll('tr[data-sort-title]'));
+                if (!rows.length) return;
+                if (!attr) { return; } // 'default' : ne rien faire côté liste
+                rows.sort((a, b) => {
+                    let va = a.dataset[attr] ?? '';
+                    let vb = b.dataset[attr] ?? '';
+                    if (by === 'priority') {
+                        va = parseFloat(va) || 0;
+                        vb = parseFloat(vb) || 0;
+                        return dir === 'asc' ? va - vb : vb - va;
+                    }
+                    return dir === 'asc' ? va.localeCompare(vb, 'fr') : vb.localeCompare(va, 'fr');
+                });
+                rows.forEach(r => tbody.appendChild(r));
+            });
+        });
+     ">
+<div id="list-view-wrap">
 
 {{-- ── Barre d'outils ── --}}
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap;">
@@ -155,4 +180,5 @@ if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
 </div>
 @endforeach
 
-</div>
+</div>{{-- /list-view-wrap --}}
+</div>{{-- /x-data --}}

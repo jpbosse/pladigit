@@ -143,6 +143,12 @@ class Project extends Model
         return $this->hasMany(ProjectObservation::class)->latest();
     }
 
+    /** @return \Illuminate\Database\Eloquent\Relations\MorphMany<ProjectDocument, $this> */
+    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(ProjectDocument::class, 'documentable')->latest();
+    }
+
     // ── Scopes ────────────────────────────────────────────────────────────
 
     /**
