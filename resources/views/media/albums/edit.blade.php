@@ -99,4 +99,68 @@
     </div>
 
 </div>
+    {{-- ── Section couverture ─────────────────────────────────────────── --}}
+    @if($coverItems->isNotEmpty())
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mt-4">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-sm font-semibold text-gray-700">Image de couverture</h2>
+                <p class="text-xs text-gray-400 mt-0.5">
+                    Première image utilisée par défaut. Cliquez pour choisir une autre.
+                </p>
+            </div>
+            @if($album->cover_item_id)
+            <form method="POST" action="{{ route('media.albums.cover.reset', $album) }}"
+                  onsubmit="return confirm('Réinitialiser vers la première image ?')">
+                @csrf @method('DELETE')
+                <button type="submit"
+                        class="text-xs text-amber-600 hover:text-amber-700 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-50 transition-colors">
+                    ↺ Réinitialiser
+                </button>
+            </form>
+            @endif
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;">
+            @foreach($coverItems as $item)
+            <form method="POST" action="{{ route('media.albums.cover', [$album, $item]) }}">
+                @csrf @method('PUT')
+                <button type="submit"
+                        title="{{ $item->caption ?? $item->file_name }}"
+                        style="
+                            width:100%;aspect-ratio:1;padding:0;border-radius:8px;overflow:hidden;
+                            border:3px solid {{ $currentCover?->id === $item->id ? '#f59e0b' : 'transparent' }};
+                            cursor:pointer;position:relative;background:none;
+                            box-shadow:{{ $currentCover?->id === $item->id ? '0 0 0 1px #f59e0b' : 'none' }};
+                            transition:border-color .15s, box-shadow .15s;
+                        "
+                        onmouseover="this.style.borderColor='#f59e0b'"
+                        onmouseout="this.style.borderColor='{{ $currentCover?->id === $item->id ? '#f59e0b' : 'transparent' }}'">
+                    <img src="{{ route('media.items.serve', [$album, $item, 'thumb']) }}"
+                         alt="{{ $item->caption ?? $item->file_name }}"
+                         style="width:100%;height:100%;object-fit:cover;display:block;">
+                    @if($currentCover?->id === $item->id)
+                    <span style="
+                        position:absolute;top:3px;right:3px;
+                        background:#f59e0b;border-radius:50%;
+                        width:16px;height:16px;font-size:9px;
+                        display:flex;align-items:center;justify-content:center;color:#fff;
+                        line-height:1;
+                    ">⭐</span>
+                    @endif
+                </button>
+            </form>
+            @endforeach
+        </div>
+
+        @if($coverItems->count() === 24)
+        <p class="text-xs text-gray-400 mt-3">
+            Affichage limité aux 24 premières images. Pour en choisir d'autres,
+            utilisez le bouton ⭐ dans la galerie au survol d'une photo.
+        </p>
+        @endif
+    </div>
+    @endif
+
+
 @endsection

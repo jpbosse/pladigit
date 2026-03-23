@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
  * Paramètres de configuration du tenant.
  * Table singleton (une seule ligne par base tenant).
  *
+ * @property int $media_stream_threshold_mb
  * @property string|null $nas_photo_driver
  * @property string|null $nas_photo_local_path
  * @property string|null $nas_photo_host
@@ -50,6 +51,7 @@ class TenantSettings extends Model
         'maintenance_window_day', 'maintenance_window_start', 'maintenance_window_end',
         // Photothèque affichage
         'media_default_cols',
+        'media_stream_threshold_mb',
         // Watermark téléchargements
         'wm_enabled',
         'wm_type',
@@ -92,6 +94,8 @@ class TenantSettings extends Model
         'force_2fa' => 'boolean',
         'ldap_use_tls' => 'boolean',
         'ldap_use_ssl' => 'boolean',
+        'media_default_cols' => 'integer',
+        'media_stream_threshold_mb' => 'integer',
         // NAS Photothèque
         'nas_photo_port' => 'integer',
         'nas_photo_sync_interval_minutes' => 'integer',

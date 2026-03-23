@@ -39,6 +39,7 @@ class MediaAlbumController extends Controller
         $albums = MediaAlbum::visibleFor($user)
             ->whereNull('parent_id')
             ->withCount(['items', 'children'])
+            ->with('coverItem')
             ->orderByDesc('created_at')
             ->paginate(24);
 
@@ -257,13 +258,19 @@ class MediaAlbumController extends Controller
                 'download' => route('media.items.download', [$album, $item]),
                 'destroy' => route('media.items.destroy', [$album, $item]),
                 'mime' => $item->mime_type,
+                'cover_url' => route('media.albums.cover', [$album, $item]),
+                'is_cover' => $item->isImage(),
+                'is_duplicate' => (bool) $item->is_duplicate,
             ];
         })->values();
+
+        $canAdmin = $album->canAdmin($user);
+        $coverItem = $album->resolveCoverItem();
 
         return view('media.albums.show', compact(
             'album', 'items', 'itemsForJs', 'defaultCols', 'userCols',
             'perPage', 'showAll', 'sortBy', 'sortDir', 'filterType',
-            'albumTree', 'totalItems'
+            'albumTree', 'totalItems', 'canAdmin', 'coverItem'
         ));
     }
 
@@ -279,7 +286,17 @@ class MediaAlbumController extends Controller
         $excludeIds = array_merge([$album->id], $album->descendantIds());
         $parentAlbums = $this->buildAlbumTree($user, $excludeIds);
 
-        return view('media.albums.edit', compact('album', 'parentAlbums'));
+        // Items images pour le sélecteur de couverture (max 24 pour l'UI)
+        $coverItems = $album->items()
+            ->where('mime_type', 'like', 'image/%')
+            ->notThumbs()
+            ->oldest()
+            ->limit(24)
+            ->get();
+
+        $currentCover = $album->resolveCoverItem();
+
+        return view('media.albums.edit', compact('album', 'parentAlbums', 'coverItems', 'currentCover'));
     }
 
     /**
@@ -367,6 +384,52 @@ class MediaAlbumController extends Controller
     /**
      * Suppression (soft delete) d'un album.
      */
+    // ── Couverture ───────────────────────────────────────────────────────────
+
+    /**
+     * Définit un item comme couverture de l'album.
+     * Accessible aux admins uniquement (canAdmin).
+     * Un item null remet la couverture automatique (premier item).
+     */
+    public function setCover(MediaAlbum $album, \App\Models\Tenant\MediaItem $item): \Illuminate\Http\RedirectResponse
+    {
+        $this->authorize('manage', $album);
+
+        // Vérifier que l'item appartient bien à cet album
+        abort_if($item->album_id !== $album->id, 404);
+
+        // Seules les images peuvent être couverture
+        abort_if(! $item->isImage(), 422, 'Seules les images peuvent être utilisées comme couverture.');
+
+        $album->update(['cover_item_id' => $item->id]);
+
+        /** @var \App\Models\Tenant\User $user */
+        $user = auth()->user();
+        $this->audit->log('media.album.cover_set', $user, [
+            'new' => ['album_id' => $album->id, 'item_id' => $item->id, 'item_name' => $item->file_name],
+        ]);
+
+        return back()->with('success', '« '.$item->file_name." » définie comme couverture de l'album.");
+    }
+
+    /**
+     * Réinitialise la couverture — repasse en mode automatique (premier item).
+     */
+    public function resetCover(MediaAlbum $album): \Illuminate\Http\RedirectResponse
+    {
+        $this->authorize('manage', $album);
+
+        $album->update(['cover_item_id' => null]);
+
+        /** @var \App\Models\Tenant\User $user */
+        $user = auth()->user();
+        $this->audit->log('media.album.cover_reset', $user, [
+            'new' => ['album_id' => $album->id],
+        ]);
+
+        return back()->with('success', 'Couverture réinitialisée — première image de l\'album utilisée automatiquement.');
+    }
+
     public function destroy(MediaAlbum $album, MediaService $mediaService)
     {
         /** @var User $user */

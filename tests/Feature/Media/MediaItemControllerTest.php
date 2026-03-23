@@ -193,6 +193,75 @@ class MediaItemControllerTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_serve_bascule_sur_stream_pour_image_superieure_a_10_mo(): void
+    {
+        // Configurer le seuil à 10 Mo dans TenantSettings
+        \App\Models\Tenant\TenantSettings::firstOrCreate([])->update([
+            'media_stream_threshold_mb' => 10,
+        ]);
+
+        $this->createFakeJpeg('albums/1/2026/04/heavy.jpg');
+
+        $item = MediaItem::factory()->create([
+            'album_id' => $this->album->id,
+            'file_path' => 'albums/1/2026/04/heavy.jpg',
+            'mime_type' => 'image/jpeg',
+            'thumb_path' => null,
+            'file_size_bytes' => 11 * 1024 * 1024, // 11 Mo — dépasse le seuil
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get(route('media.items.serve', [$this->album, $item, 'full']));
+
+        // stream() renvoie 200 ou 206 (Range) — dans les deux cas pas de 500
+        $this->assertContains($response->getStatusCode(), [200, 206]);
+        $this->assertStringContainsString('image/jpeg', $response->headers->get('Content-Type') ?? '');
+    }
+
+    public function test_serve_ne_bascule_pas_si_seuil_a_zero(): void
+    {
+        // Seuil à 0 = streaming désactivé, même pour les gros fichiers
+        \App\Models\Tenant\TenantSettings::firstOrCreate([])->update([
+            'media_stream_threshold_mb' => 0,
+        ]);
+
+        $contents = $this->createFakeJpeg('albums/1/2026/04/heavy_disabled.jpg');
+
+        $item = MediaItem::factory()->create([
+            'album_id' => $this->album->id,
+            'file_path' => 'albums/1/2026/04/heavy_disabled.jpg',
+            'mime_type' => 'image/jpeg',
+            'thumb_path' => null,
+            'file_size_bytes' => 50 * 1024 * 1024, // 50 Mo
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('media.items.serve', [$this->album, $item, 'full']))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+    }
+
+    public function test_serve_ne_bascule_pas_sur_stream_pour_miniature_superieure_a_10_mo(): void
+    {
+        // Les thumbs sont toujours petits — mais si file_size_bytes > 10 Mo
+        // et que type = 'thumb', on doit rester sur readFile() (chemin normal)
+        $this->createFakeJpeg('albums/1/2026/04/heavy_thumb.jpg');
+        $this->createFakeJpeg('albums/1/2026/04/thumbs/heavy_thumb_t.jpg');
+
+        $item = MediaItem::factory()->create([
+            'album_id' => $this->album->id,
+            'file_path' => 'albums/1/2026/04/heavy_thumb.jpg',
+            'thumb_path' => 'albums/1/2026/04/thumbs/heavy_thumb_t.jpg',
+            'mime_type' => 'image/jpeg',
+            'file_size_bytes' => 11 * 1024 * 1024,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('media.items.serve', [$this->album, $item, 'thumb']))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/jpeg');
+    }
+
     // =========================================================================
     // download
     // =========================================================================

@@ -177,6 +177,8 @@ Route::middleware('tenant')->group(function () {
             Route::get('albums/{album}/edit', [\App\Http\Controllers\Media\MediaAlbumController::class, 'edit'])->name('albums.edit');
             Route::put('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'update'])->name('albums.update');
             Route::delete('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'destroy'])->name('albums.destroy');
+            Route::put('albums/{album}/cover/{item}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'setCover'])->name('albums.cover');
+            Route::delete('albums/{album}/cover', [\App\Http\Controllers\Media\MediaAlbumController::class, 'resetCover'])->name('albums.cover.reset');
 
             // ── Droits par album ──────────────────────────────────────────
             Route::prefix('albums/{album}/permissions')

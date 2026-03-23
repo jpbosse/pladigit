@@ -164,6 +164,15 @@
 .ph-card:hover .ph-overlay { opacity: 1; }
 .ph-card-name { color: #fff; font-size: 10px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 4px; }
 .ph-card-acts { display: flex; gap: 4px; pointer-events: auto; }
+.ph-act-cover-active { color:#f59e0b !important; filter: drop-shadow(0 0 3px rgba(245,158,11,.6)); }
+.ph-dup-badge {
+    position:absolute;top:4px;left:4px;z-index:3;
+    background:rgba(239,68,68,.9);color:#fff;
+    font-size:9px;font-weight:700;
+    padding:2px 5px;border-radius:4px;
+    display:flex;align-items:center;gap:3px;
+    pointer-events:none;
+}
 .ph-act {
     width: 22px; height: 22px;
     background: rgba(255,255,255,.2); border: none; border-radius: 4px;
@@ -414,6 +423,15 @@
                 @can('manage', $album)
                 <a href="{{ route('media.albums.permissions.edit', $album) }}" class="ph-hbtn" title="Droits">🔐</a>
                 <a href="{{ route('media.albums.edit', $album) }}" class="ph-hbtn" title="Modifier">✏️</a>
+                @if($album->cover_item_id)
+                <form method="POST" action="{{ route('media.albums.cover.reset', $album) }}"
+                      style="display:inline;"
+                      onsubmit="return confirm('Réinitialiser la couverture ? La première image sera utilisée automatiquement.')">
+                    @csrf @method('DELETE')
+                    <button type="submit" class="ph-hbtn" title="Réinitialiser la couverture"
+                            style="color:#f59e0b;border-color:rgba(245,158,11,.3);">⭐↺</button>
+                </form>
+                @endif
                 <form method="POST" action="{{ route('media.albums.destroy', $album) }}"
                       onsubmit="return confirm('Supprimer l\'album « {{ addslashes($album->name) }} » et tous ses fichiers ?')"
                       style="display:inline;">
@@ -550,6 +568,7 @@
                     @foreach($items as $index => $item)
                         <div class="ph-card"
                              :class="{ selected: isSelected({{ $item->id }}) }"
+                             data-duplicate="{{ $item->is_duplicate ? 'true' : 'false' }}"
                              @click="cardClick({{ $item->id }}, {{ $index }}, $event)">
                             @if($item->isVideo())
                                 <span class="ph-type-badge">Vidéo</span>
@@ -563,12 +582,23 @@
                                 <img src="{{ route('media.items.serve', [$album, $item, 'thumb']) }}"
                                      alt="{{ $item->caption ?? $item->file_name }}" loading="lazy">
                             @endif
+                            @if($item->is_duplicate)
+                            <div class="ph-dup-badge" title="Ce fichier existe en doublon dans la photothèque">⚠ Doublon</div>
+                            @endif
                             <div class="ph-check" @click.stop="toggleSelect({{ $item->id }})">✓</div>
                             <div class="ph-overlay">
                                 <div class="ph-card-name">{{ $item->caption ?? $item->file_name }}</div>
                                 <div class="ph-card-acts">
                                     <button class="ph-act" title="Plein écran" @click.stop="openLightbox({{ $index }})">⤢</button>
                                     <a href="{{ route('media.items.download', [$album, $item]) }}" class="ph-act" title="Télécharger" @click.stop>↓</a>
+                                    @if($canAdmin && $item->isImage())
+                                    <form method="POST" action="{{ route('media.albums.cover', [$album, $item]) }}"
+                                          style="display:inline;" @click.stop>
+                                        @csrf @method('PUT')
+                                        <button type="submit" class="ph-act{{ $coverItem?->id === $item->id ? ' ph-act-cover-active' : '' }}"
+                                                @click.stop title="Définir comme couverture">⭐</button>
+                                    </form>
+                                    @endif
                                     @can('upload', $album)
                                     <form method="POST" action="{{ route('media.items.destroy', [$album, $item]) }}"
                                           @submit.prevent="if(confirm('Supprimer ?')) $el.submit()" style="display:inline;">
@@ -644,6 +674,12 @@
                         <span x-show="!activeItem.isImage" style="font-size:32px;" x-text="activeItem.isPdf ? '📄' : '🎬'"></span>
                     </div>
                     <div class="ph-panel-title" x-text="activeItem.name"></div>
+                    <template x-if="activeItem.is_duplicate">
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin:6px 0;display:flex;align-items:center;gap:6px;font-size:11px;color:#dc2626;">
+                            <span>⚠</span>
+                            <span>Ce fichier est un doublon</span>
+                        </div>
+                    </template>
                     <div>
                         <div class="ph-meta-row"><span class="ph-meta-lbl">Taille</span><span class="ph-meta-val" x-text="activeItem.size"></span></div>
                         <template x-if="activeItem.dims">
@@ -705,6 +741,9 @@
         <div class="ph-panel-acts" x-show="activeItem">
             <a :href="activeItem?.download" class="ph-panel-btn navy">↓ Télécharger</a>
             <button class="ph-panel-btn" @click="openLightboxItem()">⤢ Plein écran</button>
+            @if($canAdmin)
+            <button class="ph-panel-btn" x-show="activeItem?.isImage" @click="setCoverItem()">⭐ Couverture</button>
+            @endif
             @can('upload', $album)
             <button class="ph-panel-btn danger" @click="deletePanelItem()">🗑 Supprimer</button>
             @endcan
@@ -745,6 +784,28 @@
         </div>
     </div>
 </div>
+
+{{-- Modale confirmation doublon --}}
+<div id="ph-dup-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div style="background:var(--pd-surface);border-radius:12px;padding:24px;max-width:480px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+            <span style="font-size:24px;">⚠️</span>
+            <div>
+                <div style="font-size:15px;font-weight:700;color:var(--pd-text);">Fichiers en doublon détectés</div>
+                <div style="font-size:12px;color:var(--pd-muted);" id="ph-dup-success-msg"></div>
+            </div>
+        </div>
+        <div id="ph-dup-list" style="margin-bottom:16px;max-height:200px;overflow-y:auto;"></div>
+        <div style="font-size:12px;color:var(--pd-muted);margin-bottom:16px;">
+            Cochez les fichiers que vous souhaitez importer quand même.
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <button onclick="closeDuplicateModal()" class="pd-btn pd-btn-secondary pd-btn-sm">Ignorer tous</button>
+            <button type="button" onclick="confirmDuplicates()" class="pd-btn pd-btn-primary pd-btn-sm">Importer sélectionnés</button>
+        </div>
+    </div>
+</div>
+
 
 @endsection
 
@@ -797,9 +858,10 @@ document.addEventListener('alpine:init', () => {
         handleFileInput(event) {
             if (event.target.files.length) this.upload(event.target.files);
         },
-        upload(files) {
+        upload(files, forceNames = []) {
             const fd = new FormData();
             Array.from(files).forEach(f => fd.append('files[]', f));
+            forceNames.forEach(n => fd.append('force_names[]', n));
             fd.append('_token', csrfToken);
             this.uploading = true; this.progress = 0;
             this.statusText = `Envoi de ${files.length} fichier(s)…`;
@@ -807,16 +869,48 @@ document.addEventListener('alpine:init', () => {
             xhr.upload.addEventListener('progress', e => {
                 if (e.lengthComputable) { this.progress = Math.round(e.loaded/e.total*100); this.statusText = `${this.progress}%…`; }
             });
-            xhr.addEventListener('load', () => { this.uploading = false; if (xhr.status < 400) location.reload(); });
-            xhr.addEventListener('error', () => { this.uploading = false; this.statusText = "Erreur."; });
+            xhr.addEventListener('load', () => {
+                this.uploading = false;
+                try {
+                    const res = JSON.parse(xhr.responseText);
+                    if (res.duplicates && res.duplicates.length > 0) {
+                        this._pendingFiles = files;
+                        this._pendingForceNames = forceNames;
+                        this._pendingDuplicates = res.duplicates;
+                        openDuplicateModal(res.duplicates, res.success, files, uploadUrl);
+                        return;
+                    }
+                } catch(e) {}
+                if (xhr.status < 400) location.reload();
+                else this.statusText = 'Erreur ' + xhr.status;
+            });
+            xhr.addEventListener('error', () => { this.uploading = false; this.statusText = 'Erreur réseau.'; });
             xhr.open('POST', uploadUrl);
+            xhr.setRequestHeader('Accept', 'application/json');
+            xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
             xhr.send(fd);
+        },
+        forceUploadDuplicates(fileNames) {
+            // Re-soumettre uniquement les fichiers confirmés
+            const filesToForce = Array.from(this._pendingFiles).filter(f => fileNames.includes(f.name));
+            if (filesToForce.length > 0) {
+                this.upload(filesToForce, fileNames);
+            } else {
+                location.reload();
+            }
         },
 
         openLightbox(index)   { lbIdx = index; renderLb(); document.getElementById('ph-lb').classList.add('open'); },
         openLightboxItem()    { if (!this.activeItem) return; const i = PH_ITEMS.findIndex(x => x.id === this.activeItem.id); if (i >= 0) this.openLightbox(i); },
         openImportModal()     { openImportModal(); },
 
+        setCoverItem() {
+            if (!this.activeItem || !this.activeItem.is_cover) return;
+            const f = document.createElement('form');
+            f.method = 'POST'; f.action = this.activeItem.cover_url;
+            f.innerHTML = `<input name="_token" value="${PH_CSRF}"><input name="_method" value="PUT">`;
+            document.body.appendChild(f); f.submit();
+        },
         deletePanelItem() {
             if (!this.activeItem || !confirm('Supprimer ce fichier ?')) return;
             const f = document.createElement('form');
@@ -849,6 +943,73 @@ function renderLb() {
 }
 function lbGo(d) { lbIdx = Math.max(0, Math.min(PH_ITEMS.length-1, lbIdx+d)); renderLb(); }
 function closeLb() { document.getElementById('ph-lb').classList.remove('open'); }
+
+// ── Modale doublons ───────────────────────────────────────────────────────────
+let _dupPhComponent = null;
+
+let _dupPendingFiles = null;
+let _dupUploadUrl = null;
+
+function openDuplicateModal(duplicates, successCount, files, uploadUrl) {
+    _dupPendingFiles = files;
+    _dupUploadUrl = uploadUrl;
+    const modal = document.getElementById('ph-dup-modal');
+    const list  = document.getElementById('ph-dup-list');
+    const msg   = document.getElementById('ph-dup-success-msg');
+
+    msg.textContent = successCount > 0 ? `${successCount} fichier(s) importé(s) avec succès.` : '';
+
+    list.innerHTML = duplicates.map(d => `
+        <label style="display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--pd-border);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--pd-surface2);">
+            <input type="checkbox" value="${d.file_name}" checked
+                   style="accent-color:var(--pd-navy);margin-top:2px;flex-shrink:0;width:15px;height:15px;">
+            <div>
+                <div style="font-size:12px;font-weight:600;color:var(--pd-text);">${d.file_name}</div>
+                <div style="font-size:11px;color:var(--pd-muted);margin-top:2px;">
+                    Doublon de « ${d.original_file_name} »
+                    ${d.same_album ? 'dans cet album' : `dans l'album « ${d.original_album_name} »`}
+                </div>
+            </div>
+        </label>
+    `).join('');
+
+    modal.style.display = 'flex';
+
+    // Référence au composant Alpine pour le re-upload
+    _dupPhComponent = document.querySelector('[x-data]')?.__x;
+}
+
+function closeDuplicateModal() {
+    document.getElementById('ph-dup-modal').style.display = 'none';
+    location.reload();
+}
+
+function confirmDuplicates() {
+    const checked = Array.from(
+        document.querySelectorAll('#ph-dup-list input[type=checkbox]:checked')
+    ).map(cb => cb.value);
+
+    document.getElementById('ph-dup-modal').style.display = 'none';
+
+    if (checked.length === 0 || !_dupPendingFiles || !_dupUploadUrl) {
+        location.reload();
+        return;
+    }
+
+    const fd = new FormData();
+    const filesToForce = Array.from(_dupPendingFiles).filter(f => checked.includes(f.name));
+    filesToForce.forEach(f => fd.append('files[]', f));
+    checked.forEach(n => fd.append('force_names[]', n));
+    fd.append('_token', PH_CSRF);
+
+    const xhr = new XMLHttpRequest();
+    xhr.addEventListener('load', () => { location.reload(); });
+    xhr.addEventListener('error', () => { location.reload(); });
+    xhr.open('POST', _dupUploadUrl);
+    xhr.setRequestHeader('Accept', 'application/json');
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send(fd);
+}
 document.getElementById('ph-lb')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLb(); });
 
 // Import dossier

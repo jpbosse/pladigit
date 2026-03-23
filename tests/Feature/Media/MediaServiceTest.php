@@ -4,6 +4,7 @@
 
 namespace Tests\Feature\Media;
 
+use App\Exceptions\DuplicateMediaException;
 use App\Models\Platform\Organization;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
@@ -228,11 +229,72 @@ class MediaServiceTest extends TestCase
         // Premier upload — OK
         $service->upload($file, $album, $user);
 
-        // Deuxième upload du même fichier — doit lever une exception
-        $this->expectException(\RuntimeException::class);
+        // Deuxième upload du même fichier — doit lever DuplicateMediaException
+        $this->expectException(DuplicateMediaException::class);
         $this->expectExceptionMessageMatches('/doublon/i');
 
         $service->upload($file, $album, $user);
+    }
+
+    public function test_upload_detecte_doublon_inter_albums(): void
+    {
+        $user = User::factory()->create();
+
+        $album1 = MediaAlbum::create([
+            'name' => 'Album Source',
+            'visibility' => 'restricted',
+            'created_by' => $user->id,
+        ]);
+        $album2 = MediaAlbum::create([
+            'name' => 'Album Destination',
+            'visibility' => 'restricted',
+            'created_by' => $user->id,
+        ]);
+
+        $file = UploadedFile::fake()->image('inter-doublon.jpg', 123, 124); // dimensions uniques
+
+        /** @var MediaService $service */
+        $service = app(MediaService::class);
+
+        // Upload dans album1 — OK
+        $service->upload($file, $album1, $user);
+
+        // Même fichier dans album2 — doit lever DuplicateMediaException
+        $this->expectException(DuplicateMediaException::class);
+        $this->expectExceptionMessageMatches('/doublon/i');
+
+        $service->upload($file, $album2, $user);
+    }
+
+    public function test_message_doublon_indique_lalbum_source(): void
+    {
+        $user = User::factory()->create();
+
+        $album1 = MediaAlbum::create([
+            'name' => 'Album Principal',
+            'visibility' => 'restricted',
+            'created_by' => $user->id,
+        ]);
+        $album2 = MediaAlbum::create([
+            'name' => 'Album Secondaire',
+            'visibility' => 'restricted',
+            'created_by' => $user->id,
+        ]);
+
+        $file = UploadedFile::fake()->image('message-test.jpg', 125, 126); // dimensions uniques
+
+        /** @var MediaService $service */
+        $service = app(MediaService::class);
+
+        $service->upload($file, $album1, $user);
+
+        try {
+            $service->upload($file, $album2, $user);
+            $this->fail('Une exception RuntimeException était attendue.');
+        } catch (DuplicateMediaException $e) {
+            // Le message doit mentionner l'album source
+            $this->assertStringContainsStringIgnoringCase('Album Principal', $e->getMessage());
+        }
     }
 
     // =========================================================================
