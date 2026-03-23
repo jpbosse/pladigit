@@ -153,6 +153,7 @@ class WatermarkTest extends TestCase
                 'wm_position' => 'bottom-right',
                 'wm_opacity' => 70,
                 'wm_size' => 'medium',
+                'media_stream_threshold_mb' => 10,
             ])
             ->assertRedirect()
             ->assertSessionHas('success');
@@ -170,6 +171,7 @@ class WatermarkTest extends TestCase
         $this->actingAs($this->admin, 'tenant')
             ->put(route('admin.settings.media.update'), [
                 'media_default_cols' => 3,
+                'media_stream_threshold_mb' => 10,
                 // wm_enabled absent = décoché
             ])
             ->assertRedirect()

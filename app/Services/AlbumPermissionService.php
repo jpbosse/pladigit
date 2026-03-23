@@ -92,10 +92,10 @@ class AlbumPermissionService
      * Remonte la chaîne album → parent → grand-parent → ... jusqu'à la racine.
      * Retourne le premier niveau trouvé (héritage descendant avec override).
      */
-    private function resolveChain(User $user, MediaAlbum $album): AlbumPermissionLevel
+    private function resolveChain(User $user, MediaAlbum $album, ?Collection $allAlbums = null): AlbumPermissionLevel
     {
-        // Construire la chaîne d'ancêtres (album courant en premier)
-        $chain = $this->buildAncestorChain($album);
+        // Construire la chaîne d'ancêtres — passe la collection pré-chargée si disponible
+        $chain = $this->buildAncestorChain($album, $allAlbums);
 
         // Départements de l'utilisateur (chargés une seule fois)
         $deptIds = $user->departments()->pluck('departments.id')->toArray();
@@ -206,20 +206,28 @@ class AlbumPermissionService
      * Construit la chaîne d'ancêtres depuis l'album courant jusqu'à la racine.
      * [album, parent, grand-parent, ..., racine]
      *
+     * @param  Collection<int, MediaAlbum>|null  $allAlbums  Collection pré-chargée pour éviter les requêtes N+1.
+     *                                                       Si null, les parents sont chargés individuellement.
      * @return array<MediaAlbum>
      */
-    private function buildAncestorChain(MediaAlbum $album): array
+    private function buildAncestorChain(MediaAlbum $album, ?Collection $allAlbums = null): array
     {
         $chain = [$album];
         $current = $album;
         $visited = [$album->getKey()]; // protection contre les boucles
+
+        // Index la collection par ID pour des lookups O(1)
+        $index = $allAlbums?->keyBy(fn (MediaAlbum $a) => $a->getKey());
 
         while ($current->parent_id !== null) {
             if (in_array($current->parent_id, $visited)) {
                 break; // sécurité — boucle détectée
             }
 
-            $parent = MediaAlbum::find($current->parent_id);
+            // Lookup dans la collection pré-chargée si disponible, sinon requête BDD
+            $parent = $index
+                ? $index->get($current->parent_id)
+                : MediaAlbum::find($current->parent_id);
 
             if ($parent === null) {
                 break;

@@ -51,6 +51,27 @@
             @enderror
         </div>
 
+        {{-- ── Seuil streaming ─────────────────────────────────────── --}}
+        <div style="border-top:1px solid #f3f4f6;padding-top:24px;margin-bottom:24px;">
+            <h2 style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">Seuil de streaming des images</h2>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:12px;">
+                Au-delà de ce seuil, les images sont servies en streaming (chunks) plutôt que chargées entièrement en mémoire.
+                Réduire cette valeur améliore la stabilité sur des serveurs avec peu de RAM.
+                Mettre à <strong>0</strong> pour désactiver le streaming (déconseillé).
+            </p>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <input type="number"
+                       name="media_stream_threshold_mb"
+                       value="{{ old('media_stream_threshold_mb', $settings->media_stream_threshold_mb ?? 10) }}"
+                       min="0" max="500" step="1"
+                       class="pd-input" style="width:100px;">
+                <span style="font-size:12px;color:#6b7280;">Mo (défaut : 10 Mo — 0 = désactivé)</span>
+            </div>
+            @error('media_stream_threshold_mb')
+                <p style="color:#ef4444;font-size:11px;margin-top:4px;">{{ $message }}</p>
+            @enderror
+        </div>
+
         {{-- ── Watermark ────────────────────────────────────────────── --}}
         @php $wmEnabled = (bool)($settings->wm_enabled ?? false); @endphp
         <div style="border-top:1px solid #f3f4f6;padding-top:24px;margin-bottom:24px;">

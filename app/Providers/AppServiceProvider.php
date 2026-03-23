@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
+use App\Observers\MediaItemObserver;
 use App\Policies\MediaAlbumPolicy;
 use App\Policies\MediaItemPolicy;
 use App\Services\TenantManager;
@@ -24,6 +25,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(MediaAlbum::class, MediaAlbumPolicy::class);
+        MediaItem::observe(MediaItemObserver::class);
         Gate::policy(MediaItem::class, MediaItemPolicy::class);
         Gate::policy(\App\Models\Tenant\Project::class, \App\Policies\ProjectPolicy::class);
         Gate::policy(\App\Models\Tenant\Task::class, \App\Policies\TaskPolicy::class);
