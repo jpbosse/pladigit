@@ -189,6 +189,23 @@
                         </span>
                         <span style="font-size:11px;color:var(--pd-muted);">{{ $cpct }}%</span>
                         @if($canManage)
+                        @if(!$creach)
+                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $child]) }}" style="display:inline;" onsubmit="return confirm('Marquer ce jalon comme atteint ?');">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="reached" value="1">
+                            <button type="submit"
+                                    style="padding:1px 7px;font-size:10px;background:#F0FDF4;color:#065F46;border:0.5px solid #86EFAC;border-radius:4px;cursor:pointer;font-weight:600;"
+                                    title="Marquer comme atteint">✓ Atteint</button>
+                        </form>
+                        @else
+                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $child]) }}" style="display:inline;" onsubmit="return confirm('Annuler l\'atteinte de ce jalon ?');">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="reached" value="0">
+                            <button type="submit"
+                                    style="padding:1px 7px;font-size:10px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D;border-radius:4px;cursor:pointer;"
+                                    title="Annuler l'atteinte">↩ Annuler</button>
+                        </form>
+                        @endif
                         <button @click="openEdit({{ $child->id }}, '{{ addslashes($child->title) }}', '{{ $child->due_date?->format('Y-m-d') }}', '{{ $child->start_date?->format('Y-m-d') }}', '{{ $child->color }}')"
                                 style="padding:1px 6px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
                                 title="Modifier ce jalon">✏️</button>
@@ -268,6 +285,23 @@
                         <input type="hidden" name="direction" value="down">
                         <button type="submit" title="Descendre"
                                 style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
+                    </form>
+                    @endif
+                    @if(!$reached)
+                    <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Marquer ce jalon comme atteint ?');">
+                        @csrf @method('PATCH')
+                        <input type="hidden" name="reached" value="1">
+                        <button type="submit"
+                                style="padding:1px 7px;font-size:10px;background:#F0FDF4;color:#065F46;border:0.5px solid #86EFAC;border-radius:4px;cursor:pointer;font-weight:600;"
+                                title="Marquer comme atteint">✓ Atteint</button>
+                    </form>
+                    @else
+                    <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Annuler l\'atteinte de ce jalon ?');">
+                        @csrf @method('PATCH')
+                        <input type="hidden" name="reached" value="0">
+                        <button type="submit"
+                                style="padding:1px 7px;font-size:10px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D;border-radius:4px;cursor:pointer;"
+                                title="Annuler l'atteinte">↩ Annuler</button>
                     </form>
                     @endif
                     <button @click="openEdit({{ $ms->id }}, '{{ addslashes($ms->title) }}', '{{ $ms->due_date?->format('Y-m-d') }}', '{{ $ms->start_date?->format('Y-m-d') }}', '{{ $ms->color }}')"

@@ -49,6 +49,7 @@ $members = $project->projectMembers->sortBy('user.name');
 $ALERT   = 3;
 @endphp
 
+<div x-data="{ showAll: false }" style="margin-bottom:0;">
 <div style="margin-bottom:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
     <span style="font-size:12px;color:var(--pd-muted);">
         {{ $tasks->count() }} tâche{{ $tasks->count()>1?'s':'' }} assignée{{ $tasks->count()>1?'s':'' }}
@@ -75,7 +76,7 @@ $ALERT   = 3;
 </div>
 @else
 
-<div x-data="{ showAll: false }" style="overflow-x:auto;">
+<div style="overflow-x:auto;">
 <div style="min-width:{{ 180 + count($weeks) * $weekWidth }}px;">
 
     {{-- En-tête semaines --}}
@@ -163,4 +164,5 @@ $ALERT   = 3;
 
 </div>
 </div>
+</div>{{-- /x-data showAll --}}
 @endif

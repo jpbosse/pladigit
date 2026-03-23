@@ -66,7 +66,7 @@ $canManage = $userRole?->canManage() || in_array(auth()->user()?->role, ['admin'
 $canEdit   = $userRole?->canEdit() || $canManage;
 @endphp
 
-<div class="proj-shell" x-data="{ section: '{{ request('section','but') }}', go(s){ this.section=s; const u=new URL(location); u.searchParams.set('section',s); history.replaceState(null,'',u); } }">
+<div class="proj-shell" x-data="{ section: '{{ request('section','but') }}', histHtml: '', histLoading: false, histLoaded: false, init(){ if(this.section==='historique') this.loadHistory(); window.addEventListener('load-history', e => { this.histLoaded=false; this.loadHistory(e.detail.action); }); }, go(s){ this.section=s; const u=new URL(location); u.searchParams.set('section',s); history.replaceState(null,'',u); if(s==='historique' && !this.histLoaded) this.loadHistory(); }, loadHistory(action){ this.histLoading=true; var url='/projects/{{ $project->id }}/history'+(action?'?action='+action:''); fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest','Accept':'text/html'}}).then(r=>r.text()).then(h=>{this.histHtml=h;this.histLoading=false;this.histLoaded=true;}).catch(()=>{this.histLoading=false;}); } }">
 
 {{-- ── SIDEBAR ─────────────────────────────────────────────────── --}}
 <nav class="proj-sidenav">
@@ -98,6 +98,16 @@ $canEdit   = $userRole?->canEdit() || $canManage;
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 5V4a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.2"/><path d="M8 9v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <span class="sn-label">Finances</span>
             @if($budgetAlerts->count())<span class="sn-badge warn">{{ $budgetAlerts->count() }} alerte{{ $budgetAlerts->count()>1?'s':'' }}</span>@endif
+        </button>
+        <button class="sn-item" :class="{active:section==='historique'}" @click="go('historique')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="sn-label">Historique</span>
+        </button>
+        <button class="sn-item" :class="{active:section==='documents'}" @click="go('documents')">
+            <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M4 2h6l4 4v8a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2v4h4" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9h4M6 12h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            <span class="sn-label">Documents</span>
+            @php try { $docCount = $project->documents()->count(); } catch (\Throwable) { $docCount = 0; } @endphp
+            @if($docCount)<span class="sn-badge">{{ $docCount }}</span>@endif
         </button>
     </div>
 
@@ -156,6 +166,12 @@ $canEdit   = $userRole?->canEdit() || $canManage;
     <div x-show="section==='risques'"  x-cloak>@include('projects.partials._risques')</div>
     <div x-show="section==='elus'"     x-cloak>@include('projects.partials._elus')</div>
     <div x-show="section==='observations'" x-cloak>@include('projects.partials._observations')</div>
+    <div x-show="section==='documents'" x-cloak>@include('projects.partials._documents')</div>
+    <div x-show="section==='historique'" x-cloak
+         x-init="$watch('section', v => { if(v==='historique' && !histLoaded) loadHistory(); }); $el.addEventListener('load-history', e => { histLoaded=false; loadHistory(e.detail.action); })">
+        <div x-show="histLoading" style="padding:48px;text-align:center;color:var(--pd-muted);font-size:13px;">Chargement…</div>
+        <div x-show="!histLoading" x-html="histHtml"></div>
+    </div>
     @include('projects.partials._task_slideover')
     @include('projects.partials._event_slideover')
 </div>

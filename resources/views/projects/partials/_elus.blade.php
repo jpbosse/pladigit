@@ -28,12 +28,18 @@ $obsTypes    = \App\Models\Tenant\ProjectObservation::typeConfig();
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M3 2h7l3 3v9H3z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2v3h3" stroke="currentColor" stroke-width="1.2"/><path d="M8 6v4M6 8l2 2 2-2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         ZIP
     </a>
+    <a href="{{ route('projects.export.milestones-ical', $project) }}"
+       class="btn-sm" title="Exporter les jalons vers Outlook ou Google Calendar"
+       style="display:flex;align-items:center;gap:5px;text-decoration:none;">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M6 10l1.5 1.5L10 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Jalons .ics
+    </a>
 </div>
 
 {{-- ── 4 métriques clés ── --}}
 <div class="stat-grid" style="margin-bottom:20px;">
     @php
-    $daysLeft = $project->due_date ? now()->diffInDays($project->due_date, false) : null;
+    $daysLeft = $project->due_date ? (int) now()->startOfDay()->diffInDays($project->due_date->startOfDay(), false) : null;
     $onTime   = $daysLeft === null || $daysLeft >= 0;
     @endphp
     <div class="stat-card" style="border-top:3px solid {{ $progression>=75?'#16A34A':($progression>=40?'#D97706':'#E24B4A') }};">

@@ -48,12 +48,7 @@ class ProjectMemberController extends Controller
 
         $member = User::on('tenant')->find($validated['user_id']);
 
-        $this->audit->log('project.member.added', auth()->user(), [
-            'project_id' => $project->id,
-            'user_id' => $validated['user_id'],
-            'user_name' => $member?->name,
-            'role' => $validated['role'],
-        ]);
+        $this->audit->log('project.member.added', auth()->user(), ['new' => ['project_id' => $project->id, 'user_id' => $validated['user_id'], 'user_name' => $member?->name, 'role' => $validated['role']]]);
 
         return back()->with('success', 'Membre ajouté au projet.');
     }
@@ -79,11 +74,7 @@ class ProjectMemberController extends Controller
 
         $memberToRemove->delete();
 
-        $this->audit->log('project.member.removed', auth()->user(), [
-            'project_id' => $project->id,
-            'user_id' => $user->id,
-            'user_name' => $user->name,
-        ]);
+        $this->audit->log('project.member.removed', auth()->user(), ['new' => ['project_id' => $project->id, 'user_id' => $user->id, 'user_name' => $user->name]]);
 
         return back()->with('success', 'Membre retiré du projet.');
     }

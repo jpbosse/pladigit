@@ -91,6 +91,12 @@ class ProjectMilestone extends Model
         return $this->hasMany(Task::class, 'milestone_id');
     }
 
+    /** @return \Illuminate\Database\Eloquent\Relations\MorphMany<\App\Models\Tenant\ProjectDocument, $this> */
+    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(\App\Models\Tenant\ProjectDocument::class, 'documentable')->latest();
+    }
+
     // ── Méthodes métier ───────────────────────────────────────────────────
 
     /**

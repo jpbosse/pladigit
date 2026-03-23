@@ -271,10 +271,30 @@ class SettingsController extends Controller
     public function updateSecurity(Request $request)
     {
         $validated = $request->validate([
+            // Sessions & verrouillage
             'session_lifetime_minutes' => ['required', 'integer', 'min:5', 'max:10080'],
             'login_max_attempts' => ['required', 'integer', 'min:3', 'max:20'],
             'login_lockout_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            // Politique mots de passe
+            'pwd_min_length' => ['required', 'integer', 'min:6', 'max:64'],
+            'pwd_require_uppercase' => ['boolean'],
+            'pwd_require_number' => ['boolean'],
+            'pwd_require_special' => ['boolean'],
+            'pwd_validity_days' => ['nullable', 'integer', 'min:0', 'max:3650'],
+            'pwd_history_count' => ['required', 'integer', 'min:0', 'max:24'],
+            'force_2fa' => ['boolean'],
         ]);
+
+        // Les checkboxes non cochées ne sont pas envoyées — forcer à false
+        $validated['pwd_require_uppercase'] = $request->boolean('pwd_require_uppercase');
+        $validated['pwd_require_number'] = $request->boolean('pwd_require_number');
+        $validated['pwd_require_special'] = $request->boolean('pwd_require_special');
+        $validated['force_2fa'] = $request->boolean('force_2fa');
+
+        // 0 = pas d'expiration → stocker NULL
+        if (($validated['pwd_validity_days'] ?? 0) == 0) {
+            $validated['pwd_validity_days'] = null;
+        }
 
         $settings = TenantSettings::firstOrCreate([]);
         $settings->update($validated);

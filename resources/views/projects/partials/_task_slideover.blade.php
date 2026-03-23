@@ -228,6 +228,149 @@
                         @endforeach
                     </div>
 
+                    {{-- ── Dépendances Fin→Fin --}}
+                    <div style="margin-bottom:20px;border:0.5px solid var(--pd-border);border-radius:10px;overflow:hidden;">
+                        <div style="background:var(--pd-surface2);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;">
+                            <span style="font-size:12px;font-weight:600;color:var(--pd-navy);">
+                                🔗 Dépendances
+                                <span style="font-size:11px;font-weight:400;color:var(--pd-muted);"> — doit être terminée après :</span>
+                            </span>
+                            @if(isset($canEdit) && $canEdit)
+                            <button type="button" @click="depPickerOpen = !depPickerOpen"
+                                    style="font-size:11px;padding:3px 8px;border:0.5px solid var(--pd-border);border-radius:5px;background:var(--pd-surface);cursor:pointer;color:var(--pd-navy);">
+                                + Ajouter
+                            </button>
+                            @endif
+                        </div>
+
+                        <template x-if="taskData.predecessors && taskData.predecessors.length > 0">
+                            <div style="padding:8px 14px;">
+                                <template x-for="pred in taskData.predecessors" :key="pred.id">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:0.5px solid var(--pd-border);">
+                                        <div style="display:flex;align-items:center;gap:8px;">
+                                            <span x-text="pred.status === 'done' ? '✅' : '⏳'"></span>
+                                            <span style="font-size:13px;" x-text="pred.title"></span>
+                                            <span :style="statusStyle(pred.status)" style="font-size:10px;padding:2px 6px;border-radius:4px;" x-text="statusLabel(pred.status)"></span>
+                                        </div>
+                                        @if(isset($canEdit) && $canEdit)
+                                        <button type="button" @click="removeDependency(pred.id)"
+                                                style="font-size:11px;color:var(--pd-danger);background:none;border:none;cursor:pointer;padding:2px 6px;"
+                                                title="Supprimer">✕</button>
+                                        @endif
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <template x-if="!taskData.predecessors || taskData.predecessors.length === 0">
+                            <div style="padding:10px 14px;font-size:12px;color:var(--pd-muted);">Aucune dépendance.</div>
+                        </template>
+
+                        @if(isset($canEdit) && $canEdit)
+                        <template x-if="depPickerOpen">
+                            <div style="padding:10px 14px;border-top:0.5px solid var(--pd-border);background:var(--pd-surface);">
+                                <div style="font-size:11px;color:var(--pd-muted);margin-bottom:6px;">Tâche prédécesseur :</div>
+                                <select x-model="depSelectedId" style="width:100%;padding:7px 8px;border:0.5px solid var(--pd-border);border-radius:6px;font-size:12px;margin-bottom:8px;">
+                                    <option value="">— choisir une tâche —</option>
+                                    @foreach($project->tasks()->with('milestone')->orderBy('title')->get() as $t)
+                                    <option value="{{ $t->id }}">{{ $t->title }}{{ $t->milestone ? ' ('.$t->milestone->title.')' : '' }}</option>
+                                    @endforeach
+                                </select>
+                                <div style="display:flex;gap:6px;">
+                                    <button type="button" @click="addDependency()" style="flex:1;padding:7px;background:var(--pd-navy);color:#fff;border:none;border-radius:6px;font-size:12px;cursor:pointer;font-weight:600;">✓ Confirmer</button>
+                                    <button type="button" @click="depPickerOpen = false" style="padding:7px 12px;background:var(--pd-surface2);border:0.5px solid var(--pd-border);border-radius:6px;font-size:12px;cursor:pointer;">Annuler</button>
+                                </div>
+                                <div x-show="depError" x-text="depError" style="margin-top:6px;font-size:12px;color:var(--pd-danger);"></div>
+                            </div>
+                        </template>
+                        @endif
+                    </div>
+
+                    {{-- Documents de la tâche --}}
+                    <div style="border-top:0.5px solid var(--pd-border);padding-top:14px;margin-bottom:0;"
+                         x-data="{
+                             taskDocs: [], taskDocsLoaded: false, taskDocsOpen: false,
+                             showTaskUpload: false, showTaskLink: false,
+                             taskUploadError: '', taskLinkError: '', taskUploading: false,
+                             taskLinkForm: { name: '', path: '' },
+                             csrfToken() { return document.querySelector('meta[name=csrf-token]').content; },
+                             async loadTaskDocs(taskId, projectId) {
+                                 if (this.taskDocsLoaded) return;
+                                 const r = await fetch('/projects/'+projectId+'/documents?task_id='+taskId, { headers: { 'Accept': 'application/json' } });
+                                 const d = await r.json();
+                                 this.taskDocs = d.documents ?? [];
+                                 this.taskDocsLoaded = true;
+                             },
+                             async deleteTaskDoc(docId, projectId) {
+                                 if (!confirm('Supprimer ?')) return;
+                                 await fetch('/projects/'+projectId+'/documents/'+docId, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': this.csrfToken(), 'Accept': 'application/json' } });
+                                 this.taskDocs = this.taskDocs.filter(d => d.id !== docId);
+                             },
+                             async uploadTaskFile(taskId, projectId) {
+                                 this.taskUploadError = '';
+                                 const fi = this.$refs.taskFileInput;
+                                 if (!fi?.files?.length) { this.taskUploadError = 'Fichier requis.'; return; }
+                                 this.taskUploading = true;
+                                 const fd = new FormData();
+                                 fd.append('file', fi.files[0]);
+                                 fd.append('task_id', taskId);
+                                 fd.append('_token', this.csrfToken());
+                                 const r = await fetch('/projects/'+projectId+'/documents/upload', { method: 'POST', body: fd });
+                                 const d = await r.json();
+                                 if (d.success) { this.taskDocs.unshift(d.document); this.showTaskUpload = false; fi.value = ''; }
+                                 else { this.taskUploadError = d.message ?? 'Erreur.'; }
+                                 this.taskUploading = false;
+                             },
+                             async saveTaskLink(taskId, projectId) {
+                                 this.taskLinkError = '';
+                                 if (!this.taskLinkForm.name || !this.taskLinkForm.path) { this.taskLinkError = 'Nom et URL requis.'; return; }
+                                 const body = new URLSearchParams({ _token: this.csrfToken(), task_id: taskId, name: this.taskLinkForm.name, path: this.taskLinkForm.path });
+                                 const r = await fetch('/projects/'+projectId+'/documents/link', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() });
+                                 const d = await r.json();
+                                 if (d.success) { this.taskDocs.unshift(d.document); this.showTaskLink = false; this.taskLinkForm = { name: '', path: '' }; }
+                                 else { this.taskLinkError = d.message ?? 'Erreur.'; }
+                             },
+                         }"
+                         x-init="$watch('taskData', async (v) => { if (v?.id) { taskDocsLoaded=false; taskDocs=[]; await loadTaskDocs(v.id, v.project_id); } })">
+                        <button @click="taskDocsOpen=!taskDocsOpen"
+                                style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;cursor:pointer;padding:0 0 10px 0;">
+                            <span class="pd-label" style="margin:0;">📎 Documents (<span x-text="taskDocs.length"></span>)</span>
+                            <span :style="taskDocsOpen?'':'transform:rotate(-90deg)'" style="transition:transform .2s;color:var(--pd-muted);font-size:13px;">▾</span>
+                        </button>
+                        <div x-show="taskDocsOpen">
+                            <template x-for="doc in taskDocs" :key="doc.id">
+                            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--pd-surface2);border-radius:6px;margin-bottom:4px;font-size:12px;">
+                                <span x-text="doc.icon"></span>
+                                <span x-text="doc.name" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                                <a :href="doc.download_url" style="color:var(--pd-accent);font-size:11px;text-decoration:none;" :target="doc.type===\'link\'?\'_blank\':\'_self\'">
+                                    <span x-text="doc.type===\'link\' ? \'Ouvrir\' : \'⬇\'"></span>
+                                </a>
+                                <button @click="deleteTaskDoc(doc.id, taskData.project_id)" style="font-size:11px;background:none;border:none;cursor:pointer;color:var(--pd-danger);">🗑</button>
+                            </div>
+                            </template>
+                            <div x-show="taskDocs.length===0" style="font-size:12px;color:var(--pd-muted);margin-bottom:8px;">Aucun document joint.</div>
+                            <div style="display:flex;gap:6px;margin-top:6px;">
+                                <button @click="showTaskUpload=!showTaskUpload;showTaskLink=false" style="font-size:11px;padding:3px 8px;border-radius:5px;border:0.5px solid var(--pd-border);background:var(--pd-surface);cursor:pointer;">📎 Fichier</button>
+                                <button @click="showTaskLink=!showTaskLink;showTaskUpload=false" style="font-size:11px;padding:3px 8px;border-radius:5px;border:0.5px solid var(--pd-border);background:var(--pd-surface);cursor:pointer;">🔗 Lien</button>
+                            </div>
+                            <div x-show="showTaskUpload" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                                <input type="file" x-ref="taskFileInput" class="pd-input" style="padding:4px;" accept=".pdf,.doc,.docx,.xls,.xlsx,.odt,.ods,.txt,.csv,.zip,.png,.jpg">
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <button @click="uploadTaskFile(taskData.id, taskData.project_id)" :disabled="taskUploading" class="pd-btn pd-btn-sm pd-btn-primary" x-text="taskUploading ? 'Envoi…' : 'Joindre'"></button>
+                                    <span x-show="taskUploadError" x-text="taskUploadError" style="font-size:11px;color:var(--pd-danger);"></span>
+                                </div>
+                            </div>
+                            <div x-show="showTaskLink" style="margin-top:8px;display:flex;flex-direction:column;gap:6px;">
+                                <input type="text" x-model="taskLinkForm.name" class="pd-input" placeholder="Nom du lien">
+                                <input type="url" x-model="taskLinkForm.path" class="pd-input" placeholder="https://…">
+                                <div style="display:flex;gap:6px;align-items:center;">
+                                    <button @click="saveTaskLink(taskData.id, taskData.project_id)" class="pd-btn pd-btn-sm pd-btn-primary">Enregistrer</button>
+                                    <span x-show="taskLinkError" x-text="taskLinkError" style="font-size:11px;color:var(--pd-danger);"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {{-- Commentaires --}}
                     <div style="border-top:0.5px solid var(--pd-border);padding-top:16px;">
                         <div class="pd-label" style="margin-bottom:12px;">
@@ -379,6 +522,7 @@ function taskSlideover() {
         open: false, loading: false, loadError: false,
         newMode: false, editMode: false,
         taskData: null, comments: [], newComment: '',
+        depPickerOpen: false, depSelectedId: '', depError: '',
         newTask: {
             title: '', status: 'todo', priority: 'medium',
             description: '', start_date: '', due_date: '',
@@ -395,6 +539,7 @@ function taskSlideover() {
         openTask(taskId) {
             this.open = true; this.newMode = false; this.editMode = false;
             this.loading = true; this.taskData = null; this.loadError = false;
+            this.depPickerOpen = false; this.depSelectedId = ''; this.depError = '';
 
             fetch(`{{ url('projects/' . $project->id . '/tasks') }}/${taskId}`, {
                 headers: {
@@ -405,6 +550,42 @@ function taskSlideover() {
             .then(r => { if (!r.ok) throw new Error(); return r.json(); })
             .then(d => { this.taskData = d.task; this.comments = d.comments || []; this.loading = false; })
             .catch(() => { this.loading = false; this.loadError = true; });
+        },
+
+        addDependency() {
+            if (!this.depSelectedId || !this.taskData) return;
+            this.depError = '';
+            fetch(`{{ url('projects/' . $project->id . '/tasks') }}/${this.taskData.id}/dependencies`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json', 'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+                body: JSON.stringify({ predecessor_id: this.depSelectedId }),
+            })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    if (!this.taskData.predecessors) this.taskData.predecessors = [];
+                    if (!this.taskData.predecessors.find(p => p.id === d.predecessor.id))
+                        this.taskData.predecessors.push(d.predecessor);
+                    this.depPickerOpen = false; this.depSelectedId = '';
+                } else { this.depError = d.error || "Erreur."; }
+            })
+            .catch(() => { this.depError = 'Erreur réseau.'; });
+        },
+
+        removeDependency(predecessorId) {
+            if (!this.taskData) return;
+            fetch(`{{ url('projects/' . $project->id . '/tasks') }}/${this.taskData.id}/dependencies/${predecessorId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json', 'Accept': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                },
+            })
+            .then(r => r.json())
+            .then(d => { if (d.success) this.taskData.predecessors = this.taskData.predecessors.filter(p => p.id !== predecessorId); });
         },
 
         openNew(status, milestoneId = null) {
@@ -452,7 +633,7 @@ function taskSlideover() {
                 }),
             })
             .then(r => r.json())
-            .then(d => { if (d.success) { this.editMode = false; window.location.reload(); } });
+            .then(d => { if (d.success) { this.editMode = false; window.location.reload(); } else if (d.error) { alert(d.error); } });
         },
 
         deleteTask() {

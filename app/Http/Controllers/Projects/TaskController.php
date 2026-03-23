@@ -27,7 +27,7 @@ class TaskController extends Controller
     {
         $this->authorize('view', $task);
 
-        $task->load(['assignee:id,name', 'milestone:id,title', 'children:id,parent_task_id,status']);
+        $task->load(['assignee:id,name', 'milestone:id,title', 'children:id,parent_task_id,status', 'blockedBy:id,title,status']);
 
         $comments = $task->comments()
             ->with('author:id,name')
@@ -60,6 +60,7 @@ class TaskController extends Controller
 
                 'subtasks_total' => $task->children->count(),
                 'subtasks_done' => $task->children->where('status', 'done')->count(),
+                'predecessors' => $task->blockedBy->map(fn ($p) => ['id' => $p->id, 'title' => $p->title, 'status' => $p->status]),
             ],
             'comments' => $comments,
         ]);
@@ -103,11 +104,7 @@ class TaskController extends Controller
             'sort_order' => $maxOrder + 1,
         ]);
 
-        $this->audit->log('task.created', auth()->user(), [
-            'project_id' => $project->id,
-            'task_id' => $task->id,
-            'task_title' => $task->title,
-        ]);
+        $this->audit->log('task.created', auth()->user(), ['new' => ['project_id' => $project->id, 'task_id' => $task->id, 'task_title' => $task->title]]);
 
         // Notifier l'assigné si différent du créateur
         if ($task->assigned_to && $task->assigned_to !== $user->id) {
@@ -149,15 +146,30 @@ class TaskController extends Controller
 
         $oldStatus = $task->status;
         $oldAssignedTo = $task->assigned_to;
+
+        // ── Blocage Fin→Fin ───────────────────────────────────────────────
+        // B ne peut passer à "done" tant qu'un prédécesseur n'est pas "done".
+        if (isset($validated['status'])
+            && $validated['status'] === 'done'
+            && $task->status !== 'done'
+        ) {
+            $blockers = $task->blockingTasks();
+            if ($blockers->isNotEmpty()) {
+                $names = $blockers->pluck('title')->map(fn ($t) => "« {$t} »")->join(', ');
+                $message = "Impossible de terminer cette tâche : les tâches suivantes doivent être terminées en premier : {$names}.";
+                if ($request->wantsJson()) {
+                    return response()->json(['error' => $message], 422);
+                }
+
+                return back()->withErrors(['status' => $message]);
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────
+
         $task->update($validated);
 
         if (isset($validated['status']) && $validated['status'] !== $oldStatus) {
-            $this->audit->log('task.status_changed', auth()->user(), [
-                'project_id' => $project->id,
-                'task_id' => $task->id,
-                'from' => $oldStatus,
-                'to' => $validated['status'],
-            ]);
+            $this->audit->log('task.status_changed', auth()->user(), ['new' => ['project_id' => $project->id, 'task_id' => $task->id, 'from' => $oldStatus, 'to' => $validated['status']]]);
 
             // Notifier les owners si tâche terminée
             if ($validated['status'] === 'done') {
@@ -213,11 +225,7 @@ class TaskController extends Controller
 
         $task->delete();
 
-        $this->audit->log('task.deleted', auth()->user(), [
-            'project_id' => $project->id,
-            'task_id' => $task->id,
-            'task_title' => $task->title,
-        ]);
+        $this->audit->log('task.deleted', auth()->user(), ['new' => ['project_id' => $project->id, 'task_id' => $task->id, 'task_title' => $task->title]]);
 
         if (request()->wantsJson()) {
             return response()->json(['success' => true]);

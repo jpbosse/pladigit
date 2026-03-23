@@ -154,7 +154,14 @@ Route::middleware('tenant')->group(function () {
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
 
             // Journal d'audit
+            // Journal d'audit
             Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
+            Route::get('audit/stats', [App\Http\Controllers\Admin\AuditController::class, 'stats'])->name('audit.stats');
+            Route::get('audit/retention', [App\Http\Controllers\Admin\AuditController::class, 'retention'])->name('audit.retention.index');
+            Route::patch('audit/retention', [App\Http\Controllers\Admin\AuditController::class, 'updateRetention'])->name('audit.retention.update');
+            Route::delete('audit/purge', [App\Http\Controllers\Admin\AuditController::class, 'purge'])->name('audit.purge');
+            Route::get('audit/export', [App\Http\Controllers\Admin\AuditController::class, 'export'])->name('audit.export');
+            Route::get('audit/export/form', fn () => view('admin.audit.export'))->name('audit.export.form');
 
         });
 

@@ -112,6 +112,12 @@ class Task extends Model
         return $this->hasMany(TaskComment::class)->orderBy('created_at');
     }
 
+    /** @return \Illuminate\Database\Eloquent\Relations\MorphMany<\App\Models\Tenant\ProjectDocument, $this> */
+    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(\App\Models\Tenant\ProjectDocument::class, 'documentable')->latest();
+    }
+
     /** @return BelongsTo<ProjectMilestone, $this> */
     public function milestone(): BelongsTo
     {
@@ -189,6 +195,13 @@ class Task extends Model
      *
      * Algorithme : BFS depuis depends_on_task_id — si on atteint $this->id, cycle détecté.
      */
+    public function blockingTasks(): \Illuminate\Database\Eloquent\Collection
+    {
+        return $this->blockedBy()
+            ->where('status', '!=', 'done')
+            ->get(['tasks.id', 'tasks.title', 'tasks.status']);
+    }
+
     public function wouldCreateCycle(int $dependsOnTaskId): bool
     {
         if ($dependsOnTaskId === $this->id) {
