@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/css/pladigit.css', 'resources/js/app.js'])
 
     @php $tenant = app(App\Services\TenantManager::class)->current(); @endphp
     @if($tenant && $tenant->primary_color)
@@ -84,7 +84,7 @@
 
         <button class="pd-tb-btn" id="pd-notif-open" type="button" aria-label="Notifications">
             <svg class="pd-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            @if($notifCount > 0)<span class="pd-notif-dot"></span>@endif
+            @if($notifCount > 0)<span class="pd-notif-dot">{{ $notifCount > 9 ? '9+' : $notifCount }}</span>@endif
         </button>
 
         <button class="pd-theme-toggle" id="pd-theme-toggle" type="button" aria-label="Basculer le thème">
@@ -167,39 +167,40 @@
 
         <span class="pd-nav-section">Modules</span>
 
+        @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::MEDIA))
         <a href="{{ route('media.albums.index') }}" class="pd-nav-item {{ str_starts_with($route, 'media.') ? 'active' : '' }}">
             <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></span>
             <span class="pd-nav-label">Photothèque</span>
             <span class="pd-nav-tip">Photothèque</span>
         </a>
+        @endif
 
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-            <span class="pd-nav-label">Documents</span>
-            <span class="pd-nav-badge">Phase 5</span>
-            <span class="pd-nav-tip">Documents — Phase 5</span>
-        </a>
 
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
-            <span class="pd-nav-label">Agenda</span>
-            <span class="pd-nav-badge">Phase 8</span>
-            <span class="pd-nav-tip">Agenda — Phase 8</span>
-        </a>
+@if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
+    <a href="{{ route('projects.index') }}"
+       class="pd-nav-item {{ str_starts_with($route, 'projects.') ? 'active' : '' }}"
+       style="position:relative;">
+        <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="4" rx="1.5"/>
+            <rect x="3" y="10" width="13" height="4" rx="1.5"/>
+            <rect x="3" y="17" width="16" height="4" rx="1.5"/>
+        </svg></span>
+        <span class="pd-nav-label">Projets</span>
+        <span class="pd-nav-tip">Projets</span>
+        @php
+            $alertCount = 0;
+            try {
+                $alertCount = \App\Models\Tenant\Project::on('tenant')
+                    ->whereIn('status', ['delayed', 'at_risk'])
+                    ->count();
+            } catch (\Throwable) {}
+        @endphp
+        @if($alertCount > 0)
+        <span style="position:absolute;top:6px;right:6px;min-width:16px;height:16px;background:#DC2626;color:#fff;border-radius:8px;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px;border:2px solid var(--pd-surface);">{{ $alertCount > 9 ? '9+' : $alertCount }}</span>
+        @endif
+    </a>
+    @endif
 
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-            <span class="pd-nav-label">Chat</span>
-            <span class="pd-nav-badge">Phase 9</span>
-            <span class="pd-nav-tip">Chat — Phase 9</span>
-        </a>
-
-        <a href="#" class="pd-nav-item">
-            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/></svg></span>
-            <span class="pd-nav-label">ERP DataGrid</span>
-            <span class="pd-nav-badge">Phase 7</span>
-            <span class="pd-nav-tip">ERP — Phase 7</span>
-        </a>
 
         @if(\App\Enums\UserRole::tryFrom($user?->role ?? '')?->atLeast(\App\Enums\UserRole::ADMIN))
         <span class="pd-nav-section">Administration</span>
@@ -300,22 +301,46 @@
 </main>
 
 {{-- ══════════ FOOTER ══════════ --}}
-<footer class="pd-footer">
-    <div class="pd-footer-left">
-        <span class="pd-version">v1.4 · Phase 2</span>
-        <span style="display:flex;align-items:center;gap:6px;">
+<footer class="pd-footer" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 24px;">
+
+    {{-- Bloc gauche — infos système --}}
+    <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--pd-muted);">
+        <span style="font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:.02em;">v1.5 · Phase 3</span>
+        <span style="display:flex;align-items:center;gap:5px;">
             <span id="health-dot" class="pd-status-dot"></span>
             <a href="/health" target="_blank" id="health-label"
                style="text-decoration:none;color:inherit;">Système…</a>
         </span>
         <span>© {{ date('Y') }} Les Bézots</span>
+        <a href="mailto:contact@lesbezots.fr"
+           style="color:inherit;text-decoration:none;">contact@lesbezots.fr</a>
     </div>
-    <div class="pd-footer-right">
-        <a href="#">Mentions légales</a>
-        <a href="#">Confidentialité</a>
-        <a href="#">Aide</a>
-        <button class="pd-back-top" type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+    {{-- Bloc droite — liens légaux --}}
+    <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;text-align:right;">
+        <a href="{{ route('legal.mentions') }}" target="_blank"
+           style="color:var(--pd-muted);text-decoration:none;">Mentions légales</a>
+        <a href="{{ route('legal.confidentialite') }}" target="_blank"
+           style="color:var(--pd-muted);text-decoration:none;">Confidentialité</a>
+        <a href="https://github.com/jpbosse/pladigit" target="_blank" rel="noopener"
+           style="color:var(--pd-muted);text-decoration:none;display:flex;align-items:center;gap:4px;justify-content:flex-end;">
+            <svg style="width:12px;height:12px;fill:currentColor;" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+            AGPL-3.0
+        </a>
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener"
+           title="Toute modification doit être publiée"
+           style="color:var(--pd-muted);text-decoration:none;">Licence GNU AGPL-3.0</a>
+        <a href="mailto:contact@lesbezots.fr"
+           style="color:var(--pd-muted);text-decoration:none;">Aide</a>
     </div>
+
+    {{-- Flèche haut — bloc compact --}}
+    <div style="display:flex;align-items:flex-start;">
+        <button class="pd-back-top" type="button"
+                onclick="window.scrollTo({top:0,behavior:'smooth'})"
+                style="font-size:16px;padding:6px 10px;">↑</button>
+    </div>
+
 </footer>
 
 {{-- ══════════ DRAWER NOTIFICATIONS ══════════ --}}
@@ -353,9 +378,7 @@
 
 {{-- ══════════ DRAWER ESPACE DE STOCKAGE ══════════ --}}
 @auth
-@if(isset($storageByModule))
 @include('partials.storage-drawer')
-@endif
 @endauth
 
 {{-- ══════════ COMMAND PALETTE ══════════ --}}
@@ -369,11 +392,13 @@
         </div>
         <div id="pd-cmd-content">
             <div class="pd-cmd-group">Actions rapides</div>
+            @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::MEDIA))
             <a href="{{ route('media.albums.index') }}" class="pd-cmd-item">
                 <div class="pd-cmd-item-icon" style="background:rgba(46,204,113,0.12);">📷</div>
                 <div><div class="pd-cmd-title">Photothèque</div><div class="pd-cmd-sub">Gérer les albums et médias</div></div>
                 <span class="pd-cmd-shortcut">G P</span>
             </a>
+            @endif
             @if(\App\Enums\UserRole::tryFrom($user?->role ?? '')?->atLeast(\App\Enums\UserRole::ADMIN))
             <a href="{{ route('admin.users.create') }}" class="pd-cmd-item">
                 <div class="pd-cmd-item-icon" style="background:rgba(59,154,225,0.12);">👤</div>
@@ -476,10 +501,122 @@
         });
     }
 
-    // Notifications drawer
+    // Notifications drawer — chargement AJAX
     var notifDrawer = document.getElementById('pd-notif-drawer');
-    function openNotif(){ notifDrawer?.classList.add('open'); }
-    function closeNotif(){ notifDrawer?.classList.remove('open'); }
+    var notifBody   = notifDrawer?.querySelector('.pd-notif-body');
+    var notifBadge  = document.querySelector('.pd-notif-count');
+    var notifDot    = document.querySelector('.pd-notif-dot');
+    var notifLoaded = false;
+
+    function openNotif() {
+        notifDrawer?.classList.add('open');
+        if (!notifLoaded) loadNotifications();
+    }
+    function closeNotif() { notifDrawer?.classList.remove('open'); }
+
+    function loadNotifications() {
+        if (!notifBody) return;
+        notifBody.innerHTML = '<div style="padding:32px;text-align:center;color:var(--pd-muted);">Chargement…</div>';
+        fetch('{{ route("notifications.index") }}', {
+            headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+        })
+        .then(r => r.json())
+        .then(data => {
+            notifLoaded = true;
+            renderNotifications(data.notifications, data.unread_count);
+        })
+        .catch(() => {
+            notifBody.innerHTML = '<div style="padding:24px;text-align:center;color:var(--pd-muted);">Erreur de chargement.</div>';
+        });
+    }
+
+    function renderNotifications(notifications, unreadCount) {
+        if (!notifBody) return;
+
+        // Mise à jour badge
+        if (notifBadge) notifBadge.textContent = unreadCount;
+        if (notifDot) notifDot.style.display = unreadCount > 0 ? 'block' : 'none';
+
+        if (!notifications || notifications.length === 0) {
+            notifBody.innerHTML = `
+                <div style="padding:32px 20px;text-align:center;color:var(--pd-muted);">
+                    <div style="font-size:2rem;margin-bottom:8px;">🔔</div>
+                    <div style="font-size:13px;">Aucune notification</div>
+                </div>`;
+            return;
+        }
+
+        const html = notifications.map(n => `
+            <div class="pd-notif-item ${n.read ? '' : 'unread'}" data-id="${n.id}">
+                <div class="pd-notif-ico" style="background:${notifIconBg(n.type)};">${notifIcon(n.type)}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="pd-notif-title">${escHtml(n.title)}</div>
+                    ${n.body ? `<div class="pd-notif-desc">${escHtml(n.body)}</div>` : ''}
+                    ${n.link ? `<a href="${n.link}" class="pd-notif-action">Voir →</a>` : ''}
+                    <div class="pd-notif-time">${n.created_at_diff || ''}</div>
+                </div>
+                <button onclick="deleteNotif(${n.id})" style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:14px;padding:2px 4px;flex-shrink:0;" title="Supprimer">×</button>
+            </div>`).join('');
+
+        notifBody.innerHTML = html;
+
+        // Marquer comme lu au clic
+        notifBody.querySelectorAll('.pd-notif-item.unread').forEach(item => {
+            item.addEventListener('click', function() {
+                const id = this.dataset.id;
+                this.classList.remove('unread');
+                fetch(`{{ url('notifications') }}/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+                });
+                const remaining = notifBody.querySelectorAll('.pd-notif-item.unread').length;
+                if (notifBadge) notifBadge.textContent = remaining;
+                if (notifDot && remaining === 0) notifDot.style.display = 'none';
+            });
+        });
+    }
+
+    function deleteNotif(id) {
+        const item = notifBody?.querySelector(`[data-id="${id}"]`);
+        item?.remove();
+        fetch(`{{ url('notifications') }}/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+        });
+    }
+    window.deleteNotif = deleteNotif;
+
+    // Tout marquer comme lu
+    notifDrawer?.querySelector('.pd-notif-mark-all')?.addEventListener('click', function() {
+        fetch('{{ route("notifications.read-all") }}', {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content }
+        }).then(() => {
+            notifBody?.querySelectorAll('.pd-notif-item.unread').forEach(el => el.classList.remove('unread'));
+            if (notifBadge) notifBadge.textContent = '0';
+            if (notifDot) notifDot.style.display = 'none';
+        });
+    });
+
+    function notifIcon(type) {
+        if (type?.startsWith('agenda'))   return '📅';
+        if (type?.startsWith('project'))  return '✅';
+        if (type?.startsWith('document')) return '📄';
+        if (type?.startsWith('storage'))  return '💾';
+        if (type?.startsWith('chat'))     return '💬';
+        return '🔔';
+    }
+    function notifIconBg(type) {
+        if (type?.startsWith('agenda'))   return 'rgba(155,89,182,0.12)';
+        if (type?.startsWith('project'))  return 'rgba(46,204,113,0.12)';
+        if (type?.startsWith('document')) return 'rgba(59,154,225,0.12)';
+        if (type?.startsWith('storage'))  return 'rgba(232,168,56,0.12)';
+        return 'rgba(107,114,128,0.12)';
+    }
+    function escHtml(s) {
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     document.getElementById('pd-notif-open')?.addEventListener('click', openNotif);
     document.getElementById('pd-notif-close')?.addEventListener('click', closeNotif);
 

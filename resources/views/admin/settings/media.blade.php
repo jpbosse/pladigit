@@ -51,6 +51,98 @@
             @enderror
         </div>
 
+        {{-- ── Watermark ────────────────────────────────────────────── --}}
+        @php $wmEnabled = (bool)($settings->wm_enabled ?? false); @endphp
+        <div style="border-top:1px solid #f3f4f6;padding-top:24px;margin-bottom:24px;">
+            <h2 style="font-size:14px;font-weight:600;color:#374151;margin-bottom:4px;">Watermark sur les téléchargements</h2>
+            <p style="font-size:12px;color:#6b7280;margin-bottom:16px;">
+                Apposé à la volée uniquement lors du téléchargement. Le fichier original sur le NAS n'est jamais modifié.
+            </p>
+
+            {{-- Activer --}}
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                <input type="hidden" name="wm_enabled" value="0">
+                <input type="checkbox" name="wm_enabled" value="1" id="wm_enabled"
+                       {{ $wmEnabled ? 'checked' : '' }}
+                       style="width:18px;height:18px;cursor:pointer;accent-color:#1E3A5F;"
+                       onchange="document.getElementById('wm-options').style.display = this.checked ? 'block' : 'none'">
+                <label for="wm_enabled" style="font-size:14px;color:#374151;font-weight:500;cursor:pointer;">
+                    Activer le watermark
+                </label>
+            </div>
+
+            <div id="wm-options" style="{{ $wmEnabled ? '' : 'display:none;' }}">
+
+                {{-- Type --}}
+                <div style="margin-bottom:16px;">
+                    <p style="font-size:13px;font-weight:500;color:#374151;margin-bottom:8px;">Type</p>
+                    <div style="display:flex;gap:24px;">
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="radio" name="wm_type" value="text"
+                                   {{ ($settings->wm_type ?? 'text') === 'text' ? 'checked' : '' }}
+                                   style="width:16px;height:16px;accent-color:#1E3A5F;"
+                                   onchange="document.getElementById('wm-text-field').style.display='block';document.getElementById('wm-logo-info').style.display='none'">
+                            <span style="font-size:13px;color:#374151;">Texte</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                            <input type="radio" name="wm_type" value="logo"
+                                   {{ ($settings->wm_type ?? 'text') === 'logo' ? 'checked' : '' }}
+                                   style="width:16px;height:16px;accent-color:#1E3A5F;"
+                                   onchange="document.getElementById('wm-text-field').style.display='none';document.getElementById('wm-logo-info').style.display='block'">
+                            <span style="font-size:13px;color:#374151;">Logo de l'organisation</span>
+                        </label>
+                    </div>
+                </div>
+
+                {{-- Texte --}}
+                <div id="wm-text-field" style="margin-bottom:16px;{{ ($settings->wm_type ?? 'text') === 'logo' ? 'display:none;' : '' }}">
+                    <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px;">Texte du watermark</label>
+                    <input type="text" name="wm_text"
+                           value="{{ $settings->wm_text ?? '© '.(app(\App\Services\TenantManager::class)->current()?->name ?? 'Organisation') }}"
+                           maxlength="100"
+                           placeholder="© Votre organisation"
+                           style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:13px;box-sizing:border-box;">
+                </div>
+
+                {{-- Info logo --}}
+                <div id="wm-logo-info" style="margin-bottom:16px;padding:10px 14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1d4ed8;{{ ($settings->wm_type ?? 'text') !== 'logo' ? 'display:none;' : '' }}">
+                    Le logo configuré dans <a href="{{ route('admin.settings.branding') }}" style="text-decoration:underline;">Personnalisation visuelle</a> sera utilisé.
+                    Si aucun logo n'est défini, le texte ci-dessus sera utilisé en fallback.
+                </div>
+
+                {{-- Position + Taille + Opacité --}}
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:16px;">
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px;">Position</label>
+                        <select name="wm_position" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:13px;">
+                            @foreach(['bottom-right' => 'Bas droite', 'bottom-left' => 'Bas gauche', 'bottom-center' => 'Bas centre', 'center' => 'Centre'] as $val => $lbl)
+                                <option value="{{ $val }}" {{ ($settings->wm_position ?? 'bottom-right') === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px;">Taille</label>
+                        <select name="wm_size" style="width:100%;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;font-size:13px;">
+                            @foreach(['small' => 'Petite', 'medium' => 'Moyenne', 'large' => 'Grande'] as $val => $lbl)
+                                <option value="{{ $val }}" {{ ($settings->wm_size ?? 'medium') === $val ? 'selected' : '' }}>{{ $lbl }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:13px;font-weight:500;color:#374151;margin-bottom:4px;">
+                            Opacité : <span id="wm-opacity-val">{{ $settings->wm_opacity ?? 60 }}</span>%
+                        </label>
+                        <input type="range" name="wm_opacity"
+                               min="10" max="100" step="5"
+                               value="{{ $settings->wm_opacity ?? 60 }}"
+                               style="width:100%;accent-color:#1E3A5F;"
+                               oninput="document.getElementById('wm-opacity-val').textContent = this.value">
+                    </div>
+                </div>
+
+            </div>{{-- /#wm-options --}}
+        </div>
+
         <div class="flex justify-end">
             <button type="submit"
                     class="px-5 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition-opacity"

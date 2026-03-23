@@ -8,6 +8,8 @@ use App\Http\Controllers\SuperAdmin\OrganizationController;
 // ── Page d'accueil publique ───────────────────────────────
 Route::get('/health', [App\Http\Controllers\HealthController::class, 'check'])->name('health');
 Route::get('/health/ping', [App\Http\Controllers\HealthController::class, 'ping'])->name('health.ping');
+Route::get('/mentions-legales', [App\Http\Controllers\LegalController::class, 'mentions'])->name('legal.mentions');
+Route::get('/confidentialite', [App\Http\Controllers\LegalController::class, 'confidentialite'])->name('legal.confidentialite');
 
 Route::get('/', function () {
     return view('welcome');
@@ -53,6 +55,7 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/smtp/test', [OrganizationController::class, 'testSmtp'])->name('organizations.test-smtp');
         Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
         Route::post('organizations/{organization}/ldap/test', [OrganizationController::class, 'testLdap'])->name('organizations.test-ldap');
+        Route::post('organizations/{organization}/modules', [OrganizationController::class, 'updateModules'])->name('organizations.update-modules');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────
@@ -102,6 +105,14 @@ Route::middleware('tenant')->group(function () {
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
+        // ── Notifications ──────────────────────────────────
+        Route::prefix('notifications')->name('notifications.')->group(function () {
+            Route::get('/', [\App\Http\Controllers\NotificationController::class, 'index'])->name('index');
+            Route::patch('/{notification}', [\App\Http\Controllers\NotificationController::class, 'markRead'])->name('read');
+            Route::post('/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllRead'])->name('read-all');
+            Route::delete('/{notification}', [\App\Http\Controllers\NotificationController::class, 'destroy'])->name('destroy');
+        });
+
         // ── Zone Admin Organisation ────────────────────────
         Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
 
@@ -137,19 +148,29 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'nas'])->name('settings.nas');
             Route::put('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'updateNas'])->name('settings.nas.update');
             Route::post('settings/nas/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncNas'])->name('settings.nas.sync');
+            Route::get('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'visio'])->name('settings.visio');
+            Route::put('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'updateVisio'])->name('settings.visio.update');
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
 
             // Journal d'audit
+            // Journal d'audit
             Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
+            Route::get('audit/stats', [App\Http\Controllers\Admin\AuditController::class, 'stats'])->name('audit.stats');
+            Route::get('audit/retention', [App\Http\Controllers\Admin\AuditController::class, 'retention'])->name('audit.retention.index');
+            Route::patch('audit/retention', [App\Http\Controllers\Admin\AuditController::class, 'updateRetention'])->name('audit.retention.update');
+            Route::delete('audit/purge', [App\Http\Controllers\Admin\AuditController::class, 'purge'])->name('audit.purge');
+            Route::get('audit/export', [App\Http\Controllers\Admin\AuditController::class, 'export'])->name('audit.export');
+            Route::get('audit/export/form', fn () => view('admin.audit.export'))->name('audit.export.form');
 
         });
 
-        // ── Photothèque — accessible à tous les authentifiés ──
-        Route::prefix('media')->name('media.')->group(function () {
+        // ── Photothèque — module activable par organisation ──
+        Route::prefix('media')->name('media.')->middleware('module:media')->group(function () {
 
             // Albums
             Route::get('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'index'])->name('albums.index');
+            Route::get('albums/search', [\App\Http\Controllers\Media\MediaAlbumController::class, 'search'])->name('albums.search');
             Route::get('albums/create', [\App\Http\Controllers\Media\MediaAlbumController::class, 'create'])->name('albums.create');
             Route::post('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'store'])->name('albums.store');
             Route::get('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'show'])->name('albums.show');
@@ -181,19 +202,26 @@ Route::middleware('tenant')->group(function () {
             // Médias (imbriqués sous album)
             Route::get('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'create'])->name('items.create');
             Route::post('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'store'])->name('items.store');
+            Route::post('albums/{album}/import-zip', [\App\Http\Controllers\Media\MediaItemController::class, 'importZip'])->name('items.import-zip');
             Route::get('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'show'])->name('items.show');
             Route::delete('albums/{album}/items/{item}', [\App\Http\Controllers\Media\MediaItemController::class, 'destroy'])->name('items.destroy');
             Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
+            Route::post('sync', [\App\Http\Controllers\Media\MediaAlbumController::class, 'syncNas'])->name('sync');
             Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
 
             // Servir les fichiers (inline et téléchargement)
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');
             Route::get('albums/{album}/items/{item}/download', [\App\Http\Controllers\Media\MediaItemController::class, 'download'])->name('items.download');
+
         });
 
         // ── Zone DGS et plus ──────────────────────────────
         Route::middleware('role:dgs')->group(function () {
             // Rapports, exports… (phases futures)
+
         });
+
+        require base_path('routes/projects.php');
+
     });
 });

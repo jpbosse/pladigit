@@ -9,9 +9,8 @@ use Tests\TestCase;
 
 /**
  * SyncLdapUsersTest — Tests de la commande pladigit:sync-ldap (§6.6)
- *
- * @group console
  */
+#[\PHPUnit\Framework\Attributes\Group('console')]
 class SyncLdapUsersTest extends TestCase
 {
     private Organization $orgA;
@@ -64,7 +63,7 @@ class SyncLdapUsersTest extends TestCase
         $this->mockTenantManager();
 
         $ldap = $this->createMock(LdapAuthService::class);
-        $ldap->expects($this->exactly(2))->method('syncAllUsers');
+        $ldap->expects($this->exactly(3))->method('syncAllUsers'); // orgA + orgB + org test
         $this->app->instance(LdapAuthService::class, $ldap);
 
         $this->artisan('pladigit:sync-ldap')
@@ -126,7 +125,7 @@ class SyncLdapUsersTest extends TestCase
         $this->mockTenantManager();
 
         $ldap = $this->createMock(LdapAuthService::class);
-        $ldap->expects($this->exactly(2))->method('syncAllUsers'); // orgA + orgB seulement
+        $ldap->expects($this->exactly(3))->method('syncAllUsers'); // orgA + orgB + org test (sans org-inactive)
         $this->app->instance(LdapAuthService::class, $ldap);
 
         $this->artisan('pladigit:sync-ldap')->assertExitCode(0);

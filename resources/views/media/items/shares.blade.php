@@ -1,3 +1,4 @@
+{{-- resources/views/media/items/shares.blade.php --}}
 @extends('layouts.app')
 @section('title', 'Partages — ' . $item->file_name)
 
@@ -27,7 +28,7 @@
     <div id="toast">✓ Droit mis à jour</div>
 
     <div class="mb-6">
-        <a href="{{ route('media.items.show', [$item->album_id, $item]) }}"
+        <a href="{{ route('media.items.show', [$item->album, $item]) }}"
            class="text-gray-400 hover:text-gray-600 text-sm">← Retour au média</a>
     </div>
 

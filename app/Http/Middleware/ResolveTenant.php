@@ -50,6 +50,48 @@ class ResolveTenant
             ]]);
         }
 
+        // Partager le compteur de notifications non lues sur toutes les vues
+        if (auth()->check()) {
+            try {
+                $notifCount = \App\Models\Tenant\Notification::on('tenant')
+                    ->where('user_id', auth()->id())
+                    ->where('read', false)
+                    ->count();
+                \Illuminate\Support\Facades\View::share('notifCount', $notifCount);
+            } catch (\Throwable) {
+                \Illuminate\Support\Facades\View::share('notifCount', 0);
+            }
+
+            // Partager les données de stockage pour la topbar
+            try {
+                $media = \Illuminate\Support\Facades\DB::connection('tenant')
+                    ->table('media_items')
+                    ->whereNull('deleted_at')
+                    ->selectRaw('SUM(file_size_bytes) as total, COUNT(*) as cnt')
+                    ->first();
+
+                $org = app(\App\Services\TenantManager::class)->current();
+                $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
+                $usedBytes = (int) ($media->total ?? 0);
+                $usedMb = round($usedBytes / 1024 / 1024, 1);
+
+                \Illuminate\Support\Facades\View::share('storageByModule', [
+                    'media' => $usedBytes,
+                    'media_count' => (int) ($media->cnt ?? 0),
+                    'ged' => 0, 'ged_count' => 0,
+                    'erp' => 0, 'erp_tables' => 0, 'erp_rows' => 0,
+                    'chat' => 0, 'chat_files' => 0,
+                ]);
+                \Illuminate\Support\Facades\View::share('storageUsedMb', $usedMb);
+                \Illuminate\Support\Facades\View::share('storageQuotaMb', $quotaMb);
+                \Illuminate\Support\Facades\View::share('storageUsedPct',
+                    $quotaMb > 0 ? min(100, round($usedMb / $quotaMb * 100)) : 0
+                );
+            } catch (\Throwable) {
+                \Illuminate\Support\Facades\View::share('storageByModule', null);
+            }
+        }
+
         return $next($request);
     }
 

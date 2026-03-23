@@ -74,6 +74,12 @@ class AlbumPermissionService
         return $this->can($user, $album, AlbumPermissionLevel::Download);
     }
 
+    /** Raccourci : peut uploader */
+    public function canUpload(User $user, MediaAlbum $album): bool
+    {
+        return $this->can($user, $album, AlbumPermissionLevel::Upload);
+    }
+
     /** Raccourci : peut administrer */
     public function canAdmin(User $user, MediaAlbum $album): bool
     {
@@ -161,11 +167,17 @@ class AlbumPermissionService
         }
 
         // ── 4. Permission rôle hiérarchique ─────────────────────────────────
-        // Une permission stockée sur role_minimum = X s'applique à tous les
-        // utilisateurs ayant un rôle de niveau ≤ X (X et en-dessous).
-        // Ex : 'resp_service' → s'applique à resp_service ET resp_direction.
-        // On cherche la permission de rôle la plus restrictive applicable
-        // (niveau de rôle le plus haut parmi ceux qui couvrent l'utilisateur).
+        // Convention : level() plus bas = rôle plus privilégié (admin=1, user=6).
+        //
+        // Sémantique du pivot : "accessible à partir de ce rôle ET à tous les rôles supérieurs".
+        // Ex : pivot resp_service (5) → resp_service (5) + resp_direction (4) + DGS (3) + admin (1) ✓
+        //                             → agents (6) ✗ (moins privilégiés que le pivot)
+        // Ex : pivot user (6) → tout le monde ✓
+        // Ex : pivot resp_direction (4) → resp_direction (4) + DGS (3) + président (2) + admin (1) ✓
+        //                               → resp_service (5) ✗, agents (6) ✗
+        //
+        // Formule : s'applique si userLevel <= pivotLevel
+        // (l'utilisateur est au moins aussi privilégié que le pivot)
         $userRoleLevel = UserRole::tryFrom($user->role ?? '')?->level() ?? 99;
 
         $rolePerm = AlbumPermission::forAlbum($albumId)
@@ -173,16 +185,15 @@ class AlbumPermissionService
             ->whereNotNull('subject_role')
             ->get()
             ->filter(function (AlbumPermission $perm) use ($userRoleLevel) {
-                // La permission s'applique si le rôle de l'utilisateur est ≥
-                // au rôle pivot (resp_direction=4, resp_service=3, user=2)
                 $pivotLevel = UserRole::tryFrom($perm->subject_role)?->level() ?? 0;
 
-                return $userRoleLevel >= $pivotLevel;
+                // S'applique si l'utilisateur est au moins aussi privilégié que le pivot
+                // Ex : userLevel=4 (resp_direction), pivotLevel=5 (resp_service) → 4 <= 5 ✓
+                // Ex : userLevel=6 (agent), pivotLevel=5 (resp_service) → 6 <= 5 ✗
+                return $userRoleLevel <= $pivotLevel;
             })
-            ->sortByDesc(fn (AlbumPermission $p) => UserRole::tryFrom($p->subject_role)?->level() ?? 0
-            )
+            ->sortByDesc(fn (AlbumPermission $p) => UserRole::tryFrom($p->subject_role)?->level() ?? 0)
             ->first();
-
         if ($rolePerm !== null) {
             return $rolePerm->level;
         }

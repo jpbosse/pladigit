@@ -38,6 +38,30 @@
                     <option value="enterprise">Enterprise — Sur devis — Illimité</option>
                 </select>
             </div>
+
+            {{-- Quota de stockage --}}
+            @php $diskFree = round(disk_free_space('/') / 1073741824, 1); @endphp
+            <div class="mb-4 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Quota de stockage (Mo)
+                </label>
+                <div class="flex items-center gap-3">
+                    <input type="number" name="storage_quota_mb"
+                           value="{{ old('storage_quota_mb', 10240) }}"
+                           min="512" step="512"
+                           class="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" required>
+                    <span class="text-sm text-gray-500" id="quota-label">= 10 Go alloués</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">
+                    Minimum 512 Mo. Espace libre sur le serveur : <strong>{{ $diskFree }} Go</strong>.
+                </p>
+                <script>
+                    document.querySelector('[name=storage_quota_mb]').addEventListener('input', function() {
+                        var gb = Math.round(this.value / 1024 * 100) / 100;
+                        document.getElementById('quota-label').textContent = '= ' + gb + ' Go alloués';
+                    });
+                </script>
+            </div>
  
  
             <div class="flex gap-3">

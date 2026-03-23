@@ -47,6 +47,37 @@
                 </div>
             </div>
 
+            {{-- Quota de stockage --}}
+            @php
+                $quotaMb = old('storage_quota_mb', $organization->storage_quota_mb ?? 10240);
+                $quotaGb = round($quotaMb / 1024, 2);
+                $pct     = $quotaMb > 0 ? min(100, round($usedMb / $quotaMb * 100)) : 0;
+            @endphp
+            <div class="mb-4 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Quota de stockage (Mo)
+                </label>
+                <div class="flex items-center gap-3">
+                    <input type="number" name="storage_quota_mb"
+                           value="{{ $quotaMb }}"
+                           min="512" step="512"
+                           class="w-40 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono" required>
+                    <span class="text-sm text-gray-500">= {{ $quotaGb }} Go alloués</span>
+                </div>
+                <p class="text-xs text-gray-400 mt-2">Minimum 512 Mo. Espace libre sur le serveur : <strong>{{ $diskFreeGb }} Go</strong>.</p>
+                {{-- Barre d'utilisation actuelle --}}
+                <div class="mt-3">
+                    <div class="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Utilisation actuelle</span>
+                        <span>{{ $usedMb }} Mo / {{ $quotaMb }} Mo ({{ $pct }}%)</span>
+                    </div>
+                    <div class="h-2 rounded-full bg-gray-200 overflow-hidden">
+                        <div class="h-full rounded-full transition-all"
+                             style="width:{{ $pct }}%;background:{{ $pct > 80 ? '#e74c3c' : ($pct > 60 ? '#E8A838' : '#2ECC71') }};"></div>
+                    </div>
+                </div>
+            </div>
+
             <div class="mb-6">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Statut</label>
                 <select name="status" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">

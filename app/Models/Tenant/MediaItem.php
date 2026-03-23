@@ -41,6 +41,7 @@ class MediaItem extends Model
         'exif_data',
         'caption',
         'sha256_hash',
+        'processing_status',
     ];
 
     protected $casts = [
@@ -94,6 +95,15 @@ class MediaItem extends Model
     public function userCan(User $user, string $ability): bool
     {
         return $this->album->userCan($user, $ability);
+    }
+
+    /**
+     * Exclut les miniatures générées automatiquement (stockées dans thumbs/).
+     * Ces entrées ne doivent jamais apparaître dans la galerie.
+     */
+    public function scopeNotThumbs($query)
+    {
+        return $query->where('file_path', 'not like', '%/thumbs/%');
     }
 
     /**

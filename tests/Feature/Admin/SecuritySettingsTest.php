@@ -37,7 +37,7 @@ class SecuritySettingsTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.settings.security'))
             ->assertOk()
-            ->assertSee('Durée de session');
+            ->assertSee('Sessions');
     }
 
     public function test_utilisateur_simple_ne_peut_pas_accéder(): void
@@ -54,6 +54,8 @@ class SecuritySettingsTest extends TestCase
                 'session_lifetime_minutes' => 240,
                 'login_max_attempts' => 3,
                 'login_lockout_minutes' => 30,
+                'pwd_min_length' => 12,
+                'pwd_history_count' => 5,
             ])
             ->assertRedirect()
             ->assertSessionHas('success');

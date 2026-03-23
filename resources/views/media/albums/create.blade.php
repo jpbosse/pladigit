@@ -51,6 +51,12 @@
                     @enderror
                 </div>
 
+                {{-- Info NAS --}}
+                <div class="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-500">
+                    📁 Un dossier NAS sera créé automatiquement avec le nom de l'album.
+                    Pour restreindre l'accès, configurez les permissions après création.
+                </div>
+
                 {{-- Album parent --}}
                 @if($selectedParent)
                     {{-- Vient d'un clic "+ Sous-album" : parent fixé, pas de select --}}

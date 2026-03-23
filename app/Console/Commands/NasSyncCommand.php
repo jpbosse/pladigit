@@ -62,7 +62,9 @@ class NasSyncCommand extends Command
 
         $totalCreated = 0;
         $totalFound = 0;
+        $totalAlbumsRemoved = 0;
         $totalAdded = 0;
+        $totalRemoved = 0;
         $totalSkipped = 0;
         $totalErrors = 0;
 
@@ -73,7 +75,6 @@ class NasSyncCommand extends Command
                 $tenantManager->connectTo($org);
 
                 $settings = TenantSettings::first();
-                $driver = $settings !== null ? $settings->nas_photo_driver : 'local';
 
                 // Premier admin du tenant comme propriétaire des albums créés automatiquement
                 $owner = User::where('role', 'admin')->first();
@@ -84,18 +85,29 @@ class NasSyncCommand extends Command
                     deep: $deep,
                 );
 
+                $filesPart = $result['files_removed'] > 0
+                    ? ", <comment>{$result['files_removed']} fichier(s) supprimé(s)</comment>"
+                    : '';
+                $albumsPart = $result['albums_removed'] > 0
+                    ? ", <comment>{$result['albums_removed']} album(s) supprimé(s)</comment>"
+                    : '';
+
                 $this->line(sprintf(
-                    '   ✓ %d album(s) créé(s), %d trouvé(s), %d fichier(s) ajouté(s), %d ignoré(s)%s',
+                    '   ✓ %d album(s) créé(s), %d trouvé(s), %d fichier(s) ajouté(s), %d ignoré(s)%s%s%s',
                     $result['albums_created'],
                     $result['albums_found'],
                     $result['files_added'],
                     $result['files_skipped'],
-                    $result['errors'] > 0 ? ", <error>{$result['errors']} erreur(s)</error>" : '',
+                    $filesPart,
+                    $albumsPart,
+                    $result['errors'] > 0 ? ", <e>{$result['errors']} erreur(s)</e>" : '',
                 ));
 
                 $totalCreated += $result['albums_created'];
                 $totalFound += $result['albums_found'];
+                $totalAlbumsRemoved += $result['albums_removed'];
                 $totalAdded += $result['files_added'];
+                $totalRemoved += $result['files_removed'];
                 $totalSkipped += $result['files_skipped'];
                 $totalErrors += $result['errors'];
 
@@ -110,10 +122,12 @@ class NasSyncCommand extends Command
 
         $this->newLine();
         $this->info(sprintf(
-            '✅ Sync terminée — %d album(s) créé(s), %d trouvé(s), %d fichier(s) ajouté(s), %d ignoré(s), %d erreur(s).',
+            '✅ Sync terminée — %d album(s) créé(s), %d supprimé(s), %d trouvé(s) · %d fichier(s) ajouté(s), %d supprimé(s), %d ignoré(s) · %d erreur(s).',
             $totalCreated,
+            $totalAlbumsRemoved,
             $totalFound,
             $totalAdded,
+            $totalRemoved,
             $totalSkipped,
             $totalErrors,
         ));

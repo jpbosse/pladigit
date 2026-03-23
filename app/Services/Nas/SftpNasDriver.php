@@ -109,6 +109,28 @@ class SftpNasDriver implements NasConnectorInterface
         return @ssh2_sftp_stat($sftp, $fullPath) !== false;
     }
 
+    public function deleteFile(string $path): bool
+    {
+        try {
+            $sftp = $this->getSftp();
+
+            return @ssh2_sftp_unlink($sftp, $this->resolve($path));
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    public function mkdir(string $path): bool
+    {
+        try {
+            $sftp = $this->getSftp();
+
+            return @ssh2_sftp_mkdir($sftp, $this->resolve($path), 0775, true);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public function sha256(string $path): string
     {
         // Lit par chunks pour éviter de charger tout en mémoire

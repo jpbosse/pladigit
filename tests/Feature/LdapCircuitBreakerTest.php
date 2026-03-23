@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\LdapAuthService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use LdapRecord\Connection;
 use LdapRecord\LdapRecordException;
@@ -52,8 +51,6 @@ class LdapCircuitBreakerTest extends TestCase
 
     protected function tearDown(): void
     {
-        DB::connection('tenant')->table('users')->delete();
-        DB::connection('tenant')->table('tenant_settings')->delete();
         Mockery::close();
         parent::tearDown();
     }

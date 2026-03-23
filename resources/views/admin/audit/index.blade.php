@@ -3,6 +3,8 @@
 
 @section('admin-content')
 
+@include('admin.audit._tabs', ['active' => 'journal'])
+
 @php
 $actionMap = [
     'user.login'                    => ['🔑', '#3b9ae1', 'Connexion'],
@@ -42,39 +44,52 @@ $actionMap = [
 </div>
 
 {{-- Filtres --}}
-<form method="GET" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-    <input type="text" name="search" value="{{ request('search') }}"
-           placeholder="Rechercher par utilisateur, action, IP…"
-           style="flex:1;min-width:200px;padding:9px 14px;border-radius:9px;border:1.5px solid var(--pd-border);
-                  background:var(--pd-surface);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;"
-           onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
-
-    <select name="action"
-            style="padding:9px 14px;border-radius:9px;border:1.5px solid var(--pd-border);
-                   background:var(--pd-surface);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;"
-            onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
-        <option value="">Toutes les actions</option>
-        @foreach($actions as $act => $cnt)
-        <option value="{{ $act }}" {{ request('action') === $act ? 'selected' : '' }}>
-            {{ $actionMap[$act][2] ?? $act }} ({{ $cnt }})
-        </option>
-        @endforeach
-    </select>
-
-    <button type="submit"
-            style="padding:9px 20px;border-radius:9px;border:none;cursor:pointer;
-                   background:linear-gradient(135deg,var(--pd-navy-dark),var(--pd-navy-light));
-                   color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;">
-        Filtrer
-    </button>
-
-    @if(request('search') || request('action'))
-    <a href="{{ route('admin.audit.index') }}"
-       style="padding:9px 16px;border-radius:9px;border:1.5px solid var(--pd-border);
-              background:var(--pd-surface);color:var(--pd-muted);font-size:13px;text-decoration:none;">
-        Réinitialiser
-    </a>
-    @endif
+<form method="GET" style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:flex-end;">
+    <div style="flex:2;min-width:160px;">
+        <label style="display:block;font-size:11px;color:var(--pd-muted);margin-bottom:4px;">Recherche</label>
+        <input type="text" name="search" value="{{ request('search') }}"
+               placeholder="Utilisateur, action, IP…"
+               style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);
+                      background:var(--pd-surface);color:var(--pd-text);font-size:13px;outline:none;box-sizing:border-box;"
+               onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
+    </div>
+    <div style="flex:1;min-width:140px;">
+        <label style="display:block;font-size:11px;color:var(--pd-muted);margin-bottom:4px;">Action</label>
+        <select name="action"
+                style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);
+                       background:var(--pd-surface);color:var(--pd-text);font-size:13px;outline:none;cursor:pointer;">
+            <option value="">Toutes</option>
+            @foreach($actions as $act => $cnt)
+            <option value="{{ $act }}" {{ request('action') === $act ? 'selected' : '' }}>
+                {{ $actionMap[$act][2] ?? $act }} ({{ $cnt }})
+            </option>
+            @endforeach
+        </select>
+    </div>
+    <div style="flex:1;min-width:130px;">
+        <label style="display:block;font-size:11px;color:var(--pd-muted);margin-bottom:4px;">Du</label>
+        <input type="date" name="from" value="{{ request('from') }}"
+               style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-surface);color:var(--pd-text);font-size:13px;outline:none;box-sizing:border-box;">
+    </div>
+    <div style="flex:1;min-width:130px;">
+        <label style="display:block;font-size:11px;color:var(--pd-muted);margin-bottom:4px;">Au</label>
+        <input type="date" name="to" value="{{ request('to') }}"
+               style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-surface);color:var(--pd-text);font-size:13px;outline:none;box-sizing:border-box;">
+    </div>
+    <div style="display:flex;gap:8px;">
+        <button type="submit"
+                style="padding:9px 20px;border-radius:9px;border:none;cursor:pointer;
+                       background:var(--pd-navy);color:#fff;font-size:13px;font-weight:600;white-space:nowrap;">
+            Filtrer
+        </button>
+        @if(request('search') || request('action') || request('from') || request('to'))
+        <a href="{{ route('admin.audit.index') }}"
+           style="padding:9px 14px;border-radius:9px;border:1.5px solid var(--pd-border);
+                  background:var(--pd-surface);color:var(--pd-muted);font-size:13px;text-decoration:none;white-space:nowrap;">
+            ✕
+        </a>
+        @endif
+    </div>
 </form>
 
 {{-- Tableau --}}

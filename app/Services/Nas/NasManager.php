@@ -13,26 +13,17 @@ use RuntimeException;
  *   - photoDriver() → NAS de la photothèque (nas_photo_*)
  *   - gedDriver()   → NAS de la GED (nas_ged_*) — Phase 5
  *
- * Drivers disponibles :
- *   - local → LocalNasDriver  (dev/test)
- *   - sftp  → SftpNasDriver   (Linux/NAS via SSH)
- *   - smb   → SmbNasDriver    (Windows/NAS via Samba)
+ * Colonnes tenant_settings :
+ *   nas_photo_driver, nas_photo_local_path, nas_photo_host,
+ *   nas_photo_port, nas_photo_username, nas_photo_password_enc,
+ *   nas_photo_share, nas_photo_root_path
  */
 class NasManager
 {
-    // ─────────────────────────────────────────────────────────────
-    //  Points d'entrée publics
-    // ─────────────────────────────────────────────────────────────
-
-    /**
-     * Driver NAS pour la photothèque (nas_photo_*).
-     */
     public function photoDriver(?TenantSettings $settings = null): NasConnectorInterface
     {
         $settings ??= TenantSettings::first();
-        $driver = $settings !== null
-            ? ($settings->nas_photo_driver ?? config('nas.default_driver', 'local'))
-            : config('nas.default_driver', 'local');
+        $driver = $settings !== null ? ($settings->nas_photo_driver ?? config('nas.default_driver', 'local')) : config('nas.default_driver', 'local');
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings, 'photo'),
@@ -42,15 +33,10 @@ class NasManager
         };
     }
 
-    /**
-     * Driver NAS pour la GED (nas_ged_*) — Phase 5.
-     */
     public function gedDriver(?TenantSettings $settings = null): NasConnectorInterface
     {
         $settings ??= TenantSettings::first();
-        $driver = $settings !== null
-            ? ($settings->nas_ged_driver ?? config('nas.default_driver', 'local'))
-            : config('nas.default_driver', 'local');
+        $driver = $settings !== null ? ($settings->nas_ged_driver ?? config('nas.default_driver', 'local')) : config('nas.default_driver', 'local');
 
         return match ($driver) {
             'local' => $this->makeLocalDriver($settings, 'ged'),
@@ -60,17 +46,11 @@ class NasManager
         };
     }
 
-    /**
-     * @deprecated Utiliser photoDriver() ou gedDriver()
-     */
+    /** @deprecated Utiliser photoDriver() ou gedDriver() */
     public function driver(?TenantSettings $settings = null): NasConnectorInterface
     {
         return $this->photoDriver($settings);
     }
-
-    // ─────────────────────────────────────────────────────────────
-    //  Factories privées
-    // ─────────────────────────────────────────────────────────────
 
     private function makeLocalDriver(?TenantSettings $settings, string $module): LocalNasDriver
     {
@@ -88,9 +68,9 @@ class NasManager
         $passwordKey = "nas_{$module}_password_enc";
         $rootKey = "nas_{$module}_root_path";
 
-        if (! $settings || ! $settings->$hostKey) {
+        if (! $settings?->$hostKey) {
             throw new RuntimeException(
-                "Configuration SFTP {$module} incomplète — renseignez l'hôte, le port et les identifiants."
+                "Configuration SFTP {$module} incomplète — renseignez l'hôte dans les paramètres NAS."
             );
         }
 
@@ -112,18 +92,18 @@ class NasManager
         );
     }
 
-    private function makeSmbDriver(?TenantSettings $settings = null, string $module = 'photo'): SmbNasDriver
+    private function makeSmbDriver(?TenantSettings $settings, string $module): SmbNasDriver
     {
         $hostKey = "nas_{$module}_host";
-        $shareKey = "nas_{$module}_smb_share";
+        $shareKey = "nas_{$module}_share";
         $usernameKey = "nas_{$module}_username";
         $passwordKey = "nas_{$module}_password_enc";
         $rootKey = "nas_{$module}_root_path";
         $workgroupKey = "nas_{$module}_smb_workgroup";
 
-        if (! $settings || ! $settings->$hostKey) {
+        if (! $settings?->$hostKey) {
             throw new RuntimeException(
-                "Configuration SMB {$module} incomplète — renseignez l'hôte et le partage dans les paramètres NAS."
+                "Configuration SMB {$module} incomplète — renseignez l'hôte dans les paramètres NAS."
             );
         }
 
