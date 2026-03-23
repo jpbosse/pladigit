@@ -43,7 +43,8 @@ class ForcePwdChangeAndPolicyTest extends TestCase
     public function test_force_pwd_change_autorise_logout(): void
     {
         $user = User::factory()->create(['force_pwd_change' => true, 'status' => 'active']);
-        $this->actingAs($user)->post(route('logout'))->assertRedirect(route('login'));
+        // Depuis la session 16/03/2026, logout redirige vers pladigit.fr (page d'accueil publique)
+        $this->actingAs($user)->post(route('logout'))->assertRedirect('http://pladigit.fr');
     }
 
     public function test_force_pwd_change_autorise_page_changement(): void

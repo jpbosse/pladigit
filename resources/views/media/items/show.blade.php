@@ -1,3 +1,4 @@
+{{-- resources/views/media/items/show.blade.php --}}
 @extends('layouts.app')
 
 @section('title', $item->caption ?? $item->file_name)
@@ -212,14 +213,19 @@
                                 : $exp . 's';
                         }
                         if (!empty($exif['FNumber'])) {
-                            $shootingParams[] = 'f/' . $exif['FNumber'];
+                            $shootingParams[] = 'f/' . number_format($exif['FNumber'], 1);
                         }
                         if (!empty($exif['ISOSpeedRatings'])) {
                             $iso = is_array($exif['ISOSpeedRatings']) ? $exif['ISOSpeedRatings'][0] : $exif['ISOSpeedRatings'];
                             $shootingParams[] = 'ISO ' . $iso;
                         }
                         if (!empty($exif['FocalLength'])) {
-                            $shootingParams[] = $exif['FocalLength'] . 'mm';
+                            $fl = $exif['FocalLength'];
+                            $flStr = (floor($fl) == $fl ? (int)$fl : round($fl, 1)) . 'mm';
+                            if (!empty($exif['FocalLengthIn35mmFilm'])) {
+                                $flStr .= ' (' . $exif['FocalLengthIn35mmFilm'] . 'mm eq.)';
+                            }
+                            $shootingParams[] = $flStr;
                         }
                     @endphp
 
@@ -234,10 +240,37 @@
                     </div>
                     @endif
 
-                    @if(!empty($exif['Flash']))
+                    @if(isset($exif['Flash']))
                     <div class="flex gap-2">
                         <dt class="text-gray-400 w-28 shrink-0">⚡ Flash</dt>
-                        <dd class="text-gray-700">{{ $exif['Flash'] == 0 ? 'Non déclenché' : 'Déclenché' }}</dd>
+                        <dd class="text-gray-700">{{ ($exif['Flash'] & 1) ? 'Déclenché' : 'Non déclenché' }}</dd>
+                    </div>
+                    @endif
+
+                    @if(isset($exif['MeteringMode']))
+                    @php
+                        $meteringLabels = [0=>'Inconnu',1=>'Moyenne',2=>'Pondérée centrale',3=>'Spot',4=>'Multi-spot',5=>'Multi-zones',6=>'Partielle'];
+                    @endphp
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">🎯 Mesure</dt>
+                        <dd class="text-gray-700">{{ $meteringLabels[$exif['MeteringMode']] ?? $exif['MeteringMode'] }}</dd>
+                    </div>
+                    @endif
+
+                    @if(isset($exif['WhiteBalance']))
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">🌡 Balance</dt>
+                        <dd class="text-gray-700">{{ $exif['WhiteBalance'] == 0 ? 'Automatique' : 'Manuel' }}</dd>
+                    </div>
+                    @endif
+
+                    @if(isset($exif['ExposureMode']))
+                    @php
+                        $exposureModeLabels = [0=>'Auto',1=>'Manuel',2=>'Auto bracketing'];
+                    @endphp
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">📊 Exposition</dt>
+                        <dd class="text-gray-700">{{ $exposureModeLabels[$exif['ExposureMode']] ?? $exif['ExposureMode'] }}</dd>
                     </div>
                     @endif
 
@@ -248,16 +281,23 @@
                             <a href="https://www.openstreetmap.org/?mlat={{ $gps['lat'] }}&mlon={{ $gps['lng'] }}&zoom=15"
                                target="_blank"
                                class="text-blue-600 hover:underline text-sm">
-                                {{ number_format($gps['lat'], 5) }}, {{ number_format($gps['lng'], 5) }} ↗
+                                {{ number_format(abs($gps['lat']), 5) }}°{{ $gps['lat'] >= 0 ? 'N' : 'S' }}
+                                {{ number_format(abs($gps['lng']), 5) }}°{{ $gps['lng'] >= 0 ? 'E' : 'O' }} ↗
                             </a>
+                            @if(!empty($exif['GPSAltitude']))
+                            <span class="text-gray-400 text-xs ml-1">· {{ round($exif['GPSAltitude']) }} m</span>
+                            @endif
                         </dd>
                     </div>
                     @endif
 
-                    @if(!empty($exif['Orientation']))
+                    @if(!empty($exif['Orientation']) && $exif['Orientation'] != 1)
+                    @php
+                        $orientationLabels = [1=>'Normal',2=>'Miroir H',3=>'Rotation 180°',4=>'Miroir V',5=>'Miroir H + 270°',6=>'Rotation 90°',7=>'Miroir H + 90°',8=>'Rotation 270°'];
+                    @endphp
                     <div class="flex gap-2">
                         <dt class="text-gray-400 w-28 shrink-0">🔄 Orientation</dt>
-                        <dd class="text-gray-700">{{ $exif['Orientation'] }}</dd>
+                        <dd class="text-gray-700">{{ $orientationLabels[$exif['Orientation']] ?? $exif['Orientation'] }}</dd>
                     </div>
                     @endif
 

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Media;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
+use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\MediaService;
 use App\Services\Nas\NasManager;
+use App\Services\WatermarkService;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -25,6 +27,8 @@ class MediaItemController extends Controller
      */
     public function create(MediaAlbum $album): \Illuminate\View\View
     {
+        $this->authorize('upload', $album);
+
         /** @var view-string $viewName */
         $viewName = 'media.items.create';
 
@@ -36,6 +40,8 @@ class MediaItemController extends Controller
      */
     public function store(Request $request, MediaAlbum $album)
     {
+        $this->authorize('upload', $album);
+
         $request->validate([
             'files' => ['required', 'array', 'min:1', 'max:20'],
             'files.*' => ['file', 'max:204800'], // 200 Mo par fichier
@@ -43,6 +49,19 @@ class MediaItemController extends Controller
 
         /** @var User $user */
         $user = auth()->user();
+
+        // ── Pré-vérification quota avant tout upload ─────────────────────────
+        $org = app(\App\Services\TenantManager::class)->current();
+        $quotaMb = $org !== null ? $org->storage_quota_mb ?? 10240 : 10240;
+        $quotaBytes = $quotaMb * 1024 * 1024;
+        $usedBytes = (int) \App\Models\Tenant\MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+        $freeBytes = max(0, $quotaBytes - $usedBytes);
+
+        if ($freeBytes === 0) {
+            return redirect()
+                ->route('media.albums.show', $album)
+                ->with('error', "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur.");
+        }
         $success = 0;
         $errors = [];
 
@@ -67,6 +86,38 @@ class MediaItemController extends Controller
         return redirect()
             ->route('media.albums.show', $album)
             ->with('success', $message);
+    }
+
+    /**
+     * Import d'un fichier ZIP vers un album.
+     * Le ZIP est extrait en arrière-plan via la queue.
+     */
+    public function importZip(Request $request, MediaAlbum $album)
+    {
+        $this->authorize('upload', $album);
+
+        $request->validate([
+            'zip_file' => ['required', 'file', 'mimes:zip', 'max:512000'], // 500 Mo max
+        ]);
+
+        /** @var User $user */
+        $user = auth()->user();
+
+        $org = app(\App\Services\TenantManager::class)->current();
+        $slug = $org->slug;
+
+        // Stocker le ZIP temporairement
+
+        // Créer le dossier si nécessaire et stocker le ZIP
+        \Storage::makeDirectory('tmp/zip_imports');
+        $path = $request->file('zip_file')->store('tmp/zip_imports');
+
+        // Dispatcher le Job
+        \App\Jobs\ProcessZipImport::dispatch($path, $album->id, $user->id, $slug);
+
+        return redirect()
+            ->route('media.albums.show', $album)
+            ->with('success', 'Import ZIP lancé en arrière-plan. Les photos apparaîtront progressivement dans l\'album.');
     }
 
     /**
@@ -116,6 +167,25 @@ class MediaItemController extends Controller
     public function destroy(MediaAlbum $album, MediaItem $item)
     {
         $this->assertBelongsToAlbum($item, $album);
+
+        // Suppression physique sur le NAS
+        try {
+            $nas = app(NasManager::class)->photoDriver();
+            if ($item->file_path && $nas->exists($item->file_path)) {
+                $nas->deleteFile($item->file_path);
+            }
+            if ($item->thumb_path && $nas->exists($item->thumb_path)) {
+                $nas->deleteFile($item->thumb_path);
+            }
+        } catch (\Throwable $e) {
+            // Log mais on continue — on supprime quand même l'entrée BDD
+            \Illuminate\Support\Facades\Log::warning('MediaItemController::destroy — suppression NAS échouée', [
+                'item_id' => $item->id,
+                'file_path' => $item->file_path,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
         $item->delete();
 
         return redirect()
@@ -125,6 +195,7 @@ class MediaItemController extends Controller
 
     /**
      * Téléchargement du fichier original depuis le NAS.
+     * Applique le watermark à la volée si activé pour ce tenant.
      * Charge le fichier en mémoire — réservé aux fichiers non-vidéo ou petits fichiers.
      */
     public function download(MediaAlbum $album, MediaItem $item)
@@ -140,8 +211,20 @@ class MediaItemController extends Controller
             $nas = app(NasManager::class)->photoDriver();
             $contents = $nas->readFile($item->file_path);
 
+            // ── Watermark à la volée ───────────────────────────────────────
+            $settings = TenantSettings::first();
+            $watermark = app(WatermarkService::class);
+
+            if ($settings !== null && $watermark->shouldApply($item->mime_type, $settings)) {
+                $contents = $watermark->apply($contents, $item->mime_type, $settings);
+                $mimeType = 'image/jpeg'; // WatermarkService sort toujours en JPEG
+            } else {
+                $mimeType = $item->mime_type;
+            }
+            // ─────────────────────────────────────────────────────────────
+
             return response($contents, 200, [
-                'Content-Type' => $item->mime_type,
+                'Content-Type' => $mimeType,
                 'Content-Disposition' => 'attachment; filename="'.$item->file_name.'"',
                 'Content-Length' => strlen($contents),
             ]);

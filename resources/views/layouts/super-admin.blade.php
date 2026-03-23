@@ -45,6 +45,12 @@
             'route' => 'super-admin.organizations.index',
             'match' => 'super-admin.organizations.*',
         ],
+        [
+            'label' => 'Statistiques',
+            'icon'  => '<svg style="width:15px;height:15px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+            'route' => 'super-admin.stats',
+            'match' => 'super-admin.stats',
+        ],
     ];
 @endphp
 
@@ -56,10 +62,11 @@
 
     {{-- Logo + badge SA --}}
     <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-        <div style="width:32px;height:32px;border-radius:8px;
-                    background:rgba(255,255,255,0.15);
-                    display:flex;align-items:center;justify-content:center;">
-            <x-logo size="26" color="#fff" />
+        <div style="width:36px;height:36px;border-radius:8px;
+                    background:rgba(255,255,255,0.95);
+                    display:flex;align-items:center;justify-content:center;
+                    padding:4px;">
+            <img src="{{ asset('img/logo.png') }}" style="width:100%;height:100%;object-fit:contain;display:block;">
         </div>
         <div>
             <div style="font-family:'Sora',sans-serif;font-size:14px;font-weight:700;color:#fff;line-height:1.2;">

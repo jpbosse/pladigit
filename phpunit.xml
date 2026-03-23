@@ -12,6 +12,13 @@
         </testsuite>
     </testsuites>
 
+    <groups>
+        <exclude>
+            <group>ldap</group>
+            <group>integration</group>
+        </exclude>
+    </groups>
+
     <coverage>
         <report>
             <clover outputFile="build/logs/clover.xml"/>

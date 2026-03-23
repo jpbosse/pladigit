@@ -7,6 +7,7 @@ enum AlbumPermissionLevel: string
     case None = 'none';
     case View = 'view';
     case Download = 'download';
+    case Upload = 'upload';
     case Admin = 'admin';
 
     /** Label affiché dans l'interface */
@@ -16,6 +17,7 @@ enum AlbumPermissionLevel: string
             self::None => 'Aucun droit',
             self::View => 'Visualisation',
             self::Download => 'Téléchargement',
+            self::Upload => 'Téléverser',
             self::Admin => 'Administration',
         };
     }
@@ -27,7 +29,8 @@ enum AlbumPermissionLevel: string
             self::None => 0,
             self::View => 1,
             self::Download => 2,
-            self::Admin => 3,
+            self::Upload => 3,
+            self::Admin => 4,
         };
     }
 

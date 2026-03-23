@@ -18,16 +18,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection('tenant')->table('tenant_settings', function (Blueprint $table) {
-            $table->string('nas_driver', 10)->default('local');
-            $table->string('nas_local_path', 500)->nullable();
-            $table->string('nas_host', 255)->nullable();
-            $table->unsignedSmallInteger('nas_port')->nullable();
-            $table->string('nas_username', 255)->nullable();
-            $table->text('nas_password_enc')->nullable();
-            $table->string('nas_share', 255)->nullable();
-            $table->string('nas_root_path', 500)->nullable();
-            $table->unsignedSmallInteger('nas_sync_interval_minutes')->default(60);
-            $table->timestamp('nas_last_sync_at')->nullable();
+            $table->string('nas_photo_driver', 10)->default('local');
+            $table->string('nas_photo_local_path', 500)->nullable();
+            $table->string('nas_photo_host', 255)->nullable();
+            $table->unsignedSmallInteger('nas_photo_port')->nullable();
+            $table->string('nas_photo_username', 255)->nullable();
+            $table->text('nas_photo_password_enc')->nullable();
+            $table->string('nas_photo_share', 255)->nullable();
+            $table->string('nas_photo_root_path', 500)->nullable();
+            $table->unsignedSmallInteger('nas_photo_sync_interval_minutes')->default(60);
+            $table->timestamp('nas_photo_last_sync_at')->nullable();
         });
     }
 
@@ -35,16 +35,16 @@ return new class extends Migration
     {
         Schema::connection('tenant')->table('tenant_settings', function (Blueprint $table) {
             $table->dropColumn([
-                'nas_driver',
-                'nas_local_path',
-                'nas_host',
-                'nas_port',
-                'nas_username',
-                'nas_password_enc',
-                'nas_share',
-                'nas_root_path',
-                'nas_sync_interval_minutes',
-                'nas_last_sync_at',
+                'nas_photo_driver',
+                'nas_photo_local_path',
+                'nas_photo_host',
+                'nas_photo_port',
+                'nas_photo_username',
+                'nas_photo_password_enc',
+                'nas_photo_share',
+                'nas_photo_root_path',
+                'nas_photo_sync_interval_minutes',
+                'nas_photo_last_sync_at',
             ]);
         });
     }

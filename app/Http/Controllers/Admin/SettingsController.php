@@ -4,6 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\TenantSettings;
+use App\Models\Tenant\User;
+use App\Services\MediaService;
+use App\Services\TenantManager;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 
@@ -207,7 +211,17 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'media_default_cols' => ['required', 'integer', 'min:1', 'max:12'],
+            // Watermark
+            'wm_enabled' => ['sometimes', 'boolean'],
+            'wm_type' => ['sometimes', 'in:text,logo'],
+            'wm_text' => ['nullable', 'string', 'max:100'],
+            'wm_position' => ['sometimes', 'in:bottom-right,bottom-left,center,bottom-center'],
+            'wm_opacity' => ['sometimes', 'integer', 'min:10', 'max:100'],
+            'wm_size' => ['sometimes', 'in:small,medium,large'],
         ]);
+
+        // La checkbox wm_enabled n'est pas soumise si décochée
+        $validated['wm_enabled'] = $request->boolean('wm_enabled');
 
         $settings = TenantSettings::firstOrCreate([]);
         $settings->update($validated);
@@ -257,10 +271,30 @@ class SettingsController extends Controller
     public function updateSecurity(Request $request)
     {
         $validated = $request->validate([
+            // Sessions & verrouillage
             'session_lifetime_minutes' => ['required', 'integer', 'min:5', 'max:10080'],
             'login_max_attempts' => ['required', 'integer', 'min:3', 'max:20'],
             'login_lockout_minutes' => ['required', 'integer', 'min:1', 'max:1440'],
+            // Politique mots de passe
+            'pwd_min_length' => ['required', 'integer', 'min:6', 'max:64'],
+            'pwd_require_uppercase' => ['boolean'],
+            'pwd_require_number' => ['boolean'],
+            'pwd_require_special' => ['boolean'],
+            'pwd_validity_days' => ['nullable', 'integer', 'min:0', 'max:3650'],
+            'pwd_history_count' => ['required', 'integer', 'min:0', 'max:24'],
+            'force_2fa' => ['boolean'],
         ]);
+
+        // Les checkboxes non cochées ne sont pas envoyées — forcer à false
+        $validated['pwd_require_uppercase'] = $request->boolean('pwd_require_uppercase');
+        $validated['pwd_require_number'] = $request->boolean('pwd_require_number');
+        $validated['pwd_require_special'] = $request->boolean('pwd_require_special');
+        $validated['force_2fa'] = $request->boolean('force_2fa');
+
+        // 0 = pas d'expiration → stocker NULL
+        if (($validated['pwd_validity_days'] ?? 0) == 0) {
+            $validated['pwd_validity_days'] = null;
+        }
 
         $settings = TenantSettings::firstOrCreate([]);
         $settings->update($validated);
@@ -268,22 +302,71 @@ class SettingsController extends Controller
         return back()->with('success', 'Paramètres de sécurité enregistrés.');
     }
 
-    public function syncNas(Request $request)
+    public function syncNas(Request $request, MediaService $mediaService, TenantManager $tenantManager): JsonResponse
     {
         $deep = (bool) $request->input('deep', false);
-        $args = ['--deep' => $deep];
 
-        $host = request()->getHost();
-        $slug = explode('.', $host)[0];
-        if ($slug && $slug !== 'www') {
-            $args['--tenant'] = $slug;
+        try {
+            $owner = User::where('role', 'admin')->first();
+
+            $result = $mediaService->syncAlbumTree(
+                nasRoot: '',
+                owner: $owner,
+                deep: $deep,
+            );
+
+            // Mise à jour de la dernière sync
+            TenantSettings::firstOrCreate([])->update(['nas_photo_last_sync_at' => now()]);
+
+            $parts = [];
+            if ($result['files_added'] > 0) {
+                $parts[] = $result['files_added'].' fichier(s) ajouté(s)';
+            }
+            if ($result['files_removed'] > 0) {
+                $parts[] = $result['files_removed'].' fichier(s) supprimé(s)';
+            }
+            if ($result['albums_created'] > 0) {
+                $parts[] = $result['albums_created'].' album(s) créé(s)';
+            }
+            if ($result['albums_removed'] > 0) {
+                $parts[] = $result['albums_removed'].' album(s) supprimé(s)';
+            }
+            if ($result['errors'] > 0) {
+                $parts[] = $result['errors'].' erreur(s)';
+            }
+
+            $message = empty($parts) ? 'Aucune modification détectée.' : implode(', ', $parts).'.';
+
+            return response()->json([
+                'ok' => $result['errors'] === 0,
+                'message' => $message,
+                'stats' => $result,
+            ]);
+
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'Erreur : '.$e->getMessage(),
+            ], 500);
         }
+    }
 
-        $exitCode = \Artisan::call('nas:sync', $args);
+    public function visio()
+    {
+        $settings = \App\Models\Tenant\TenantSettings::on('tenant')->firstOrCreate([]);
 
-        return response()->json([
-            'ok' => $exitCode === 0,
-            'message' => $exitCode === 0 ? 'Synchronisation terminée.' : 'Erreur lors de la synchronisation.',
+        return view('admin.settings.visio', compact('settings'));
+    }
+
+    public function updateVisio(Request $request)
+    {
+        $validated = $request->validate([
+            'jitsi_base_url' => ['required', 'url', 'max:255'],
         ]);
+
+        $settings = \App\Models\Tenant\TenantSettings::on('tenant')->firstOrCreate([]);
+        $settings->update($validated);
+
+        return back()->with('success', 'Paramètres visio enregistrés.');
     }
 }

@@ -36,7 +36,10 @@ abstract class TestCase extends BaseTestCase
             'plan' => 'communautaire',
             'max_users' => 200,
             'primary_color' => '#1E3A5F',
+            'enabled_modules' => ['media', 'projects'],
         ]);
+        // Persister l'org en base pour que la commande puisse la trouver
+        $org->save();
         app(TenantManager::class)->connectTo($org);
     }
 
@@ -44,7 +47,13 @@ abstract class TestCase extends BaseTestCase
     {
         $dbTenant = env('DB_TENANT_DATABASE', 'pladigit_testing_tenant');
 
-        config(['database.connections.mysql.database' => env('DB_DATABASE', 'pladigit_testing_platform')]);
+        config([
+            'database.connections.mysql.host' => env('DB_HOST', '127.0.0.1'),
+            'database.connections.mysql.port' => env('DB_PORT', '3306'),
+            'database.connections.mysql.database' => env('DB_DATABASE', 'pladigit_testing_platform'),
+            'database.connections.mysql.username' => env('DB_USERNAME', 'pladigit'),
+            'database.connections.mysql.password' => env('DB_PASSWORD', ''),
+        ]);
         DB::purge('mysql');
         DB::reconnect('mysql');
 
@@ -121,11 +130,16 @@ abstract class TestCase extends BaseTestCase
             $db->statement('SET FOREIGN_KEY_CHECKS=0');
             foreach ([
                 'users', 'departments', 'user_department',
+                'invitations',
                 'media_albums', 'media_items', 'album_permissions',
-                'album_user_permissions', 'tenant_settings',
-                'audit_logs', 'sessions', 'notifications',
+                'album_user_permissions', 'media_share_links', 'shares',
+                'tenant_settings',
+                'audit_logs', 'sessions', 'notifications', 'email_logs',
+                'task_dependencies', 'task_comments', 'tasks',
+                'project_milestones', 'project_members', 'projects',
+                'event_participants', 'events',
             ] as $t) {
-                $db->table($t)->delete();
+                $db->statement("TRUNCATE TABLE `{$t}`");
             }
             $db->statement('SET FOREIGN_KEY_CHECKS=1');
         } catch (\Throwable) {

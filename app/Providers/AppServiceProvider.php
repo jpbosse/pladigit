@@ -25,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(MediaAlbum::class, MediaAlbumPolicy::class);
         Gate::policy(MediaItem::class, MediaItemPolicy::class);
+        Gate::policy(\App\Models\Tenant\Project::class, \App\Policies\ProjectPolicy::class);
+        Gate::policy(\App\Models\Tenant\Task::class, \App\Policies\TaskPolicy::class);
 
         $this->configureRateLimiters();
 
