@@ -237,11 +237,12 @@
                         <div class="ph-album-card-wrap">
                             <a href="{{ route('media.albums.show', $album) }}" class="ph-album-card">
                                 <div class="ph-album-thumb">
-                                    @if($album->cover_path)
-                                        <img src="{{ route('media.items.serve', ['album' => $album->id, 'item' => 0]) }}"
+                                    @php $cover = $album->relationLoaded('coverItem') ? $album->coverItem : $album->resolveCoverItem(); @endphp
+                                    @if($cover)
+                                        <img src="{{ route('media.items.serve', [$album, $cover, 'thumb']) }}"
                                              alt="{{ $album->name }}">
                                     @else
-                                        🗂️
+                                        <span style="font-size:32px;">🗂️</span>
                                     @endif
                                 </div>
                                 <div class="ph-album-info">

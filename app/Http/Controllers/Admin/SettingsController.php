@@ -211,6 +211,7 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'media_default_cols' => ['required', 'integer', 'min:1', 'max:12'],
+            'media_stream_threshold_mb' => ['required', 'integer', 'min:0', 'max:500'],
             // Watermark
             'wm_enabled' => ['sometimes', 'boolean'],
             'wm_type' => ['sometimes', 'in:text,logo'],

@@ -4,6 +4,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\DuplicateMediaException;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
@@ -63,7 +64,7 @@ class MediaService
      *
      * @throws RuntimeException si le fichier est invalide ou l'upload échoue
      */
-    public function upload(UploadedFile $file, MediaAlbum $album, User $uploader): MediaItem
+    public function upload(UploadedFile $file, MediaAlbum $album, User $uploader, bool $force = false): MediaItem
     {
         $this->assertAllowed($file);
         $this->assertQuota($file, $uploader);
@@ -77,17 +78,30 @@ class MediaService
             throw new RuntimeException('Impossible de lire le fichier uploadé.');
         }
 
-        // Vérification de doublon par SHA-256 avant l'écriture
+        // Vérification de doublon par SHA-256 (tous les albums du tenant).
         $sha256 = hash('sha256', $contents);
-        $existing = MediaItem::where('album_id', $album->id)
-            ->where('sha256_hash', $sha256)
+        $existing = MediaItem::where('sha256_hash', $sha256)
+            ->with('album:id,name')
             ->first();
 
-        if ($existing) {
-            throw new RuntimeException(
-                "Ce fichier est un doublon de « {$existing->file_name} » (SHA-256 identique)."
+        if ($existing && ! $force) {
+            $location = $existing->album_id === $album->id
+                ? 'dans cet album'
+                : 'dans l\'album « '.($existing->album->name ?? 'inconnu').' »';
+
+            // Exception spéciale portant les infos du doublon pour la modale de confirmation
+            throw new DuplicateMediaException(
+                $existing->file_name,
+                $existing->album->name ?? 'inconnu',
+                $existing->album_id === $album->id,
+                $sha256
             );
         }
+
+        // Import forcé ou pas de doublon — on note si c'est un doublon
+        $isDuplicate = $existing !== null;
+
+        $thumbPath = null; // initialisé ici pour le bloc catch de compensation
 
         // Écriture sur le NAS
         if (! $nas->writeFile($nasPath, $contents)) {
@@ -98,7 +112,7 @@ class MediaService
         // La miniature, l'EXIF et les dimensions sont traités en queue.
         try {
             $item = \DB::connection('tenant')->transaction(function () use (
-                $album, $uploader, $file, $nasPath, $contents, $sha256
+                $album, $uploader, $file, $nasPath, $contents, $sha256, $isDuplicate
             ): MediaItem {
                 return MediaItem::create([
                     'album_id' => $album->id,
@@ -112,10 +126,16 @@ class MediaService
                     'height_px' => null,
                     'exif_data' => null,
                     'sha256_hash' => $sha256,
+                    'is_duplicate' => $isDuplicate,
                     'caption' => null,
                     'processing_status' => 'pending',
                 ]);
             });
+
+            // Si import forcé d'un doublon, s'assurer que l'original est aussi marqué
+            if ($isDuplicate && $existing !== null && ! $existing->is_duplicate) {
+                $existing->update(['is_duplicate' => true]);
+            }
 
         } catch (\Throwable $e) {
             // Compensation : supprimer les fichiers NAS pour éviter les orphelins
@@ -123,9 +143,7 @@ class MediaService
                 if ($nas->exists($nasPath)) {
                     $nas->deleteFile($nasPath);
                 }
-                if ($thumbPath && $nas->exists($thumbPath)) {
-                    $nas->deleteFile($thumbPath);
-                }
+                // $thumbPath est toujours null ici — la miniature est générée par le Job.
             } catch (\Throwable) {
                 // Log mais on ne masque pas l'erreur originale
                 \Illuminate\Support\Facades\Log::warning('MediaService::upload — impossible de supprimer le fichier NAS orphelin', [
@@ -210,6 +228,35 @@ class MediaService
      * @return array{albums_created: int, albums_found: int, albums_removed: int, files_added: int, files_skipped: int, files_removed: int, errors: int}
      */
     public function syncAlbumTree(
+        string $nasRoot = '',
+        ?User $owner = null,
+        bool $deep = false,
+    ): array {
+        // Verrou atomique — empêche deux syncs simultanées sur le même tenant
+        $lockKey = 'nas_sync_lock_'.md5(config('database.connections.tenant.database', 'tenant'));
+        $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 300); // TTL 5 min
+
+        if (! $lock->get()) {
+            Log::warning('MediaService::syncAlbumTree — sync déjà en cours, abandon.');
+
+            return [
+                'albums_created' => 0, 'albums_found' => 0, 'albums_removed' => 0,
+                'files_added' => 0, 'files_skipped' => 0, 'files_removed' => 0,
+                'errors' => 0, 'skipped_reason' => 'lock',
+            ];
+        }
+
+        try {
+            return $this->doSyncAlbumTree($nasRoot, $owner, $deep);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Implémentation interne de syncAlbumTree (appelée sous verrou).
+     */
+    private function doSyncAlbumTree(
         string $nasRoot = '',
         ?User $owner = null,
         bool $deep = false,
@@ -820,6 +867,38 @@ class MediaService
      * Construit le chemin NAS de destination pour un upload.
      * Ex : albums/42/2026/04/mon-fichier.jpg
      */
+
+    // =========================================================================
+    // Gestion des doublons
+    // =========================================================================
+
+    /**
+     * Recalcule le flag is_duplicate pour tous les items partageant un SHA-256.
+     * À appeler après suppression ou déplacement d'un item.
+     *
+     * Règle :
+     *   - 0 item avec ce SHA-256 → rien à faire
+     *   - 1 item avec ce SHA-256 → is_duplicate = false (il est seul, plus doublon)
+     *   - 2+ items avec ce SHA-256 → is_duplicate = true sur tous
+     */
+    public function recalculateDuplicateFlag(string $sha256): void
+    {
+        $items = MediaItem::where('sha256_hash', $sha256)->get(['id', 'is_duplicate']);
+
+        if ($items->isEmpty()) {
+            return;
+        }
+
+        $isDuplicate = $items->count() > 1;
+
+        // Mise à jour uniquement si le flag doit changer (évite des UPDATE inutiles)
+        foreach ($items as $item) {
+            if ($item->is_duplicate !== $isDuplicate) {
+                $item->update(['is_duplicate' => $isDuplicate]);
+            }
+        }
+    }
+
     private function buildNasPath(MediaAlbum $album, string $originalName): string
     {
         $safe = Str::slug(pathinfo($originalName, PATHINFO_FILENAME));
@@ -911,6 +990,42 @@ class MediaService
             ]);
         }
 
+        // Détection doublon lors de la sync NAS
+        $isDuplicate = false;
+        if ($sha256) {
+            $existingDup = MediaItem::where('sha256_hash', $sha256)->first();
+
+            if ($existingDup) {
+                if ($existingDup->album_id === $album->id) {
+                    // Même album + même contenu = fichier renommé sur le NAS
+                    // → on met à jour le nom et le chemin, on ne crée pas de doublon
+                    $existingDup->update([
+                        'file_name' => $entry['name'],
+                        'file_path' => $entry['path'],
+                    ]);
+                    Log::info('MediaService::ingestNasFile — fichier renommé détecté, mise à jour du nom', [
+                        'item_id' => $existingDup->id,
+                        'old_name' => $existingDup->file_name,
+                        'new_name' => $entry['name'],
+                    ]);
+
+                    return; // pas de création d'item supplémentaire
+                }
+
+                // Album différent = vrai doublon inter-albums
+                $isDuplicate = true;
+                if (! $existingDup->is_duplicate) {
+                    $existingDup->update(['is_duplicate' => true]);
+                }
+                Log::info('MediaService::ingestNasFile — doublon inter-albums détecté via sync NAS', [
+                    'new_path' => $entry['path'],
+                    'original_id' => $existingDup->id,
+                    'original_path' => $existingDup->file_path,
+                    'sha256' => substr($sha256, 0, 12).'…',
+                ]);
+            }
+        }
+
         MediaItem::create([
             'album_id' => $album->id,
             'uploaded_by' => $album->created_by,
@@ -924,6 +1039,7 @@ class MediaService
             'exif_data' => $exifData,
             'caption' => null,
             'sha256_hash' => $sha256,
+            'is_duplicate' => $isDuplicate,
         ]);
     }
 
