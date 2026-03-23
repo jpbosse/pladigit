@@ -5,6 +5,7 @@ namespace Tests\Feature\Media;
 use App\Enums\AlbumPermissionLevel;
 use App\Models\Tenant\AlbumPermission;
 use App\Models\Tenant\MediaAlbum;
+use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
 use Tests\TestCase;
 
@@ -217,6 +218,142 @@ class MediaAlbumTest extends TestCase
     // =========================================================================
     // Authentification requise
     // =========================================================================
+
+    // =========================================================================
+    // Couverture d'album
+    // =========================================================================
+
+    public function test_admin_peut_definir_une_couverture(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $album = MediaAlbum::create([
+            'name' => 'Album couverture',
+            'visibility' => 'public',
+            'created_by' => $admin->id,
+        ]);
+        $item = MediaItem::factory()->create([
+            'album_id' => $album->id,
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('media.albums.cover', [$album, $item]))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('media_albums', [
+            'id' => $album->id,
+            'cover_item_id' => $item->id,
+        ], 'tenant');
+    }
+
+    public function test_utilisateur_simple_ne_peut_pas_definir_la_couverture(): void
+    {
+        $owner = User::factory()->create(['role' => 'user', 'status' => 'active']);
+        $other = User::factory()->create(['role' => 'user', 'status' => 'active']);
+
+        $album = MediaAlbum::create([
+            'name' => 'Album protégé',
+            'visibility' => 'public',
+            'created_by' => $owner->id,
+        ]);
+        $item = MediaItem::factory()->create([
+            'album_id' => $album->id,
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        $this->actingAs($other)
+            ->put(route('media.albums.cover', [$album, $item]))
+            ->assertForbidden();
+    }
+
+    public function test_couverture_refusee_si_item_hors_album(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+
+        $album1 = MediaAlbum::create([
+            'name' => 'Album 1', 'visibility' => 'public', 'created_by' => $admin->id,
+        ]);
+        $album2 = MediaAlbum::create([
+            'name' => 'Album 2', 'visibility' => 'public', 'created_by' => $admin->id,
+        ]);
+        $item = MediaItem::factory()->create([
+            'album_id' => $album2->id,
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        // Tenter de définir un item d'album2 comme couverture d'album1
+        $this->actingAs($admin)
+            ->put(route('media.albums.cover', [$album1, $item]))
+            ->assertNotFound();
+    }
+
+    public function test_couverture_refusee_pour_fichier_non_image(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $album = MediaAlbum::create([
+            'name' => 'Album', 'visibility' => 'public', 'created_by' => $admin->id,
+        ]);
+        $item = MediaItem::factory()->create([
+            'album_id' => $album->id,
+            'mime_type' => 'video/mp4',
+        ]);
+
+        $this->actingAs($admin)
+            ->put(route('media.albums.cover', [$album, $item]))
+            ->assertStatus(422);
+    }
+
+    public function test_resolve_cover_item_retourne_premier_item_si_aucune_couverture(): void
+    {
+        $user = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $album = MediaAlbum::create([
+            'name' => 'Album auto', 'visibility' => 'public', 'created_by' => $user->id,
+        ]);
+        $first = MediaItem::factory()->create([
+            'album_id' => $album->id,
+            'mime_type' => 'image/jpeg',
+            'created_at' => now()->subHour(),
+        ]);
+        MediaItem::factory()->create([
+            'album_id' => $album->id,
+            'mime_type' => 'image/jpeg',
+            'created_at' => now(),
+        ]);
+
+        $cover = $album->resolveCoverItem();
+
+        $this->assertEquals($first->id, $cover?->id);
+    }
+
+    public function test_resolve_cover_item_retourne_null_si_album_vide(): void
+    {
+        $user = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $album = MediaAlbum::create([
+            'name' => 'Vide', 'visibility' => 'public', 'created_by' => $user->id,
+        ]);
+
+        $this->assertNull($album->resolveCoverItem());
+    }
+
+    public function test_admin_peut_reinitialiser_la_couverture(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
+        $album = MediaAlbum::create([
+            'name' => 'Album reset',
+            'visibility' => 'public',
+            'created_by' => $admin->id,
+            'cover_item_id' => 999, // couverture manuelle définie
+        ]);
+
+        $this->actingAs($admin)
+            ->delete(route('media.albums.cover.reset', $album))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('media_albums', [
+            'id' => $album->id,
+            'cover_item_id' => null,
+        ], 'tenant');
+    }
 
     public function test_un_visiteur_non_authentifie_est_redirige(): void
     {

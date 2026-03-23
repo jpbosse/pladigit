@@ -41,6 +41,7 @@ class MediaItem extends Model
         'exif_data',
         'caption',
         'sha256_hash',
+        'is_duplicate',
         'processing_status',
     ];
 
@@ -49,6 +50,7 @@ class MediaItem extends Model
         'file_size_bytes' => 'integer',
         'width_px' => 'integer',
         'height_px' => 'integer',
+        'is_duplicate' => 'boolean',
     ];
 
     // ── Relations ────────────────────────────────────────────

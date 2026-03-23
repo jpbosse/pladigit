@@ -38,6 +38,7 @@ class MediaAlbum extends Model
         'name',
         'description',
         'cover_path',
+        'cover_item_id',
         'nas_path',
         'visibility',
     ];
@@ -90,6 +91,38 @@ class MediaAlbum extends Model
         return $this->hasMany(MediaShareLink::class, 'album_id');
     }
 
+    /**
+     * Item choisi manuellement comme couverture de l'album.
+     *
+     * @return BelongsTo<MediaItem, $this>
+     */
+    public function coverItem(): BelongsTo
+    {
+        return $this->belongsTo(MediaItem::class, 'cover_item_id');
+    }
+
+    /**
+     * Retourne le MediaItem à utiliser comme couverture.
+     * Priorité : couverture manuelle → premier item de l'album → null.
+     */
+    public function resolveCoverItem(): ?MediaItem
+    {
+        if ($this->cover_item_id && $this->relationLoaded('coverItem')) {
+            return $this->coverItem;
+        }
+
+        if ($this->cover_item_id) {
+            return MediaItem::find($this->cover_item_id);
+        }
+
+        // Fallback : premier item image de l'album
+        return $this->items()
+            ->where('mime_type', 'like', 'image/%')
+            ->notThumbs()
+            ->oldest()
+            ->first();
+    }
+
     // ── Scopes ───────────────────────────────────────────────
 
     /** Albums racine uniquement (sans parent) */
@@ -106,21 +139,32 @@ class MediaAlbum extends Model
     /**
      * Albums visibles pour un utilisateur donné.
      * Délègue au AlbumPermissionService pour la résolution complète.
+     *
+     * Optimisation : eager loading des relations permissions en une seule passe
+     * + cache par requête HTTP via once() pour éviter les appels répétés.
      */
     public function scopeVisibleFor($query, User $user)
     {
-        // Admin/Président/DGS voient tout
+        // Admin/Président/DGS voient tout — aucune requête supplémentaire
         if ($user->role && UserRole::from($user->role)->atLeast(UserRole::DGS)) {
             return $query;
         }
 
-        $service = app(AlbumPermissionService::class);
-        $allAlbums = static::all(['id', 'parent_id', 'created_by', 'visibility']);
+        // once() met en cache le résultat pour la durée de la requête HTTP.
+        // Évite de recalculer les IDs accessibles si scopeVisibleFor est appelé
+        // plusieurs fois dans la même page (liste albums + sidebar tree, etc.)
+        $accessibleIds = once(function () use ($user) {
+            $service = app(AlbumPermissionService::class);
 
-        $accessibleIds = $allAlbums
-            ->filter(fn (MediaAlbum $album) => $service->canView($user, $album))
-            ->pluck('id')
-            ->toArray();
+            // Eager loading des relations pour éviter N+1 dans resolveChain()
+            $allAlbums = static::with(['permissions', 'userPermissions'])
+                ->get(['id', 'parent_id', 'created_by', 'visibility']);
+
+            return $allAlbums
+                ->filter(fn (MediaAlbum $album) => $service->canView($user, $album))
+                ->pluck('id')
+                ->toArray();
+        });
 
         return $query->whereIn('id', $accessibleIds);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Media;
 
+use App\Exceptions\DuplicateMediaException;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
@@ -45,12 +46,14 @@ class MediaItemController extends Controller
         $request->validate([
             'files' => ['required', 'array', 'min:1', 'max:20'],
             'files.*' => ['file', 'max:204800'], // 200 Mo par fichier
+            'force_names' => ['sometimes', 'array'],  // noms des fichiers à forcer malgré doublon
+            'force_names.*' => ['string'],
         ]);
 
         /** @var User $user */
         $user = auth()->user();
 
-        // ── Pré-vérification quota avant tout upload ─────────────────────────
+        // ── Pré-vérification quota ────────────────────────────────────────────
         $org = app(\App\Services\TenantManager::class)->current();
         $quotaMb = $org !== null ? $org->storage_quota_mb ?? 10240 : 10240;
         $quotaBytes = $quotaMb * 1024 * 1024;
@@ -62,30 +65,49 @@ class MediaItemController extends Controller
                 ->route('media.albums.show', $album)
                 ->with('error', "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur.");
         }
+
+        $forceNames = $request->input('force_names', []);
         $success = 0;
         $errors = [];
+        $duplicates = []; // fichiers en attente de confirmation
 
         foreach ($request->file('files', []) as $file) {
+            $name = $file->getClientOriginalName();
+            $force = in_array($name, $forceNames);
+
             try {
-                $this->mediaService->upload($file, $album, $user);
+                $this->mediaService->upload($file, $album, $user, $force);
                 $success++;
+            } catch (DuplicateMediaException $e) {
+                // Retourner les infos pour la modale de confirmation côté JS
+                $duplicates[] = [
+                    'file_name' => $name,
+                    'original_file_name' => $e->originalFileName,
+                    'original_album_name' => $e->originalAlbumName,
+                    'same_album' => $e->sameAlbum,
+                ];
             } catch (\RuntimeException $e) {
-                $errors[] = $file->getClientOriginalName().': '.$e->getMessage();
+                $errors[] = $name.': '.$e->getMessage();
             }
         }
 
-        $message = "{$success} fichier(s) importé(s) avec succès.";
-
-        if (! empty($errors)) {
-            return redirect()
-                ->route('media.albums.show', $album)
-                ->with('success', $message)
-                ->with('upload_errors', $errors);
+        // ── Réponse JSON (upload AJAX) ────────────────────────────────────────
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => $success,
+                'errors' => $errors,
+                'duplicates' => $duplicates,
+            ]);
         }
+
+        // ── Réponse redirect (formulaire classique) ───────────────────────────
+        $message = "{$success} fichier(s) importé(s) avec succès.";
 
         return redirect()
             ->route('media.albums.show', $album)
-            ->with('success', $message);
+            ->with('success', $message)
+            ->with('upload_errors', $errors)
+            ->with('upload_duplicates', $duplicates);
     }
 
     /**
@@ -187,6 +209,11 @@ class MediaItemController extends Controller
         }
 
         $item->delete();
+        // L'Observer MediaItemObserver::deleted() recalcule is_duplicate automatiquement.
+
+        if (request()->wantsJson() || request()->ajax()) {
+            return response()->json(['success' => true]);
+        }
 
         return redirect()
             ->route('media.albums.show', $album)
@@ -244,6 +271,16 @@ class MediaItemController extends Controller
         // Les vidéos passent toujours par stream()
         if ($this->isVideo($item->mime_type) && $type !== 'thumb') {
             return $this->stream($album, $item, request());
+        }
+
+        // Images > seuil configurable : stream() pour éviter de charger tout le fichier en mémoire.
+        // Les miniatures (thumb) sont toujours petites — on les sert en mémoire.
+        if ($type !== 'thumb' && ($item->file_size_bytes ?? 0) > 0) {
+            $settings = TenantSettings::on('tenant')->first();
+            $thresholdMb = $settings->media_stream_threshold_mb ?? 10;
+            if ($thresholdMb > 0 && $item->file_size_bytes > $thresholdMb * 1024 * 1024) {
+                return $this->stream($album, $item, request());
+            }
         }
 
         try {
