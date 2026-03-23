@@ -4,6 +4,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\DuplicateMediaException;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
@@ -12,7 +13,6 @@ use App\Services\Nas\NasManager;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use App\Exceptions\DuplicateMediaException;
 use RuntimeException;
 
 /**
@@ -238,6 +238,7 @@ class MediaService
 
         if (! $lock->get()) {
             Log::warning('MediaService::syncAlbumTree — sync déjà en cours, abandon.');
+
             return [
                 'albums_created' => 0, 'albums_found' => 0, 'albums_removed' => 0,
                 'files_added' => 0, 'files_skipped' => 0, 'files_removed' => 0,
@@ -1003,10 +1004,11 @@ class MediaService
                         'file_path' => $entry['path'],
                     ]);
                     Log::info('MediaService::ingestNasFile — fichier renommé détecté, mise à jour du nom', [
-                        'item_id'  => $existingDup->id,
+                        'item_id' => $existingDup->id,
                         'old_name' => $existingDup->file_name,
                         'new_name' => $entry['name'],
                     ]);
+
                     return; // pas de création d'item supplémentaire
                 }
 
@@ -1016,28 +1018,28 @@ class MediaService
                     $existingDup->update(['is_duplicate' => true]);
                 }
                 Log::info('MediaService::ingestNasFile — doublon inter-albums détecté via sync NAS', [
-                    'new_path'      => $entry['path'],
-                    'original_id'   => $existingDup->id,
+                    'new_path' => $entry['path'],
+                    'original_id' => $existingDup->id,
                     'original_path' => $existingDup->file_path,
-                    'sha256'        => substr($sha256, 0, 12).'…',
+                    'sha256' => substr($sha256, 0, 12).'…',
                 ]);
             }
         }
 
         MediaItem::create([
-            'album_id'       => $album->id,
-            'uploaded_by'    => $album->created_by,
-            'file_name'      => $entry['name'],
-            'file_path'      => $entry['path'],
-            'thumb_path'     => $thumbPath,
-            'mime_type'      => $mimeType,
+            'album_id' => $album->id,
+            'uploaded_by' => $album->created_by,
+            'file_name' => $entry['name'],
+            'file_path' => $entry['path'],
+            'thumb_path' => $thumbPath,
+            'mime_type' => $mimeType,
             'file_size_bytes' => $entry['size'],
-            'width_px'       => $width,
-            'height_px'      => $height,
-            'exif_data'      => $exifData,
-            'caption'        => null,
-            'sha256_hash'    => $sha256,
-            'is_duplicate'   => $isDuplicate,
+            'width_px' => $width,
+            'height_px' => $height,
+            'exif_data' => $exifData,
+            'caption' => null,
+            'sha256_hash' => $sha256,
+            'is_duplicate' => $isDuplicate,
         ]);
     }
 
