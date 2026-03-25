@@ -92,15 +92,29 @@ class SharedAlbumController extends Controller
             ->firstOrFail();
 
         $nas = $this->nasManager->photoDriver();
-        $path = ($type === 'thumb' && $item->thumb_path) ? $item->thumb_path : $item->file_path;
+        $isThumb = $type === 'thumb';
+        $path = ($isThumb && $item->thumb_path) ? $item->thumb_path : $item->file_path;
+
+        $maxAge = $isThumb ? 604800 : 86400;
+        $etag = '"'.$item->updated_at->timestamp.($isThumb ? 't' : 'f').'"';
+        $lastModified = $item->updated_at->format('D, d M Y H:i:s').' GMT';
+
+        if (request()->header('If-None-Match') === $etag) {
+            return response('', 304, [
+                'ETag' => $etag,
+                'Cache-Control' => "private, max-age={$maxAge}, must-revalidate",
+            ]);
+        }
 
         try {
             $contents = $nas->readFile($path);
-            $mime = ($type === 'thumb') ? 'image/jpeg' : ($item->mime_type ?? 'application/octet-stream');
+            $mime = $isThumb ? 'image/jpeg' : ($item->mime_type ?? 'application/octet-stream');
 
             return response($contents, 200, [
                 'Content-Type' => $mime,
-                'Cache-Control' => 'private, max-age=3600',
+                'Cache-Control' => "private, max-age={$maxAge}, must-revalidate",
+                'ETag' => $etag,
+                'Last-Modified' => $lastModified,
             ]);
         } catch (\Throwable) {
             abort(404);

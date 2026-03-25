@@ -394,19 +394,34 @@ class MediaItemController extends Controller
             }
         }
 
+        // Cache-Control : 7 jours pour les thumbnails (ne changent qu'après rotation/crop),
+        // 1 jour pour les originaux. ETag + Last-Modified pour les requêtes conditionnelles.
+        $isThumb = $type === 'thumb';
+        $maxAge = $isThumb ? 604800 : 86400;
+        $etag = '"'.$item->updated_at->timestamp.($isThumb ? 't' : 'f').'"';
+        $lastModified = $item->updated_at->format('D, d M Y H:i:s').' GMT';
+
+        if (request()->header('If-None-Match') === $etag) {
+            return response('', 304, [
+                'ETag' => $etag,
+                'Cache-Control' => "public, max-age={$maxAge}, must-revalidate",
+            ]);
+        }
+
         try {
             $nas = app(NasManager::class)->photoDriver();
-            $path = ($type === 'thumb' && $item->thumb_path)
+            $path = ($isThumb && $item->thumb_path)
                 ? $item->thumb_path
                 : $item->file_path;
 
             $contents = $nas->readFile($path);
-
-            $mime = ($type === 'thumb') ? 'image/jpeg' : $item->mime_type;
+            $mime = $isThumb ? 'image/jpeg' : $item->mime_type;
 
             return response($contents, 200, [
                 'Content-Type' => $mime,
-                'Cache-Control' => 'public, max-age=86400',
+                'Cache-Control' => "public, max-age={$maxAge}, must-revalidate",
+                'ETag' => $etag,
+                'Last-Modified' => $lastModified,
             ]);
         } catch (\RuntimeException $e) {
             abort(404);
