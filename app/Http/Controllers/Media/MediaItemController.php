@@ -55,15 +55,27 @@ class MediaItemController extends Controller
 
         // ── Pré-vérification quota ────────────────────────────────────────────
         $org = app(\App\Services\TenantManager::class)->current();
-        $quotaMb = $org !== null ? $org->storage_quota_mb ?? 10240 : 10240;
+        $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
         $quotaBytes = $quotaMb * 1024 * 1024;
         $usedBytes = (int) \App\Models\Tenant\MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
         $freeBytes = max(0, $quotaBytes - $usedBytes);
+        $totalIncoming = (int) array_sum(array_map(
+            fn ($f) => $f->getSize(),
+            $request->file('files', [])
+        ));
 
-        if ($freeBytes === 0) {
-            return redirect()
-                ->route('media.albums.show', $album)
-                ->with('error', "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur.");
+        if ($freeBytes === 0 || $totalIncoming > $freeBytes) {
+            $freeMb = round($freeBytes / 1048576, 1);
+            $incomingMb = round($totalIncoming / 1048576, 1);
+            $msg = $freeBytes === 0
+                ? "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur."
+                : "Les fichiers sélectionnés ({$incomingMb} Mo) dépassent l'espace disponible ({$freeMb} Mo / {$quotaMb} Mo).";
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['error' => $msg], 422);
+            }
+
+            return redirect()->route('media.albums.show', $album)->with('error', $msg);
         }
 
         $forceNames = $request->input('force_names', []);
