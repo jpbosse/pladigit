@@ -177,6 +177,33 @@ class NotificationService
             ->pluck('user');
     }
 
+    // ── Stockage / Quota ─────────────────────────────────────────────────────
+
+    /**
+     * Notifier les administrateurs qu'un seuil de quota stockage est franchi.
+     *
+     * @param  int  $usedBytes  Consommation actuelle en octets
+     * @param  int  $quotaBytes  Quota total en octets
+     * @param  int  $threshold  Seuil franchi (80, 90 ou 95)
+     */
+    public function quotaWarning(int $usedBytes, int $quotaBytes, int $threshold): void
+    {
+        $admins = User::on('tenant')->where('role', 'admin')->get();
+
+        $usedMb = round($usedBytes / 1048576);
+        $quotaMb = round($quotaBytes / 1048576);
+
+        foreach ($admins as $admin) {
+            Notification::on('tenant')->create([
+                'user_id' => $admin->id,
+                'type' => 'storage.quota_warning',
+                'title' => "⚠️ Stockage : {$threshold} % du quota utilisé",
+                'body' => "L'espace de stockage de la photothèque a atteint {$threshold} % du quota ({$usedMb} Mo / {$quotaMb} Mo). Libérez de l'espace ou contactez le super-administrateur pour augmenter le quota.",
+                'link' => route('admin.settings.media'),
+            ]);
+        }
+    }
+
     /**
      * Corps court d'un événement (date + lieu).
      */

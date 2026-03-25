@@ -158,6 +158,9 @@ class MediaService
             );
         }
 
+        // Notifier les admins si un seuil de quota est franchi
+        $this->notifyQuotaThresholdIfCrossed(strlen($contents));
+
         // Dispatch du Job de traitement en arrière-plan
         $org = app(\App\Services\TenantManager::class)->current();
         \App\Jobs\ProcessMediaUpload::dispatch(
@@ -588,8 +591,11 @@ class MediaService
             }
 
             // Nouveau fichier → ingestion légère (sans lecture complète)
-            $this->ingestNasFile($entry, $album, $nas);
-            $added++;
+            if ($this->ingestNasFile($entry, $album, $nas)) {
+                $added++;
+            } else {
+                $skipped++; // quota dépassé
+            }
         }
 
         return compact('added', 'skipped');
@@ -999,8 +1005,27 @@ class MediaService
      *
      * @param  array{name: string, path: string, size: int, mtime: int, type: string}  $entry
      */
-    private function ingestNasFile(array $entry, MediaAlbum $album, NasConnectorInterface $nas): void
+    /**
+     * Retourne true si le fichier a été ingéré, false si ignoré (quota dépassé).
+     */
+    private function ingestNasFile(array $entry, MediaAlbum $album, NasConnectorInterface $nas): bool
     {
+        // Vérification quota avant ingestion (la sync ne doit pas dépasser le quota)
+        $quotaInfo = $this->quotaInfo();
+        if ($quotaInfo !== null) {
+            [$usedBytes, $quotaBytes] = $quotaInfo;
+            if (($usedBytes + $entry['size']) > $quotaBytes) {
+                Log::warning('MediaService::ingestNasFile — quota dépassé, fichier ignoré', [
+                    'path' => $entry['path'],
+                    'size_bytes' => $entry['size'],
+                    'used_mb' => round($usedBytes / 1048576, 1),
+                    'quota_mb' => round($quotaBytes / 1048576),
+                ]);
+
+                return false;
+            }
+        }
+
         $ext = strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION));
         $mimeType = self::ALLOWED_EXTENSIONS[$ext] ?? 'application/octet-stream';
 
@@ -1076,30 +1101,51 @@ class MediaService
             'sha256_hash' => $sha256,
             'is_duplicate' => $isDuplicate,
         ]);
+
+        // Notifier les admins si un seuil de quota est franchi
+        $this->notifyQuotaThresholdIfCrossed($entry['size']);
+
+        return true;
+    }
+
+    /**
+     * Retourne [usedBytes, quotaBytes] pour l'organisation courante,
+     * ou null si aucun contexte tenant (tests CLI, jobs sans org).
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    private function quotaInfo(): ?array
+    {
+        $org = app(\App\Services\TenantManager::class)->current();
+
+        if (! $org) {
+            return null;
+        }
+
+        $quotaBytes = ($org->storage_quota_mb ?? 10240) * 1024 * 1024;
+        $usedBytes = (int) MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+
+        return [$usedBytes, $quotaBytes];
     }
 
     /**
      * Vérifie que l'ajout du fichier ne dépasse pas le quota de l'organisation.
      *
-     * Le quota (storage_quota_mb) est défini sur l'Organization dans pladigit_platform.
-     * La valeur par défaut est 10 240 Mo (10 Go), conformément à la migration.
-     *
      * @throws RuntimeException si le quota serait dépassé après l'upload
      */
     private function assertQuota(UploadedFile $file, User $uploader): void
     {
-        $org = app(\App\Services\TenantManager::class)->current();
+        $info = $this->quotaInfo();
 
-        if (! $org) {
+        if ($info === null) {
             return; // Pas de tenant résolu (tests unitaires, CLI) → on laisse passer
         }
 
-        $quotaMb = $org->storage_quota_mb ?? 10240;
-        $quotaBytes = $quotaMb * 1024 * 1024;
-        $usedBytes = (int) MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+        [$usedBytes, $quotaBytes] = $info;
         $incomingBytes = $file->getSize();
 
         if (($usedBytes + $incomingBytes) > $quotaBytes) {
+            $quotaMb = round($quotaBytes / 1048576);
             $usedMb = round($usedBytes / 1048576, 1);
             $freeMb = max(0, round(($quotaBytes - $usedBytes) / 1048576, 1));
             $fileMb = round($incomingBytes / 1048576, 1);
@@ -1110,6 +1156,38 @@ class MediaService
                 ."Espace libre : {$freeMb} Mo. "
                 ."Fichier : {$fileMb} Mo."
             );
+        }
+    }
+
+    /**
+     * Envoie une notification aux admins si un seuil de quota vient d'être franchi.
+     * Seuils surveillés : 80 %, 90 %, 95 %.
+     * Évite le spam : une seule notification par seuil franchi (pas de ré-émission
+     * tant que la consommation reste au-dessus du seuil).
+     */
+    private function notifyQuotaThresholdIfCrossed(int $addedBytes): void
+    {
+        $info = $this->quotaInfo();
+
+        if ($info === null) {
+            return;
+        }
+
+        [$usedBytesAfter, $quotaBytes] = $info;
+
+        if ($quotaBytes === 0) {
+            return;
+        }
+
+        $usedBytesBefore = max(0, $usedBytesAfter - $addedBytes);
+        $pctBefore = (int) floor($usedBytesBefore / $quotaBytes * 100);
+        $pctAfter = (int) floor($usedBytesAfter / $quotaBytes * 100);
+
+        foreach ([80, 90, 95] as $threshold) {
+            if ($pctBefore < $threshold && $pctAfter >= $threshold) {
+                app(NotificationService::class)->quotaWarning($usedBytesAfter, $quotaBytes, $threshold);
+                break; // un seul seuil par upload
+            }
         }
     }
 
