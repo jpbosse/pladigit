@@ -2,6 +2,15 @@
 
 @section('title', $album->name . ' — Photothèque')
 
+@if($canAdmin)
+@push('styles')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+@endpush
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+@endpush
+@endif
+
 @push('styles')
 <style>
 /* ── Layout général ─────────────────────────────────────── */
@@ -202,7 +211,7 @@
 /* Vue liste */
 .ph-list { display: flex; flex-direction: column; gap: 2px; }
 .ph-list-row {
-    display: grid; grid-template-columns: 36px 1fr 60px 90px 70px 50px;
+    display: grid; grid-template-columns: 36px 1fr 60px 90px 70px 90px 36px;
     align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px;
     font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: background .1s;
 }
@@ -294,11 +303,26 @@
 .ph-lb-nav:hover { background: rgba(255,255,255,.3); }
 .ph-lb-nav.prev { left: 20px; }
 .ph-lb-nav.next { right: 20px; }
-.ph-lb-info {
+/* Lightbox — barre de contrôles slideshow */
+#lb-controls {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,.6); color: #fff;
-    font-size: 12px; padding: 4px 14px; border-radius: 20px; white-space: nowrap;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,.65); padding: 7px 16px; border-radius: 24px; white-space: nowrap;
 }
+#lb-play {
+    background: none; border: none; color: #fff; font-size: 15px; cursor: pointer;
+    padding: 0; width: 18px; line-height: 1; flex-shrink: 0;
+    transition: opacity .15s;
+}
+#lb-play:hover { opacity: .75; }
+.lb-spd {
+    background: rgba(255,255,255,.15); border: none; color: rgba(255,255,255,.7);
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer; transition: background .1s;
+}
+.lb-spd:hover, .lb-spd.active { background: rgba(255,255,255,.35); color: #fff; }
+#lb-info { font-size: 12px; color: rgba(255,255,255,.85); }
+#lb-edit-btns { display: none; }
+#lb-edit-btns .lb-spd { font-size: 13px; padding: 2px 6px; }
 /* Modal import */
 #ph-import-modal {
     position: fixed; inset: 0; z-index: 9998;
@@ -355,22 +379,11 @@
             </a>
 
             <div class="ph-nav-section">Albums</div>
-            @foreach($albumTree as $root)
-                <a href="{{ route('media.albums.show', $root) }}"
-                   class="ph-nav-item {{ $root->id === $album->id ? 'active' : '' }}">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $root->name }}</span>
-                    <span class="ph-nav-count">{{ $root->items_count }}</span>
-                </a>
-                @foreach($root->children as $child)
-                    <a href="{{ route('media.albums.show', $child) }}"
-                       class="ph-nav-item ph-nav-child {{ $child->id === $album->id ? 'active' : '' }}">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $child->name }}</span>
-                        <span class="ph-nav-count">{{ $child->items_count }}</span>
-                    </a>
-                @endforeach
-            @endforeach
+            @include('media._sidebar_tree', [
+                'albumTree'     => $albumTree,
+                'activeAlbumId' => $album->id,
+                'ancestorIds'   => $ancestorIds,
+            ])
 
             <div class="ph-nav-section">Actions</div>
             <a href="{{ route('media.albums.create') }}" class="ph-nav-item">
@@ -413,6 +426,10 @@
             </div>
 
             <div class="ph-header-right">
+                <a href="{{ route('media.search') }}" class="ph-hbtn" title="Recherche globale">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </a>
+                <div class="ph-vsep"></div>
                 @foreach([3,4,5,6] as $c)
                 <button class="ph-hbtn" :class="{ active: cols === {{ $c }} }" @click="setCols({{ $c }})">{{ $c }}</button>
                 @endforeach
@@ -440,6 +457,22 @@
                             style="color:#e74c3c;border-color:rgba(231,76,60,.3);">🗑</button>
                 </form>
                 @endcan
+                @can('download', $album)
+                <a href="{{ route('media.albums.export-zip', $album) }}"
+                   class="ph-hbtn" title="Exporter l'album en ZIP">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                </a>
+                @endcan
+                @can('manage', $album)
+                <button class="ph-hbtn" onclick="openShareModal()" title="Partager par lien">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </button>
+                @endcan
                 <div class="ph-vsep"></div>
                 <button class="ph-hbtn" id="btn-nas-sync" onclick="syncNas()" title="Synchroniser le NAS">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -466,7 +499,7 @@
             <div class="ph-vsep"></div>
             <span style="font-size:11px;color:var(--pd-muted);">Tri :</span>
             <select class="ph-select" onchange="location.href=this.value">
-                @foreach(['date' => 'Date', 'name' => 'Nom', 'size' => 'Taille'] as $v => $l)
+                @foreach(['date' => 'Date ajout', 'exif_date' => 'Date prise de vue', 'name' => 'Nom', 'size' => 'Taille'] as $v => $l)
                     <option value="{{ request()->fullUrlWithQuery(['sort' => $v, 'page' => 1]) }}" {{ $sortBy === $v ? 'selected' : '' }}>{{ $l }}</option>
                 @endforeach
             </select>
@@ -474,7 +507,7 @@
                class="ph-hbtn" style="text-decoration:none;" title="Inverser">{{ $sortDir === 'asc' ? '↑' : '↓' }}</a>
             <div class="ph-toolbar-right">
                 <span>Par page :</span>
-                @foreach([10, 24, 48] as $n)
+                @foreach([5, 10] as $n)
                     <a href="{{ request()->fullUrlWithQuery(['per_page' => $n, 'page' => 1]) }}"
                        class="ph-filter {{ !$showAll && $perPage === $n ? 'active' : '' }}" style="padding:2px 8px;">{{ $n }}</a>
                 @endforeach
@@ -568,8 +601,11 @@
                     @foreach($items as $index => $item)
                         <div class="ph-card"
                              :class="{ selected: isSelected({{ $item->id }}) }"
+                             data-item-id="{{ $item->id }}"
                              data-duplicate="{{ $item->is_duplicate ? 'true' : 'false' }}"
-                             @click="cardClick({{ $item->id }}, {{ $index }}, $event)">
+                             @click="cardClick({{ $item->id }}, {{ $index }}, $event)"
+                             @dblclick.stop="openLightbox({{ $index }})"
+                             title="Double-clic pour agrandir">
                             @if($item->isVideo())
                                 <span class="ph-type-badge">Vidéo</span>
                                 <div style="width:100%;height:100%;background:linear-gradient(135deg,#1e293b,#334155);display:flex;align-items:center;justify-content:center;">
@@ -584,6 +620,11 @@
                             @endif
                             @if($item->is_duplicate)
                             <div class="ph-dup-badge" title="Ce fichier existe en doublon dans la photothèque">⚠ Doublon</div>
+                            @endif
+                            @if($sortBy === 'exif_date' && $item->exif_taken_at)
+                            <div style="position:absolute;bottom:28px;left:6px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;padding:2px 5px;border-radius:4px;pointer-events:none;line-height:1.4;">
+                                📅 {{ $item->exif_taken_at->format('d/m/Y') }}
+                            </div>
                             @endif
                             <div class="ph-check" @click.stop="toggleSelect({{ $item->id }})">✓</div>
                             <div class="ph-overlay">
@@ -617,7 +658,9 @@
                     <div class="ph-list-row ph-list-th" style="border:none;cursor:default;">
                         <div></div><div>Nom</div><div style="text-align:right;">Type</div>
                         <div style="text-align:right;">Dimensions</div>
-                        <div style="text-align:right;">Taille</div><div></div>
+                        <div style="text-align:right;">Taille</div>
+                        <div style="text-align:right;">{{ $sortBy === 'exif_date' ? 'Prise de vue' : 'Ajouté le' }}</div>
+                        <div></div>
                     </div>
                     @foreach($items as $index => $item)
                         <div class="ph-list-row" :class="{ selected: isSelected({{ $item->id }}) }"
@@ -633,6 +676,18 @@
                             <div class="ph-list-meta">{{ strtoupper(pathinfo($item->file_name, PATHINFO_EXTENSION)) }}</div>
                             <div class="ph-list-meta">{{ $item->width_px ? $item->width_px.'×'.$item->height_px : '—' }}</div>
                             <div class="ph-list-meta">{{ $item->humanSize() }}</div>
+                            <div class="ph-list-meta" title="{{ $sortBy === 'exif_date' && $item->exif_taken_at ? 'Prise le '.$item->exif_taken_at->format('d/m/Y H:i') : '' }}">
+                                @if($sortBy === 'exif_date')
+                                    @if($item->exif_taken_at)
+                                        <span style="color:var(--pd-text);">{{ $item->exif_taken_at->format('d/m/Y') }}</span>
+                                        <span style="color:var(--pd-muted);font-size:10px;"> {{ $item->exif_taken_at->format('H:i') }}</span>
+                                    @else
+                                        <span style="color:var(--pd-muted);font-style:italic;">Sans EXIF</span>
+                                    @endif
+                                @else
+                                    {{ $item->created_at->format('d/m/Y') }}
+                                @endif
+                            </div>
                             <div class="ph-list-meta">
                                 <a href="{{ route('media.items.download', [$album, $item]) }}" @click.stop style="color:var(--pd-muted);text-decoration:none;font-size:13px;">↓</a>
                             </div>
@@ -673,7 +728,10 @@
                         <img :src="activeItem.thumb" :alt="activeItem.name" x-show="activeItem.isImage" style="width:100%;height:100%;object-fit:cover;">
                         <span x-show="!activeItem.isImage" style="font-size:32px;" x-text="activeItem.isPdf ? '📄' : '🎬'"></span>
                     </div>
-                    <div class="ph-panel-title" x-text="activeItem.name"></div>
+                    <div class="ph-panel-title" x-text="activeItem.caption || activeItem.file_name"></div>
+                    <template x-if="activeItem.caption">
+                        <div style="font-size:10px;color:var(--pd-muted);margin:-4px 0 6px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="activeItem.file_name"></div>
+                    </template>
                     <template x-if="activeItem.is_duplicate">
                         <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin:6px 0;display:flex;align-items:center;gap:6px;font-size:11px;color:#dc2626;">
                             <span>⚠</span>
@@ -681,6 +739,34 @@
                         </div>
                     </template>
                     <div>
+                        @can('upload', $album)
+                        {{-- Légende éditable --}}
+                        <div style="margin-bottom:10px;" x-data="captionEditor()">
+                            <div style="font-size:10px;font-weight:600;color:var(--pd-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Légende</div>
+                            <template x-if="!editing">
+                                <div @click="startEdit()"
+                                     style="font-size:12px;padding:6px 8px;border:1px dashed var(--pd-border);border-radius:6px;cursor:text;min-height:32px;color:var(--pd-text);"
+                                     :style="!activeItem.caption ? 'color:var(--pd-muted);font-style:italic;' : ''"
+                                     x-text="activeItem.caption || 'Cliquer pour ajouter une légende…'">
+                                </div>
+                            </template>
+                            <template x-if="editing">
+                                <div>
+                                    <textarea x-ref="captionInput" x-model="draft"
+                                              @keydown.enter.prevent="save()"
+                                              @keydown.escape="cancel()"
+                                              rows="2"
+                                              style="width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid var(--pd-accent);border-radius:6px;font-size:12px;resize:none;background:var(--pd-surface);color:var(--pd-text);outline:none;"></textarea>
+                                    <div style="display:flex;gap:6px;margin-top:4px;">
+                                        <button @click="save()" style="flex:1;padding:4px;background:var(--pd-navy);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">Enregistrer</button>
+                                        <button @click="cancel()" style="flex:1;padding:4px;background:var(--pd-bg);color:var(--pd-text);border:1px solid var(--pd-border);border-radius:5px;font-size:11px;cursor:pointer;">Annuler</button>
+                                    </div>
+                                    <div style="font-size:10px;color:var(--pd-muted);margin-top:3px;">Entrée = sauvegarder · Échap = annuler</div>
+                                </div>
+                            </template>
+                        </div>
+                        @endcan
+
                         <div class="ph-meta-row"><span class="ph-meta-lbl">Taille</span><span class="ph-meta-val" x-text="activeItem.size"></span></div>
                         <template x-if="activeItem.dims">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">Dimensions</span><span class="ph-meta-val" x-text="activeItem.dims"></span></div>
@@ -689,6 +775,9 @@
                             <div class="ph-meta-row"><span class="ph-meta-lbl">Prise le</span><span class="ph-meta-val" x-text="activeItem.taken_at"></span></div>
                         </template>
                         <div class="ph-meta-row"><span class="ph-meta-lbl">Ajouté le</span><span class="ph-meta-val" x-text="activeItem.date"></span></div>
+                        <template x-if="activeItem.uploader_name">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">Par</span><span class="ph-meta-val" x-text="activeItem.uploader_name"></span></div>
+                        </template>
                         <template x-if="activeItem.camera">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">Appareil</span><span class="ph-meta-val" x-text="activeItem.camera"></span></div>
                         </template>
@@ -743,6 +832,13 @@
             <button class="ph-panel-btn" @click="openLightboxItem()">⤢ Plein écran</button>
             @if($canAdmin)
             <button class="ph-panel-btn" x-show="activeItem?.isImage" @click="setCoverItem()">⭐ Couverture</button>
+            <template x-if="activeItem?.isImage">
+                <div style="display:flex;gap:4px;width:100%;">
+                    <button class="ph-panel-btn" style="flex:1;" @click="rotateItem(activeItem, 270)" title="Rotation gauche">↺ Gauche</button>
+                    <button class="ph-panel-btn" style="flex:1;" @click="rotateItem(activeItem, 90)"  title="Rotation droite">↻ Droite</button>
+                    <button class="ph-panel-btn" style="flex:1;" @click="openCropModal(activeItem)"  title="Recadrer">✂ Recadrer</button>
+                </div>
+            </template>
             @endif
             @can('upload', $album)
             <button class="ph-panel-btn danger" @click="deletePanelItem()">🗑 Supprimer</button>
@@ -758,7 +854,86 @@
     <button class="ph-lb-nav prev" id="lb-prev" onclick="lbGo(-1)">‹</button>
     <div id="lb-content" style="display:flex;align-items:center;justify-content:center;max-width:90vw;max-height:85vh;"></div>
     <button class="ph-lb-nav next" id="lb-next" onclick="lbGo(1)">›</button>
-    <div class="ph-lb-info" id="lb-info"></div>
+
+    {{-- Barre slideshow --}}
+    <div id="lb-controls">
+        <button id="lb-play" onclick="lbTogglePlay()" title="Diaporama — Espace">▶</button>
+        <div style="display:flex;gap:3px;">
+            <button class="lb-spd" data-s="2" onclick="lbSetSpeed(2)">2s</button>
+            <button class="lb-spd active" data-s="3" onclick="lbSetSpeed(3)">3s</button>
+            <button class="lb-spd" data-s="5" onclick="lbSetSpeed(5)">5s</button>
+        </div>
+        <span id="lb-info"></span>
+        @if($canAdmin)
+        <div id="lb-edit-btns" style="display:none;gap:4px;">
+            <button class="lb-spd" onclick="lbRotate(270)" title="Rotation gauche">↺</button>
+            <button class="lb-spd" onclick="lbRotate(90)"  title="Rotation droite">↻</button>
+            <button class="lb-spd" onclick="lbOpenCrop()"  title="Recadrer">✂</button>
+        </div>
+        @endif
+    </div>
+</div>
+
+@if($canAdmin)
+{{-- Modale recadrage --}}
+<div id="ph-crop-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.95);flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+    <div style="max-width:90vw;max-height:75vh;overflow:hidden;">
+        <img id="crop-img" src="" alt="" style="display:block;max-width:90vw;max-height:75vh;">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+        <button onclick="confirmCrop()" style="padding:8px 22px;background:var(--pd-navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">✓ Recadrer</button>
+        <button onclick="closeCropModal()" style="padding:8px 18px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">Annuler</button>
+        <span id="crop-status" style="font-size:12px;color:rgba(255,255,255,.6);"></span>
+    </div>
+</div>
+@endif
+
+{{-- Modal partage par lien --}}
+<div id="ph-share-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div style="background:var(--pd-surface);border-radius:14px;border:1px solid var(--pd-border);width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--pd-border);">
+            <span style="font-size:13px;font-weight:700;color:var(--pd-text);">Partager l'album par lien</span>
+            <button onclick="closeShareModal()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--pd-muted);">✕</button>
+        </div>
+        <div style="padding:18px;">
+
+            {{-- Formulaire création --}}
+            <div style="margin-bottom:16px;padding:14px;background:var(--pd-bg);border-radius:10px;border:1px solid var(--pd-border);">
+                <div style="font-size:11px;font-weight:600;color:var(--pd-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Créer un nouveau lien</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">Expiration</label>
+                        <select id="sl-expires" style="width:100%;padding:6px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;background:var(--pd-surface);color:var(--pd-text);">
+                            <option value="1">1 jour</option>
+                            <option value="7" selected>7 jours</option>
+                            <option value="30">30 jours</option>
+                            <option value="90">90 jours</option>
+                            <option value="">Sans expiration</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">Mot de passe (optionnel)</label>
+                        <input type="text" id="sl-password" placeholder="Laisser vide = aucun"
+                               style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;background:var(--pd-surface);color:var(--pd-text);">
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--pd-text);cursor:pointer;">
+                        <input type="checkbox" id="sl-download" checked style="accent-color:var(--pd-navy);">
+                        Autoriser le téléchargement
+                    </label>
+                    <button onclick="createShareLink()" style="padding:6px 14px;background:var(--pd-navy);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+                        Créer le lien
+                    </button>
+                </div>
+            </div>
+
+            {{-- Liste des liens existants --}}
+            <div id="sl-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;">
+                <div style="text-align:center;padding:16px;font-size:12px;color:var(--pd-muted);">Chargement…</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- Modal import dossier --}}
@@ -811,7 +986,6 @@
 
 @push('scripts')
 <script>
-const PH_ITEMS = @json($itemsForJs);
 const PH_CSRF = '{{ csrf_token() }}';
 let lbIdx = 0;
 
@@ -930,19 +1104,147 @@ document.addEventListener('alpine:init', () => {
 });
 
 // Lightbox
+let PH_ITEMS = @json($itemsForJs);
+
 function renderLb() {
     const item = PH_ITEMS[lbIdx];
     if (!item) return;
     const el = document.getElementById('lb-content');
-    if (item.isImage) el.innerHTML = `<img src="${item.full}" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:4px;">`;
+    const bust = item._ts ? '?ts=' + item._ts : '';
+    if (item.isImage) el.innerHTML = `<img src="${item.full}${bust}" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:4px;">`;
     else if (item.isVideo) el.innerHTML = `<video controls autoplay style="max-width:90vw;max-height:85vh;border-radius:4px;"><source src="${item.full}" type="${item.mime}"></video>`;
     else el.innerHTML = `<div style="text-align:center;color:#fff;padding:40px;"><div style="font-size:50px;margin-bottom:14px;">📄</div><p style="font-size:14px;">${item.name}</p><a href="${item.download}" style="display:inline-block;margin-top:14px;padding:8px 20px;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;text-decoration:none;">↓ Télécharger</a></div>`;
     document.getElementById('lb-info').textContent = `${item.name} — ${lbIdx + 1} / ${PH_ITEMS.length}`;
     document.getElementById('lb-prev').style.display = lbIdx > 0 ? '' : 'none';
     document.getElementById('lb-next').style.display = lbIdx < PH_ITEMS.length - 1 ? '' : 'none';
+    const editBtns = document.getElementById('lb-edit-btns');
+    if (editBtns) editBtns.style.display = item.isImage ? 'flex' : 'none';
 }
 function lbGo(d) { lbIdx = Math.max(0, Math.min(PH_ITEMS.length-1, lbIdx+d)); renderLb(); }
-function closeLb() { document.getElementById('ph-lb').classList.remove('open'); }
+function closeLb() { lbPause(); document.getElementById('ph-lb').classList.remove('open'); }
+
+// Slideshow
+let lbPlaying = false;
+let lbSpeed   = 3;
+let lbTimer   = null;
+
+function lbTogglePlay() { lbPlaying ? lbPause() : lbPlayStart(); }
+
+function lbPlayStart() {
+    lbPlaying = true;
+    document.getElementById('lb-play').textContent = '⏸';
+    lbTimer = setInterval(() => {
+        if (lbIdx >= PH_ITEMS.length - 1) { lbPause(); return; }
+        lbGo(1);
+    }, lbSpeed * 1000);
+}
+
+function lbPause() {
+    lbPlaying = false;
+    clearInterval(lbTimer);
+    lbTimer = null;
+    const btn = document.getElementById('lb-play');
+    if (btn) btn.textContent = '▶';
+}
+
+function lbSetSpeed(s) {
+    lbSpeed = s;
+    document.querySelectorAll('.lb-spd').forEach(b => b.classList.toggle('active', +b.dataset.s === s));
+    if (lbPlaying) { lbPause(); lbPlayStart(); }
+}
+
+@if($canAdmin)
+// ── Rotation / Recadrage ────────────────────────────────────────────────────
+const PH_ALBUM_ID = {{ $album->id }};
+
+function _refreshItemInGrid(itemId) {
+    document.querySelectorAll(`.ph-card[data-item-id="${itemId}"] img`).forEach(img => {
+        const base = img.src.split('?')[0];
+        img.src = base + '?ts=' + Date.now();
+    });
+}
+
+async function lbRotate(degrees) {
+    const item = PH_ITEMS[lbIdx];
+    if (!item || !item.isImage) return;
+    const resp = await fetch(`{{ url('media/albums') }}/${PH_ALBUM_ID}/items/${item.id}/rotate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF },
+        body: JSON.stringify({ degrees })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        item._ts = Date.now();
+        renderLb();
+        _refreshItemInGrid(item.id);
+    }
+}
+
+function lbOpenCrop() {
+    const item = PH_ITEMS[lbIdx];
+    if (item && item.isImage) openCropModal(item);
+}
+
+function rotateItem(item, degrees) {
+    if (!item || !item.isImage) return;
+    fetch(`{{ url('media/albums') }}/${PH_ALBUM_ID}/items/${item.id}/rotate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF },
+        body: JSON.stringify({ degrees })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            const idx = PH_ITEMS.findIndex(i => i.id === item.id);
+            if (idx >= 0) { PH_ITEMS[idx]._ts = Date.now(); if (idx === lbIdx) renderLb(); }
+            _refreshItemInGrid(item.id);
+        }
+    });
+}
+
+// ── Crop modal (Cropper.js) ────────────────────────────────────────────────
+let _cropper = null;
+let _cropItemId = null;
+
+function openCropModal(item) {
+    _cropItemId = item.id;
+    const img = document.getElementById('crop-img');
+    const modal = document.getElementById('ph-crop-modal');
+    img.src = '';
+    modal.style.display = 'flex';
+    document.getElementById('crop-status').textContent = 'Chargement…';
+    img.onload = () => {
+        document.getElementById('crop-status').textContent = '';
+        if (_cropper) { _cropper.destroy(); _cropper = null; }
+        _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 0.8, movable: true, zoomable: true });
+    };
+    img.src = item.full + '?ts=' + Date.now();
+}
+
+function closeCropModal() {
+    if (_cropper) { _cropper.destroy(); _cropper = null; }
+    document.getElementById('ph-crop-modal').style.display = 'none';
+}
+
+async function confirmCrop() {
+    if (!_cropper || !_cropItemId) return;
+    const d = _cropper.getData(true);
+    if (d.width < 10 || d.height < 10) return;
+    document.getElementById('crop-status').textContent = 'Recadrage en cours…';
+    const resp = await fetch(`{{ url('media/albums') }}/${PH_ALBUM_ID}/items/${_cropItemId}/crop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF },
+        body: JSON.stringify({ x: d.x, y: d.y, width: d.width, height: d.height })
+    });
+    const result = await resp.json();
+    if (result.ok) {
+        closeCropModal();
+        const idx = PH_ITEMS.findIndex(i => i.id === _cropItemId);
+        if (idx >= 0) { PH_ITEMS[idx]._ts = Date.now(); if (idx === lbIdx) renderLb(); }
+        _refreshItemInGrid(_cropItemId);
+    } else {
+        document.getElementById('crop-status').textContent = result.error ?? 'Erreur';
+    }
+}
+@endif
 
 // ── Modale doublons ───────────────────────────────────────────────────────────
 let _dupPhComponent = null;
@@ -1101,8 +1403,9 @@ function syncNas() {
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeLb(); closeImportModal(); closeZipModal(); }
     if (document.getElementById('ph-lb').classList.contains('open')) {
-        if (e.key === 'ArrowLeft') lbGo(-1);
-        if (e.key === 'ArrowRight') lbGo(1);
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); lbGo(-1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); lbGo(1); }
+        if (e.key === ' ')          { e.preventDefault(); lbTogglePlay(); }
     }
 });
 
@@ -1180,4 +1483,148 @@ function scanZip(input) {
 #ph-zip-modal { display: none; }
 #ph-zip-modal.open { display: flex; }
 </style>
+
+<script>
+// ── Éditeur de légende (caption) ─────────────────────────────────────────────
+function captionEditor() {
+    return {
+        editing: false,
+        draft: '',
+        startEdit() {
+            this.draft = window._Alpine?.$data(this.$el)?.activeItem?.caption
+                ?? document.querySelector('[x-data="phototheque"]')?.__x?.$data?.activeItem?.caption
+                ?? '';
+            // Récupération via Alpine $store ou parentComponent
+            const ph = this.$root?.__x?.$data ?? Alpine.evaluate(document.querySelector('[x-data^="phototheque"]'), '$data');
+            this.draft = ph?.activeItem?.caption ?? '';
+            this.editing = true;
+            this.$nextTick(() => this.$refs.captionInput?.focus());
+        },
+        cancel() { this.editing = false; },
+        async save() {
+            const ph = Alpine.evaluate(document.querySelector('[x-data^="phototheque"]'), '$data');
+            if (!ph?.activeItem) return;
+            const url = ph.activeItem.caption_url;
+            const caption = this.draft.trim() || null;
+            try {
+                const resp = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF, 'Accept': 'application/json' },
+                    body: JSON.stringify({ caption }),
+                });
+                if (!resp.ok) throw new Error();
+                // Mettre à jour PH_ITEMS et activeItem
+                const idx = PH_ITEMS.findIndex(i => i.id === ph.activeItem.id);
+                if (idx >= 0) {
+                    PH_ITEMS[idx].caption = caption;
+                    PH_ITEMS[idx].name = caption || PH_ITEMS[idx].file_name;
+                    ph.activeItem = { ...ph.activeItem, caption, name: caption || ph.activeItem.file_name };
+                }
+                this.editing = false;
+            } catch {
+                alert('Erreur lors de la sauvegarde.');
+            }
+        },
+    };
+}
+
+// ── Modale partage par lien ───────────────────────────────────────────────────
+const SL_INDEX_URL  = '{{ route('media.albums.share-links.index',  $album) }}';
+const SL_STORE_URL  = '{{ route('media.albums.share-links.store',  $album) }}';
+const SL_DELETE_BASE = '{{ url('media/albums/'.$album->id.'/share-links') }}';
+
+function openShareModal() {
+    document.getElementById('ph-share-modal').style.display = 'flex';
+    loadShareLinks();
+}
+function closeShareModal() {
+    document.getElementById('ph-share-modal').style.display = 'none';
+}
+document.getElementById('ph-share-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeShareModal();
+});
+
+async function loadShareLinks() {
+    const list = document.getElementById('sl-list');
+    list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--pd-muted);">Chargement…</div>';
+    try {
+        const resp = await fetch(SL_INDEX_URL, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PH_CSRF } });
+        const links = await resp.json();
+        renderShareLinks(links);
+    } catch {
+        list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:#e74c3c;">Erreur de chargement.</div>';
+    }
+}
+
+function renderShareLinks(links) {
+    const list = document.getElementById('sl-list');
+    if (!links.length) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--pd-muted);">Aucun lien actif pour le moment.</div>';
+        return;
+    }
+    list.innerHTML = links.map(l => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--pd-bg);border-radius:8px;border:1px solid var(--pd-border)${l.is_expired ? ';opacity:.5' : ''};">
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                    <input type="text" value="${l.url}" readonly onclick="this.select()"
+                           style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--pd-border);border-radius:5px;font-size:11px;background:var(--pd-surface);color:var(--pd-text);font-family:monospace;">
+                    <button onclick="copyLink('${l.url}', this)" style="padding:4px 8px;background:var(--pd-navy);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;">Copier</button>
+                </div>
+                <div style="font-size:10px;color:var(--pd-muted);display:flex;gap:8px;flex-wrap:wrap;">
+                    ${l.expires_at ? `<span>⏱ ${l.is_expired ? '<span style="color:#e74c3c;">Expiré le</span>' : 'Expire le'} ${l.expires_at}</span>` : '<span>∞ Sans expiration</span>'}
+                    ${l.allow_download ? '<span>↓ Téléchargement</span>' : '<span>👁 Lecture seule</span>'}
+                    ${l.has_password ? '<span>🔒 Protégé</span>' : ''}
+                    <span>Par ${l.created_by} · ${l.created_at}</span>
+                </div>
+            </div>
+            <button onclick="revokeShareLink(${l.id}, this)" title="Révoquer"
+                    style="width:28px;height:28px;border:1px solid rgba(231,76,60,.3);border-radius:6px;background:none;color:#e74c3c;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>
+        </div>
+    `).join('');
+}
+
+async function createShareLink() {
+    const expires = document.getElementById('sl-expires').value;
+    const password = document.getElementById('sl-password').value.trim();
+    const allowDownload = document.getElementById('sl-download').checked;
+
+    const body = new FormData();
+    body.append('_token', PH_CSRF);
+    if (expires) body.append('expires_in_days', expires);
+    body.append('allow_download', allowDownload ? '1' : '0');
+    if (password) body.append('password', password);
+
+    try {
+        const resp = await fetch(SL_STORE_URL, { method: 'POST', body });
+        if (!resp.ok) throw new Error();
+        document.getElementById('sl-password').value = '';
+        await loadShareLinks();
+    } catch {
+        alert('Erreur lors de la création du lien.');
+    }
+}
+
+async function revokeShareLink(id, btn) {
+    if (!confirm('Révoquer ce lien ? Les personnes qui l\'ont reçu ne pourront plus y accéder.')) return;
+    btn.disabled = true;
+    try {
+        await fetch(`${SL_DELETE_BASE}/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': PH_CSRF, 'Accept': 'application/json' }
+        });
+        await loadShareLinks();
+    } catch {
+        btn.disabled = false;
+    }
+}
+
+function copyLink(url, btn) {
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copié';
+        btn.style.background = '#22c55e';
+        setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2000);
+    });
+}
+</script>
 @endpush

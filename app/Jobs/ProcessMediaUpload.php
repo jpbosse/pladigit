@@ -64,9 +64,14 @@ class ProcessMediaUpload implements ShouldQueue
 
             @unlink($tmpPath);
 
+            $takenAt = ! empty($exifData)
+                ? $mediaService->extractTakenAt($exifData)?->format('Y-m-d H:i:s')
+                : null;
+
             $item->update([
                 'thumb_path' => $thumbPath,
                 'exif_data' => $exifData ?: null,
+                'exif_taken_at' => $takenAt,
                 'width_px' => $width,
                 'height_px' => $height,
                 'processing_status' => 'done',

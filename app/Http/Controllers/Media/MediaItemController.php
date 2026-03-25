@@ -184,6 +184,117 @@ class MediaItemController extends Controller
     }
 
     /**
+     * Rotation d'une image (90°, 180°, 270°) — réécrit le fichier sur le NAS.
+     */
+    public function rotate(Request $request, MediaAlbum $album, MediaItem $item): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('manage', $album);
+        $this->assertBelongsToAlbum($item, $album);
+
+        $degrees = (int) $request->input('degrees', 90);
+        if (! in_array($degrees, [90, 180, 270], true)) {
+            return response()->json(['error' => 'Degrés invalides (90, 180 ou 270)'], 422);
+        }
+
+        $nas = app(NasManager::class)->photoDriver();
+        $contents = $nas->readFile($item->file_path);
+        $src = @imagecreatefromstring($contents);
+
+        if (! $src) {
+            return response()->json(['error' => 'Format non supporté'], 422);
+        }
+
+        // GD tourne dans le sens anti-horaire — on inverse pour avoir le sens horaire
+        $rotated = imagerotate($src, 360 - $degrees, 0);
+        imagedestroy($src);
+
+        ob_start();
+        $mime = $item->mime_type ?? 'image/jpeg';
+        if ($mime === 'image/png') {
+            imagepng($rotated, null, 6);
+        } else {
+            imagejpeg($rotated, null, 92);
+        }
+        $output = ob_get_clean();
+        imagedestroy($rotated);
+
+        $nas->writeFile($item->file_path, $output);
+
+        // Nouvelles dimensions (permutées pour 90°/270°)
+        $swap = in_array($degrees, [90, 270], true);
+        $newW = $swap ? $item->height_px : $item->width_px;
+        $newH = $swap ? $item->width_px : $item->height_px;
+
+        $thumbPath = app(MediaService::class)->generateThumbnail($output, $item->file_path, $nas);
+        $item->update([
+            'file_size_bytes' => strlen($output),
+            'width_px' => $newW,
+            'height_px' => $newH,
+            'thumb_path' => $thumbPath ?? $item->thumb_path,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Recadrage d'une image — réécrit le fichier sur le NAS.
+     */
+    public function crop(Request $request, MediaAlbum $album, MediaItem $item): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('manage', $album);
+        $this->assertBelongsToAlbum($item, $album);
+
+        $request->validate([
+            'x' => ['required', 'integer', 'min:0'],
+            'y' => ['required', 'integer', 'min:0'],
+            'width' => ['required', 'integer', 'min:10'],
+            'height' => ['required', 'integer', 'min:10'],
+        ]);
+
+        $nas = app(NasManager::class)->photoDriver();
+        $contents = $nas->readFile($item->file_path);
+        $src = @imagecreatefromstring($contents);
+
+        if (! $src) {
+            return response()->json(['error' => 'Format non supporté'], 422);
+        }
+
+        $cropped = imagecrop($src, [
+            'x' => $request->integer('x'),
+            'y' => $request->integer('y'),
+            'width' => $request->integer('width'),
+            'height' => $request->integer('height'),
+        ]);
+        imagedestroy($src);
+
+        if (! $cropped) {
+            return response()->json(['error' => 'Recadrage hors limites'], 422);
+        }
+
+        ob_start();
+        $mime = $item->mime_type ?? 'image/jpeg';
+        if ($mime === 'image/png') {
+            imagepng($cropped, null, 6);
+        } else {
+            imagejpeg($cropped, null, 92);
+        }
+        $output = ob_get_clean();
+        imagedestroy($cropped);
+
+        $nas->writeFile($item->file_path, $output);
+
+        $thumbPath = app(MediaService::class)->generateThumbnail($output, $item->file_path, $nas);
+        $item->update([
+            'file_size_bytes' => strlen($output),
+            'width_px' => $request->integer('width'),
+            'height_px' => $request->integer('height'),
+            'thumb_path' => $thumbPath ?? $item->thumb_path,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
      * Suppression (soft delete) d'un média.
      */
     public function destroy(MediaAlbum $album, MediaItem $item)

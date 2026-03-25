@@ -771,6 +771,13 @@ class MediaService
 
                     if (! empty($exifData) && ($force || empty($item->exif_data))) {
                         $changes['exif_data'] = $exifData;
+                        // Mise à jour simultanée de la colonne dédiée pour le tri
+                        $takenAt = $this->extractTakenAt($exifData);
+                        $changes['exif_taken_at'] = $takenAt?->format('Y-m-d H:i:s');
+                    } elseif ($force && ! empty($item->exif_data)) {
+                        // --force sans nouveau exif_data (ex: image sans EXIF) → on reparse
+                        $takenAt = $this->extractTakenAt($item->exif_data);
+                        $changes['exif_taken_at'] = $takenAt?->format('Y-m-d H:i:s');
                     }
 
                     if ($width && ($force || ! $item->width_px)) {
@@ -862,6 +869,45 @@ class MediaService
     // =========================================================================
     // Helpers privés
     // =========================================================================
+
+    /**
+     * Extrait la date de prise de vue depuis un tableau EXIF brut.
+     *
+     * Priorité des clés EXIF (norme JEITA EXIF 2.32) :
+     *   1. DateTimeOriginal  — date de déclenchement réel de l'obturateur
+     *   2. DateTime          — date de dernière modification du fichier
+     *   3. DateTimeDigitized — date de numérisation (scanners)
+     *
+     * Format EXIF : "YYYY:MM:DD HH:MM:SS" — on remplace les deux-points
+     * de la partie date par des tirets pour que PHP puisse parser.
+     *
+     * Retourne null si aucune clé n'est trouvable ou si le format est invalide.
+     */
+    public function extractTakenAt(array $exifData): ?\DateTimeImmutable
+    {
+        $raw = $exifData['DateTimeOriginal']
+            ?? $exifData['DateTime']
+            ?? $exifData['DateTimeDigitized']
+            ?? null;
+
+        if (empty($raw) || ! is_string($raw)) {
+            return null;
+        }
+
+        // "0000:00:00 00:00:00" est une valeur nulle EXIF courante
+        if (str_starts_with($raw, '0000:')) {
+            return null;
+        }
+
+        // Convertit "2024:07:14 15:32:00" → "2024-07-14 15:32:00"
+        $normalized = preg_replace('/^(\d{4}):(\d{2}):(\d{2})/', '$1-$2-$3', $raw);
+
+        try {
+            return new \DateTimeImmutable((string) $normalized);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
 
     /**
      * Construit le chemin NAS de destination pour un upload.
@@ -991,27 +1037,15 @@ class MediaService
         }
 
         // Détection doublon lors de la sync NAS
+        // On cherche uniquement dans les AUTRES albums — un même contenu
+        // dans le même album n'est pas un doublon (même photo, même dossier).
         $isDuplicate = false;
         if ($sha256) {
-            $existingDup = MediaItem::where('sha256_hash', $sha256)->first();
+            $existingDup = MediaItem::where('sha256_hash', $sha256)
+                ->where('album_id', '!=', $album->id)
+                ->first();
 
             if ($existingDup) {
-                if ($existingDup->album_id === $album->id) {
-                    // Même album + même contenu = fichier renommé sur le NAS
-                    // → on met à jour le nom et le chemin, on ne crée pas de doublon
-                    $existingDup->update([
-                        'file_name' => $entry['name'],
-                        'file_path' => $entry['path'],
-                    ]);
-                    Log::info('MediaService::ingestNasFile — fichier renommé détecté, mise à jour du nom', [
-                        'item_id' => $existingDup->id,
-                        'old_name' => $existingDup->file_name,
-                        'new_name' => $entry['name'],
-                    ]);
-
-                    return; // pas de création d'item supplémentaire
-                }
-
                 // Album différent = vrai doublon inter-albums
                 $isDuplicate = true;
                 if (! $existingDup->is_duplicate) {
@@ -1037,6 +1071,7 @@ class MediaService
             'width_px' => $width,
             'height_px' => $height,
             'exif_data' => $exifData,
+            'exif_taken_at' => $exifData ? $this->extractTakenAt($exifData)?->format('Y-m-d H:i:s') : null,
             'caption' => null,
             'sha256_hash' => $sha256,
             'is_duplicate' => $isDuplicate,
