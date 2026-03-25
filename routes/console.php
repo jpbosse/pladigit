@@ -48,3 +48,13 @@ Schedule::command('pladigit:generate-recurring-tasks')
     ->onFailure(function () {
         \Log::error('Génération tâches récurrentes échouée');
     });
+
+// Purge des données expirées — chaque nuit à 03h00
+// Couvre : liens de partage, invitations non utilisées, sessions DB obsolètes
+Schedule::command('pladigit:purge-expired')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onFailure(function () {
+        \Log::error('Purge des données expirées échouée');
+    });
