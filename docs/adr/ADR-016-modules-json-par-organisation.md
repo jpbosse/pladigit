@@ -1,4 +1,4 @@
-# ADR-010 — Modules activés par organisation (colonne JSON)
+# ADR-016 — Modules activés par organisation (colonne JSON)
 
 **Date :** Octobre 2025
 **Statut :** Accepté
@@ -13,8 +13,6 @@ La table `organizations` (base plateforme) contient une colonne JSON `enabled_mo
 
 Les modules disponibles sont définis dans l'enum `Module` : `MEDIA`, `PROJECTS`, `GED`, `COLLABORA`, `CHAT`, `CALENDAR`, `SURVEY`, `ERP`, `RSS`.
 
-L'activation se fait depuis le super-admin ou via la console d'administration de l'organisation.
-
 ## Alternatives écartées
 
 - **Table pivot `organization_modules` :** plus normalisée mais plus verbeux pour des listes courtes et stables. Le JSON est suffisant et lisible directement en base.
@@ -24,4 +22,3 @@ L'activation se fait depuis le super-admin ou via la console d'administration de
 
 - Les routes non activées retournent `403` immédiatement via le middleware.
 - L'ajout d'un nouveau module ne nécessite aucune migration — juste l'ajout d'une valeur dans l'enum et des routes correspondantes.
-- La liste des modules activés est mise en cache avec l'objet `Organization` — pas de requête supplémentaire par requête HTTP.

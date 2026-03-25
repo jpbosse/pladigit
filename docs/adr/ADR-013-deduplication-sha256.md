@@ -1,4 +1,4 @@
-# ADR-007 — Déduplication des médias par SHA-256
+# ADR-013 — Déduplication des médias par SHA-256
 
 **Date :** Mars 2026
 **Statut :** Accepté
@@ -21,5 +21,5 @@ Le hash est stocké dans `media_items.sha256_hash` (colonne indexée, contrainte
 ## Conséquences
 
 - L'upload d'un duplicata échoue proprement avec un message clair indiquant l'album et la date d'import de l'original.
-- Le scan SHA-256 nocturne est plus lent que le scan mtime (qui compare uniquement la taille et la date) mais garantit la cohérence en cas de modification externe sur le NAS.
-- Le champ `is_duplicate` (colonne booléenne ajoutée en Phase 5) permet de marquer les doublons détectés a posteriori sans les supprimer.
+- Le scan SHA-256 nocturne est plus lent que le scan mtime mais garantit la cohérence en cas de modification externe sur le NAS.
+- Le champ `is_duplicate` permet de marquer les doublons détectés a posteriori sans les supprimer.

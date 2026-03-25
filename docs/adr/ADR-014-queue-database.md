@@ -1,4 +1,4 @@
-# ADR-008 — File de travail sur MySQL (pas Redis queues)
+# ADR-014 — File de travail sur MySQL (pas Redis queues)
 
 **Date :** Mars 2026
 **Statut :** Accepté
@@ -11,9 +11,7 @@ Redis est déjà utilisé pour les sessions. Ajouter Horizon pour les queues com
 
 ## Décision
 
-Utiliser le driver `database` pour les queues. Les jobs sont stockés dans la table `jobs` de la base tenant. Les jobs échoués atterrissent dans `failed_jobs`. Le worker est démarré par le cron système (`php artisan queue:work --stop-when-empty`) ou un service Systemd minimal.
-
-Configuration : `tries=3`, `timeout=120s`, retry after 90s.
+Utiliser le driver `database` pour les queues. Les jobs sont stockés dans la table `jobs` de la base tenant. Les jobs échoués atterrissent dans `failed_jobs`. Configuration : `tries=3`, `timeout=120s`, retry after 90s.
 
 ## Conséquences
 

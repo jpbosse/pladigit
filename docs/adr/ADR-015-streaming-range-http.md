@@ -1,4 +1,4 @@
-# ADR-009 — Streaming vidéo par Range HTTP (RFC 7233)
+# ADR-015 — Streaming vidéo par Range HTTP (RFC 7233)
 
 **Date :** Mars 2026
 **Statut :** Accepté
@@ -20,6 +20,6 @@ Les images dépassant le seuil configurable `media_stream_threshold_mb` (défaut
 
 ## Conséquences
 
-- **Avantage :** scrubbing fluide dans le navigateur, empreinte mémoire PHP constante quelle que soit la taille du fichier.
-- **Contrainte :** les trois drivers NAS (`local`, `sftp`, `smb`) doivent implémenter `openReadStream()`, `readChunk()` et `closeReadStream()`.
-- Les réponses streamées ne peuvent pas avoir de `Cache-Control: public` — `no-store` est utilisé pour les vidéos afin d'éviter que des proxies ne mettent en cache des plages partielles incomplètes.
+- Scrubbing fluide dans le navigateur, empreinte mémoire PHP constante quelle que soit la taille du fichier.
+- Les trois drivers NAS (`local`, `sftp`, `smb`) doivent implémenter `openReadStream()`, `readChunk()` et `closeReadStream()`.
+- Les réponses streamées utilisent `Cache-Control: no-store` — les proxies ne peuvent pas mettre en cache des plages partielles incomplètes.
