@@ -204,7 +204,14 @@ class SettingsController extends Controller
     {
         $settings = TenantSettings::firstOrCreate([]);
 
-        return view('admin.settings.media', compact('settings'));
+        $org = app(\App\Services\TenantManager::class)->current();
+        $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
+        $usedBytes = (int) \App\Models\Tenant\MediaItem::whereNull('deleted_at')->sum('file_size_bytes');
+        $usedMb = round($usedBytes / 1048576, 1);
+        $freeMb = max(0, round(($quotaMb * 1048576 - $usedBytes) / 1048576, 1));
+        $usedPct = $quotaMb > 0 ? min(100, (int) round($usedMb / $quotaMb * 100)) : 0;
+
+        return view('admin.settings.media', compact('settings', 'quotaMb', 'usedMb', 'freeMb', 'usedPct'));
     }
 
     public function updateMedia(Request $request)

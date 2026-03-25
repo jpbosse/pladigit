@@ -78,6 +78,13 @@ Route::middleware('tenant')->group(function () {
         ->middleware('throttle:5,10')
         ->name('2fa.verify');
 
+    // Liens de partage temporaires — accès public (pas d'auth requise)
+    Route::get('/s/{token}', [\App\Http\Controllers\Media\SharedAlbumController::class, 'show'])->name('media.shared.show');
+    Route::post('/s/{token}/verify', [\App\Http\Controllers\Media\SharedAlbumController::class, 'authenticate'])->name('media.shared.auth');
+    Route::get('/s/{token}/items/{itemId}/serve/{type?}', [\App\Http\Controllers\Media\SharedAlbumController::class, 'serveItem'])->name('media.shared.serve');
+    Route::get('/s/{token}/items/{itemId}/download', [\App\Http\Controllers\Media\SharedAlbumController::class, 'downloadItem'])->name('media.shared.download');
+    Route::get('/s/{token}/export-zip', [\App\Http\Controllers\Media\SharedAlbumController::class, 'exportZip'])->name('media.shared.export-zip');
+
     // Invitation — activation de compte par email (routes publiques, pas d'auth)
     Route::get('/invitation/{token}', [App\Http\Controllers\Auth\InvitationController::class, 'show'])
         ->name('invitation.show');
@@ -170,7 +177,9 @@ Route::middleware('tenant')->group(function () {
 
             // Albums
             Route::get('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'index'])->name('albums.index');
+            Route::get('search', [\App\Http\Controllers\Media\MediaSearchController::class, 'index'])->name('search');
             Route::get('albums/search', [\App\Http\Controllers\Media\MediaAlbumController::class, 'search'])->name('albums.search');
+            Route::get('albums/{album}/children', [\App\Http\Controllers\Media\MediaAlbumController::class, 'children'])->name('albums.children');
             Route::get('albums/create', [\App\Http\Controllers\Media\MediaAlbumController::class, 'create'])->name('albums.create');
             Route::post('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'store'])->name('albums.store');
             Route::get('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'show'])->name('albums.show');
@@ -202,6 +211,10 @@ Route::middleware('tenant')->group(function () {
             Route::get('nas/test', [\App\Http\Controllers\Media\MediaAlbumController::class, 'testNasConnection'])->name('nas.test');
 
             // Médias (imbriqués sous album)
+            Route::get('albums/{album}/export-zip', [\App\Http\Controllers\Media\MediaAlbumController::class, 'exportZip'])->name('albums.export-zip');
+            Route::get('albums/{album}/share-links', [\App\Http\Controllers\Media\MediaShareLinkController::class, 'index'])->name('albums.share-links.index');
+            Route::post('albums/{album}/share-links', [\App\Http\Controllers\Media\MediaShareLinkController::class, 'store'])->name('albums.share-links.store');
+            Route::delete('albums/{album}/share-links/{link}', [\App\Http\Controllers\Media\MediaShareLinkController::class, 'destroy'])->name('albums.share-links.destroy');
             Route::get('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'create'])->name('items.create');
             Route::post('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'store'])->name('items.store');
             Route::post('albums/{album}/import-zip', [\App\Http\Controllers\Media\MediaItemController::class, 'importZip'])->name('items.import-zip');
@@ -210,6 +223,8 @@ Route::middleware('tenant')->group(function () {
             Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
             Route::post('sync', [\App\Http\Controllers\Media\MediaAlbumController::class, 'syncNas'])->name('sync');
             Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
+            Route::post('albums/{album}/items/{item}/rotate', [\App\Http\Controllers\Media\MediaItemController::class, 'rotate'])->name('items.rotate');
+            Route::post('albums/{album}/items/{item}/crop', [\App\Http\Controllers\Media\MediaItemController::class, 'crop'])->name('items.crop');
 
             // Servir les fichiers (inline et téléchargement)
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');

@@ -10,6 +10,30 @@
         <p class="text-sm text-gray-500 mt-1">Configuration de l'affichage par défaut pour tous les utilisateurs.</p>
     </div>
 
+    {{-- ── Bloc stockage ──────────────────────────────────────────────── --}}
+    @php $quotaLabel = $quotaMb >= 1024 ? round($quotaMb / 1024, 1).' Go' : $quotaMb.' Mo'; @endphp
+    <div class="mb-6 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <h2 class="text-sm font-semibold text-gray-700">Espace de stockage</h2>
+            <span style="font-size:12px;color:#6b7280;">{{ $usedMb }} Mo utilisés sur {{ $quotaLabel }}</span>
+        </div>
+
+        <div style="height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-bottom:8px;">
+            <div style="height:100%;border-radius:4px;width:{{ $usedPct }}%;background:{{ $usedPct >= 90 ? '#ef4444' : ($usedPct >= 70 ? '#f59e0b' : '#1E3A5F') }};transition:width .3s;"></div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#9ca3af;">
+            <span>{{ $usedPct }}% utilisé</span>
+            <span>{{ $freeMb }} Mo libres</span>
+        </div>
+
+        @if($usedPct >= 90)
+        <div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;">
+            ⚠ Quota presque atteint. Contactez le super-administrateur pour augmenter la limite.
+        </div>
+        @endif
+    </div>
+
     @if(session('success'))
         <div class="mb-4 p-3 bg-green-50 border border-green-200 text-green-800 rounded-lg text-sm">
             ✅ {{ session('success') }}

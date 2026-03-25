@@ -43,6 +43,7 @@ class MediaItem extends Model
         'sha256_hash',
         'is_duplicate',
         'processing_status',
+        'exif_taken_at',
     ];
 
     protected $casts = [
@@ -51,6 +52,7 @@ class MediaItem extends Model
         'width_px' => 'integer',
         'height_px' => 'integer',
         'is_duplicate' => 'boolean',
+        'exif_taken_at' => 'datetime',
     ];
 
     // ── Relations ────────────────────────────────────────────

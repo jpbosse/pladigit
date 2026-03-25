@@ -132,9 +132,9 @@ class MediaAlbumController extends Controller
         }]);
 
         // ── Pagination ───────────────────────────────────────
-        $allowed = [10, 24, 48];
-        $perPage = (int) $request->input('per_page', 24);
-        $perPage = in_array($perPage, $allowed) ? $perPage : 24;
+        $allowed = [5, 10, 24, 48];
+        $perPage = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPage, $allowed) ? $perPage : 10;
         $showAll = $request->input('per_page') === 'all';
 
         // ── Tri ──────────────────────────────────────────────
@@ -156,15 +156,29 @@ class MediaAlbumController extends Controller
         $query = match ($sortBy) {
             'name' => $query->orderBy('file_name', $sortDir),
             'size' => $query->orderBy('file_size_bytes', $sortDir),
+            'exif_date' => $sortDir === 'asc'
+                // NULLS LAST en ASC : items sans EXIF après ceux qui en ont
+                ? $query->orderByRaw('exif_taken_at IS NULL ASC, exif_taken_at ASC, created_at ASC')
+                // NULLS LAST en DESC : items sans EXIF après ceux qui en ont
+                : $query->orderByRaw('exif_taken_at IS NULL ASC, exif_taken_at DESC, created_at DESC'),
             default => $query->orderBy('created_at', $sortDir),
         };
 
         $items = $showAll
-            ? $query->paginate($query->count() ?: 1)->withQueryString()
-            : $query->paginate($perPage)->withQueryString();
+            ? $query->with('uploader')->paginate($query->count() ?: 1)->withQueryString()
+            : $query->with('uploader')->paginate($perPage)->withQueryString();
 
         // ── Arbre albums pour la sidebar ─────────────────────
         $albumTree = $this->buildSidebarTree($user);
+
+        // ── Ancêtres pour auto-dépliage de l'arbre ───────────
+        $ancestorIds = [];
+        $cursor = $album->parent_id ? $album->parent : null;
+        while ($cursor) {
+            $ancestorIds[] = $cursor->id;
+            $cursor = $cursor->parent_id ? $cursor->parent : null;
+        }
+        $ancestorIds = array_reverse($ancestorIds);
 
         // ── Comptage total pour le stockage ──────────────────
         $totalItems = \App\Models\Tenant\MediaItem::count();
@@ -261,6 +275,10 @@ class MediaAlbumController extends Controller
                 'cover_url' => route('media.albums.cover', [$album, $item]),
                 'is_cover' => $item->isImage(),
                 'is_duplicate' => (bool) $item->is_duplicate,
+                'caption' => $item->caption,
+                'file_name' => $item->file_name,
+                'uploader_name' => $item->uploader?->name,
+                'caption_url' => route('media.items.updateCaption', [$album, $item]),
             ];
         })->values();
 
@@ -270,7 +288,7 @@ class MediaAlbumController extends Controller
         return view('media.albums.show', compact(
             'album', 'items', 'itemsForJs', 'defaultCols', 'userCols',
             'perPage', 'showAll', 'sortBy', 'sortDir', 'filterType',
-            'albumTree', 'totalItems', 'canAdmin', 'coverItem'
+            'albumTree', 'ancestorIds', 'totalItems', 'canAdmin', 'coverItem'
         ));
     }
 
@@ -470,22 +488,136 @@ class MediaAlbumController extends Controller
         }
 
         $albums = MediaAlbum::visibleFor($user)
-            ->where('name', 'like', '%'.$q.'%')
+            ->where(function ($query) use ($q) {
+                $query->where('name', 'like', '%'.$q.'%')
+                    ->orWhere('nas_path', 'like', '%'.$q.'%');
+            })
             ->withCount('items')
             ->with('parent:id,name')
             ->orderBy('name')
-            ->limit(20)
+            ->limit(30)
             ->get();
 
         return response()->json(
             $albums->map(fn ($album) => [
                 'id' => $album->id,
                 'name' => $album->name,
-                'path' => $album->parent ? $album->parent->name.' / '.$album->name : null,
+                'path' => $album->nas_path ?? ($album->parent ? $album->parent->name.' / '.$album->name : null),
                 'items_count' => $album->items_count,
                 'url' => route('media.albums.show', $album),
             ])
         );
+    }
+
+    /**
+     * Génère et télécharge un ZIP de tous les fichiers de l'album.
+     * Limité à 500 Mo — au-delà, l'utilisateur est redirigé avec un message d'erreur.
+     */
+    public function exportZip(MediaAlbum $album)
+    {
+        $this->authorize('download', $album);
+
+        $items = \App\Models\Tenant\MediaItem::where('album_id', $album->id)
+            ->whereNull('deleted_at')
+            ->orderBy('file_name')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return back()->with('error', 'Cet album ne contient aucun fichier à exporter.');
+        }
+
+        $limitBytes = 500 * 1024 * 1024;
+        $totalBytes = $items->sum('file_size_bytes');
+        if ($totalBytes > $limitBytes) {
+            $totalMb = round($totalBytes / 1048576, 1);
+
+            return back()->with('error', "L'album fait {$totalMb} Mo. L'export ZIP est limité à 500 Mo.");
+        }
+
+        set_time_limit(300);
+
+        $nas = $this->nasManager->photoDriver();
+        $slug = \Illuminate\Support\Str::slug($album->name) ?: 'album';
+        $zipName = $slug.'-'.now()->format('Ymd').'.zip';
+        $tmpZip = sys_get_temp_dir().'/phzip_'.uniqid().'.zip';
+
+        $zip = new \ZipArchive;
+        if ($zip->open($tmpZip, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
+            abort(500, 'Impossible de créer l\'archive ZIP.');
+        }
+
+        // Fichiers temporaires sur disque — un seul fichier en mémoire à la fois
+        $tmpFiles = [];
+        foreach ($items as $item) {
+            try {
+                $contents = $nas->readFile($item->file_path);
+                $tmpFile = sys_get_temp_dir().'/phzip_item_'.uniqid().'.tmp';
+                file_put_contents($tmpFile, $contents);
+                unset($contents); // libère la mémoire immédiatement
+
+                // Évite les collisions de noms dans le ZIP
+                $name = $item->file_name;
+                $counter = 1;
+                while ($zip->locateName($name) !== false) {
+                    $ext = pathinfo($item->file_name, PATHINFO_EXTENSION);
+                    $base = pathinfo($item->file_name, PATHINFO_FILENAME);
+                    $name = $base.'_'.$counter.($ext ? '.'.$ext : '');
+                    $counter++;
+                }
+
+                $zip->addFile($tmpFile, $name); // référence lazy, pas encore lu
+                $tmpFiles[] = $tmpFile;
+            } catch (\Throwable) {
+                // Fichier inaccessible sur le NAS → on l'ignore silencieusement
+            }
+        }
+
+        $zip->close(); // libzip lit les fichiers tmp un par un, pas tout en mémoire
+
+        foreach ($tmpFiles as $f) {
+            @unlink($f);
+        }
+
+        $size = filesize($tmpZip);
+
+        return response()->streamDownload(function () use ($tmpZip) {
+            $fh = fopen($tmpZip, 'rb');
+            while (! feof($fh)) {
+                echo fread($fh, 65536);
+                flush();
+            }
+            fclose($fh);
+            @unlink($tmpZip);
+        }, $zipName, [
+            'Content-Type' => 'application/zip',
+            'Content-Length' => $size,
+        ]);
+    }
+
+    /**
+     * Retourne les enfants directs d'un album (JSON) — pour l'arbre lazy-load.
+     */
+    public function children(MediaAlbum $album): \Illuminate\Http\JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $this->authorize('view', $album);
+
+        $children = MediaAlbum::visibleFor($user)
+            ->where('parent_id', $album->id)
+            ->withCount(['items', 'children'])
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($children->map(fn ($a) => [
+            'id' => $a->id,
+            'name' => $a->name,
+            'nas_path' => $a->nas_path,
+            'items_count' => $a->items_count,
+            'has_children' => $a->children_count > 0,
+            'url' => route('media.albums.show', $a),
+        ]));
     }
 
     /**
@@ -517,12 +649,10 @@ class MediaAlbumController extends Controller
      */
     private function buildSidebarTree(User $user): \Illuminate\Support\Collection
     {
-        // Limité à 30 albums racine — la recherche AJAX prend le relais au-delà
         return MediaAlbum::visibleFor($user)
             ->whereNull('parent_id')
-            ->withCount('items')
+            ->withCount(['items', 'children'])
             ->orderBy('name')
-            ->limit(30)
             ->get();
     }
 
