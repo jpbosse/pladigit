@@ -240,5 +240,8 @@ Route::middleware('tenant')->group(function () {
 
         require base_path('routes/projects.php');
 
+        // ── GED — Gestion Électronique de Documents ───────────
+        require base_path('routes/ged.php');
+
     });
 });

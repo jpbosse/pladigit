@@ -49,13 +49,13 @@
     <div style="background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;padding:18px 20px;">
         <div style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">📁 GED</div>
         <div style="font-family:'Sora',sans-serif;font-size:24px;font-weight:700;color:#3B9AE1;">{{ $fmtBytes($totals['bytes_ged']) }}</div>
-        <div style="font-size:12px;color:var(--pd-muted);margin-top:4px;">Phase 5</div>
+        <div style="font-size:12px;color:var(--pd-muted);margin-top:4px;">GED</div>
     </div>
 
     <div style="background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;padding:18px 20px;">
         <div style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">💬 Chat</div>
         <div style="font-family:'Sora',sans-serif;font-size:24px;font-weight:700;color:#E8A838;">{{ $fmtBytes($totals['bytes_chat']) }}</div>
-        <div style="font-size:12px;color:var(--pd-muted);margin-top:4px;">Phase 9 — estimé</div>
+        <div style="font-size:12px;color:var(--pd-muted);margin-top:4px;">Chat — estimé</div>
     </div>
 
 </div>

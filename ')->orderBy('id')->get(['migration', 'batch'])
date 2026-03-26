@@ -1,0 +1,20 @@
+[90m= [39m[34;4mIlluminate\Support\Collection[39;24m {#6659
+    [34mall[39m: [
+      {#6663
+        +"[1mid[22m": [35m57[39m,
+        +"[1mmigration[22m": "[32m2025_10_01_000008_create_ged_tables[39m",
+        +"[1mbatch[22m": [35m26[39m,
+      },
+      {#6666
+        +"[1mid[22m": [35m58[39m,
+        +"[1mmigration[22m": "[32m2026_05_01_000001_create_ged_folders_table[39m",
+        +"[1mbatch[22m": [35m26[39m,
+      },
+      {#6664
+        +"[1mid[22m": [35m59[39m,
+        +"[1mmigration[22m": "[32m2026_05_01_000002_create_ged_documents_table[39m",
+        +"[1mbatch[22m": [35m26[39m,
+      },
+    ],
+  }
+
