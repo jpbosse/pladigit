@@ -50,9 +50,9 @@ class ModuleKeyTest extends TestCase
         $this->assertSame(3, ModuleKey::MEDIA->phase());
     }
 
-    public function test_ged_est_en_phase_5(): void
+    public function test_ged_est_en_phase_6(): void
     {
-        $this->assertSame(5, ModuleKey::GED->phase());
+        $this->assertSame(6, ModuleKey::GED->phase());
     }
 
     public function test_toutes_les_phases_sont_positives(): void
@@ -69,22 +69,22 @@ class ModuleKeyTest extends TestCase
         $this->assertTrue(ModuleKey::MEDIA->isAvailable());
     }
 
-    public function test_ged_n_est_pas_encore_disponible(): void
+    public function test_ged_est_disponible(): void
     {
-        // GED est en phase 5 — pas encore disponible
-        $this->assertFalse(ModuleKey::GED->isAvailable());
+        // GED est en phase 6 — livré
+        $this->assertTrue(ModuleKey::GED->isAvailable());
     }
 
-    public function test_available_contient_uniquement_media(): void
+    public function test_available_contient_media_projects_et_ged(): void
     {
         $available = ModuleKey::available();
 
         $availableValues = array_map(fn ($m) => $m->value, $available);
-        // Seuls media et projects sont disponibles pour l'instant
+        // Media, projects et ged sont disponibles (phases 3–6 livrées)
         $this->assertContains('media', $availableValues);
         $this->assertContains('projects', $availableValues);
-        $this->assertNotContains('ged', $availableValues);
-        // Les modules des phases > 5 ne sont pas encore disponibles
+        $this->assertContains('ged', $availableValues);
+        // Les modules des phases > 6 ne sont pas encore disponibles
         $this->assertNotContains('collabora', $availableValues);
         $this->assertNotContains('chat', $availableValues);
     }

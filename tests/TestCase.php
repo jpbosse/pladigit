@@ -19,6 +19,18 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
+        // Use a writable tmp directory for compiled views during tests
+        // (avoids permission issues when web-server-compiled cache files exist)
+        $tmpViews = sys_get_temp_dir().'/pladigit_views_test';
+        if (! is_dir($tmpViews)) {
+            mkdir($tmpViews, 0775, true);
+        }
+        config(['view.compiled' => $tmpViews]);
+        // Force the BladeCompiler singleton to be re-resolved with the new path
+        $this->app->forgetInstance('blade.compiler');
+        $this->app->forgetInstance('view');
+        $this->app->forgetInstance('view.engine.resolver');
+
         if (! self::$dbConfigured) {
             $this->configureDatabases();
             self::$dbConfigured = true;
@@ -36,7 +48,7 @@ abstract class TestCase extends BaseTestCase
             'plan' => 'communautaire',
             'max_users' => 200,
             'primary_color' => '#1E3A5F',
-            'enabled_modules' => ['media', 'projects'],
+            'enabled_modules' => ['media', 'projects', 'ged'],
         ]);
         // Persister l'org en base pour que la commande puisse la trouver
         $org->save();
@@ -98,13 +110,23 @@ abstract class TestCase extends BaseTestCase
         }
 
         if (! self::$tenantMigrated) {
-            $this->artisan('migrate:fresh', [
-                '--database' => 'tenant',
-                '--path' => 'database/migrations/tenant',
-                '--force' => true,
-            ]);
+            $schema = DB::connection('tenant')->getSchemaBuilder();
+            $gedOk = $schema->hasTable('ged_folders')
+                && $schema->hasColumn('ged_folders', 'slug')
+                && $schema->hasColumn('ged_folders', 'path')
+                && $schema->hasColumn('ged_folders', 'is_private')
+                && $schema->hasTable('ged_documents');
+
+            if (! $gedOk) {
+                $this->artisan('migrate:fresh', [
+                    '--database' => 'tenant',
+                    '--path' => 'database/migrations/tenant',
+                    '--force' => true,
+                ]);
+            }
             self::$tenantMigrated = true;
         }
+
     }
 
     private function cleanDatabase(): void
@@ -131,6 +153,7 @@ abstract class TestCase extends BaseTestCase
             foreach ([
                 'users', 'departments', 'user_department',
                 'invitations',
+                'media_item_tag', 'media_tags',
                 'media_albums', 'media_items', 'album_permissions',
                 'album_user_permissions', 'media_share_links', 'shares',
                 'tenant_settings',
@@ -138,8 +161,13 @@ abstract class TestCase extends BaseTestCase
                 'task_dependencies', 'task_comments', 'tasks',
                 'project_milestones', 'project_members', 'projects',
                 'event_participants', 'events',
+                'ged_documents', 'ged_folders',
             ] as $t) {
-                $db->statement("TRUNCATE TABLE `{$t}`");
+                try {
+                    $db->statement("TRUNCATE TABLE `{$t}`");
+                } catch (\Throwable) {
+                    // Table may not exist yet (migration not run) — skip
+                }
             }
             $db->statement('SET FOREIGN_KEY_CHECKS=1');
         } catch (\Throwable) {
