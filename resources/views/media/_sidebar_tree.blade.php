@@ -1,13 +1,17 @@
 {{--
     Arbre lazy-load de navigation de la photothèque.
     Variables attendues :
-      $albumTree    — collection d'albums racine (avec items_count, children_count)
+      $albumTree    — collection d'albums racine (avec items_count, children_count, coverItem)
       $activeAlbumId — int|null  ID de l'album courant (null sur index)
       $ancestorIds  — int[]      IDs des ancêtres de l'album courant (pour auto-dépliage)
 --}}
 @php
-    $activeAlbumId = $activeAlbumId ?? null;
-    $ancestorIds   = $ancestorIds   ?? [];
+    $activeAlbumId  = $activeAlbumId ?? null;
+    $ancestorIds    = $ancestorIds   ?? [];
+    $canReorganize  = auth()->check() && in_array(
+        auth()->user()->role ?? '',
+        ['admin', 'president', 'dgs']
+    );
     $rootsJson = $albumTree->map(fn($a) => [
         'id'           => $a->id,
         'name'         => $a->name,
@@ -15,17 +19,20 @@
         'items_count'  => $a->items_count,
         'has_children' => ($a->children_count ?? 0) > 0,
         'url'          => route('media.albums.show', $a),
+        'thumb_url'    => $a->coverItem
+            ? route('media.items.serve', [$a->id, $a->coverItem->id, 'thumb'])
+            : null,
         'depth'        => 0,
         'expanded'     => false,
         'loaded'       => false,
     ])->values()->toJson();
 @endphp
 
-<div x-data="albumTree({{ $rootsJson }}, {{ $activeAlbumId ?? 'null' }})"
+<div x-data="albumTree({{ $rootsJson }}, {{ $activeAlbumId ?? 'null' }}, {{ $canReorganize ? 'true' : 'false' }})"
      x-init="init({{ json_encode($ancestorIds) }})">
 
     {{-- ── Recherche ───────────────────────────────────────── --}}
-    <div style="padding:0 8px 6px;">
+    <div style="padding:6px 8px;">
         <div style="position:relative;">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
                  style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--pd-muted);pointer-events:none;">
@@ -34,8 +41,8 @@
             <input type="text"
                    x-model.debounce.300ms="query"
                    @input="doSearch()"
-                   placeholder="Nom ou chemin NAS…"
-                   style="width:100%;box-sizing:border-box;padding:5px 28px 5px 26px;font-size:11px;border:1px solid var(--pd-border);border-radius:6px;background:var(--pd-bg);color:var(--pd-text);outline:none;">
+                   placeholder="Rechercher un album…"
+                   style="width:100%;box-sizing:border-box;padding:6px 28px 6px 26px;font-size:11px;border:1px solid var(--pd-border);border-radius:6px;background:var(--pd-bg);color:var(--pd-text);outline:none;">
             <button x-show="query" @click="clearSearch()"
                     style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:12px;padding:0;line-height:1;">✕</button>
         </div>
@@ -49,13 +56,17 @@
                 <div style="font-size:11px;color:var(--pd-muted);padding:6px 4px;">Aucun résultat</div>
             </template>
             <template x-for="r in searchResults" :key="r.id">
-                <a :href="r.url" class="ph-nav-item" style="flex-direction:column;align-items:flex-start;gap:1px;">
-                    <div style="display:flex;align-items:center;gap:5px;width:100%;">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="r.name"></span>
-                        <span class="ph-nav-count" x-text="r.items_count"></span>
-                    </div>
-                    <div x-show="r.path" style="font-size:10px;color:var(--pd-muted);padding-left:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;font-family:monospace;" x-text="r.path"></div>
+                <a :href="r.url" class="ph-nav-item" style="min-height:36px;">
+                    <span class="ph-tree-toggle-ph"></span>
+                    <template x-if="r.thumb_url">
+                        <img :src="r.thumb_url" :alt="r.name"
+                             style="width:30px;height:30px;object-fit:cover;border-radius:5px;flex-shrink:0;min-width:30px;min-height:30px;max-width:30px;max-height:30px;">
+                    </template>
+                    <template x-if="!r.thumb_url">
+                        <span class="ph-nav-thumb-ph">🗂️</span>
+                    </template>
+                    <span class="ph-nav-name" x-text="r.name"></span>
+                    <span class="ph-nav-count" x-text="r.items_count"></span>
                 </a>
             </template>
         </div>
@@ -63,41 +74,80 @@
 
     {{-- ── Arbre ───────────────────────────────────────────── --}}
     <div x-show="!query">
+
+        {{-- Zone "Racine" — apparaît quand on drague un album (admin seulement) --}}
+        <div x-show="canReorganize && draggingAlbumId !== null"
+             class="ph-dnd-root-zone"
+             :class="{ 'visible': draggingAlbumId !== null, 'dnd-over': rootZoneOver }"
+             @dragover.prevent="rootZoneOver = true"
+             @dragleave="rootZoneOver = false"
+             @drop.prevent="rootZoneOver = false; dropOnRoot($event)">
+            Déposer ici pour mettre à la racine
+        </div>
+
         <template x-for="node in nodes" :key="node.id + '-' + node.depth">
             <div>
                 <div class="ph-nav-item"
-                     :class="{ active: node.id === activeId }"
-                     :style="`padding-left:${8 + node.depth * 14}px`"
-                     style="padding-right:8px;">
+                     :class="{
+                         active: node.id === activeId,
+                         'dnd-dragging': draggingAlbumId === node.id,
+                         'dnd-over': dropTargetId === node.id,
+                     }"
+                     :style="`padding-left:${6 + node.depth * 18}px`"
+                     x-bind:draggable="canReorganize ? 'true' : 'false'"
+                     @dragstart="canReorganize && albumDragStart(node.id, $event)"
+                     @dragend="albumDragEnd()"
+                     @dragover.prevent="nodeDragOver(node, $event)"
+                     @dragleave="nodeDragLeave(node, $event)"
+                     @drop.prevent.stop="nodeDrop(node, $event)">
 
                     {{-- Bouton déplier/replier --}}
                     <button x-show="node.has_children"
                             @click.prevent.stop="toggle(node)"
-                            style="width:16px;height:16px;flex-shrink:0;background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:10px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:3px;transition:background .1s;"
-                            :style="loadingId === node.id ? 'opacity:.5' : ''"
+                            class="ph-tree-toggle"
                             :title="node.expanded ? 'Réduire' : 'Développer'">
-                        <span x-text="loadingId === node.id ? '…' : (node.expanded ? '▾' : '›')"></span>
+                        <svg x-show="node.expanded" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                        <svg x-show="!node.expanded" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg>
+                        <span x-show="loadingId === node.id" style="font-size:9px;">…</span>
                     </button>
-                    <span x-show="!node.has_children" style="width:16px;flex-shrink:0;"></span>
+                    <span x-show="!node.has_children" class="ph-tree-toggle-ph"></span>
 
-                    {{-- Lien vers l'album --}}
+                    {{-- Spinner pendant le déplacement --}}
+                    <template x-if="movingAlbumId === node.id">
+                        <span style="font-size:10px;color:var(--pd-accent);flex-shrink:0;">⟳</span>
+                    </template>
+
+                    {{-- Vignette / icône dossier --}}
+                    <template x-if="node.thumb_url && movingAlbumId !== node.id">
+                        <img :src="node.thumb_url" :alt="node.name"
+                             style="width:30px;height:30px;object-fit:cover;border-radius:5px;flex-shrink:0;min-width:30px;min-height:30px;max-width:30px;max-height:30px;">
+                    </template>
+                    <template x-if="!node.thumb_url && movingAlbumId !== node.id">
+                        <span class="ph-nav-thumb-ph">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                                <path x-show="node.expanded" d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                                <path x-show="!node.expanded" d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                            </svg>
+                        </span>
+                    </template>
+
+                    {{-- Nom cliquable --}}
                     <a :href="node.url"
-                       style="flex:1;display:flex;align-items:center;gap:6px;text-decoration:none;color:inherit;min-width:0;overflow:hidden;">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;">
-                            <path x-show="node.expanded" d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-                            <path x-show="!node.expanded" d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-                        </svg>
-                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="node.name"></span>
+                       class="ph-nav-name"
+                       style="text-decoration:none;color:inherit;"
+                       @click.stop="if (!draggingAlbumId) window.location = node.url">
+                        <span x-text="node.name"></span>
                     </a>
-                    <span class="ph-nav-count" x-text="node.items_count" style="flex-shrink:0;"></span>
+
+                    {{-- Bouton + sous-album (visible au survol) --}}
+                    <a :href="`{{ url('media/albums/create') }}?parent_id=${node.id}`"
+                       class="ph-nav-addchild"
+                       title="Créer un sous-album"
+                       @click.stop>+</a>
+
+                    {{-- Compteur --}}
+                    <span class="ph-nav-count" x-text="node.items_count"></span>
                 </div>
-                {{-- Chemin NAS en sous-titre si profondeur 0 --}}
-                <template x-if="node.depth === 0 && node.nas_path">
-                    <div :style="`padding-left:${8 + node.depth * 14 + 22}px`"
-                         style="font-size:9px;color:var(--pd-muted);font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px;margin-top:-2px;margin-bottom:2px;"
-                         x-text="node.nas_path">
-                    </div>
-                </template>
             </div>
         </template>
 
@@ -110,19 +160,24 @@
 @once
 @push('scripts')
 <script>
-function albumTree(initialRoots, activeId) {
+function albumTree(initialRoots, activeId, canReorganize) {
     return {
         nodes: initialRoots,
         activeId,
+        canReorganize,
         loadingId: null,
         query: '',
         searching: false,
         searchResults: null,
         _searchTimer: null,
         _childrenCache: {},
+        // DnD état
+        draggingAlbumId: null,
+        dropTargetId: null,
+        rootZoneOver: false,
+        movingAlbumId: null,
 
         async init(ancestorIds) {
-            // Auto-dépliage des ancêtres de l'album courant
             for (const id of ancestorIds) {
                 const node = this.nodes.find(n => n.id === id);
                 if (node && !node.expanded) await this.toggle(node, true);
@@ -152,7 +207,6 @@ function albumTree(initialRoots, activeId) {
             const idx = this.nodes.indexOf(node);
             let end = idx + 1;
             while (end < this.nodes.length && this.nodes[end].depth > node.depth) end++;
-            // Marquer les enfants comme non-chargés dans le cache pour reload propre
             for (let i = idx + 1; i < end; i++) {
                 if (this.nodes[i].expanded) this.nodes[i].expanded = false;
             }
@@ -193,6 +247,76 @@ function albumTree(initialRoots, activeId) {
         clearSearch() {
             this.query = '';
             this.searchResults = null;
+        },
+
+        // ── DnD albums ───────────────────────────────────────────
+        albumDragStart(id, event) {
+            this.draggingAlbumId = id;
+            event.dataTransfer.setData('application/x-album-id', id);
+            event.dataTransfer.effectAllowed = 'move';
+        },
+        albumDragEnd() {
+            this.draggingAlbumId = null;
+            this.dropTargetId    = null;
+            this.rootZoneOver    = false;
+        },
+        nodeDragOver(node, event) {
+            const hasAlbum = event.dataTransfer.types.includes('application/x-album-id');
+            const hasPhoto = event.dataTransfer.types.includes('application/x-media-item-id');
+            if (!hasAlbum && !hasPhoto) return;
+            // Ne pas accepter de déposer un album sur lui-même
+            if (hasAlbum && this.draggingAlbumId === node.id) return;
+            event.preventDefault();
+            this.dropTargetId = node.id;
+        },
+        nodeDragLeave(node, event) {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+                if (this.dropTargetId === node.id) this.dropTargetId = null;
+            }
+        },
+        async nodeDrop(node, event) {
+            this.dropTargetId = null;
+            const albumId       = event.dataTransfer.getData('application/x-album-id');
+            const photoId       = event.dataTransfer.getData('application/x-media-item-id');
+            const sourceAlbumId = event.dataTransfer.getData('application/x-media-source-album');
+
+            if (albumId && parseInt(albumId) !== node.id) {
+                await this.doMoveAlbum(parseInt(albumId), node.id);
+            } else if (photoId && sourceAlbumId) {
+                await this.doMovePhoto(parseInt(photoId), parseInt(sourceAlbumId), node.id);
+            }
+        },
+        async dropOnRoot(event) {
+            const albumId = event.dataTransfer.getData('application/x-album-id');
+            if (albumId) await this.doMoveAlbum(parseInt(albumId), null);
+        },
+        async doMoveAlbum(albumId, newParentId) {
+            this.movingAlbumId = albumId;
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            try {
+                const resp = await fetch(`{{ url('media/albums') }}/${albumId}/move-album`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ parent_id: newParentId }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) { alert(data.error || 'Erreur lors du déplacement.'); return; }
+                location.reload();
+            } catch { alert('Erreur réseau.'); }
+            finally   { this.movingAlbumId = null; }
+        },
+        async doMovePhoto(itemId, sourceAlbumId, targetAlbumId) {
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+            try {
+                const resp = await fetch(`{{ url('media/albums') }}/${sourceAlbumId}/items/move`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ item_ids: [itemId], target_album_id: targetAlbumId }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) { alert(data.error || 'Erreur lors du déplacement.'); return; }
+                if (data.moved > 0) location.reload();
+            } catch { alert('Erreur réseau.'); }
         },
     };
 }

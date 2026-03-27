@@ -175,13 +175,14 @@
         </a>
         @endif
 
-    @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::GED))
-    <a href="{{ route('ged.index') }}" class="pd-nav-item {{ str_starts_with($route, 'ged.') ? 'active' : '' }}">
-        <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
-        <span class="pd-nav-label">Documents</span>
-        <span class="pd-nav-tip">Gestion documentaire</span>
-    </a>
-    @endif
+        @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::GED))
+        <a href="{{ route('ged.index') }}" class="pd-nav-item {{ str_starts_with($route, 'ged.') ? 'active' : '' }}">
+            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="pd-nav-label">GED</span>
+            <span class="pd-nav-tip">GED documentaire</span>
+        </a>
+        @endif
+
 
 @if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
     <a href="{{ route('projects.index') }}"

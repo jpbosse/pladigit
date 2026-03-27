@@ -49,10 +49,15 @@
 .ph-tree-toggle:hover { background: var(--pd-border); color: var(--pd-text); }
 .ph-tree-toggle-ph { width: 20px; flex-shrink: 0; }
 /* Vignette album dans la sidebar */
-.ph-nav-thumb {
-    width: 30px; height: 30px; border-radius: 5px;
-    object-fit: cover; flex-shrink: 0;
-    border: 1px solid var(--pd-border);
+.ph-nav-thumb,
+#ph-sidebar img.ph-nav-thumb {
+    width: 30px !important;
+    height: 30px !important;
+    object-fit: cover !important;
+    border-radius: 5px !important;
+    flex-shrink: 0 !important;
+    max-width: 30px !important;
+    max-height: 30px !important;
 }
 .ph-nav-thumb-ph {
     width: 30px; height: 30px; border-radius: 5px; flex-shrink: 0;

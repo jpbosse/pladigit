@@ -1,0 +1,30 @@
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#6663
+    [34mall[39m: [
+      [34;4mApp\Models\Tenant\MediaItem[39;24m {#6704
+        [34mid[39m: [35m199[39m,
+        [34mfile_name[39m: "[32mCapture d’écran du 2026-01-23 09-10-43.png[39m",
+        [34mis_duplicate[39m: [35m0[39m,
+      },
+      [34;4mApp\Models\Tenant\MediaItem[39;24m {#6739
+        [34mid[39m: [35m201[39m,
+        [34mfile_name[39m: "[32mLe_village_d'Eze.jpg[39m",
+        [34mis_duplicate[39m: [35m0[39m,
+      },
+      [34;4mApp\Models\Tenant\MediaItem[39;24m {#6740
+        [34mid[39m: [35m202[39m,
+        [34mfile_name[39m: "[32mwallpaperbetter.com_1920x1200.jpg[39m",
+        [34mis_duplicate[39m: [35m0[39m,
+      },
+      [34;4mApp\Models\Tenant\MediaItem[39;24m {#6641
+        [34mid[39m: [35m203[39m,
+        [34mfile_name[39m: "[32mIMG_2339.JPG[39m",
+        [34mis_duplicate[39m: [35m0[39m,
+      },
+      [34;4mApp\Models\Tenant\MediaItem[39;24m {#6747
+        [34mid[39m: [35m204[39m,
+        [34mfile_name[39m: "[32mIMG_2341.JPG[39m",
+        [34mis_duplicate[39m: [35m0[39m,
+      },
+    ],
+  }
+
