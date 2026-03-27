@@ -125,8 +125,8 @@
     <div class="sh-lb-info" id="lb-info"></div>
 </div>
 
-<script>
-const SH_ITEMS = @json($items->map(fn($item) => [
+@php
+$sharedItems = $items->map(fn($item) => [
     'id'        => $item->id,
     'name'      => $item->caption ?? $item->file_name,
     'size'      => $item->humanSize(),
@@ -136,7 +136,10 @@ const SH_ITEMS = @json($items->map(fn($item) => [
     'thumb'     => route('media.shared.serve', [$token, $item->id, 'thumb']),
     'full'      => route('media.shared.serve', [$token, $item->id, 'full']),
     'download'  => route('media.shared.download', [$token, $item->id]),
-]));
+]);
+@endphp
+<script>
+const SH_ITEMS = @json($sharedItems);
 
 let lbIdx = 0;
 

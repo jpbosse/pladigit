@@ -13,6 +13,7 @@ return new class extends Migration
 
     public function up(): void
     {
+        Schema::connection('tenant')->dropIfExists('ged_documents');
         Schema::connection('tenant')->create('ged_documents', function (Blueprint $table) {
             $table->id();
             $table->foreignId('folder_id')->constrained('ged_folders')->cascadeOnDelete();

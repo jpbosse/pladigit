@@ -21,6 +21,7 @@ class MediaItemController extends Controller
 {
     public function __construct(
         private readonly MediaService $mediaService,
+        private readonly NasManager $nasManager,
     ) {}
 
     /**
@@ -527,6 +528,69 @@ class MediaItemController extends Controller
             status: $status,
             headers: $headers,
         );
+    }
+
+    /**
+     * Déplace un lot de médias vers un autre album.
+     * Met à jour album_id, file_path et thumb_path en remplaçant le préfixe NAS.
+     */
+    public function moveItems(Request $request, MediaAlbum $album): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('upload', $album);
+
+        $validated = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer'],
+            'target_album_id' => ['required', 'integer', 'exists:tenant.media_albums,id'],
+        ]);
+
+        $targetId = (int) $validated['target_album_id'];
+
+        if ($targetId === $album->id) {
+            return response()->json(['error' => 'L\'album cible doit être différent de l\'album source.'], 422);
+        }
+
+        $target = MediaAlbum::findOrFail($targetId);
+        $this->authorize('upload', $target);
+
+        $sourcePrefix = rtrim((string) $album->nas_path, '/');
+        $targetPrefix = rtrim((string) $target->nas_path, '/');
+
+        $items = MediaItem::where('album_id', $album->id)
+            ->whereIn('id', $validated['item_ids'])
+            ->get();
+
+        $nas = $this->nasManager->photoDriver();
+
+        foreach ($items as $item) {
+            $newFilePath = $sourcePrefix !== '' && str_starts_with($item->file_path, $sourcePrefix.'/')
+                ? $targetPrefix.'/'.substr($item->file_path, strlen($sourcePrefix) + 1)
+                : $item->file_path;
+
+            $newThumbPath = $item->thumb_path !== null && $sourcePrefix !== '' && str_starts_with($item->thumb_path, $sourcePrefix.'/')
+                ? $targetPrefix.'/'.substr($item->thumb_path, strlen($sourcePrefix) + 1)
+                : $item->thumb_path;
+
+            if ($newFilePath !== $item->file_path && $nas->exists($item->file_path)) {
+                $nas->moveFile($item->file_path, $newFilePath);
+            }
+
+            if ($item->thumb_path && $newThumbPath !== $item->thumb_path && $nas->exists($item->thumb_path)) {
+                $nas->moveFile($item->thumb_path, $newThumbPath);
+            }
+
+            $item->update([
+                'album_id' => $target->id,
+                'file_path' => $newFilePath,
+                'thumb_path' => $newThumbPath,
+            ]);
+        }
+
+        return response()->json([
+            'moved' => $items->count(),
+            'target_name' => $target->name,
+            'target_url' => route('media.albums.show', $target),
+        ]);
     }
 
     // ── Helpers privés ───────────────────────────────────────────────────────

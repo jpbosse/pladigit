@@ -41,6 +41,18 @@ interface NasConnectorInterface
     public function size(string $path): int;
 
     /**
+     * Déplace (renomme) un fichier sur le NAS.
+     * Crée les dossiers intermédiaires de destination si nécessaire.
+     */
+    public function moveFile(string $from, string $to): bool;
+
+    /**
+     * Déplace (renomme) un dossier entier sur le NAS.
+     * Crée le dossier parent de destination si nécessaire.
+     */
+    public function moveDir(string $from, string $to): bool;
+
+    /**
      * Liste les sous-dossiers directs d'un répertoire (non récursif).
      *
      * @return array<int, array{name: string, path: string, size: int, mtime: int, type: string}>

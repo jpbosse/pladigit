@@ -201,6 +201,11 @@ Route::middleware('tenant')->group(function () {
                     Route::delete('/user/{permission}', 'destroyUser')->name('destroy-user');
                 });
 
+            // Tags
+            Route::post('items/{item}/tags', [\App\Http\Controllers\Media\MediaItemTagController::class, 'store'])->name('items.tags.store');
+            Route::delete('items/{item}/tags/{tag}', [\App\Http\Controllers\Media\MediaItemTagController::class, 'destroy'])->name('tags.destroy');
+            Route::get('tags/suggest', [\App\Http\Controllers\Media\MediaItemTagController::class, 'suggest'])->name('tags.suggest');
+
             // Partages individuels par média
             Route::get('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'edit'])->name('items.shares.edit');
             Route::post('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'store'])->name('items.shares.store');
@@ -225,6 +230,8 @@ Route::middleware('tenant')->group(function () {
             Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
             Route::post('albums/{album}/items/{item}/rotate', [\App\Http\Controllers\Media\MediaItemController::class, 'rotate'])->name('items.rotate');
             Route::post('albums/{album}/items/{item}/crop', [\App\Http\Controllers\Media\MediaItemController::class, 'crop'])->name('items.crop');
+            Route::post('albums/{album}/items/move', [\App\Http\Controllers\Media\MediaItemController::class, 'moveItems'])->name('items.move');
+            Route::post('albums/{album}/move-album', [\App\Http\Controllers\Media\MediaAlbumController::class, 'moveAlbum'])->name('albums.move');
 
             // Servir les fichiers (inline et téléchargement)
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');

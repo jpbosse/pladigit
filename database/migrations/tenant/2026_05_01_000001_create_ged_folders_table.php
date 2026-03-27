@@ -13,6 +13,11 @@ return new class extends Migration
 
     public function up(): void
     {
+        // Drop the proto-GED version created by 2025_10_01_000008 before recreating with the real schema.
+        Schema::connection('tenant')->disableForeignKeyConstraints();
+        Schema::connection('tenant')->dropIfExists('ged_folders');
+        Schema::connection('tenant')->enableForeignKeyConstraints();
+
         Schema::connection('tenant')->create('ged_folders', function (Blueprint $table) {
             $table->id();
             $table->string('name', 255);

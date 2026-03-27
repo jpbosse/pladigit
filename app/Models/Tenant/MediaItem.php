@@ -69,16 +69,6 @@ class MediaItem extends Model
     }
 
     /**
-     * Tags manuels associés à ce média.
-     *
-     * @return BelongsToMany<Tag, $this>
-     */
-    public function tags(): BelongsToMany
-    {
-        return $this->belongsToMany(Tag::class, 'media_item_tag');
-    }
-
-    /**
      * Utilisateur qui a uploadé le fichier.
      *
      * @return BelongsTo<User, $this>
@@ -86,6 +76,14 @@ class MediaItem extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /**
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'media_item_tag')->orderBy('name');
     }
 
     // ── Scopes ───────────────────────────────────────────────

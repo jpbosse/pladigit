@@ -27,9 +27,20 @@
             <span>{{ $freeMb }} Mo libres</span>
         </div>
 
+        {{-- Info quota alloué --}}
+        <div style="margin-top:10px;padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;">
+            Le quota alloué à votre organisation est de <strong>{{ $quotaLabel }}</strong>.
+            Ce plafond est fixé par l'administrateur plateforme Pladigit.
+            Pour demander une augmentation, contactez-le directement.
+        </div>
+
         @if($usedPct >= 90)
-        <div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;">
-            ⚠ Quota presque atteint. Contactez le super-administrateur pour augmenter la limite.
+        <div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-size:12px;color:#b91c1c;">
+            ⚠ Quota presque atteint ({{ $usedPct }}%). Contactez l'administrateur plateforme pour augmenter la limite.
+        </div>
+        @elseif($usedPct >= 80)
+        <div style="margin-top:8px;padding:8px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;">
+            ⚠ Vous avez utilisé {{ $usedPct }}% de votre quota. Pensez à libérer de l'espace ou à contacter l'administrateur plateforme.
         </div>
         @endif
     </div>

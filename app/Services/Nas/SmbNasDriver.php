@@ -260,6 +260,29 @@ class SmbNasDriver implements NasConnectorInterface
         return (int) ($stat['size'] ?? 0);
     }
 
+    public function moveDir(string $from, string $to): bool
+    {
+        $smb = $this->getState();
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        @smbclient_mkdir($smb, dirname($dstPath));
+
+        return (bool) @smbclient_rename($smb, $srcPath, $dstPath, $this->workgroup);
+    }
+
+    public function moveFile(string $from, string $to): bool
+    {
+        $smb = $this->getState();
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        // Créer le dossier destination si nécessaire
+        @smbclient_mkdir($smb, dirname($dstPath));
+
+        return (bool) @smbclient_rename($smb, $srcPath, $dstPath, $this->workgroup);
+    }
+
     public function listDirectories(string $directory): array
     {
         $fullPath = $this->resolve($directory);
