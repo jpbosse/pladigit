@@ -31,8 +31,10 @@ class AlbumPermissionService
     /**
      * Retourne le niveau effectif d'un utilisateur sur un album.
      * Prend en compte la hiérarchie et les overrides.
+     *
+     * @param  Collection<int, MediaAlbum>|null  $allAlbums  Collection pré-chargée (évite N+1 dans scopeVisibleFor).
      */
-    public function effectiveLevel(User $user, MediaAlbum $album): AlbumPermissionLevel
+    public function effectiveLevel(User $user, MediaAlbum $album, ?Collection $allAlbums = null): AlbumPermissionLevel
     {
         // Super-admins voient et administrent tout
         if ($user->role && UserRole::from($user->role)->atLeast(UserRole::DGS)) {
@@ -46,44 +48,46 @@ class AlbumPermissionService
 
         // Album public → vue pour tous minimum
         if ($album->visibility === 'public') {
-            $resolved = $this->resolveChain($user, $album);
+            $resolved = $this->resolveChain($user, $album, $allAlbums);
 
             return AlbumPermissionLevel::max($resolved, AlbumPermissionLevel::View);
         }
 
-        return $this->resolveChain($user, $album);
+        return $this->resolveChain($user, $album, $allAlbums);
     }
 
     /**
      * Vérifie si un utilisateur peut effectuer une action sur un album.
+     *
+     * @param  Collection<int, MediaAlbum>|null  $allAlbums  Collection pré-chargée.
      */
-    public function can(User $user, MediaAlbum $album, AlbumPermissionLevel $required): bool
+    public function can(User $user, MediaAlbum $album, AlbumPermissionLevel $required, ?Collection $allAlbums = null): bool
     {
-        return $this->effectiveLevel($user, $album)->atLeast($required);
+        return $this->effectiveLevel($user, $album, $allAlbums)->atLeast($required);
     }
 
     /** Raccourci : peut visualiser */
-    public function canView(User $user, MediaAlbum $album): bool
+    public function canView(User $user, MediaAlbum $album, ?Collection $allAlbums = null): bool
     {
-        return $this->can($user, $album, AlbumPermissionLevel::View);
+        return $this->can($user, $album, AlbumPermissionLevel::View, $allAlbums);
     }
 
     /** Raccourci : peut télécharger */
-    public function canDownload(User $user, MediaAlbum $album): bool
+    public function canDownload(User $user, MediaAlbum $album, ?Collection $allAlbums = null): bool
     {
-        return $this->can($user, $album, AlbumPermissionLevel::Download);
+        return $this->can($user, $album, AlbumPermissionLevel::Download, $allAlbums);
     }
 
     /** Raccourci : peut uploader */
-    public function canUpload(User $user, MediaAlbum $album): bool
+    public function canUpload(User $user, MediaAlbum $album, ?Collection $allAlbums = null): bool
     {
-        return $this->can($user, $album, AlbumPermissionLevel::Upload);
+        return $this->can($user, $album, AlbumPermissionLevel::Upload, $allAlbums);
     }
 
     /** Raccourci : peut administrer */
-    public function canAdmin(User $user, MediaAlbum $album): bool
+    public function canAdmin(User $user, MediaAlbum $album, ?Collection $allAlbums = null): bool
     {
-        return $this->can($user, $album, AlbumPermissionLevel::Admin);
+        return $this->can($user, $album, AlbumPermissionLevel::Admin, $allAlbums);
     }
 
     // ── Résolution interne ───────────────────────────────────────────────────
@@ -120,6 +124,9 @@ class AlbumPermissionService
      * Résout la permission sur un album précis, sans remonter.
      * Retourne null si aucune permission définie sur cet album.
      *
+     * Utilise les relations préchargées (permissions / userPermissions) si disponibles
+     * pour éviter les requêtes N+1 dans scopeVisibleFor.
+     *
      * @param  array<int>  $serviceIds
      * @param  array<int>  $directionIds
      */
@@ -132,9 +139,13 @@ class AlbumPermissionService
         $albumId = $album->getKey();
 
         // ── 1. Permission utilisateur individuel ─────────────────────────────
-        $userPerm = AlbumUserPermission::forAlbum($albumId)
-            ->forUser($user->id)
-            ->first();
+        if ($album->relationLoaded('userPermissions')) {
+            $userPerm = $album->userPermissions->firstWhere('user_id', $user->id);
+        } else {
+            $userPerm = AlbumUserPermission::forAlbum($albumId)
+                ->forUser($user->id)
+                ->first();
+        }
 
         if ($userPerm !== null) {
             return $userPerm->level;
@@ -142,11 +153,19 @@ class AlbumPermissionService
 
         // ── 2. Permission service ────────────────────────────────────────────
         if (! empty($serviceIds)) {
-            $servicePerm = AlbumPermission::forAlbum($albumId)
-                ->where('subject_type', 'service')
-                ->whereIn('subject_id', $serviceIds)
-                ->orderByRaw("FIELD(level, 'admin', 'download', 'view', 'none')")
-                ->first();
+            if ($album->relationLoaded('permissions')) {
+                $servicePerm = $album->permissions
+                    ->filter(fn (AlbumPermission $p) => $p->subject_type === 'service'
+                        && in_array($p->subject_id, $serviceIds))
+                    ->sortByDesc(fn (AlbumPermission $p) => $p->level->level())
+                    ->first();
+            } else {
+                $servicePerm = AlbumPermission::forAlbum($albumId)
+                    ->where('subject_type', 'service')
+                    ->whereIn('subject_id', $serviceIds)
+                    ->orderByRaw("FIELD(level, 'admin', 'upload', 'download', 'view', 'none')")
+                    ->first();
+            }
 
             if ($servicePerm !== null) {
                 return $servicePerm->level;
@@ -155,11 +174,19 @@ class AlbumPermissionService
 
         // ── 3. Permission direction ──────────────────────────────────────────
         if (! empty($directionIds)) {
-            $dirPerm = AlbumPermission::forAlbum($albumId)
-                ->where('subject_type', 'direction')
-                ->whereIn('subject_id', $directionIds)
-                ->orderByRaw("FIELD(level, 'admin', 'download', 'view', 'none')")
-                ->first();
+            if ($album->relationLoaded('permissions')) {
+                $dirPerm = $album->permissions
+                    ->filter(fn (AlbumPermission $p) => $p->subject_type === 'direction'
+                        && in_array($p->subject_id, $directionIds))
+                    ->sortByDesc(fn (AlbumPermission $p) => $p->level->level())
+                    ->first();
+            } else {
+                $dirPerm = AlbumPermission::forAlbum($albumId)
+                    ->where('subject_type', 'direction')
+                    ->whereIn('subject_id', $directionIds)
+                    ->orderByRaw("FIELD(level, 'admin', 'upload', 'download', 'view', 'none')")
+                    ->first();
+            }
 
             if ($dirPerm !== null) {
                 return $dirPerm->level;
@@ -167,33 +194,36 @@ class AlbumPermissionService
         }
 
         // ── 4. Permission rôle hiérarchique ─────────────────────────────────
-        // Convention : level() plus bas = rôle plus privilégié (admin=1, user=6).
-        //
         // Sémantique du pivot : "accessible à partir de ce rôle ET à tous les rôles supérieurs".
-        // Ex : pivot resp_service (5) → resp_service (5) + resp_direction (4) + DGS (3) + admin (1) ✓
-        //                             → agents (6) ✗ (moins privilégiés que le pivot)
-        // Ex : pivot user (6) → tout le monde ✓
-        // Ex : pivot resp_direction (4) → resp_direction (4) + DGS (3) + président (2) + admin (1) ✓
-        //                               → resp_service (5) ✗, agents (6) ✗
-        //
+        // Ex : pivot resp_service (5) → resp_service (5) + resp_direction (4) + DGS (3) ✓
+        //                             → agents (6) ✗
         // Formule : s'applique si userLevel <= pivotLevel
-        // (l'utilisateur est au moins aussi privilégié que le pivot)
+        //
+        // Parmi les permissions applicables, on prend la plus permissive (AlbumPermissionLevel::level desc).
+        // Cohérent avec service/direction : si plusieurs règles s'appliquent, le niveau le plus élevé gagne.
         $userRoleLevel = UserRole::tryFrom($user->role ?? '')?->level() ?? 99;
 
-        $rolePerm = AlbumPermission::forAlbum($albumId)
-            ->where('subject_type', 'role')
-            ->whereNotNull('subject_role')
-            ->get()
-            ->filter(function (AlbumPermission $perm) use ($userRoleLevel) {
-                $pivotLevel = UserRole::tryFrom($perm->subject_role)?->level() ?? 0;
+        if ($album->relationLoaded('permissions')) {
+            $rolePerm = $album->permissions
+                ->filter(fn (AlbumPermission $p) => $p->subject_type === 'role'
+                    && $p->subject_role !== null
+                    && $userRoleLevel <= (UserRole::tryFrom($p->subject_role)?->level() ?? 0))
+                ->sortByDesc(fn (AlbumPermission $p) => $p->level->level())
+                ->first();
+        } else {
+            $rolePerm = AlbumPermission::forAlbum($albumId)
+                ->where('subject_type', 'role')
+                ->whereNotNull('subject_role')
+                ->get()
+                ->filter(function (AlbumPermission $perm) use ($userRoleLevel) {
+                    $pivotLevel = UserRole::tryFrom($perm->subject_role)?->level() ?? 0;
 
-                // S'applique si l'utilisateur est au moins aussi privilégié que le pivot
-                // Ex : userLevel=4 (resp_direction), pivotLevel=5 (resp_service) → 4 <= 5 ✓
-                // Ex : userLevel=6 (agent), pivotLevel=5 (resp_service) → 6 <= 5 ✗
-                return $userRoleLevel <= $pivotLevel;
-            })
-            ->sortByDesc(fn (AlbumPermission $p) => UserRole::tryFrom($p->subject_role)?->level() ?? 0)
-            ->first();
+                    return $userRoleLevel <= $pivotLevel;
+                })
+                ->sortByDesc(fn (AlbumPermission $p) => $p->level->level())
+                ->first();
+        }
+
         if ($rolePerm !== null) {
             return $rolePerm->level;
         }

@@ -224,6 +224,40 @@ class LocalNasDriver implements NasConnectorInterface
         return (int) filesize($fullPath);
     }
 
+    public function moveDir(string $from, string $to): bool
+    {
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        if (! is_dir($srcPath)) {
+            throw new RuntimeException("Dossier source introuvable : {$from}");
+        }
+
+        $dstParent = dirname($dstPath);
+        if (! is_dir($dstParent)) {
+            mkdir($dstParent, 0755, true);
+        }
+
+        return rename($srcPath, $dstPath);
+    }
+
+    public function moveFile(string $from, string $to): bool
+    {
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        if (! is_file($srcPath)) {
+            throw new RuntimeException("Fichier source introuvable : {$from}");
+        }
+
+        $dstDir = dirname($dstPath);
+        if (! is_dir($dstDir)) {
+            mkdir($dstDir, 0755, true);
+        }
+
+        return rename($srcPath, $dstPath);
+    }
+
     public function listDirectories(string $directory): array
     {
         $fullPath = $this->resolve($directory);
