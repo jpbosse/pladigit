@@ -6,14 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
+use App\Services\Ged\GedStorageInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class GedFolderController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private readonly AuditService $audit,
+        private readonly GedStorageInterface $storage,
+    ) {}
 
     /**
      * Page d'accueil GED : dossiers racine + documents racine du tenant.
@@ -42,7 +47,7 @@ class GedFolderController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $this->authorizeView($folder, $user);
+        $this->authorize('view', $folder);
 
         $subFolders = GedFolder::where('parent_id', $folder->id)
             ->visibleFor($user)
@@ -51,7 +56,7 @@ class GedFolderController extends Controller
             ->get();
 
         $documents = $folder->documents()
-            ->with('creator:id,name')
+            ->with(['creator:id,name', 'projectLinks.documentable'])
             ->orderBy('name')
             ->get();
 
@@ -111,7 +116,7 @@ class GedFolderController extends Controller
 
         if ($parentId !== null) {
             $parent = GedFolder::findOrFail($parentId);
-            $this->authorizeView($parent, $user);
+            $this->authorize('upload', $parent);
         }
 
         $slug = GedFolder::uniqueSlug($validated['name'], $parentId);
@@ -124,6 +129,14 @@ class GedFolderController extends Controller
             'is_private' => $isPrivate,
             'created_by' => $user->id,
         ]);
+
+        // Créer le répertoire physique correspondant (non-bloquant)
+        $dirPath = ltrim($folder->path, '/');
+        try {
+            $this->storage->mkdir($dirPath);
+        } catch (\Throwable $e) {
+            Log::warning('GED mkdir échoué', ['path' => $dirPath, 'error' => $e->getMessage()]);
+        }
 
         $this->audit->log('ged.folder.created', $user, [
             'model_type' => GedFolder::class,
@@ -155,7 +168,7 @@ class GedFolderController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $this->authorizeManage($folder, $user);
+        $this->authorize('update', $folder);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -202,7 +215,7 @@ class GedFolderController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $this->authorizeManage($folder, $user);
+        $this->authorize('update', $folder);
 
         $validated = $request->validate([
             'parent_id' => ['nullable', 'integer', 'exists:tenant.ged_folders,id'],
@@ -253,7 +266,7 @@ class GedFolderController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $this->authorizeManage($folder, $user);
+        $this->authorize('delete', $folder);
 
         $docCount = $folder->documents()->count();
         $childCount = GedFolder::where('parent_id', $folder->id)->count();
@@ -334,26 +347,4 @@ class GedFolderController extends Controller
             ->get();
     }
 
-    /** Vérifie qu'un utilisateur peut voir un dossier. */
-    private function authorizeView(GedFolder $folder, User $user): void
-    {
-        if ($folder->is_private && ! $this->isDgs($user) && $folder->created_by !== $user->id) {
-            abort(403, 'Accès refusé à ce dossier privé.');
-        }
-    }
-
-    /** Vérifie qu'un utilisateur peut administrer un dossier. */
-    private function authorizeManage(GedFolder $folder, User $user): void
-    {
-        if (! $this->isDgs($user) && $folder->created_by !== $user->id) {
-            abort(403, 'Vous ne pouvez pas modifier ce dossier.');
-        }
-    }
-
-    /** Retourne true si l'utilisateur est Admin/Président/DGS ou supérieur. */
-    private function isDgs(User $user): bool
-    {
-        return $user->role !== null
-            && \App\Enums\UserRole::from($user->role)->atLeast(\App\Enums\UserRole::DGS);
-    }
 }

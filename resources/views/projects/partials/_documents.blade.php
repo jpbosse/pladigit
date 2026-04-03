@@ -1,6 +1,151 @@
 {{-- _documents.blade.php — Documents liés au projet --}}
 {{-- Reçoit : $project, $canEdit --}}
 
+{{-- ══════════════════════════════════════════════════════════════════════ --}}
+{{-- Section : Documents GED liés                                          --}}
+{{-- ══════════════════════════════════════════════════════════════════════ --}}
+<div x-data="gedLinksManager({{ $project->id }})" x-init="load()" style="margin-bottom:28px;">
+
+    <div class="section-hdr">
+        <div>
+            <div class="section-title">Documents GED liés</div>
+            <div class="section-sub" x-text="gedLinks.length + ' lien' + (gedLinks.length > 1 ? 's' : '')"></div>
+        </div>
+        @if($canEdit)
+        <button @click="showPicker=true;loadPicker(0)"
+                class="pd-btn pd-btn-sm pd-btn-primary">
+            🗂 Lier un document GED
+        </button>
+        @endif
+    </div>
+
+    {{-- Liste des liens --}}
+    <div x-show="gedLoading" style="padding:20px;text-align:center;color:var(--pd-muted);font-size:13px;">Chargement…</div>
+    <div x-show="!gedLoading && gedLinks.length === 0" style="padding:20px;text-align:center;color:var(--pd-muted);font-size:13px;font-style:italic;">
+        Aucun document GED lié à ce projet.
+    </div>
+    <template x-if="!gedLoading && gedLinks.length > 0">
+    <div>
+        <template x-for="lnk in gedLinks" :key="lnk.id">
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:8px;margin-bottom:6px;">
+            <span x-text="lnk.document_icon" style="font-size:18px;flex-shrink:0;"></span>
+            <div style="flex:1;min-width:0;">
+                <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="lnk.document_name"></div>
+                <div style="font-size:11px;color:var(--pd-muted);">
+                    <template x-if="lnk.folder_name">
+                        <span>📁 <span x-text="lnk.folder_name"></span> · </span>
+                    </template>
+                    <span x-text="lnk.document_size"></span>
+                    · lié par <span x-text="lnk.linked_by"></span>
+                    · <span x-text="lnk.linked_at"></span>
+                </div>
+            </div>
+            <template x-if="lnk.serve_url">
+                <a :href="lnk.serve_url" target="_blank" rel="noopener"
+                   style="font-size:11px;padding:4px 10px;border-radius:6px;border:0.5px solid var(--pd-border);background:var(--pd-surface2);color:var(--pd-text);text-decoration:none;flex-shrink:0;">
+                    👁 Voir
+                </a>
+            </template>
+            <a :href="lnk.download_url" download
+               style="font-size:11px;padding:4px 10px;border-radius:6px;border:0.5px solid var(--pd-border);background:var(--pd-surface2);color:var(--pd-text);text-decoration:none;flex-shrink:0;">
+                ⬇ Télécharger
+            </a>
+            @if($canEdit)
+            <button @click="unlinkGed(lnk.id)"
+                    style="font-size:11px;padding:4px 8px;border-radius:6px;border:0.5px solid #FCA5A5;background:#FEF2F2;color:#991B1B;cursor:pointer;flex-shrink:0;">
+                🗑
+            </button>
+            @endif
+        </div>
+        </template>
+    </div>
+    </template>
+
+    {{-- Picker GED --}}
+    @if($canEdit)
+    <div x-show="showPicker" x-cloak
+         style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:900;display:flex;align-items:center;justify-content:center;"
+         @click.self="showPicker=false">
+        <div style="background:var(--pd-surface);border-radius:14px;width:560px;max-width:95vw;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 40px rgba(0,0,0,.22);">
+
+            {{-- En-tête picker --}}
+            <div style="padding:16px 20px;border-bottom:0.5px solid var(--pd-border);display:flex;align-items:center;justify-content:space-between;">
+                <div>
+                    <div style="font-size:14px;font-weight:700;">Choisir un document GED</div>
+                    <div x-show="pickerPath.length > 0" style="font-size:11px;color:var(--pd-muted);margin-top:2px;">
+                        <span @click="loadPicker(0)" style="cursor:pointer;color:var(--pd-accent);">Racine</span>
+                        <template x-for="(seg, i) in pickerPath" :key="i">
+                            <span>
+                                <span style="margin:0 4px;">›</span>
+                                <span @click="loadPicker(seg.id)" style="cursor:pointer;color:var(--pd-accent);" x-text="seg.name"></span>
+                            </span>
+                        </template>
+                    </div>
+                </div>
+                <button @click="showPicker=false"
+                        style="font-size:18px;background:none;border:none;cursor:pointer;color:var(--pd-muted);">✕</button>
+            </div>
+
+            {{-- Corps picker --}}
+            <div style="flex:1;overflow-y:auto;padding:12px 16px;">
+
+                {{-- Retour --}}
+                <template x-if="pickerFolderId !== null">
+                    <div @click="pickerBack()"
+                         style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:4px;color:var(--pd-muted);font-size:13px;"
+                         @mouseenter="$el.style.background='var(--pd-surface2)'" @mouseleave="$el.style.background=''">
+                        ← Retour
+                    </div>
+                </template>
+
+                {{-- Dossiers --}}
+                <template x-for="f in pickerFolders" :key="f.id">
+                    <div @click="loadPicker(f.id)"
+                         style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;"
+                         @mouseenter="$el.style.background='var(--pd-surface2)'" @mouseleave="$el.style.background=''">
+                        <span style="font-size:16px;">📁</span>
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-size:13px;font-weight:500;" x-text="f.name"></div>
+                            <div style="font-size:11px;color:var(--pd-muted);" x-text="f.children_count + ' dossiers · ' + f.documents_count + ' docs'"></div>
+                        </div>
+                        <span style="color:var(--pd-muted);font-size:12px;">›</span>
+                    </div>
+                </template>
+
+                {{-- Documents --}}
+                <template x-if="pickerDocs.length > 0">
+                    <div>
+                        <div style="font-size:10px;font-weight:700;color:var(--pd-muted);text-transform:uppercase;letter-spacing:.06em;margin:10px 0 6px;">Documents</div>
+                        <template x-for="d in pickerDocs" :key="d.id">
+                            <div @click="selectGedDoc(d)"
+                                 style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;margin-bottom:2px;"
+                                 @mouseenter="$el.style.background='var(--pd-surface2)'" @mouseleave="$el.style.background=''">
+                                <span x-text="d.icon" style="font-size:16px;"></span>
+                                <div style="flex:1;min-width:0;">
+                                    <div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="d.name"></div>
+                                    <div style="font-size:11px;color:var(--pd-muted);" x-text="d.size"></div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <div x-show="pickerFolders.length === 0 && pickerDocs.length === 0"
+                     style="padding:32px;text-align:center;color:var(--pd-muted);font-size:13px;font-style:italic;">
+                    Dossier vide.
+                </div>
+            </div>
+
+            {{-- Pied --}}
+            <div x-show="pickerError" x-text="pickerError"
+                 style="padding:8px 20px;font-size:12px;color:var(--pd-danger);background:#FEF2F2;"></div>
+        </div>
+    </div>
+    @endif
+
+</div>
+{{-- ══ fin section GED ══════════════════════════════════════════════════ --}}
+
 <div x-data="docsManager({{ $project->id }})" x-init="load()">
 
 {{-- ── En-tête ── --}}
@@ -173,6 +318,106 @@
 </div>
 
 <script>
+function gedLinksManager(projectId) {
+    return {
+        projectId,
+        gedLinks: [],
+        gedLoading: true,
+        showPicker: false,
+        pickerFolderId: null,
+        pickerPath: [],   // [{id, name}, ...]
+        pickerFolders: [],
+        pickerDocs: [],
+        pickerError: '',
+
+        csrfToken() {
+            return document.querySelector('meta[name="csrf-token"]').content;
+        },
+
+        async load() {
+            this.gedLoading = true;
+            try {
+                const r = await fetch(`/projects/${this.projectId}/ged-links`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await r.json();
+                this.gedLinks = data.links ?? [];
+            } catch (e) { console.error(e); }
+            this.gedLoading = false;
+        },
+
+        async loadPicker(folderId) {
+            this.pickerError = '';
+            const url = `/projects/${this.projectId}/ged-links/picker` + (folderId ? `?folder_id=${folderId}` : '');
+            try {
+                const r = await fetch(url, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                const data = await r.json();
+                this.pickerFolderId = data.folder_id ?? null;
+                this.pickerFolders = data.folders ?? [];
+                this.pickerDocs    = data.documents ?? [];
+
+                // Mise à jour du fil d'Ariane
+                if (folderId) {
+                    const existing = this.pickerPath.findIndex(s => s.id === folderId);
+                    if (existing >= 0) {
+                        this.pickerPath = this.pickerPath.slice(0, existing + 1);
+                    } else {
+                        const folder = this.pickerFolders.find(f => f.id === folderId)
+                            ?? this.pickerDocs.find(d => d.id === folderId);
+                        const name = folder?.name ?? `Dossier ${folderId}`;
+                        this.pickerPath.push({ id: folderId, name });
+                    }
+                } else {
+                    this.pickerPath = [];
+                }
+            } catch (e) {
+                this.pickerError = 'Impossible de charger le dossier GED.';
+            }
+        },
+
+        pickerBack() {
+            const prev = this.pickerPath[this.pickerPath.length - 2];
+            this.pickerPath = this.pickerPath.slice(0, -1);
+            this.loadPicker(prev ? prev.id : 0);
+        },
+
+        async selectGedDoc(doc) {
+            this.pickerError = '';
+            try {
+                const body = new URLSearchParams({
+                    _token: this.csrfToken(),
+                    ged_document_id: doc.id,
+                });
+                const r = await fetch(`/projects/${this.projectId}/ged-links`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json' },
+                    body: body.toString(),
+                });
+                const data = await r.json();
+                if (data.success) {
+                    this.gedLinks.unshift(data.link);
+                    this.showPicker = false;
+                } else {
+                    this.pickerError = data.message ?? 'Erreur lors de la liaison.';
+                }
+            } catch (e) {
+                this.pickerError = 'Erreur réseau.';
+            }
+        },
+
+        async unlinkGed(linkId) {
+            if (!confirm('Supprimer ce lien GED ?')) return;
+            await fetch(`/projects/${this.projectId}/ged-links/${linkId}`, {
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': this.csrfToken(), 'Accept': 'application/json' },
+            });
+            this.gedLinks = this.gedLinks.filter(l => l.id !== linkId);
+        },
+    };
+}
+
 function docsManager(projectId, milestoneId = null, taskId = null) {
     return {
         projectId,
