@@ -16,9 +16,28 @@
     ])
 
     {{-- ── Contenu principal ──────────────────────────────────────── --}}
-    <div id="ged-main" x-data="gedFolderPage()">
+    <div id="ged-main"
+         x-data="gedFolderPage()"
+         @dragenter.prevent="onDragEnter($event)"
+         @dragover.prevent
+         @dragleave.prevent="onDragLeave($event)"
+         @drop.prevent="onDrop($event)">
 
-        {{-- En-tête + fil d'Ariane --}}
+        {{-- Overlay drag & drop ─────────────────────────────────────── --}}
+        <div class="ged-drop-overlay" x-show="_isDragOver" x-cloak>
+            <div class="ged-drop-center">
+                <div class="ged-drop-icon">📤</div>
+                <div class="ged-drop-label">Déposez vos fichiers ici</div>
+                <div class="ged-drop-hint">PDF, Word, Excel, images…</div>
+            </div>
+        </div>
+
+        {{-- Input fichier caché ─────────────────────────────────────── --}}
+        <input type="file" multiple hidden x-ref="fileInput"
+               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp,.odg,.jpg,.jpeg,.png,.gif,.webp,.tif,.tiff,.svg,.txt,.csv,.html,.zip"
+               @change="onFileInputChange($event)">
+
+        {{-- En-tête + fil d'Ariane ──────────────────────────────────── --}}
         <div id="ged-header">
             <div class="ged-breadcrumb">
                 <a href="{{ route('ged.index') }}">GED</a>
@@ -37,13 +56,43 @@
                 <button class="pd-btn pd-btn-sm pd-btn-primary" @click="openCreate()">
                     + Nouveau dossier
                 </button>
-                <button class="pd-btn pd-btn-sm" disabled title="Upload disponible au Jalon 2">
+                <button class="pd-btn pd-btn-sm" @click="$refs.fileInput.click()">
                     📤 Uploader
+                </button>
+                <button class="pd-btn pd-btn-sm" id="btn-ged-sync" onclick="syncGed()" title="Synchroniser le NAS">
+                    🔄 Sync NAS
+                </button>
+                @can('managePermissions', $folder)
+                <a href="{{ route('ged.permissions.index', $folder) }}" class="pd-btn pd-btn-sm" title="Gérer les droits d'accès">
+                    🔐 Droits
+                </a>
+                @endcan
+            </div>
+        </div>
+
+        {{-- File d'upload ───────────────────────────────────────────── --}}
+        <div class="ged-upload-queue" x-show="_uploads.length > 0" x-cloak>
+            <template x-for="(u, i) in _uploads" :key="i">
+                <div class="ged-upload-item">
+                    <span x-text="u.status === 'queued' ? '✅' : u.status === 'error' ? '❌' : '⏳'"></span>
+                    <span class="ged-upload-name" x-text="u.name"></span>
+                    <template x-if="u.status === 'uploading'">
+                        <div class="ged-upload-progress-wrap">
+                            <div class="ged-upload-bar" :style="'width:' + u.progress + '%'"></div>
+                        </div>
+                    </template>
+                    <span x-show="u.status === 'queued'" class="ged-upload-status">En traitement…</span>
+                    <span x-show="u.status === 'error'" class="ged-upload-err" x-text="u.error"></span>
+                </div>
+            </template>
+            <div class="ged-upload-queue-footer" x-show="_hasCompletedUploads">
+                <button class="pd-btn pd-btn-sm" @click="clearUploads(); location.reload()">
+                    Actualiser la liste
                 </button>
             </div>
         </div>
 
-        {{-- Flash --}}
+        {{-- Flash ──────────────────────────────────────────────────── --}}
         @if(session('success'))
             <div class="ged-flash ged-flash-success">{{ session('success') }}</div>
         @endif
@@ -101,25 +150,63 @@
                             <th>Type</th>
                             <th>Taille</th>
                             <th>Version</th>
+                            <th>Projets</th>
                             <th>Ajouté par</th>
                             <th>Date</th>
+                            <th style="width:96px;"></th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse($documents as $doc)
                             <tr>
                                 <td style="text-align:center;font-size:16px;">{{ $doc->icon() }}</td>
-                                <td>{{ $doc->name }}</td>
+                                <td>
+                                    @if($doc->isPreviewable())
+                                        <button class="ged-doc-name-btn"
+                                                @click="openPreview('{{ route('ged.documents.serve', $doc) }}', '{{ route('ged.documents.download', $doc) }}', '{{ addslashes($doc->name) }}', '{{ addslashes($doc->mime_type ?? '') }}')">
+                                            {{ $doc->name }}
+                                        </button>
+                                    @else
+                                        <a href="{{ route('ged.documents.download', $doc) }}" class="ged-doc-name-link">{{ $doc->name }}</a>
+                                    @endif
+                                </td>
                                 <td style="color:var(--pd-muted);font-size:12px;">{{ $doc->mime_type }}</td>
                                 <td style="color:var(--pd-muted);font-size:12px;">{{ $doc->humanSize() }}</td>
-                                <td style="color:var(--pd-muted);font-size:12px;">v{{ $doc->current_version }}</td>
+                                <td>
+                                    <button class="ged-version-badge {{ $doc->current_version === 1 ? 'ged-version-badge--v1' : '' }}"
+                                            @click="openVersionHistory({{ $doc->id }}, '{{ addslashes($doc->name) }}', {{ $doc->current_version }})">
+                                        v{{ $doc->current_version }}
+                                    </button>
+                                </td>
+                                <td style="font-size:12px;">
+                                    @php $linkedProjects = $doc->linkedProjects() @endphp
+                                    @if($linkedProjects->isEmpty())
+                                        <span style="color:var(--pd-muted);">—</span>
+                                    @else
+                                        <span title="{{ $linkedProjects->pluck('name')->join(', ') }}"
+                                              style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;background:var(--pd-surface2);border:0.5px solid var(--pd-border);font-size:11px;font-weight:600;">
+                                            🗂 {{ $linkedProjects->count() }}
+                                        </span>
+                                    @endif
+                                </td>
                                 <td style="color:var(--pd-muted);font-size:12px;">{{ $doc->creator?->name ?? '—' }}</td>
                                 <td style="color:var(--pd-muted);font-size:12px;">{{ $doc->created_at->format('d/m/Y') }}</td>
+                                <td>
+                                    <div class="ged-doc-actions">
+                                        @if($doc->isPreviewable())
+                                            <button class="ged-action-btn" title="Prévisualiser"
+                                                    @click="openPreview('{{ route('ged.documents.serve', $doc) }}', '{{ route('ged.documents.download', $doc) }}', '{{ addslashes($doc->name) }}', '{{ addslashes($doc->mime_type ?? '') }}')">👁</button>
+                                        @endif
+                                        <a href="{{ route('ged.documents.download', $doc) }}" class="ged-action-btn" title="Télécharger" download>⬇</a>
+                                        <button class="ged-action-btn ged-action-delete" title="Supprimer"
+                                                @click="openDocDelete({{ $doc->id }}, '{{ addslashes($doc->name) }}')">🗑</button>
+                                    </div>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" style="text-align:center;color:var(--pd-muted);padding:20px;font-style:italic;">
-                                    Aucun document — l'upload sera disponible au Jalon 2.
+                                <td colspan="9" style="text-align:center;color:var(--pd-muted);padding:32px;font-style:italic;">
+                                    Aucun document — glissez des fichiers ici ou cliquez sur « Uploader ».
                                 </td>
                             </tr>
                         @endforelse
@@ -184,7 +271,7 @@
             </div>
         </div>
 
-        {{-- ── Modal confirmation suppression ─────────────────────── --}}
+        {{-- ── Modal confirmation suppression dossier ─────────────── --}}
         <div x-show="_modal === 'delete'" class="ged-modal-backdrop" @click.self="_modal = null">
             <div class="ged-modal">
                 <div class="ged-modal-header">
@@ -202,6 +289,117 @@
                         <span x-show="!_loading">Supprimer</span>
                         <span x-show="_loading">…</span>
                     </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Modal suppression document ───────────────────────────── --}}
+        <div x-show="_modal === 'doc-delete'" class="ged-modal-backdrop" @click.self="_modal = null">
+            <div class="ged-modal">
+                <div class="ged-modal-header">
+                    <span>Supprimer le document</span>
+                    <button @click="_modal = null" class="ged-modal-close">✕</button>
+                </div>
+                <div class="ged-modal-body">
+                    <p style="font-size:13px;">Supprimer <strong x-text="_docDeleteName"></strong> ?</p>
+                    <p style="font-size:12px;color:var(--pd-muted);">Cette action est irréversible.</p>
+                    <div x-show="_docDeleteError" style="color:var(--pd-danger);font-size:12px;margin-top:8px;" x-text="_docDeleteError"></div>
+                </div>
+                <div class="ged-modal-footer">
+                    <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Annuler</button>
+                    <button type="button" class="pd-btn pd-btn-sm pd-btn-danger" @click="submitDocDelete()" :disabled="_docDeleteLoading">
+                        <span x-show="!_docDeleteLoading">Supprimer</span>
+                        <span x-show="_docDeleteLoading">…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Modal historique des versions ──────────────────────── --}}
+        <div x-show="_modal === 'versions'" class="ged-modal-backdrop" @click.self="_modal = null">
+            <div class="ged-modal" style="max-width:640px;">
+                <div class="ged-modal-header">
+                    <span>Versions — <span x-text="_versionsDocName" style="font-style:italic;"></span></span>
+                    <button @click="_modal = null" class="ged-modal-close">✕</button>
+                </div>
+                <div class="ged-modal-body" style="padding:0;">
+                    <div x-show="_versionsLoading" style="padding:24px;text-align:center;color:var(--pd-muted);">
+                        Chargement…
+                    </div>
+                    <table class="ged-doc-table" x-show="!_versionsLoading">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Taille</th>
+                                <th>Par</th>
+                                <th>Date</th>
+                                <th style="width:64px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {{-- Ligne version courante (toujours présente) --}}
+                            <tr style="background:var(--pd-surface2);">
+                                <td style="font-size:12px;">
+                                    <span style="font-weight:700;" x-text="'v' + _versionsCurrentVersion"></span>
+                                    <span style="font-size:10px;color:#059669;margin-left:4px;">● courante</span>
+                                </td>
+                                <td style="font-size:12px;color:var(--pd-muted);" x-text="formatSize(_versionsCurrentSize)"></td>
+                                <td style="font-size:12px;color:var(--pd-muted);" x-text="_versionsCurrentUploader"></td>
+                                <td style="font-size:12px;color:var(--pd-muted);" x-text="_versionsCurrentDate"></td>
+                                <td>
+                                    <div class="ged-doc-actions" style="opacity:1;">
+                                        <a :href="_versionsCurrentDownloadUrl" class="ged-action-btn" title="Télécharger" download>⬇</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{-- Versions archivées --}}
+                            <template x-for="v in _versionsList" :key="v.version_number">
+                                <tr>
+                                    <td style="font-size:12px;color:var(--pd-muted);" x-text="'v' + v.version_number"></td>
+                                    <td style="font-size:12px;color:var(--pd-muted);" x-text="formatSize(v.size_bytes)"></td>
+                                    <td style="font-size:12px;color:var(--pd-muted);" x-text="v.uploaded_by_name"></td>
+                                    <td style="font-size:12px;color:var(--pd-muted);" x-text="v.created_at"></td>
+                                    <td>
+                                        <div class="ged-doc-actions">
+                                            <a :href="v.download_url" class="ged-action-btn" title="Télécharger" download>⬇</a>
+                                            <button class="ged-action-btn" title="Restaurer cette version"
+                                                    @click="restoreVersion(_versionsDocId, v.version_number)">↩</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                            {{-- Message si aucune version archivée --}}
+                            <tr x-show="!_versionsLoading && _versionsList.length === 0">
+                                <td colspan="5" style="padding:16px 12px;font-size:12px;color:var(--pd-muted);font-style:italic;">
+                                    Aucune version archivée — ceci est la version originale du document.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="ged-modal-footer">
+                    <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Modal prévisualisation inline ───────────────────────── --}}
+        <div x-show="_modal === 'preview'" class="ged-modal-backdrop" @click.self="_modal = null">
+            <div class="ged-preview-modal">
+                <div class="ged-modal-header">
+                    <span x-text="_previewName" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;"></span>
+                    <div style="display:flex;gap:6px;align-items:center;flex-shrink:0;">
+                        <a :href="_previewDownloadUrl" class="pd-btn pd-btn-sm" download>⬇ Télécharger</a>
+                        <button @click="_modal = null" class="ged-modal-close">✕</button>
+                    </div>
+                </div>
+                <div class="ged-preview-body">
+                    <template x-if="_modal === 'preview' && _previewMime.startsWith('image/')">
+                        <img :src="_previewUrl" class="ged-preview-img" :alt="_previewName">
+                    </template>
+                    <template x-if="_modal === 'preview' && !_previewMime.startsWith('image/')">
+                        <iframe :src="_previewUrl" class="ged-preview-frame" :title="_previewName"></iframe>
+                    </template>
                 </div>
             </div>
         </div>

@@ -34,24 +34,38 @@ abstract class TestCase extends BaseTestCase
         if (! self::$dbConfigured) {
             $this->configureDatabases();
             self::$dbConfigured = true;
+        } else {
+            // Les commandes artisan exécutées dans les tests peuvent appeler
+            // TenantManager::connectTo() et laisser la connexion 'tenant' pointée
+            // sur une autre base (drift des auto-incréments au TRUNCATE).
+            // On réinitialise uniquement la connexion tenant avant chaque nettoyage.
+            $dbTenant = env('DB_TENANT_DATABASE', 'pladigit_testing_tenant');
+            config(['database.connections.tenant.database' => $dbTenant]);
+            DB::purge('tenant');
         }
 
         $this->runMigrationsIfNeeded();
         $this->cleanDatabase();
 
-        $org = new Organization([
-            'id' => 1,
-            'name' => 'Test Org',
-            'slug' => 'test',
-            'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
-            'status' => 'active',
-            'plan' => 'communautaire',
-            'max_users' => 200,
-            'primary_color' => '#1E3A5F',
-            'enabled_modules' => ['media', 'projects', 'ged'],
-        ]);
-        // Persister l'org en base pour que la commande puisse la trouver
-        $org->save();
+        // Persister l'org en base pour que la commande puisse la trouver.
+        // DB::table()->updateOrInsert() contourne la restriction $fillable sur `id`
+        // et garantit id=1 même si AUTO_INCREMENT a dérivé entre les tests.
+        DB::connection('mysql')->table('organizations')->updateOrInsert(
+            ['id' => 1],
+            [
+                'name' => 'Test Org',
+                'slug' => 'test',
+                'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
+                'status' => 'active',
+                'plan' => 'communautaire',
+                'max_users' => 200,
+                'primary_color' => '#1E3A5F',
+                'enabled_modules' => json_encode(['media', 'projects', 'ged']),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+        $org = Organization::on('mysql')->find(1);
         app(TenantManager::class)->connectTo($org);
     }
 
@@ -115,7 +129,14 @@ abstract class TestCase extends BaseTestCase
                 && $schema->hasColumn('ged_folders', 'slug')
                 && $schema->hasColumn('ged_folders', 'path')
                 && $schema->hasColumn('ged_folders', 'is_private')
-                && $schema->hasTable('ged_documents');
+                && $schema->hasColumn('ged_folders', 'nas_path')
+                && $schema->hasTable('ged_documents')
+                && $schema->hasTable('ged_document_versions')
+                && $schema->hasTable('ged_folder_permissions')
+                && $schema->hasTable('ged_folder_user_permissions')
+                && $schema->hasColumn('tenant_settings', 'ged_deleted_retention_days')
+                && $schema->hasTable('project_ged_links')
+                && $schema->hasColumn('projects', 'ged_folder_id');
 
             if (! $gedOk) {
                 $this->artisan('migrate:fresh', [
@@ -161,7 +182,9 @@ abstract class TestCase extends BaseTestCase
                 'task_dependencies', 'task_comments', 'tasks',
                 'project_milestones', 'project_members', 'projects',
                 'event_participants', 'events',
-                'ged_documents', 'ged_folders',
+                'ged_document_versions', 'ged_documents',
+                'ged_folder_user_permissions', 'ged_folder_permissions', 'ged_folders',
+                'project_ged_links',
             ] as $t) {
                 try {
                     $db->statement("TRUNCATE TABLE `{$t}`");

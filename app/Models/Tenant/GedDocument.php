@@ -5,7 +5,9 @@ namespace App\Models\Tenant;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 /**
  * Document GED rattaché à un dossier.
@@ -44,6 +46,50 @@ class GedDocument extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** @return HasMany<GedDocumentVersion, $this> */
+    public function versions(): HasMany
+    {
+        return $this->hasMany(GedDocumentVersion::class, 'document_id')->orderByDesc('version_number');
+    }
+
+    /** @return HasMany<ProjectGedLink, $this> */
+    public function projectLinks(): HasMany
+    {
+        return $this->hasMany(ProjectGedLink::class, 'ged_document_id');
+    }
+
+    /**
+     * Projets liés à ce document GED.
+     *
+     * @return Collection<int, Project>
+     */
+    public function linkedProjects(): Collection
+    {
+        return $this->projectLinks()
+            ->where('documentable_type', Project::class)
+            ->with('documentable')
+            ->get()
+            ->pluck('documentable')
+            ->filter()
+            ->values();
+    }
+
+    /**
+     * Tâches liées à ce document GED.
+     *
+     * @return Collection<int, Task>
+     */
+    public function linkedTasks(): Collection
+    {
+        return $this->projectLinks()
+            ->where('documentable_type', Task::class)
+            ->with('documentable')
+            ->get()
+            ->pluck('documentable')
+            ->filter()
+            ->values();
     }
 
     // ── Helpers ──────────────────────────────────────────────

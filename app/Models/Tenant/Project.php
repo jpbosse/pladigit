@@ -50,6 +50,7 @@ class Project extends Model
         'due_date',
         'color',
         'is_private',
+        'ged_folder_id',
     ];
 
     protected $casts = [
@@ -147,6 +148,19 @@ class Project extends Model
     public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(ProjectDocument::class, 'documentable')->latest();
+    }
+
+    /** @return BelongsTo<GedFolder, $this> */
+    public function gedFolder(): BelongsTo
+    {
+        return $this->belongsTo(GedFolder::class, 'ged_folder_id');
+    }
+
+    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<ProjectGedLink, $this> */
+    public function gedLinks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProjectGedLink::class, 'documentable_id')
+            ->where('documentable_type', self::class);
     }
 
     // ── Scopes ────────────────────────────────────────────────────────────
