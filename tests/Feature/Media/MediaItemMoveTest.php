@@ -5,6 +5,8 @@ namespace Tests\Feature\Media;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
+use App\Services\Nas\LocalNasDriver;
+use App\Services\Nas\NasManager;
 use Tests\TestCase;
 
 /**
@@ -22,6 +24,8 @@ use Tests\TestCase;
  */
 class MediaItemMoveTest extends TestCase
 {
+    private string $nasRoot;
+
     private User $admin;
 
     private MediaAlbum $source;
@@ -33,6 +37,25 @@ class MediaItemMoveTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        // Répertoire NAS temporaire avec les fichiers réels pour tester le moveFile
+        $this->nasRoot = sys_get_temp_dir().'/pladigit_move_test_'.uniqid();
+        mkdir($this->nasRoot.'/album-source/thumbs', 0755, true);
+        file_put_contents($this->nasRoot.'/album-source/photo.jpg', 'fake-img');
+        file_put_contents($this->nasRoot.'/album-source/thumbs/photo.jpg', 'fake-thumb');
+
+        $nasRoot = $this->nasRoot;
+        $this->app->bind(NasManager::class, function () use ($nasRoot) {
+            $manager = $this->getMockBuilder(NasManager::class)
+                ->disableOriginalConstructor()
+                ->onlyMethods(['photoDriver', 'driver'])
+                ->getMock();
+            $driver = new LocalNasDriver($nasRoot);
+            $manager->method('photoDriver')->willReturn($driver);
+            $manager->method('driver')->willReturn($driver);
+
+            return $manager;
+        });
 
         $this->admin = User::factory()->create(['role' => 'admin']);
         $this->source = MediaAlbum::factory()->public()->create([
@@ -49,6 +72,29 @@ class MediaItemMoveTest extends TestCase
             'thumb_path' => 'album-source/thumbs/photo.jpg',
         ]);
         $this->actingAs($this->admin);
+    }
+
+    protected function tearDown(): void
+    {
+        // Nettoyage du répertoire NAS temporaire
+        if (is_dir($this->nasRoot)) {
+            $this->deleteDirectory($this->nasRoot);
+        }
+        parent::tearDown();
+    }
+
+    private function deleteDirectory(string $dir): void
+    {
+        if (! is_dir($dir)) {
+            return;
+        }
+        foreach (new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        ) as $file) {
+            $file->isDir() ? rmdir($file->getRealPath()) : unlink($file->getRealPath());
+        }
+        rmdir($dir);
     }
 
     // =========================================================================

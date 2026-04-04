@@ -57,6 +57,24 @@
             'ancestorIds'   => $ancestorIds,
         ])
 
+        @if(in_array(auth()->user()?->role, ['admin', 'president', 'dgs']))
+        <div class="ph-nav-section">Administration</div>
+        @php $dupCount = \App\Models\Tenant\MediaItem::whereNotNull('sha256_hash')->selectRaw('sha256_hash')->groupBy('sha256_hash')->havingRaw('COUNT(*) > 1')->get()->count(); @endphp
+        <a href="{{ route('media.duplicates.index') }}"
+           class="ph-nav-item {{ request()->routeIs('media.duplicates.*') ? 'active' : '' }}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="7" width="16" height="13" rx="2"/><path d="M6 7V5a2 2 0 012-2h12a2 2 0 012 2v13a2 2 0 01-2 2"/></svg>
+            Doublons
+            @if($dupCount > 0)
+                <span class="ph-nav-count" style="background:#e74c3c;color:#fff">{{ $dupCount }}</span>
+            @endif
+        </a>
+        <a href="{{ route('media.integrity.index') }}"
+           class="ph-nav-item {{ request()->routeIs('media.integrity.*') ? 'active' : '' }}">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 12l2 2 4-4"/><path d="M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622C17.176 19.29 21 14.591 21 9a12.02 12.02 0 00-.382-3.016z"/></svg>
+            Intégrité
+        </a>
+        @endif
+
         @if($album)
         <div class="ph-nav-section">Actions</div>
         <a href="{{ route('media.albums.create') }}" class="ph-nav-item">

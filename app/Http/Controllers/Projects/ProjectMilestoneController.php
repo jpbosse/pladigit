@@ -97,7 +97,7 @@ class ProjectMilestoneController extends Controller
     }
 
     /**
-     * Déplace une phase vers le haut ou vers le bas.
+     * Déplace une phase ou un jalon enfant vers le haut ou vers le bas.
      * Renumérote tous les sort_order avant d'échanger pour garantir un ordre stable.
      */
     public function move(Request $request, Project $project, ProjectMilestone $milestone)
@@ -108,7 +108,48 @@ class ProjectMilestoneController extends Controller
             'direction' => ['required', 'in:up,down'],
         ])['direction'];
 
-        // Toutes les phases du projet, dans l'ordre actuel
+        // Jalon enfant : réordonner les frères dans la même phase parente
+        if ($milestone->parent_id !== null) {
+            $siblings = $project->milestones()
+                ->where('parent_id', $milestone->parent_id)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($siblings as $i => $sib) {
+                $sib->update(['sort_order' => ($i + 1) * 10]);
+            }
+
+            $siblings = $project->milestones()
+                ->where('parent_id', $milestone->parent_id)
+                ->orderBy('sort_order')
+                ->get();
+
+            $index = $siblings->search(fn ($s) => $s->id === $milestone->id);
+
+            if ($index === false) {
+                return back();
+            }
+
+            $swapIndex = $direction === 'up' ? $index - 1 : $index + 1;
+
+            if ($swapIndex < 0 || $swapIndex >= $siblings->count()) {
+                return back();
+            }
+
+            $current = $siblings[$index];
+            $neighbor = $siblings[$swapIndex];
+
+            $currentOrder = $current->sort_order;
+            $neighborOrder = $neighbor->sort_order;
+
+            $current->update(['sort_order' => $neighborOrder]);
+            $neighbor->update(['sort_order' => $currentOrder]);
+
+            return back()->with('success', 'Ordre mis à jour.');
+        }
+
+        // Phase (jalon racine)
         $phases = $project->milestones()
             ->whereNull('parent_id')
             ->orderBy('sort_order')

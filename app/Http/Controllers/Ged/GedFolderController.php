@@ -346,5 +346,4 @@ class GedFolderController extends Controller
             ->orderBy('name')
             ->get();
     }
-
 }

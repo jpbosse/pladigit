@@ -167,7 +167,7 @@ function gedFolderTree(initialRoots, activeId, canReorganize) {
         rootZoneOver: false,
         movingId: null,
 
-        async init(ancestorIds) {
+        async init(ancestorIds = []) {
             for (const id of ancestorIds) {
                 const node = this.nodes.find(n => n.id === id);
                 if (node && !node.expanded) await this.toggle(node, true);

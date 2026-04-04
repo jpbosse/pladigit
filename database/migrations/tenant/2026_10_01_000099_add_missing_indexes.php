@@ -96,10 +96,14 @@ return new class extends Migration
             $table->index('is_manager');
         });
 
-        Schema::connection('tenant')->table('documents', function (Blueprint $table) {
-            $table->index('deleted_at');
-            $table->index(['folder_id', 'status']);
-        });
+        // La table 'documents' (proto-GED v1) peut ne pas exister si la migration
+        // 2025_10_01_000008 est vide. On saute silencieusement dans ce cas.
+        if (Schema::connection('tenant')->hasTable('documents')) {
+            Schema::connection('tenant')->table('documents', function (Blueprint $table) {
+                $table->index('deleted_at');
+                $table->index(['folder_id', 'status']);
+            });
+        }
 
         Schema::connection('tenant')->table('events', function (Blueprint $table) {
             $table->index('deleted_at');

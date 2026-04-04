@@ -80,9 +80,13 @@ class TenantSettings extends Model
         'nas_ged_share',
         'nas_ged_root_path',
         'nas_ged_sync_interval_minutes',
+        'nas_ged_last_sync_at',
+        'nas_ged_last_sync_errors',
+        // Purge GED
+        'ged_deleted_retention_days',
+        'ged_versions_max_count',
         // Visioconférence
         'jitsi_base_url',
-        'nas_ged_last_sync_at',
         // Timestamp
         'updated_at',
     ];
@@ -104,6 +108,10 @@ class TenantSettings extends Model
         'nas_ged_port' => 'integer',
         'nas_ged_sync_interval_minutes' => 'integer',
         'nas_ged_last_sync_at' => 'datetime',
+        'nas_ged_last_sync_errors' => 'array',
+        // Purge GED
+        'ged_deleted_retention_days' => 'integer',
+        'ged_versions_max_count' => 'integer',
         // Watermark
         'wm_enabled' => 'boolean',
         'wm_opacity' => 'integer',

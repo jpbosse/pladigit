@@ -460,7 +460,7 @@
                         🗜 Importer un ZIP
                     </button>
                 </div>
-                <p style="font-size:10px;margin-top:7px;color:var(--pd-muted);">JPEG · PNG · WEBP · GIF · MP4 · MOV · PDF — 200 Mo max · ZIP 500 Mo max</p>
+                <p style="font-size:10px;margin-top:7px;color:var(--pd-muted);">JPEG · PNG · WEBP · GIF · MP4 · MOV · PDF — 200 Mo max · ZIP 2 Go max</p>
 
 
 
@@ -531,9 +531,6 @@
                             @else
                                 <img src="{{ route('media.items.serve', [$album, $item, 'thumb']) }}"
                                      alt="{{ $item->caption ?? $item->file_name }}" loading="lazy">
-                            @endif
-                            @if($item->is_duplicate)
-                            <div class="ph-dup-badge" title="Ce fichier existe en doublon dans la photothèque">⚠ Doublon</div>
                             @endif
                             @if($item->tags->isNotEmpty())
                             <div class="ph-tag-badge" title="{{ $item->tags->pluck('name')->join(', ') }}">🏷 {{ $item->tags->count() }}</div>
@@ -658,12 +655,6 @@
                     <div class="ph-panel-title" x-text="activeItem.caption || activeItem.file_name"></div>
                     <template x-if="activeItem.caption">
                         <div style="font-size:10px;color:var(--pd-muted);margin:-4px 0 6px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="activeItem.file_name"></div>
-                    </template>
-                    <template x-if="activeItem.is_duplicate">
-                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin:6px 0;display:flex;align-items:center;gap:6px;font-size:11px;color:#dc2626;">
-                            <span>⚠</span>
-                            <span>Ce fichier est un doublon</span>
-                        </div>
                     </template>
                     <div>
                         @can('upload', $album)
@@ -940,7 +931,7 @@
                 <p style="font-size:13px;margin-bottom:14px;">Sélectionnez le dossier de votre appareil photo<br><span style="font-size:11px;">(DCIM, Téléchargements, Images…)</span></p>
                 <label class="ph-dz-btn primary" style="cursor:pointer;display:inline-block;">
                     Choisir un dossier
-                    <input type="file" id="folder-input" webkitdirectory multiple accept="image/*,video/*,application/pdf" class="hidden" onchange="scanFolder(this.files)">
+                    <input type="file" id="folder-input" webkitdirectory multiple class="hidden" onchange="scanFolder(this.files)">
                 </label>
             </div>
         </div>
@@ -1101,7 +1092,11 @@ document.addEventListener('alpine:init', () => {
         _draggingId: null,
         cardDragStart(id, event) {
             this._draggingId = id;
-            event.dataTransfer.setData('application/x-media-item-id', id);
+            // Si la photo draguée fait partie d'une sélection multiple, déplacer toute la sélection
+            const ids = (this.selected.includes(id) && this.selected.length > 1)
+                ? this.selected
+                : [id];
+            event.dataTransfer.setData('application/x-media-item-id', ids.join(','));
             event.dataTransfer.setData('application/x-media-source-album', '{{ $album->id }}');
             event.dataTransfer.effectAllowed = 'move';
             event.currentTarget.classList.add('dragging');
@@ -1111,9 +1106,11 @@ document.addEventListener('alpine:init', () => {
             this._draggingId = null;
         },
         async subAlbumDrop(albumId, albumName, event) {
-            const mediaId = event.dataTransfer.getData('application/x-media-item-id');
-            if (!mediaId) return;
-            await this._moveItems([parseInt(mediaId)], albumId, albumName);
+            const mediaData = event.dataTransfer.getData('application/x-media-item-id');
+            if (!mediaData) return;
+            const ids = mediaData.split(',').map(Number).filter(Boolean);
+            if (!ids.length) return;
+            await this._moveItems(ids, albumId, albumName);
         },
         async _moveItems(ids, albumId, albumName) {
             try {
@@ -1458,56 +1455,151 @@ function confirmDuplicates() {
 document.getElementById('ph-lb')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLb(); });
 
 // Import dossier
-let folderFiles = [];
+let folderFiles  = [];
+let folderGroups = {}; // subPath -> File[]
+
 function openImportModal()  { document.getElementById('ph-import-modal').classList.add('open'); }
 function closeImportModal() { document.getElementById('ph-import-modal').classList.remove('open'); resetImport(); }
 function resetImport() {
-    folderFiles = [];
+    folderFiles = []; folderGroups = {};
     document.getElementById('import-body').innerHTML = `
         <div style="text-align:center;padding:24px 0;color:var(--pd-muted);">
             <div style="font-size:30px;margin-bottom:10px;">📂</div>
             <p style="font-size:13px;margin-bottom:14px;">Sélectionnez le dossier de votre appareil photo</p>
             <label class="ph-dz-btn primary" style="cursor:pointer;display:inline-block;">Choisir un dossier
-                <input type="file" id="folder-input" webkitdirectory multiple accept="image/*,video/*,application/pdf" class="hidden" onchange="scanFolder(this.files)">
+                <input type="file" id="folder-input" webkitdirectory multiple class="hidden" onchange="scanFolder(this.files)">
             </label>
         </div>`;
     document.getElementById('import-footer').style.display = 'none';
 }
+
 function scanFolder(files) {
-    const allowed = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/quicktime','application/pdf'];
-    folderFiles = Array.from(files).filter(f => allowed.includes(f.type));
-    const fmt = b => b > 1048576 ? (b/1048576).toFixed(1)+' Mo' : Math.round(b/1024)+' Ko';
+    const allowedMime = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/quicktime','application/pdf'];
+    const allowedExt  = ['jpg','jpeg','png','webp','gif','mp4','mov','pdf'];
+    folderFiles  = Array.from(files).filter(f => {
+        if (f.type && allowedMime.includes(f.type)) return true;
+        const ext = f.name.split('.').pop().toLowerCase();
+        return allowedExt.includes(ext);
+    });
+    folderGroups = {};
+
+    folderFiles.forEach(f => {
+        const parts   = f.webkitRelativePath.split('/');
+        // parts[0] = nom du dossier racine sélectionné, parts[last] = nom du fichier
+        const subPath = parts.slice(1, -1).join('/'); // '' = racine, 'Sous/Dossier' = imbriqué
+        if (!folderGroups[subPath]) folderGroups[subPath] = [];
+        folderGroups[subPath].push(f);
+    });
+
     const body = document.getElementById('import-body');
     if (!folderFiles.length) { body.innerHTML = '<p style="text-align:center;padding:20px;font-size:13px;color:var(--pd-muted);">Aucun fichier supporté.</p>'; return; }
-    body.innerHTML = `
-        <p style="font-size:12px;color:var(--pd-muted);margin-bottom:10px;"><strong style="color:var(--pd-text);">${folderFiles.length} fichier(s)</strong> trouvé(s). Les doublons seront ignorés automatiquement.</p>
-        <div style="max-height:260px;overflow-y:auto;">
-            ${folderFiles.slice(0,50).map(f => `
-                <div class="ph-import-file">
-                    <span class="name">${f.name}</span>
-                    <span class="size">${fmt(f.size)}</span>
-                    <span class="ph-badge new">Nouveau</span>
-                </div>`).join('')}
-            ${folderFiles.length > 50 ? `<p style="font-size:11px;color:var(--pd-muted);padding:6px 0;">… et ${folderFiles.length-50} autres</p>` : ''}
+
+    // Prévisualisation : arborescence des sous-dossiers
+    const sortedPaths = Object.keys(folderGroups).sort();
+    const treeHtml = sortedPaths.map(p => {
+        const depth  = p ? p.split('/').length : 0;
+        const label  = p ? p.split('/').pop() : '(racine)';
+        const count  = folderGroups[p].length;
+        const indent = 'margin-left:' + (depth * 16) + 'px';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;${indent}">
+            <span>${depth === 0 ? '📄' : '📁'}</span>
+            <span style="color:var(--pd-text);font-weight:${depth===0?'400':'600'}">${label}</span>
+            <span style="color:var(--pd-muted);font-size:11px;">— ${count} fichier(s)</span>
         </div>`;
+    }).join('');
+
+    const nbAlbums = sortedPaths.filter(p => p !== '').length;
+    body.innerHTML = `
+        <p style="font-size:12px;color:var(--pd-muted);margin-bottom:10px;">
+            <strong style="color:var(--pd-text);">${folderFiles.length} fichier(s)</strong>
+            ${nbAlbums ? ` · <strong style="color:var(--pd-text);">${nbAlbums} sous-album(s)</strong> seront créés` : ''}
+        </p>
+        <div style="max-height:260px;overflow-y:auto;">${treeHtml}</div>`;
     document.getElementById('import-footer').style.display = 'flex';
     document.getElementById('import-btn').textContent = `Importer ${folderFiles.length} fichier(s)`;
 }
-function launchImport() {
+
+async function launchImport() {
     if (!folderFiles.length) return;
     const btn = document.getElementById('import-btn');
-    btn.disabled = true; let done = 0;
-    const BATCH = 5;
-    function next(i) {
-        if (i >= folderFiles.length) { closeImportModal(); location.reload(); return; }
-        const batch = folderFiles.slice(i, i+BATCH);
-        const fd = new FormData();
-        batch.forEach(f => fd.append('files[]', f));
-        fd.append('_token', PH_CSRF);
-        fetch('{{ route('media.items.store', $album) }}', { method:'POST', body:fd })
-            .finally(() => { done += batch.length; btn.textContent = `Import… ${done}/${folderFiles.length}`; next(i+BATCH); });
+    btn.disabled = true;
+
+    const ALBUM_STORE_URL  = '{{ route('media.albums.store') }}';
+    const CURRENT_UPLOAD   = '{{ route('media.items.store', $album) }}';
+    const UPLOAD_BASE      = CURRENT_UPLOAD.replace(/\/\d+\/upload$/, '');
+    const VISIBILITY       = '{{ $album->visibility }}';
+    const ROOT_ALBUM_ID    = {{ $album->id }};
+    const BATCH            = 5;
+
+    // Résolution album : subPath -> id ('' = album courant)
+    const albumCache = { '': ROOT_ALBUM_ID };
+
+    // Collecter TOUS les chemins intermédiaires (même sans fichiers directs)
+    const allPaths = new Set();
+    Object.keys(folderGroups).filter(p => p !== '').forEach(p => {
+        const parts = p.split('/');
+        parts.forEach((_, i) => allPaths.add(parts.slice(0, i + 1).join('/')));
+    });
+    const subPaths = Array.from(allPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+
+    console.log('[Import] UPLOAD_BASE =', UPLOAD_BASE);
+    console.log('[Import] folderGroups =', Object.fromEntries(Object.entries(folderGroups).map(([k,v]) => [k, v.length + ' fichiers'])));
+    console.log('[Import] subPaths à créer =', subPaths);
+
+    // ── 1. Créer les sous-albums ──────────────────────────────────────────
+    for (const path of subPaths) {
+        const parts      = path.split('/');
+        const parentPath = parts.slice(0, -1).join('/');
+        const name       = parts[parts.length - 1];
+        const parentId   = albumCache[parentPath] ?? ROOT_ALBUM_ID;
+
+        try {
+            const resp = await fetch(ALBUM_STORE_URL, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF, 'Accept': 'application/json' },
+                body:    JSON.stringify({ name, parent_id: parentId, visibility: VISIBILITY }),
+            });
+            const text = await resp.text();
+            let data;
+            try { data = JSON.parse(text); } catch { data = {}; }
+            if (data.id) albumCache[path] = data.id;
+            else btn.textContent = `Erreur album "${name}": ${text.slice(0,80)}`;
+        } catch(e) {
+            btn.textContent = `Erreur réseau album "${name}"`;
+        }
     }
-    next(0);
+
+    // ── 2. Uploader les fichiers ──────────────────────────────────────────
+    let done = 0;
+    const total = folderFiles.length;
+
+    for (const [path, files] of Object.entries(folderGroups)) {
+        const albumId   = albumCache[path] ?? ROOT_ALBUM_ID;
+        const uploadUrl = `${UPLOAD_BASE}/${albumId}/upload`;
+
+        for (let i = 0; i < files.length; i += BATCH) {
+            const batch = files.slice(i, i + BATCH);
+            const fd    = new FormData();
+            batch.forEach(f => fd.append('files[]', f));
+            fd.append('_token', PH_CSRF);
+            try {
+                const r = await fetch(uploadUrl, { method: 'POST', body: fd });
+                if (!r.ok) {
+                    const errText = await r.text();
+                    btn.textContent = `Upload échoué (${r.status}): ${errText.slice(0,80)}`;
+                    return; // stopper pour voir l'erreur
+                }
+            } catch(e) {
+                btn.textContent = `Erreur réseau upload: ${e.message}`;
+                return;
+            }
+            done += batch.length;
+            btn.textContent = `Import… ${done}/${total}`;
+        }
+    }
+
+    btn.textContent = `✓ ${done} fichier(s) importé(s)`;
+    setTimeout(() => { closeImportModal(); location.reload(); }, 2000);
 }
 
 // Sync NAS
@@ -1517,10 +1609,15 @@ function syncNas() {
     btn.disabled = true;
     btn.style.color = 'var(--pd-accent)';
     btn.querySelector('svg').style.animation = 'spin 1s linear infinite';
+
     fetch('{{ route('media.sync') }}', { method:'POST', headers:{ 'X-CSRF-TOKEN': PH_CSRF, 'Accept':'application/json' } })
         .then(r => r.json())
         .then(d => {
+            // Arrêter l'animation immédiatement — la sync tourne en arrière-plan
+            btn.querySelector('svg').style.animation = '';
             btn.style.color = d.ok ? '#22c55e' : '#f59e0b';
+
+            // Toast informatif
             if (d.message) {
                 const toast = document.createElement('div');
                 toast.textContent = (d.ok ? '✓ ' : '⚠ ') + d.message;
@@ -1528,18 +1625,32 @@ function syncNas() {
                 toast.style.background = d.ok ? '#22c55e' : '#f59e0b';
                 toast.style.color = '#fff';
                 document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 4000);
+                setTimeout(() => toast.remove(), 5000);
             }
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.style.color = '';
-                btn.querySelector('svg').style.animation = '';
-                if (d.ok && d.stats && (d.stats.files_added > 0 || d.stats.files_removed > 0 || d.stats.albums_created > 0 || d.stats.albums_removed > 0)) {
+
+            if (d.ok && d.queued) {
+                // Sync asynchrone : recharger la page après 15 s pour afficher les nouveaux albums
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.color = '';
                     location.reload();
-                }
-            }, 1500);
+                }, 15000);
+            } else {
+                // Réponse synchrone (ancien comportement ou erreur)
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.color = '';
+                    if (d.ok && d.stats && (d.stats.files_added > 0 || d.stats.files_removed > 0 || d.stats.albums_created > 0 || d.stats.albums_removed > 0)) {
+                        location.reload();
+                    }
+                }, 1500);
+            }
         })
-        .catch(() => { btn.disabled = false; btn.style.color = ''; btn.querySelector('svg').style.animation = ''; });
+        .catch(() => {
+            btn.disabled = false;
+            btn.style.color = '';
+            btn.querySelector('svg').style.animation = '';
+        });
 }
 
 // Clavier
@@ -1603,7 +1714,7 @@ function scanZip(input) {
         <form method="POST" action="{{ route('media.items.import-zip', $album) }}" enctype="multipart/form-data">
             @csrf
             <div style="margin-bottom:1.25rem;">
-                <label style="display:block;font-size:0.78rem;font-weight:600;color:var(--pd-text);margin-bottom:0.4rem;">Fichier ZIP <span style="color:var(--pd-muted);font-weight:400;">(500 Mo max)</span></label>
+                <label style="display:block;font-size:0.78rem;font-weight:600;color:var(--pd-text);margin-bottom:0.4rem;">Fichier ZIP <span style="color:var(--pd-muted);font-weight:400;">(2 Go max)</span></label>
                 <input id="zip-input" type="file" name="zip_file" accept=".zip,application/zip" required
                     onchange="scanZip(this)"
                     style="width:100%;padding:0.6rem;border:1px solid var(--pd-border);border-radius:4px;font-size:0.85rem;color:var(--pd-text);background:var(--pd-bg);cursor:pointer;">

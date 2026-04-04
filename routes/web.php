@@ -108,6 +108,7 @@ Route::middleware('tenant')->group(function () {
         Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
         Route::patch('/profile/info', [App\Http\Controllers\ProfileController::class, 'updateInfo'])->name('profile.update-info');
         Route::patch('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');
+        Route::patch('/profile/preferences', [App\Http\Controllers\ProfileController::class, 'updatePreferences'])->name('profile.update-preferences');
 
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -155,12 +156,21 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'nas'])->name('settings.nas');
             Route::put('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'updateNas'])->name('settings.nas.update');
             Route::post('settings/nas/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncNas'])->name('settings.nas.sync');
+            Route::get('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'ged'])->name('settings.ged');
+            Route::put('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'updateGed'])->name('settings.ged.update');
+            Route::get('settings/ged/test', [\App\Http\Controllers\Admin\SettingsController::class, 'testGed'])->name('settings.ged.test');
+            Route::post('settings/ged/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncGed'])->name('settings.ged.sync');
             Route::get('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'visio'])->name('settings.visio');
             Route::put('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'updateVisio'])->name('settings.visio.update');
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
 
-            // Journal d'audit
+            // Purge GED
+            Route::get('purge', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'index'])->name('purge.index');
+            Route::put('purge/config', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'updateConfig'])->name('purge.config.update');
+            Route::post('purge/preview', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'preview'])->name('purge.preview');
+            Route::post('purge/run', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'run'])->name('purge.run');
+
             // Journal d'audit
             Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
             Route::get('audit/stats', [App\Http\Controllers\Admin\AuditController::class, 'stats'])->name('audit.stats');
@@ -174,6 +184,20 @@ Route::middleware('tenant')->group(function () {
 
         // ── Photothèque — module activable par organisation ──
         Route::prefix('media')->name('media.')->middleware('module:media')->group(function () {
+
+            // Doublons (admin / président / dgs uniquement — contrôleur vérifie le rôle)
+            Route::get('duplicates', [\App\Http\Controllers\Media\MediaDuplicateController::class, 'index'])->name('duplicates.index');
+            Route::post('duplicates/destroy', [\App\Http\Controllers\Media\MediaDuplicateController::class, 'destroySelected'])->name('duplicates.destroy');
+
+            // Intégrité NAS ↔ BDD (admin / président / dgs uniquement — contrôleur vérifie le rôle)
+            Route::get('integrity', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'index'])->name('integrity.index');
+            Route::post('integrity/scan', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'scan'])->name('integrity.scan');
+            Route::post('integrity/purge', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbOrphans'])->name('integrity.purge');
+            Route::post('integrity/purge-soft', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbSoftDeleted'])->name('integrity.purge-soft');
+            Route::post('integrity/purge-soft-albums', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbSoftAlbums'])->name('integrity.purge-soft-albums');
+            Route::post('integrity/purge-albums', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeOrphanAlbums'])->name('integrity.purge-albums');
+            Route::post('integrity/purge-share-links', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeOrphanShareLinks'])->name('integrity.purge-share-links');
+            Route::post('integrity/purge-db-duplicates', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbDuplicates'])->name('integrity.purge-db-duplicates');
 
             // Albums
             Route::get('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'index'])->name('albums.index');
@@ -203,7 +227,7 @@ Route::middleware('tenant')->group(function () {
 
             // Tags
             Route::post('items/{item}/tags', [\App\Http\Controllers\Media\MediaItemTagController::class, 'store'])->name('items.tags.store');
-            Route::delete('items/{item}/tags/{tag}', [\App\Http\Controllers\Media\MediaItemTagController::class, 'destroy'])->name('tags.destroy');
+            Route::delete('items/{item}/tags/{tag}', [\App\Http\Controllers\Media\MediaItemTagController::class, 'destroy'])->name('items.tags.destroy');
             Route::get('tags/suggest', [\App\Http\Controllers\Media\MediaItemTagController::class, 'suggest'])->name('tags.suggest');
 
             // Partages individuels par média
@@ -241,8 +265,11 @@ Route::middleware('tenant')->group(function () {
 
         // ── Zone DGS et plus ──────────────────────────────
         Route::middleware('role:dgs')->group(function () {
-            // Rapports, exports… (phases futures)
-
+            // Gouvernance GED (transfert propriété, orphelins)
+            Route::middleware('module:ged')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('ged', [\App\Http\Controllers\Admin\AdminGedController::class, 'index'])->name('ged.index');
+                Route::post('ged/transfer-ownership', [\App\Http\Controllers\Admin\AdminGedController::class, 'transferOwnership'])->name('ged.transfer-ownership');
+            });
         });
 
         require base_path('routes/projects.php');

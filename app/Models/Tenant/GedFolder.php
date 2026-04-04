@@ -25,6 +25,7 @@ class GedFolder extends Model
         'name',
         'slug',
         'path',
+        'nas_path',
         'parent_id',
         'is_private',
         'created_by',
@@ -65,6 +66,18 @@ class GedFolder extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(GedDocument::class, 'folder_id');
+    }
+
+    /** @return HasMany<GedFolderPermission, $this> */
+    public function permissions(): HasMany
+    {
+        return $this->hasMany(GedFolderPermission::class, 'folder_id');
+    }
+
+    /** @return HasMany<GedFolderUserPermission, $this> */
+    public function userPermissions(): HasMany
+    {
+        return $this->hasMany(GedFolderUserPermission::class, 'folder_id');
     }
 
     // ── Scopes ───────────────────────────────────────────────

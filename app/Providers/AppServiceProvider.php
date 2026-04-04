@@ -20,6 +20,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(TenantManager::class);
+
+        $this->app->bind(
+            \App\Services\Ged\GedStorageInterface::class,
+            \App\Services\Ged\GedStorageManager::class,
+        );
     }
 
     public function boot(): void
@@ -29,6 +34,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MediaItem::class, MediaItemPolicy::class);
         Gate::policy(\App\Models\Tenant\Project::class, \App\Policies\ProjectPolicy::class);
         Gate::policy(\App\Models\Tenant\Task::class, \App\Policies\TaskPolicy::class);
+        Gate::policy(\App\Models\Tenant\GedFolder::class, \App\Policies\GedFolderPolicy::class);
+        Gate::policy(\App\Models\Tenant\GedDocument::class, \App\Policies\GedFolderPolicy::class);
 
         $this->configureRateLimiters();
 

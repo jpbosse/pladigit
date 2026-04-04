@@ -4,8 +4,6 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Tenant\Department;
 use App\Models\Tenant\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -14,8 +12,6 @@ use Tests\TestCase;
  */
 class UserTest extends TestCase
 {
-    use RefreshDatabase;
-
     private User $admin;
 
     protected function setUp(): void
@@ -26,14 +22,6 @@ class UserTest extends TestCase
             'role' => 'admin',
             'status' => 'active',
         ]);
-    }
-
-    protected function tearDown(): void
-    {
-        DB::connection('tenant')->table('user_department')->delete();
-        DB::connection('tenant')->statement('DELETE FROM departments');
-        DB::connection('tenant')->statement('DELETE FROM users');
-        parent::tearDown();
     }
 
     private function assertTenantHas(string $table, array $data): void

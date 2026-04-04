@@ -4,13 +4,10 @@ namespace Tests\Unit;
 
 use App\Models\Platform\Organization;
 use App\Services\TenantManager;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class TenantManagerTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_db_name_from_slug(): void
     {
         $this->assertEquals(

@@ -283,6 +283,35 @@ class SmbNasDriver implements NasConnectorInterface
         return (bool) @smbclient_rename($smb, $srcPath, $dstPath, $this->workgroup);
     }
 
+    public function deleteDirectory(string $path): bool
+    {
+        $smb = $this->getState();
+        $fullPath = $this->resolve($path);
+
+        if (@smbclient_stat($smb, $fullPath) === false) {
+            return true; // Déjà absent — pas d'erreur
+        }
+
+        $list = @smbclient_ls($smb, $fullPath);
+        if ($list !== false) {
+            foreach ($list as $name => $_) {
+                if (in_array($name, ['.', '..'], strict: true)) {
+                    continue;
+                }
+                $child = rtrim($path, '/').'/'.$name;
+                $childFull = $this->resolve($child);
+                $stat = @smbclient_stat($smb, $childFull);
+                if ($stat !== false && ($stat['attr'] & 0x10)) {
+                    $this->deleteDirectory($child);
+                } else {
+                    @smbclient_unlink($smb, $childFull);
+                }
+            }
+        }
+
+        return (bool) @smbclient_rmdir($smb, $fullPath);
+    }
+
     public function listDirectories(string $directory): array
     {
         $fullPath = $this->resolve($directory);

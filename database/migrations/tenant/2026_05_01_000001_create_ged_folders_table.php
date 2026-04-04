@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('name', 255);
             $table->string('slug', 255);
             $table->string('path', 1000);
+            $table->string('nas_path', 500)->nullable();
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->boolean('is_private')->default(false);
             $table->foreignId('created_by')->constrained('users');
