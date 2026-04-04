@@ -95,9 +95,12 @@ class MediaAlbumController extends Controller
                 $nas->mkdir($nasPath);
             }
         } catch (\Throwable $e) {
-            return back()
-                ->withErrors(['name' => "Impossible de créer le dossier NAS « {$nasPath} » : ".$e->getMessage()])
-                ->withInput();
+            $msg = "Impossible de créer le dossier NAS « {$nasPath} » : ".$e->getMessage();
+            if ($request->wantsJson()) {
+                return response()->json(['error' => $msg], 422);
+            }
+
+            return back()->withErrors(['name' => $msg])->withInput();
         }
 
         $album = MediaAlbum::create([
@@ -114,6 +117,10 @@ class MediaAlbumController extends Controller
             'model_id' => $album->id,
             'new' => ['name' => $album->name, 'visibility' => $album->visibility, 'nas_path' => $album->nas_path],
         ]);
+
+        if ($request->wantsJson()) {
+            return response()->json(['id' => $album->id, 'name' => $album->name, 'nas_path' => $album->nas_path]);
+        }
 
         return redirect()
             ->route('media.albums.show', $album)
@@ -547,10 +554,22 @@ class MediaAlbumController extends Controller
         }
 
         try {
+            $nas = app(NasManager::class)->photoDriver();
+
             if ($oldNasPath && $newNasPath !== $oldNasPath) {
-                $nas = app(NasManager::class)->photoDriver();
                 if ($nas->exists($oldNasPath)) {
+                    // Cas nominal : renommage / déplacement du dossier existant
                     $nas->moveDir($oldNasPath, $newNasPath);
+                } elseif (! $nas->exists($newNasPath)) {
+                    // Dossier source absent (supprimé manuellement, etc.) :
+                    // créer directement au nouvel emplacement pour rester cohérent
+                    $nas->mkdir($newNasPath);
+                }
+            } elseif (! $oldNasPath && $newNasPath) {
+                // Album sans dossier NAS (donnée ancienne ou import) :
+                // créer le dossier au chemin calculé
+                if (! $nas->exists($newNasPath)) {
+                    $nas->mkdir($newNasPath);
                 }
             }
 
@@ -604,17 +623,19 @@ class MediaAlbumController extends Controller
         $this->audit->log('media.album.deleted', $user, [
             'model_type' => MediaAlbum::class,
             'model_id' => $album->id,
-            'old' => ['name' => $album->name],
+            'old' => ['name' => $album->name, 'nas_path' => $album->nas_path],
         ]);
 
-        // Suppression physique de tous les fichiers NAS de l'album (et sous-albums)
+        // Suppression physique de tous les fichiers NAS + du dossier NAS lui-même
+        // (y compris pour les albums vides — évite la réapparition à la prochaine sync)
         $mediaService->deleteAlbumFiles($album);
 
+        // Soft-delete de l'album et de ses sous-albums en cascade
         $album->delete();
 
         return redirect()
             ->route('media.albums.index')
-            ->with('success', "Album « {$album->name} » supprimé.");
+            ->with('success', "Album « {$album->name} » et son dossier NAS supprimés.");
     }
 
     /**

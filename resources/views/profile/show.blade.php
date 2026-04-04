@@ -299,7 +299,68 @@
         @endif
     </div>
 
-    {{-- Section 4 : Informations de connexion --}}
+    {{-- Section 4 : Préférences --}}
+    <div class="bg-white rounded-xl shadow p-6">
+        <h2 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b">
+            Préférences
+        </h2>
+
+        @if(session('success_prefs'))
+        <div style="background:#F0FDF4;border:0.5px solid #86EFAC;color:#065F46;border-radius:8px;padding:8px 14px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;gap:8px;">
+            <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;flex-shrink:0;" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            {{ session('success_prefs') }}
+        </div>
+        @endif
+
+        <form method="POST" action="{{ route('profile.update-preferences') }}">
+            @csrf @method('PATCH')
+
+            <div class="mb-4">
+                <p class="text-xs text-gray-500 uppercase font-medium mb-3">Vue par défaut — Gestion de projet</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    @foreach([
+                        'liste'    => ['label' => 'Liste',   'icon' => '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>'],
+                        'kanban'   => ['label' => 'Kanban',  'icon' => '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="8" rx="1"/></svg>'],
+                        'gantt'    => ['label' => 'Gantt',   'icon' => '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/><rect x="3" y="4" width="8" height="4" rx="1" style="fill:currentColor;stroke:none;opacity:.3"/><rect x="8" y="10" width="10" height="4" rx="1" style="fill:currentColor;stroke:none;opacity:.3"/></svg>'],
+                        'agenda'   => ['label' => 'Agenda',  'icon' => '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'],
+                        'workload' => ['label' => 'Charge',  'icon' => '<svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'],
+                    ] as $value => $opt)
+                    @php $isSelected = ($user->preferred_project_view ?? 'liste') === $value; @endphp
+                    <label style="cursor:pointer;">
+                        <input type="radio" name="preferred_project_view" value="{{ $value }}"
+                               {{ $isSelected ? 'checked' : '' }} style="display:none;">
+                        <span style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;
+                                     font-size:12px;font-weight:{{ $isSelected ? '600' : '500' }};
+                                     border:1.5px solid {{ $isSelected ? 'var(--pd-navy)' : '#E5E7EB' }};
+                                     background:{{ $isSelected ? 'rgba(30,58,95,0.07)' : '#fff' }};
+                                     color:{{ $isSelected ? 'var(--pd-navy)' : '#6B7280' }};
+                                     transition:all .15s;"
+                              onclick="document.querySelectorAll('[name=preferred_project_view]').forEach(r=>{
+                                  const lbl=r.nextElementSibling;
+                                  const sel=r.value==='{{ $value }}';
+                                  lbl.style.borderColor=sel?'var(--pd-navy)':'#E5E7EB';
+                                  lbl.style.background=sel?'rgba(30,58,95,0.07)':'#fff';
+                                  lbl.style.color=sel?'var(--pd-navy)':'#6B7280';
+                                  lbl.style.fontWeight=sel?'600':'500';
+                              })">
+                            {!! $opt['icon'] !!}
+                            {{ $opt['label'] }}
+                        </span>
+                    </label>
+                    @endforeach
+                </div>
+            </div>
+
+            <button type="submit"
+                    style="padding:7px 18px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;
+                           background:linear-gradient(135deg,var(--pd-navy-dark),var(--pd-navy-light));color:#fff;transition:opacity .15s;"
+                    onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                Enregistrer les préférences
+            </button>
+        </form>
+    </div>
+
+    {{-- Section 5 : Informations de connexion --}}
     <div class="bg-white rounded-xl shadow p-6">
         <h2 class="text-base font-semibold text-gray-800 mb-4 pb-2 border-b">
             Informations de connexion

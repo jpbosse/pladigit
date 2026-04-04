@@ -132,7 +132,7 @@ class MediaItemController extends Controller
         $this->authorize('upload', $album);
 
         $request->validate([
-            'zip_file' => ['required', 'file', 'mimes:zip', 'max:512000'], // 500 Mo max
+            'zip_file' => ['required', 'file', 'mimes:zip', 'max:2097152'], // 2 Go max
         ]);
 
         /** @var User $user */
@@ -562,6 +562,8 @@ class MediaItemController extends Controller
 
         $nas = $this->nasManager->photoDriver();
 
+        $errors = [];
+
         foreach ($items as $item) {
             $newFilePath = $sourcePrefix !== '' && str_starts_with($item->file_path, $sourcePrefix.'/')
                 ? $targetPrefix.'/'.substr($item->file_path, strlen($sourcePrefix) + 1)
@@ -571,25 +573,74 @@ class MediaItemController extends Controller
                 ? $targetPrefix.'/'.substr($item->thumb_path, strlen($sourcePrefix) + 1)
                 : $item->thumb_path;
 
-            if ($newFilePath !== $item->file_path && $nas->exists($item->file_path)) {
-                $nas->moveFile($item->file_path, $newFilePath);
+            // Vérifier AVANT le déplacement NAS si un doublon existe déjà dans l'album cible
+            // pour éviter une incohérence (fichier déplacé mais DB non mise à jour).
+            if (MediaItem::where('album_id', $target->id)->where('file_path', $newFilePath)->exists()) {
+                \Illuminate\Support\Facades\Log::warning('moveItems — doublon ignoré', [
+                    'item_id' => $item->id,
+                    'file_path' => $newFilePath,
+                    'target_album_id' => $target->id,
+                ]);
+                $errors[] = $item->file_name.' : déjà présent dans l\'album cible (doublon)';
+
+                continue;
             }
 
-            if ($item->thumb_path && $newThumbPath !== $item->thumb_path && $nas->exists($item->thumb_path)) {
-                $nas->moveFile($item->thumb_path, $newThumbPath);
+            // Mettre à jour le chemin DB seulement si le fichier a effectivement été déplacé.
+            // Si le fichier source est absent sur le NAS, conserver l'ancien chemin DB
+            // pour ne pas pointer vers un emplacement inexistant.
+            $fileToSave = $item->file_path;
+            if ($newFilePath !== $item->file_path) {
+                if ($nas->exists($item->file_path)) {
+                    try {
+                        $nas->moveFile($item->file_path, $newFilePath);
+                        $fileToSave = $newFilePath;
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::error('moveItems — échec déplacement fichier', [
+                            'item_id' => $item->id,
+                            'from' => $item->file_path,
+                            'to' => $newFilePath,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $errors[] = $item->file_name.': '.$e->getMessage();
+
+                        continue; // passer à l'item suivant sans mettre à jour la DB
+                    }
+                }
+            }
+
+            $thumbToSave = $item->thumb_path;
+            if ($item->thumb_path && $newThumbPath !== $item->thumb_path) {
+                if ($nas->exists($item->thumb_path)) {
+                    try {
+                        $nas->moveFile($item->thumb_path, $newThumbPath);
+                        $thumbToSave = $newThumbPath;
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('moveItems — échec déplacement thumb', [
+                            'item_id' => $item->id,
+                            'from' => $item->thumb_path,
+                            'to' => $newThumbPath,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Le fichier principal a été déplacé ; continuer sans le thumb
+                    }
+                }
             }
 
             $item->update([
                 'album_id' => $target->id,
-                'file_path' => $newFilePath,
-                'thumb_path' => $newThumbPath,
+                'file_path' => $fileToSave,
+                'thumb_path' => $thumbToSave,
             ]);
         }
 
+        $moved = $items->count() - count($errors);
+
         return response()->json([
-            'moved' => $items->count(),
+            'moved' => $moved,
             'target_name' => $target->name,
             'target_url' => route('media.albums.show', $target),
+            'errors' => $errors,
         ]);
     }
 

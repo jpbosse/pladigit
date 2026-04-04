@@ -309,6 +309,7 @@
 </main>
 
 {{-- ══════════ FOOTER ══════════ --}}
+<!--
 <footer class="pd-footer" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 24px;">
 
     {{-- Bloc gauche — infos système --}}
@@ -350,6 +351,36 @@
     </div>
 
 </footer>
+-->
+
+<footer class="pd-footer">
+    <div class="pd-footer-container">
+        <div class="pd-footer-brand">
+            <div class="pd-footer-logo-mini">P</div>
+            <div class="pd-footer-info">
+                <b>{{ config('app.name') }}</b>
+                <span>© {{ date('Y') }} — Les Bézots · Soullans</span>
+            </div>
+        </div>
+
+        <div class="pd-footer-status-pill">
+            <div class="pd-status-dot" id="health-dot"></div>
+            <span id="health-label">Connexion...</span>
+            @if($tenant)
+                <span class="pd-footer-sep">|</span>
+                <span class="pd-tenant-name">{{ $tenant->name }}</span>
+            @endif
+        </div>
+
+        <div class="pd-footer-links">
+            <a href="{{ route('legal.mentions') }}">Mentions légales</a>
+            <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
+            <a href="#">Support</a>
+            <span class="pd-v-tag">v1.5</span>
+        </div>
+    </div>
+</footer>
+
 
 {{-- ══════════ DRAWER NOTIFICATIONS ══════════ --}}
 @auth

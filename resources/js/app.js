@@ -1,5 +1,7 @@
 import Alpine from 'alpinejs';
+import Collapse from '@alpinejs/collapse';
 window.Alpine = Alpine;
+Alpine.plugin(Collapse);
 
 Alpine.data('albumPage', (uploadUrl, csrfToken, defaultCols = 3, saveColsUrl = '') => {
     return {

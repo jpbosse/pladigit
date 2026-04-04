@@ -7,7 +7,7 @@ $hoursOver      = $totalEstimated > 0 && $totalActual > $totalEstimated;
 @endphp
 
 <div x-data="{
-    tab:     '{{ request('view','liste') }}',
+    tab:     '{{ request('view', auth()->user()->preferred_project_view ?? 'liste') }}',
     sortBy:  'default',
     sortDir: 'asc',
     switchTab(t) { this.tab = t; window.dispatchEvent(new CustomEvent('close-event-slideover')); },

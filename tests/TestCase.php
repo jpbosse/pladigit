@@ -36,38 +36,69 @@ abstract class TestCase extends BaseTestCase
             self::$dbConfigured = true;
         } else {
             // Les commandes artisan exécutées dans les tests peuvent appeler
-            // TenantManager::connectTo() et laisser la connexion 'tenant' pointée
-            // sur une autre base (drift des auto-incréments au TRUNCATE).
-            // On réinitialise uniquement la connexion tenant avant chaque nettoyage.
+            // TenantManager::connectTo() et laisser les connexions dans un état
+            // incorrect. On purge les deux pour repartir sur une connexion fraîche
+            // et éviter l'accumulation de transactions mysql non rollback-ées.
             $dbTenant = env('DB_TENANT_DATABASE', 'pladigit_testing_tenant');
             config(['database.connections.tenant.database' => $dbTenant]);
             DB::purge('tenant');
+            DB::purge('mysql');
         }
 
         $this->runMigrationsIfNeeded();
-        $this->cleanDatabase();
 
-        // Persister l'org en base pour que la commande puisse la trouver.
-        // DB::table()->updateOrInsert() contourne la restriction $fillable sur `id`
-        // et garantit id=1 même si AUTO_INCREMENT a dérivé entre les tests.
-        DB::connection('mysql')->table('organizations')->updateOrInsert(
-            ['id' => 1],
-            [
-                'name' => 'Test Org',
-                'slug' => 'test',
-                'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
-                'status' => 'active',
-                'plan' => 'communautaire',
-                'max_users' => 200,
-                'primary_color' => '#1E3A5F',
-                'enabled_modules' => json_encode(['media', 'projects', 'ged']),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]
-        );
+        // ── Sécurité : ne jamais tourner sur prod ────────────────────────
+        $this->assertTestingDatabases();
+
+        // ── Nettoyage par transaction (rollback dans tearDown) ───────────
+        // Transaction mysql ouverte avant l'insert org.
+        DB::connection('mysql')->beginTransaction();
+
+        // DELETE + INSERT plutôt que updateOrInsert pour éviter la race condition
+        // entre SELECT et INSERT lorsque la ligne vient d'être rollbackée.
+        DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS=0');
+        DB::connection('mysql')->table('organizations')->where('id', 1)->delete();
+        DB::connection('mysql')->table('organizations')->insert([
+            'id' => 1,
+            'name' => 'Test Org',
+            'slug' => 'test',
+            'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
+            'status' => 'active',
+            'plan' => 'communautaire',
+            'max_users' => 200,
+            'primary_color' => '#1E3A5F',
+            'enabled_modules' => json_encode(['media', 'projects', 'ged']),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS=1');
+
         $org = Organization::on('mysql')->find(1);
+
+        // connectTo() purge + reconnecte la connexion tenant → on démarre la
+        // transaction tenant APRÈS pour être sur la bonne connexion.
         app(TenantManager::class)->connectTo($org);
+
+        DB::connection('tenant')->beginTransaction();
     }
+
+    protected function tearDown(): void
+    {
+        // Rollback dans l'ordre inverse : tenant d'abord, puis platform.
+        foreach (['tenant', 'mysql'] as $conn) {
+            try {
+                if (DB::connection($conn)->transactionLevel() > 0) {
+                    DB::connection($conn)->rollBack();
+                }
+            } catch (\Throwable) {
+                // Connexion perdue (ex: artisan command a appelé connectTo()) — on ignore.
+            }
+        }
+
+        parent::tearDown();
+    }
+
+    // ── Helpers privés ────────────────────────────────────────────────────
 
     private function configureDatabases(): void
     {
@@ -104,6 +135,9 @@ abstract class TestCase extends BaseTestCase
     private function runMigrationsIfNeeded(): void
     {
         if (! self::$platformMigrated) {
+            // Premier test de la session : wipe propre avant migrate:fresh pour
+            // éviter l'erreur 1051 si la DB est en état partiel (run précédent avorté).
+            $this->artisan('db:wipe', ['--database' => 'mysql', '--force' => true]);
             $this->artisan('migrate:fresh', [
                 '--database' => 'mysql',
                 '--path' => 'database/migrations/platform',
@@ -111,10 +145,10 @@ abstract class TestCase extends BaseTestCase
             ]);
             self::$platformMigrated = true;
         } else {
-            // Recréer la table si elle a disparu (purge entre tests)
             try {
                 DB::connection('mysql')->table('organizations')->count();
             } catch (\Throwable) {
+                $this->artisan('db:wipe', ['--database' => 'mysql', '--force' => true]);
                 $this->artisan('migrate:fresh', [
                     '--database' => 'mysql',
                     '--path' => 'database/migrations/platform',
@@ -124,76 +158,29 @@ abstract class TestCase extends BaseTestCase
         }
 
         if (! self::$tenantMigrated) {
-            $schema = DB::connection('tenant')->getSchemaBuilder();
-            $gedOk = $schema->hasTable('ged_folders')
-                && $schema->hasColumn('ged_folders', 'slug')
-                && $schema->hasColumn('ged_folders', 'path')
-                && $schema->hasColumn('ged_folders', 'is_private')
-                && $schema->hasColumn('ged_folders', 'nas_path')
-                && $schema->hasTable('ged_documents')
-                && $schema->hasTable('ged_document_versions')
-                && $schema->hasTable('ged_folder_permissions')
-                && $schema->hasTable('ged_folder_user_permissions')
-                && $schema->hasColumn('tenant_settings', 'ged_deleted_retention_days')
-                && $schema->hasTable('project_ged_links')
-                && $schema->hasColumn('projects', 'ged_folder_id');
-
-            if (! $gedOk) {
-                $this->artisan('migrate:fresh', [
-                    '--database' => 'tenant',
-                    '--path' => 'database/migrations/tenant',
-                    '--force' => true,
-                ]);
-            }
+            // Toujours wipe + migrate:fresh en début de session pour garantir
+            // un état propre, même si le schéma est à jour (données résiduelles
+            // d'une session précédente interrompue).
+            $this->artisan('db:wipe', ['--database' => 'tenant', '--force' => true]);
+            $this->artisan('migrate:fresh', [
+                '--database' => 'tenant',
+                '--path' => 'database/migrations/tenant',
+                '--force' => true,
+            ]);
             self::$tenantMigrated = true;
         }
-
     }
 
-    private function cleanDatabase(): void
+    private function assertTestingDatabases(): void
     {
         $platformDb = DB::connection('mysql')->getDatabaseName();
         if (! str_contains($platformDb, 'testing')) {
-            throw new \RuntimeException("DANGER cleanDatabase() sur base prod : {$platformDb}");
+            throw new \RuntimeException("DANGER : opération sur base prod interdite : {$platformDb}");
         }
+
         $tenantDb = DB::connection('tenant')->getDatabaseName();
         if (! str_contains($tenantDb, 'testing')) {
-            throw new \RuntimeException("DANGER cleanDatabase() sur base prod : {$tenantDb}");
-        }
-
-        try {
-            DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS=0');
-            DB::connection('mysql')->table('organizations')->delete();
-            DB::connection('mysql')->statement('SET FOREIGN_KEY_CHECKS=1');
-        } catch (\Throwable) {
-        }
-
-        try {
-            $db = DB::connection('tenant');
-            $db->statement('SET FOREIGN_KEY_CHECKS=0');
-            foreach ([
-                'users', 'departments', 'user_department',
-                'invitations',
-                'media_item_tag', 'media_tags',
-                'media_albums', 'media_items', 'album_permissions',
-                'album_user_permissions', 'media_share_links', 'shares',
-                'tenant_settings',
-                'audit_logs', 'sessions', 'notifications', 'email_logs',
-                'task_dependencies', 'task_comments', 'tasks',
-                'project_milestones', 'project_members', 'projects',
-                'event_participants', 'events',
-                'ged_document_versions', 'ged_documents',
-                'ged_folder_user_permissions', 'ged_folder_permissions', 'ged_folders',
-                'project_ged_links',
-            ] as $t) {
-                try {
-                    $db->statement("TRUNCATE TABLE `{$t}`");
-                } catch (\Throwable) {
-                    // Table may not exist yet (migration not run) — skip
-                }
-            }
-            $db->statement('SET FOREIGN_KEY_CHECKS=1');
-        } catch (\Throwable) {
+            throw new \RuntimeException("DANGER : opération sur base prod interdite : {$tenantDb}");
         }
     }
 }

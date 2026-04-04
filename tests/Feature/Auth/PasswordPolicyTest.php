@@ -26,7 +26,8 @@ class PasswordPolicyTest extends TestCase
 
         // Vider la ligne insérée par la migration avant chaque test
         // (TenantSettings::sole() échoue s'il trouve plus d'une ligne)
-        TenantSettings::truncate();
+        // Note : TRUNCATE cause un implicit commit en MySQL → on utilise delete()
+        TenantSettings::query()->delete();
     }
 
     public function test_mot_de_passe_trop_court_est_refuse(): void

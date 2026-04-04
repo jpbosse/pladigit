@@ -132,10 +132,8 @@ class MediaService
                 ]);
             });
 
-            // Si import forcé d'un doublon, s'assurer que l'original est aussi marqué
-            if ($isDuplicate && $existing !== null && ! $existing->is_duplicate) {
-                $existing->update(['is_duplicate' => true]);
-            }
+            // L'original ($existing) garde is_duplicate = false.
+            // Seule la nouvelle copie est marquée is_duplicate = true.
 
         } catch (\Throwable $e) {
             // Compensation : supprimer les fichiers NAS pour éviter les orphelins
@@ -181,14 +179,15 @@ class MediaService
 
     // =========================================================================
     /**
-     * Supprime physiquement sur le NAS tous les fichiers d'un album et de ses sous-albums.
+     * Supprime physiquement sur le NAS tous les fichiers d'un album et de ses sous-albums,
+     * puis supprime les dossiers NAS eux-mêmes (du plus profond au plus haut).
      * Appelé avant le soft-delete de l'album en base.
      */
     public function deleteAlbumFiles(MediaAlbum $album): void
     {
         $nas = $this->nasManager->photoDriver();
 
-        // Traiter récursivement les sous-albums d'abord
+        // Traiter récursivement les sous-albums d'abord (enfants avant parents)
         foreach ($album->children as $child) {
             $this->deleteAlbumFiles($child);
         }
@@ -203,13 +202,29 @@ class MediaService
                     $nas->deleteFile($item->thumb_path);
                 }
             } catch (\Throwable $e) {
-                Log::warning('MediaService::deleteAlbumFiles — suppression NAS échouée', [
+                Log::warning('MediaService::deleteAlbumFiles — suppression fichier NAS échouée', [
                     'item_id' => $item->id,
                     'file_path' => $item->file_path,
                     'error' => $e->getMessage(),
                 ]);
             }
         });
+
+        // Supprimer le dossier NAS de cet album (vide après suppression des fichiers)
+        // IMPORTANT : sans cette étape, la prochaine sync NAS recréerait l'album
+        if ($album->nas_path) {
+            try {
+                if ($nas->exists($album->nas_path)) {
+                    $nas->deleteDirectory($album->nas_path);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('MediaService::deleteAlbumFiles — suppression dossier NAS échouée', [
+                    'album_id' => $album->id,
+                    'nas_path' => $album->nas_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     // Synchronisation arborescence NAS → albums/sous-albums
@@ -346,13 +361,16 @@ class MediaService
         }
 
         // 2. Synchroniser les fichiers de ce dossier
+        // On passe explicitement le driver NAS reçu par syncDirectory pour garantir
+        // que syncByMtime/syncBySha256 utilisent le même driver (photoDriver) que
+        // doSyncAlbumTree — et non nasManager->driver() qui peut pointer ailleurs.
         try {
             if ($deep) {
-                $result = $this->syncBySha256($album, $nasPath);
+                $result = $this->syncBySha256($album, $nasPath, $nas);
                 $stats['files_added'] += $result['updated'];
                 $stats['files_skipped'] += $result['unchanged'];
             } else {
-                $result = $this->syncByMtime($album, $nasPath);
+                $result = $this->syncByMtime($album, $nasPath, $nas);
                 $stats['files_added'] += $result['added'];
                 $stats['files_skipped'] += $result['skipped'];
             }
@@ -547,11 +565,12 @@ class MediaService
      * Synchronisation légère par mtime/taille (niveau 1 — toutes les heures).
      * Détecte les nouveaux fichiers dans le répertoire racine du NAS.
      *
+     * @param  NasConnectorInterface|null  $nas  Driver à utiliser (null = driver générique)
      * @return array{added: int, skipped: int}
      */
-    public function syncByMtime(MediaAlbum $album, string $nasDirectory = ''): array
+    public function syncByMtime(MediaAlbum $album, string $nasDirectory = '', ?NasConnectorInterface $nas = null): array
     {
-        $nas = $this->nasManager->driver();
+        $nas ??= $this->nasManager->driver();
         $files = $nas->listFiles($nasDirectory);
         $added = 0;
         $skipped = 0;
@@ -574,9 +593,19 @@ class MediaService
                 continue;
             }
 
-            $existing = MediaItem::where('album_id', $album->id)
+            // Chercher l'item existant, y compris les soft-deleted (même chemin NAS)
+            $existing = MediaItem::withTrashed()
+                ->where('album_id', $album->id)
                 ->where('file_path', $entry['path'])
                 ->first();
+
+            // Restaurer un item soft-deleted plutôt que d'en créer un nouveau
+            if ($existing && $existing->trashed()) {
+                $existing->restore(); // déclenche MediaItemObserver::restored
+                $added++;
+
+                continue;
+            }
 
             if ($existing) {
                 // Fichier déjà connu — vérifier si modifié par mtime
@@ -605,11 +634,12 @@ class MediaService
      * Synchronisation complète par SHA-256 (niveau 2 — quotidienne à 23h30).
      * Garantit l'intégrité sans faux négatifs.
      *
+     * @param  NasConnectorInterface|null  $nas  Driver à utiliser (null = driver générique)
      * @return array{updated: int, unchanged: int}
      */
-    public function syncBySha256(MediaAlbum $album, string $nasDirectory = ''): array
+    public function syncBySha256(MediaAlbum $album, string $nasDirectory = '', ?NasConnectorInterface $nas = null): array
     {
-        $nas = $this->nasManager->driver();
+        $nas ??= $this->nasManager->driver();
         $files = $nas->listFiles($nasDirectory);
         $updated = 0;
         $unchanged = 0;
@@ -935,18 +965,24 @@ class MediaService
      */
     public function recalculateDuplicateFlag(string $sha256): void
     {
-        $items = MediaItem::where('sha256_hash', $sha256)->get(['id', 'is_duplicate']);
+        $items = MediaItem::where('sha256_hash', $sha256)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get(['id', 'album_id', 'file_path', 'is_duplicate']);
 
         if ($items->isEmpty()) {
             return;
         }
 
-        $isDuplicate = $items->count() > 1;
+        // Vrais doublons = file_path distincts (un fichier par chemin NAS unique)
+        $uniquePaths = $items->unique('file_path')->values();
+        $hasRealDuplicates = $uniquePaths->count() > 1;
 
-        // Mise à jour uniquement si le flag doit changer (évite des UPDATE inutiles)
         foreach ($items as $item) {
-            if ($item->is_duplicate !== $isDuplicate) {
-                $item->update(['is_duplicate' => $isDuplicate]);
+            // Si un seul file_path existe pour ce hash → plus de doublon
+            $shouldBeDuplicate = $hasRealDuplicates && $item->id !== $uniquePaths->first()->id;
+            if ($item->is_duplicate !== $shouldBeDuplicate) {
+                $item->update(['is_duplicate' => $shouldBeDuplicate]);
             }
         }
     }
@@ -1071,11 +1107,10 @@ class MediaService
                 ->first();
 
             if ($existingDup) {
-                // Album différent = vrai doublon inter-albums
+                // Album différent = vrai doublon inter-albums.
+                // L'original ($existingDup) garde is_duplicate = false.
+                // Seule la nouvelle copie ingérée sera is_duplicate = true.
                 $isDuplicate = true;
-                if (! $existingDup->is_duplicate) {
-                    $existingDup->update(['is_duplicate' => true]);
-                }
                 Log::info('MediaService::ingestNasFile — doublon inter-albums détecté via sync NAS', [
                     'new_path' => $entry['path'],
                     'original_id' => $existingDup->id,

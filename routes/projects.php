@@ -1,11 +1,11 @@
 <?php
 
 use App\Http\Controllers\Projects\KanbanController;
-use App\Http\Controllers\Projects\ProjectGedLinkController;
 use App\Http\Controllers\Projects\ProjectBudgetController;
 use App\Http\Controllers\Projects\ProjectChangeController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectEventController;
+use App\Http\Controllers\Projects\ProjectGedLinkController;
 use App\Http\Controllers\Projects\ProjectHistoryController;
 use App\Http\Controllers\Projects\ProjectMemberController;
 use App\Http\Controllers\Projects\ProjectMilestoneController;

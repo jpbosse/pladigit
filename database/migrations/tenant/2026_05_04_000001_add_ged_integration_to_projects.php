@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::connection('tenant')->table('projects', function (Blueprint $table) {
-            $table->unsignedBigInteger('ged_folder_id')->nullable()->after('is_private');
+            $table->unsignedBigInteger('ged_folder_id')->nullable();
             $table->foreign('ged_folder_id')->references('id')->on('ged_folders')->nullOnDelete();
         });
 

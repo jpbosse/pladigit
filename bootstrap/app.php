@@ -24,6 +24,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'super-admin' => CheckSuperAdmin::class,
             'force-pwd-change' => ForcePwdChange::class,
             'module' => \App\Http\Middleware\RequireModule::class,
+            'ged.permission' => \App\Http\Middleware\RequireGedPermission::class,
         ]);
         // Exemption CSRF pour le login cross-domaine (popup pladigit.fr → {slug}.pladigit.fr)
         $middleware->validateCsrfTokens(except: [

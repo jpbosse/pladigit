@@ -120,6 +120,75 @@
 .ged-flash-error   { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
 /* ── Empty state ─────────────────────────────────────────── */
 .ged-empty { text-align: center; padding: 60px 20px; color: var(--pd-muted); }
+/* ── Drop overlay ────────────────────────────────────────── */
+#ged-main { position: relative; }
+.ged-drop-overlay {
+    position: absolute; inset: 0; z-index: 200;
+    background: rgba(59,154,225,.10);
+    border: 3px dashed var(--pd-accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+.ged-drop-center { text-align: center; }
+.ged-drop-icon { font-size: 48px; margin-bottom: 12px; }
+.ged-drop-label { font-size: 18px; font-weight: 600; color: var(--pd-navy); margin-bottom: 4px; }
+.ged-drop-hint { font-size: 12px; color: var(--pd-muted); }
+/* ── Upload queue ────────────────────────────────────────── */
+.ged-upload-queue {
+    background: var(--pd-surface2); border-bottom: 1px solid var(--pd-border);
+    padding: 8px 16px; max-height: 180px; overflow-y: auto;
+}
+.ged-upload-item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 5px 0; font-size: 12px; border-bottom: 1px solid var(--pd-border);
+}
+.ged-upload-item:last-of-type { border-bottom: none; }
+.ged-upload-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--pd-text); }
+.ged-upload-progress-wrap { width: 80px; height: 4px; background: var(--pd-border); border-radius: 2px; overflow: hidden; }
+.ged-upload-bar { height: 100%; background: var(--pd-accent); border-radius: 2px; transition: width .2s; }
+.ged-upload-status { font-size: 11px; color: var(--pd-muted); white-space: nowrap; }
+.ged-upload-err { font-size: 11px; color: var(--pd-danger); white-space: nowrap; }
+.ged-upload-queue-footer { display: flex; justify-content: flex-end; padding-top: 6px; }
+/* ── Doc name (cliquable) ────────────────────────────────── */
+.ged-doc-name-btn {
+    background: none; border: none; padding: 0; cursor: pointer;
+    color: var(--pd-navy); font-size: 13px; text-align: left;
+    text-decoration: underline dotted; text-underline-offset: 2px;
+}
+.ged-doc-name-btn:hover { color: var(--pd-accent); }
+.ged-doc-name-link { color: var(--pd-navy); text-decoration: none; }
+.ged-doc-name-link:hover { text-decoration: underline; }
+/* ── Doc table actions ───────────────────────────────────── */
+.ged-doc-actions { display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.ged-doc-table tr:hover .ged-doc-actions { opacity: 1; }
+/* ── Badge version cliquable ────────────────────────────── */
+.ged-version-badge {
+    display: inline-block; padding: 1px 7px;
+    font-size: 11px; font-weight: 600; color: var(--pd-navy);
+    background: #e8edf5; border: 1px solid #c8d4e8;
+    border-radius: 10px; cursor: pointer; line-height: 18px;
+    transition: background .12s, border-color .12s;
+}
+.ged-version-badge:hover { background: #d0dbf0; border-color: #a0b4d8; }
+.ged-version-badge--v1 {
+    color: var(--pd-muted); background: transparent; border-color: var(--pd-border);
+    font-weight: 400;
+}
+.ged-version-badge--v1:hover { background: var(--pd-surface2); border-color: #a0b4d8; }
+/* ── Preview modal ───────────────────────────────────────── */
+.ged-preview-modal {
+    background: var(--pd-surface); border-radius: 12px;
+    width: 90vw; max-width: 1100px; height: 85vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden;
+}
+.ged-preview-body {
+    flex: 1; overflow: hidden; display: flex;
+    align-items: center; justify-content: center; background: var(--pd-bg);
+}
+.ged-preview-frame { width: 100%; height: 100%; border: none; }
+.ged-preview-img { max-width: 100%; max-height: 100%; object-fit: contain; }
 /* ── Modales ──────────────────────────────────────────────── */
 .ged-modal-backdrop {
     position: fixed; inset: 0; background: rgba(0,0,0,.35);

@@ -58,4 +58,10 @@ interface NasConnectorInterface
      * @return array<int, array{name: string, path: string, size: int, mtime: int, type: string}>
      */
     public function listDirectories(string $directory): array;
+
+    /**
+     * Supprime récursivement un dossier et tout son contenu.
+     * Retourne true si le dossier n'existe plus après l'opération.
+     */
+    public function deleteDirectory(string $path): bool;
 }

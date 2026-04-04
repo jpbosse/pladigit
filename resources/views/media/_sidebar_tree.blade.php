@@ -177,8 +177,13 @@ function albumTree(initialRoots, activeId, canReorganize) {
         rootZoneOver: false,
         movingAlbumId: null,
 
-        async init(ancestorIds) {
-            for (const id of ancestorIds) {
+        async init(ancestorIds = []) {
+            let savedExpanded = [];
+            try { savedExpanded = JSON.parse(localStorage.getItem('ph_tree_exp') || '[]'); } catch {}
+            // ancestorIds en premier (chemin courant), puis l'état sauvegardé
+            // Le Set préserve l'ordre d'insertion — parents toujours avant enfants
+            const allIds = [...new Set([...ancestorIds, ...savedExpanded])];
+            for (const id of allIds) {
                 const node = this.nodes.find(n => n.id === id);
                 if (node && !node.expanded) await this.toggle(node, true);
             }
@@ -277,13 +282,14 @@ function albumTree(initialRoots, activeId, canReorganize) {
         async nodeDrop(node, event) {
             this.dropTargetId = null;
             const albumId       = event.dataTransfer.getData('application/x-album-id');
-            const photoId       = event.dataTransfer.getData('application/x-media-item-id');
+            const photoData     = event.dataTransfer.getData('application/x-media-item-id');
             const sourceAlbumId = event.dataTransfer.getData('application/x-media-source-album');
 
             if (albumId && parseInt(albumId) !== node.id) {
                 await this.doMoveAlbum(parseInt(albumId), node.id);
-            } else if (photoId && sourceAlbumId) {
-                await this.doMovePhoto(parseInt(photoId), parseInt(sourceAlbumId), node.id);
+            } else if (photoData && sourceAlbumId) {
+                const ids = photoData.split(',').map(Number).filter(Boolean);
+                await this.doMovePhoto(ids, parseInt(sourceAlbumId), node.id);
             }
         },
         async dropOnRoot(event) {
@@ -305,13 +311,13 @@ function albumTree(initialRoots, activeId, canReorganize) {
             } catch { alert('Erreur réseau.'); }
             finally   { this.movingAlbumId = null; }
         },
-        async doMovePhoto(itemId, sourceAlbumId, targetAlbumId) {
+        async doMovePhoto(itemIds, sourceAlbumId, targetAlbumId) {
             const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
             try {
                 const resp = await fetch(`{{ url('media/albums') }}/${sourceAlbumId}/items/move`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrf, 'X-Requested-With': 'XMLHttpRequest' },
-                    body: JSON.stringify({ item_ids: [itemId], target_album_id: targetAlbumId }),
+                    body: JSON.stringify({ item_ids: itemIds, target_album_id: targetAlbumId }),
                 });
                 const data = await resp.json();
                 if (!resp.ok) { alert(data.error || 'Erreur lors du déplacement.'); return; }

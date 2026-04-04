@@ -58,6 +58,9 @@ class User extends Authenticatable
         'invitation_expires_at',
         'invitation_used_at',
 
+        // Préférences UI
+        'preferred_project_view',
+
     ];
 
     protected $hidden = [

@@ -3,7 +3,6 @@
 namespace Tests\Feature\SuperAdmin;
 
 use App\Models\Platform\Organization;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
 
 /**
@@ -11,10 +10,6 @@ use Tests\TestCase;
  */
 class OrganizationTest extends TestCase
 {
-    use DatabaseTransactions;
-
-    protected $connectionsToTransact = ['mysql'];
-
     protected function setUpPlatformDatabase(): void
     {
         $this->artisan('migrate', [

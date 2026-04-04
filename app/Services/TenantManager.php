@@ -45,6 +45,16 @@ class TenantManager
             'collation' => 'utf8mb4_unicode_ci',
         ]);
 
+        // Optimisation : si on est déjà connecté à la même base, ne pas purger.
+        // Préserve les transactions ouvertes (indispensable en tests).
+        try {
+            if (DB::connection('tenant')->getDatabaseName() === $org->db_name) {
+                return;
+            }
+        } catch (\Throwable) {
+            // Pas de connexion active — on continue avec purge/reconnect.
+        }
+
         DB::purge('tenant');
         DB::reconnect('tenant');
     }

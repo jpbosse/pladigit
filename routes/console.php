@@ -31,6 +31,15 @@ Schedule::command('nas:sync --deep')
         \Log::error('Synchronisation NAS (SHA-256) échouée');
     });
 
+// Synchronisation GED — toutes les heures
+Schedule::command('ged:sync')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onFailure(function () {
+        \Log::error('Synchronisation GED échouée');
+    });
+
 // Re-extraction EXIF — chaque dimanche à 02h00
 Schedule::command('media:refresh-exif')
     ->weeklyOn(0, '02:00')
@@ -47,6 +56,15 @@ Schedule::command('pladigit:generate-recurring-tasks')
     ->runInBackground()
     ->onFailure(function () {
         \Log::error('Génération tâches récurrentes échouée');
+    });
+
+// Purge GED — documents soft-deleted + versions excédentaires — chaque nuit à 02h30
+Schedule::command('ged:purge')
+    ->dailyAt('02:30')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onFailure(function () {
+        \Log::error('Purge GED échouée');
     });
 
 // Purge des données expirées — chaque nuit à 03h00
