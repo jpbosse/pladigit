@@ -25,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'force-pwd-change' => ForcePwdChange::class,
             'module' => \App\Http\Middleware\RequireModule::class,
             'ged.permission' => \App\Http\Middleware\RequireGedPermission::class,
+            'wopi' => \App\Http\Middleware\ValidateWopiRequest::class,
         ]);
         // Exemption CSRF pour le login cross-domaine (popup pladigit.fr → {slug}.pladigit.fr)
         $middleware->validateCsrfTokens(except: [

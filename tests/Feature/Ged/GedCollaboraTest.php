@@ -4,6 +4,7 @@ namespace Tests\Feature\Ged;
 
 use App\Enums\UserRole;
 use App\Models\Tenant\GedDocument;
+use App\Models\Tenant\GedDocumentVersion;
 use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\GedWopiToken;
 use App\Models\Tenant\User;
@@ -13,12 +14,14 @@ use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
- * Tests fonctionnels — Collabora Online, Jalon 1 (lecture seule).
+ * Tests fonctionnels — Collabora Online, Jalons 1 et 2.
  *
  * Couverture :
  *   - WopiTokenService : génération + validation + expiration
  *   - WopiController::checkFileInfo() : 200, 401 (token invalide), 401 (token expiré)
  *   - WopiController::getFile()       : 200, 401 (token invalide), 404 (fichier absent)
+ *   - WopiController::putFile()       : 200 (sauvegarde), 401, 403, versioning
+ *   - ValidateWopiRequest middleware  : 401 si access_token absent/malformé
  *   - GedEditorController::show()     : redirect si Collabora non configuré
  *   - GedEditorController::show()     : redirect si MIME non supporté
  *   - GedEditorController::show()     : vue editor retournée si tout est ok
@@ -322,5 +325,138 @@ class GedCollaboraTest extends TestCase
         $doc = $this->makeDocument($folder, $user, 'image/jpeg');
 
         $this->assertFalse($doc->isCollaboraSupported());
+    }
+
+    // ── ValidateWopiRequest middleware ────────────────────────
+
+    public function test_middleware_wopi_401_si_access_token_absent(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+
+        $response = $this->getJson(route('wopi.files.info', $doc->id));
+
+        $response->assertStatus(401);
+    }
+
+    public function test_middleware_wopi_401_si_access_token_sans_slug(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+
+        $response = $this->getJson(route('wopi.files.info', $doc->id).'?access_token=:tokenonly');
+
+        $response->assertStatus(401);
+    }
+
+    // ── WopiController::putFile ───────────────────────────────
+
+    public function test_put_file_sauvegarde_et_cree_nouvelle_version(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+
+        $service = app(WopiTokenService::class);
+        $token = $service->generate($doc, $user);
+
+        $newContent = 'contenu modifié par Collabora';
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            [],
+            [],
+            [],
+            [],
+            $newContent
+        );
+
+        $response->assertOk();
+
+        $doc->refresh();
+        $this->assertEquals(2, $doc->current_version);
+        $this->assertEquals(strlen($newContent), $doc->size_bytes);
+
+        $this->assertDatabaseHas('ged_document_versions', [
+            'document_id' => $doc->id,
+            'version_number' => 1,
+        ], 'tenant');
+    }
+
+    public function test_put_file_401_si_token_invalide(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.put', $doc->id).'?access_token='.$this->orgSlug().':mauvais',
+            [],
+            [],
+            [],
+            [],
+            'contenu'
+        );
+
+        $response->assertStatus(401);
+    }
+
+    public function test_put_file_403_si_utilisateur_sans_droit_ecriture(): void
+    {
+        $owner = $this->admin();
+        $folder = $this->makeFolder($owner);
+        $doc = $this->makeDocument($folder, $owner);
+
+        // Agent simple sans permission sur ce dossier
+        $viewer = User::factory()->create(['role' => UserRole::USER->value]);
+        $service = app(WopiTokenService::class);
+        $token = $service->generate($doc, $viewer);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            [],
+            [],
+            [],
+            [],
+            'contenu'
+        );
+
+        $response->assertStatus(403);
+    }
+
+    public function test_put_file_archive_version_courante_sur_disque(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $originalPath = $doc->disk_path;
+
+        $service = app(WopiTokenService::class);
+        $token = $service->generate($doc, $user);
+
+        $this->call(
+            'POST',
+            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            [],
+            [],
+            [],
+            [],
+            'nouveau contenu'
+        );
+
+        $doc->refresh();
+
+        // Nouveau disk_path généré
+        $this->assertNotEquals($originalPath, $doc->disk_path);
+
+        // Ancienne version archivée avec l'ancien chemin
+        $version = GedDocumentVersion::where('document_id', $doc->id)->first();
+        $this->assertNotNull($version);
+        $this->assertEquals($originalPath, $version->disk_path);
     }
 }

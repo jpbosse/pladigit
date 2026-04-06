@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Ged;
 
 use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
+use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedDocumentVersion;
+use App\Services\AuditService;
 use App\Services\Ged\GedStorageInterface;
 use App\Services\Ged\WopiTokenService;
 use App\Services\TenantManager;
@@ -35,6 +37,7 @@ class WopiController extends Controller
     public function __construct(
         private readonly WopiTokenService $tokens,
         private readonly TenantManager $tenantManager,
+        private readonly AuditService $audit,
     ) {}
 
     /**
@@ -139,11 +142,20 @@ class WopiController extends Controller
             'uploaded_by' => $user->id,
         ]);
 
+        $oldVersion = $doc->current_version;
+
         // Mettre à jour le document avec la nouvelle version
         $doc->update([
             'disk_path' => $newPath,
             'size_bytes' => strlen($content),
-            'current_version' => $doc->current_version + 1,
+            'current_version' => $oldVersion + 1,
+        ]);
+
+        $this->audit->log('ged.document.wopi.saved', $user, [
+            'model_type' => GedDocument::class,
+            'model_id' => $doc->id,
+            'old' => ['version' => $oldVersion],
+            'new' => ['version' => $oldVersion + 1, 'size_bytes' => strlen($content)],
         ]);
 
         return response()->json([], 200);
