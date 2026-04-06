@@ -7,12 +7,12 @@ use App\Models\Platform\Organization;
 use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedDocumentVersion;
 use App\Services\AuditService;
+use App\Services\Ged\GedPermissionService;
 use App\Services\Ged\GedStorageInterface;
 use App\Services\Ged\WopiTokenService;
 use App\Services\TenantManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -56,7 +56,8 @@ class WopiController extends Controller
         $doc = $wopiToken->document;
         $user = $wopiToken->user;
 
-        $canWrite = Gate::forUser($user)->allows('manageDocument', $doc);
+        $folder   = $doc->folder;
+        $canWrite = $folder !== null && app(GedPermissionService::class)->canUpload($user, $folder);
 
         return response()->json([
             'BaseFileName' => $doc->name,
@@ -106,7 +107,7 @@ class WopiController extends Controller
      *
      * POST /wopi/files/{id}/contents?access_token={org_slug}:{raw_token}
      */
-    public function putFile(int $fileId, Request $request): JsonResponse
+    public function putFile(int $fileId, Request $request): \Illuminate\Http\Response|JsonResponse
     {
         $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
 
@@ -117,7 +118,8 @@ class WopiController extends Controller
         $doc = $wopiToken->document;
         $user = $wopiToken->user;
 
-        if (! Gate::forUser($user)->allows('manageDocument', $doc)) {
+        $folder = $doc->folder;
+        if ($folder === null || ! app(GedPermissionService::class)->canUpload($user, $folder)) {
             return response()->json(['error' => 'Forbidden'], 403);
         }
 
