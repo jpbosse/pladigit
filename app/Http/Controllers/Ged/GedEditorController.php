@@ -59,7 +59,7 @@ class GedEditorController extends Controller
 
         // WOPI spec : l'action URL contient WOPISrc, le token est envoyé via form POST
         // lang=fr force l'interface Collabora en français
-        $actionUrl = $collaboraUrl.'/'.$editorPath.'?WOPISrc='.urlencode($wopiSrc).'&lang=fr&NotebookbarView=1';
+        $actionUrl = $collaboraUrl.'/'.$editorPath.'?WOPISrc='.urlencode($wopiSrc).'&lang=fr';
 
         return view('ged.editor', [
             'document' => $document,
