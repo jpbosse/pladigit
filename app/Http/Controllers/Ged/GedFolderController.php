@@ -98,6 +98,28 @@ class GedFolderController extends Controller
     }
 
     /**
+     * Liste plate de tous les dossiers visibles (picker de déplacement de document).
+     * Retourne [{id, name, path}] trié par path.
+     */
+    public function all(): JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        $folders = GedFolder::visibleFor($user)
+            ->whereNull('deleted_at')
+            ->orderBy('path')
+            ->get(['id', 'name', 'path'])
+            ->map(fn (GedFolder $f) => [
+                'id' => $f->id,
+                'name' => $f->name,
+                'path' => $f->path ?? '/'.$f->name,
+            ]);
+
+        return response()->json(['folders' => $folders]);
+    }
+
+    /**
      * Créer un dossier.
      */
     public function store(Request $request): RedirectResponse|JsonResponse

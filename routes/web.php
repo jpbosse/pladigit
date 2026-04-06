@@ -31,6 +31,15 @@ Route::get('check-org-ajax/{slug}', function ($slug) {
     return response()->json(['exists' => $exists]);
 });
 
+// ── WOPI — endpoints Collabora Online (URL fixe, hors middleware tenant) ──
+// Le tenant est résolu depuis le préfixe du token : {org_slug}:{raw_token}.
+// Collabora n'a besoin que d'un seul aliasgroup fixe (ex : https://pladigit.fr).
+Route::prefix('wopi/files')->name('wopi.')->group(function () {
+    Route::get('{id}', [\App\Http\Controllers\Ged\WopiController::class, 'checkFileInfo'])->name('files.info');
+    Route::get('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'getFile'])->name('files.contents');
+    Route::post('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'putFile'])->name('files.put');
+});
+
 // ── Super Admin — Login (sans middleware) ──────────────────
 Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
     ->name('super-admin.login');
@@ -77,6 +86,8 @@ Route::middleware('tenant')->group(function () {
     Route::post('/2fa/verify', [TwoFactorController::class, 'verify'])
         ->middleware('throttle:5,10')
         ->name('2fa.verify');
+
+    // Supprimé — routes WOPI déplacées hors du groupe tenant (voir ci-dessous)
 
     // Liens de partage temporaires — accès public (pas d'auth requise)
     Route::get('/s/{token}', [\App\Http\Controllers\Media\SharedAlbumController::class, 'show'])->name('media.shared.show');
@@ -165,11 +176,13 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
 
-            // Purge GED
-            Route::get('purge', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'index'])->name('purge.index');
-            Route::put('purge/config', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'updateConfig'])->name('purge.config.update');
-            Route::post('purge/preview', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'preview'])->name('purge.preview');
-            Route::post('purge/run', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'run'])->name('purge.run');
+            // Purge GED — réservé au module GED
+            Route::middleware('module:ged')->group(function () {
+                Route::get('purge', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'index'])->name('purge.index');
+                Route::put('purge/config', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'updateConfig'])->name('purge.config.update');
+                Route::post('purge/preview', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'preview'])->name('purge.preview');
+                Route::post('purge/run', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'run'])->name('purge.run');
+            });
 
             // Journal d'audit
             Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');

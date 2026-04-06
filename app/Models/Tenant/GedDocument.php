@@ -131,4 +131,16 @@ class GedDocument extends Model
         return str_contains($this->mime_type ?? '', 'pdf')
             || str_starts_with($this->mime_type ?? '', 'image/');
     }
+
+    /**
+     * True si le document peut être ouvert dans Collabora Online.
+     */
+    public function isCollaboraSupported(): bool
+    {
+        if (config('collabora.url', '') === '') {
+            return false;
+        }
+
+        return in_array($this->mime_type, (array) config('collabora.supported_mimes', []), true);
+    }
 }

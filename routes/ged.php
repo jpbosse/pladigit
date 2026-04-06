@@ -1,9 +1,11 @@
 <?php
 
 use App\Http\Controllers\Ged\GedDocumentController;
+use App\Http\Controllers\Ged\GedEditorController;
 use App\Http\Controllers\Ged\GedFolderController;
 use App\Http\Controllers\Ged\GedIntegrityController;
 use App\Http\Controllers\Ged\GedPermissionController;
+use App\Http\Controllers\Ged\GedSearchController;
 
 /*
 |--------------------------------------------------------------------------
@@ -15,9 +17,13 @@ use App\Http\Controllers\Ged\GedPermissionController;
 
 Route::prefix('ged')->name('ged.')->middleware('module:ged')->group(function () {
 
+    // ── Recherche ─────────────────────────────────────────────
+    Route::get('search', [GedSearchController::class, 'index'])->name('search');
+
     // ── Dossiers ─────────────────────────────────────────────
     Route::get('/', [GedFolderController::class, 'index'])->name('index');
 
+    Route::get('folders/all', [GedFolderController::class, 'all'])->name('folders.all');
     Route::get('folders/{folder}', [GedFolderController::class, 'show'])->name('folders.show');
     Route::get('folders/{folder}/children', [GedFolderController::class, 'children'])->name('folders.children');
 
@@ -28,9 +34,14 @@ Route::prefix('ged')->name('ged.')->middleware('module:ged')->group(function () 
 
     // ── Documents ────────────────────────────────────────────
     Route::post('documents', [GedDocumentController::class, 'store'])->name('documents.store');
+    Route::patch('documents/{document}', [GedDocumentController::class, 'update'])->name('documents.update');
+    Route::post('documents/{document}/move', [GedDocumentController::class, 'move'])->name('documents.move');
     Route::get('documents/{document}/download', [GedDocumentController::class, 'download'])->name('documents.download');
     Route::get('documents/{document}/serve', [GedDocumentController::class, 'serve'])->name('documents.serve');
     Route::delete('documents/{document}', [GedDocumentController::class, 'destroy'])->name('documents.destroy');
+
+    // Collabora Online — éditeur (lecture seule, Jalon 1)
+    Route::get('documents/{document}/editor', [GedEditorController::class, 'show'])->name('documents.editor');
 
     // Versioning
     Route::get('documents/{document}/versions', [GedDocumentController::class, 'versions'])->name('documents.versions');

@@ -13,6 +13,10 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (Schema::connection('tenant')->hasColumn('users', 'preferred_project_view')) {
+            return;
+        }
+
         Schema::connection('tenant')->table('users', function (Blueprint $table) {
             $table->enum('preferred_project_view', ['liste', 'kanban', 'gantt', 'agenda', 'workload'])
                 ->default('liste')

@@ -143,6 +143,66 @@ class ModuleAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_accès_ged_accordé_si_module_ged_activé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => ['ged']]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('ged.index'))
+            ->assertOk();
+    }
+
+    public function test_accès_ged_refusé_si_module_ged_désactivé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => []]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('ged.index'))
+            ->assertForbidden();
+    }
+
+    public function test_accès_ged_refusé_si_enabled_modules_null(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => null]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('ged.index'))
+            ->assertForbidden();
+    }
+
+    public function test_accès_purge_ged_refusé_si_module_ged_désactivé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => []]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('admin.purge.index'))
+            ->assertForbidden();
+    }
+
+    public function test_accès_purge_ged_accordé_si_module_ged_activé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => ['ged']]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('admin.purge.index'))
+            ->assertOk();
+    }
+
+    public function test_super_admin_peut_activer_le_module_ged(): void
+    {
+        $org = Organization::factory()->create(['enabled_modules' => []]);
+
+        $this->withSession(['super_admin_email' => config('superadmin.email'), 'super_admin_verified' => true])
+            ->post(route('super-admin.organizations.update-modules', $org), [
+                'modules' => ['ged'],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $org->refresh();
+        $this->assertTrue($org->hasModule(ModuleKey::GED));
+    }
+
     // ── Super Admin : updateModules ────────────────────────────────────
 
     public function test_super_admin_peut_activer_le_module_media(): void
