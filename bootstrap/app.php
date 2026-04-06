@@ -28,8 +28,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'wopi' => \App\Http\Middleware\ValidateWopiRequest::class,
         ]);
         // Exemption CSRF pour le login cross-domaine (popup pladigit.fr → {slug}.pladigit.fr)
+        // + routes WOPI : Collabora n'envoie pas de token CSRF
         $middleware->validateCsrfTokens(except: [
             'login',
+            'wopi/*',
         ]);
     })
 
