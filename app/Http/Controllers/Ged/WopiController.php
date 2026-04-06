@@ -158,7 +158,7 @@ class WopiController extends Controller
             'new' => ['version' => $oldVersion + 1, 'size_bytes' => strlen($content)],
         ]);
 
-        return response()->json([], 200);
+        return response('', 200);
     }
 
     /**
