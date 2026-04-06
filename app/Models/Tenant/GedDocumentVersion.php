@@ -24,6 +24,7 @@ class GedDocumentVersion extends Model
         'size_bytes',
         'mime_type',
         'uploaded_by',
+        'created_at',
     ];
 
     protected $casts = [

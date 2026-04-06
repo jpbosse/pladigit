@@ -134,13 +134,14 @@ class WopiController extends Controller
             return response()->json(['error' => 'Storage error'], 500);
         }
 
-        // Archiver la version courante
+        // Archiver la version courante en conservant sa date d'origine
         GedDocumentVersion::create([
             'document_id' => $doc->id,
             'version_number' => $doc->current_version,
             'disk_path' => $doc->disk_path,
             'size_bytes' => $doc->size_bytes,
             'mime_type' => $doc->mime_type,
+            'created_at' => $doc->updated_at ?? $doc->created_at,
             'uploaded_by' => $user->id,
         ]);
 
