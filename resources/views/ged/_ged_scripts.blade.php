@@ -47,6 +47,21 @@ function gedFolderPage() {
         _docDeleteError: '',
         _docDeleteLoading: false,
 
+        // ── Renommage document ────────────────────────────────
+        _docRenameId: null,
+        _docRenameName: '',
+        _docRenameError: '',
+
+        // ── Déplacement document ──────────────────────────────
+        _docMoveId: null,
+        _docMoveName: '',
+        _docMoveTargetId: null,
+        _docMoveTargetName: '',
+        _docMoveFilter: '',
+        _docMoveFolders: [],
+        _docMoveFoldersLoading: false,
+        _docMoveError: '',
+
         // ── Historique des versions ───────────────────────────
         _versionsDocId: null,
         _versionsDocName: '',
@@ -345,6 +360,111 @@ function gedFolderPage() {
             if (bytes < 1024) return bytes + ' o';
             if (bytes < 1024 * 1024) return Math.round(bytes / 1024 * 10) / 10 + ' Ko';
             return (Math.round(bytes / 1024 / 1024 * 10) / 10).toString().replace('.', ',') + ' Mo';
+        },
+
+        // =====================================================================
+        // Renommage document
+        // =====================================================================
+
+        openDocRename(id, name) {
+            this._docRenameId = id;
+            this._docRenameName = name;
+            this._docRenameError = '';
+            this._modal = 'doc-rename';
+            this.$nextTick(() => this.$refs.docRenameName?.focus());
+        },
+
+        async submitDocRename() {
+            if (!this._docRenameName.trim()) return;
+            this._loading = true;
+            this._docRenameError = '';
+            try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+                const resp = await fetch(`{{ url('ged/documents') }}/${this._docRenameId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ name: this._docRenameName.trim() }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    this._docRenameError = data.message || data.errors?.name?.[0] || 'Erreur';
+                    return;
+                }
+                location.reload();
+            } catch {
+                this._docRenameError = 'Erreur réseau.';
+            } finally {
+                this._loading = false;
+            }
+        },
+
+        // =====================================================================
+        // Déplacement document
+        // =====================================================================
+
+        get _filteredMoveFolders() {
+            const q = this._docMoveFilter.toLowerCase().trim();
+            if (!q) return this._docMoveFolders;
+            return this._docMoveFolders.filter(f =>
+                f.name.toLowerCase().includes(q) || (f.path ?? '').toLowerCase().includes(q)
+            );
+        },
+
+        async openDocMove(id, name) {
+            this._docMoveId = id;
+            this._docMoveName = name;
+            this._docMoveTargetId = null;
+            this._docMoveTargetName = '';
+            this._docMoveFilter = '';
+            this._docMoveError = '';
+            this._modal = 'doc-move';
+
+            if (this._docMoveFolders.length === 0) {
+                this._docMoveFoldersLoading = true;
+                try {
+                    const resp = await fetch('{{ route('ged.folders.all') }}', {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        this._docMoveFolders = data.folders ?? [];
+                    }
+                } catch { /* noop */ } finally {
+                    this._docMoveFoldersLoading = false;
+                }
+            }
+        },
+
+        async submitDocMove() {
+            if (!this._docMoveTargetId) return;
+            this._loading = true;
+            this._docMoveError = '';
+            try {
+                const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+                const resp = await fetch(`{{ url('ged/documents') }}/${this._docMoveId}/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf,
+                        'Accept': 'application/json',
+                    },
+                    body: JSON.stringify({ target_folder_id: this._docMoveTargetId }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) {
+                    this._docMoveError = data.message || 'Erreur';
+                    return;
+                }
+                location.reload();
+            } catch {
+                this._docMoveError = 'Erreur réseau.';
+            } finally {
+                this._loading = false;
+            }
         },
 
         // =====================================================================

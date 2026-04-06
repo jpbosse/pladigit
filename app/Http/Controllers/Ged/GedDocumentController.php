@@ -358,6 +358,76 @@ class GedDocumentController extends Controller
     }
 
     // =========================================================================
+    // Renommage
+    // =========================================================================
+
+    /**
+     * Renomme un document (nom logique uniquement — disk_path inchangé).
+     */
+    public function update(Request $request, GedDocument $document): JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $this->authorize('manageDocument', $document);
+
+        $request->validate(['name' => ['required', 'string', 'max:255']]);
+
+        $oldName = $document->name;
+        $newName = trim($request->input('name'));
+        $document->update(['name' => $newName]);
+
+        $this->audit->log('ged.document.renamed', $user, [
+            'model_type' => GedDocument::class,
+            'model_id' => $document->id,
+            'old' => ['name' => $oldName],
+            'new' => ['name' => $newName],
+        ]);
+
+        return response()->json(['ok' => true, 'name' => $document->name]);
+    }
+
+    // =========================================================================
+    // Déplacement
+    // =========================================================================
+
+    /**
+     * Déplace un document vers un autre dossier (déplacement logique).
+     *
+     * Le disk_path (UUID) reste inchangé — seul folder_id est mis à jour.
+     * L'utilisateur doit avoir manageDocument sur le document source
+     * et upload sur le dossier cible.
+     */
+    public function move(Request $request, GedDocument $document): JsonResponse
+    {
+        /** @var User $user */
+        $user = auth()->user();
+        $this->authorize('manageDocument', $document);
+
+        $request->validate([
+            'target_folder_id' => ['required', 'integer', 'exists:tenant.ged_folders,id'],
+        ]);
+
+        $targetFolder = GedFolder::findOrFail((int) $request->input('target_folder_id'));
+        $this->authorize('upload', $targetFolder);
+
+        if ($document->folder_id === $targetFolder->id) {
+            return response()->json(['ok' => true]);
+        }
+
+        $oldFolderId = $document->folder_id;
+        $document->update(['folder_id' => $targetFolder->id]);
+
+        $this->audit->log('ged.document.moved', $user, [
+            'model_type' => GedDocument::class,
+            'model_id' => $document->id,
+            'old' => ['folder_id' => $oldFolderId],
+            'new' => ['folder_id' => $targetFolder->id, 'folder_name' => $targetFolder->name],
+        ]);
+
+        return response()->json(['ok' => true, 'folder_id' => $targetFolder->id]);
+    }
+
+    // =========================================================================
     // Suppression
     // =========================================================================
 

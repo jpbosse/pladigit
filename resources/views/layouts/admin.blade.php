@@ -52,9 +52,10 @@
             ],
         ],
         [
-            'group' => 'GED',
-            'icon'  => '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
-            'items' => [
+            'group'  => 'GED',
+            'module' => 'ged',
+            'icon'   => '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+            'items'  => [
                 [
                     'label' => 'NAS',
                     'route' => 'admin.settings.ged',
@@ -176,6 +177,13 @@
         <nav style="padding:6px 0;flex:1;" x-data="adminNav()">
             @foreach($adminNav as $groupIndex => $group)
             @php
+                $groupModule = $group['module'] ?? null;
+                if ($groupModule !== null) {
+                    $moduleKey = \App\Enums\ModuleKey::tryFrom($groupModule);
+                    if ($moduleKey === null || ! (app(\App\Services\TenantManager::class)->current()?->hasModule($moduleKey) ?? false)) {
+                        continue;
+                    }
+                }
                 $groupHasActive = collect($group['items'])->contains(fn($item) => request()->routeIs($item['match']));
             @endphp
 

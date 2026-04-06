@@ -8,23 +8,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::connection('tenant')->table('projects', function (Blueprint $table) {
-            $table->unsignedBigInteger('ged_folder_id')->nullable();
-            $table->foreign('ged_folder_id')->references('id')->on('ged_folders')->nullOnDelete();
-        });
+        if (! Schema::connection('tenant')->hasColumn('projects', 'ged_folder_id')) {
+            Schema::connection('tenant')->table('projects', function (Blueprint $table) {
+                $table->unsignedBigInteger('ged_folder_id')->nullable();
+                $table->foreign('ged_folder_id')->references('id')->on('ged_folders')->nullOnDelete();
+            });
+        }
 
-        Schema::connection('tenant')->create('project_ged_links', function (Blueprint $table) {
-            $table->id();
-            $table->morphs('documentable'); // documentable_type, documentable_id
-            $table->unsignedBigInteger('ged_document_id');
-            $table->unsignedBigInteger('linked_by');
-            $table->timestamps();
+        if (! Schema::connection('tenant')->hasTable('project_ged_links')) {
+            Schema::connection('tenant')->create('project_ged_links', function (Blueprint $table) {
+                $table->id();
+                $table->morphs('documentable'); // documentable_type, documentable_id
+                $table->unsignedBigInteger('ged_document_id');
+                $table->unsignedBigInteger('linked_by');
+                $table->timestamps();
 
-            $table->foreign('ged_document_id')->references('id')->on('ged_documents')->cascadeOnDelete();
-            $table->foreign('linked_by')->references('id')->on('users')->cascadeOnDelete();
+                $table->foreign('ged_document_id')->references('id')->on('ged_documents')->cascadeOnDelete();
+                $table->foreign('linked_by')->references('id')->on('users')->cascadeOnDelete();
 
-            $table->unique(['documentable_type', 'documentable_id', 'ged_document_id'], 'project_ged_links_unique');
-        });
+                $table->unique(['documentable_type', 'documentable_id', 'ged_document_id'], 'project_ged_links_unique');
+            });
+        }
     }
 
     public function down(): void

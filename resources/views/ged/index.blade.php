@@ -25,11 +25,15 @@
             </div>
 
             <div class="ged-header-right">
+                <form method="GET" action="{{ route('ged.search') }}" style="display:flex;gap:0;">
+                    <input type="search" name="q" placeholder="Rechercher…"
+                           style="width:160px;padding:4px 8px;font-size:12px;border:1px solid var(--pd-border);border-right:none;border-radius:6px 0 0 6px;background:var(--pd-surface);color:var(--pd-text);">
+                    <button type="submit"
+                            style="padding:4px 10px;font-size:12px;border:1px solid var(--pd-border);border-radius:0 6px 6px 0;background:var(--pd-surface);cursor:pointer;"
+                            title="Rechercher">🔍</button>
+                </form>
                 <button class="pd-btn pd-btn-sm pd-btn-primary" @click="openCreate()">
                     + Nouveau dossier
-                </button>
-                <button class="pd-btn pd-btn-sm" disabled title="Upload disponible au Jalon 2">
-                    📤 Uploader
                 </button>
             </div>
         </div>

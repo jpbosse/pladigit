@@ -53,6 +53,13 @@
             </div>
 
             <div class="ged-header-right">
+                <form method="GET" action="{{ route('ged.search') }}" style="display:flex;gap:0;">
+                    <input type="search" name="q" placeholder="Rechercher…"
+                           style="width:160px;padding:4px 8px;font-size:12px;border:1px solid var(--pd-border);border-right:none;border-radius:6px 0 0 6px;background:var(--pd-surface);color:var(--pd-text);">
+                    <button type="submit"
+                            style="padding:4px 10px;font-size:12px;border:1px solid var(--pd-border);border-radius:0 6px 6px 0;background:var(--pd-surface);cursor:pointer;"
+                            title="Rechercher">🔍</button>
+                </form>
                 <button class="pd-btn pd-btn-sm pd-btn-primary" @click="openCreate()">
                     + Nouveau dossier
                 </button>
@@ -197,7 +204,14 @@
                                             <button class="ged-action-btn" title="Prévisualiser"
                                                     @click="openPreview('{{ route('ged.documents.serve', $doc) }}', '{{ route('ged.documents.download', $doc) }}', '{{ addslashes($doc->name) }}', '{{ addslashes($doc->mime_type ?? '') }}')">👁</button>
                                         @endif
+                                        @if($doc->isCollaboraSupported())
+                                            <a href="{{ route('ged.documents.editor', $doc) }}" class="ged-action-btn" title="Ouvrir dans Collabora" target="_blank">✏️</a>
+                                        @endif
                                         <a href="{{ route('ged.documents.download', $doc) }}" class="ged-action-btn" title="Télécharger" download>⬇</a>
+                                        <button class="ged-action-btn" title="Renommer"
+                                                @click="openDocRename({{ $doc->id }}, '{{ addslashes($doc->name) }}')">✏️</button>
+                                        <button class="ged-action-btn" title="Déplacer"
+                                                @click="openDocMove({{ $doc->id }}, '{{ addslashes($doc->name) }}')">📂</button>
                                         <button class="ged-action-btn ged-action-delete" title="Supprimer"
                                                 @click="openDocDelete({{ $doc->id }}, '{{ addslashes($doc->name) }}')">🗑</button>
                                     </div>
@@ -379,6 +393,78 @@
                 </div>
                 <div class="ged-modal-footer">
                     <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        {{-- ── Modal renommer document ─────────────────────────────── --}}
+        <div x-show="_modal === 'doc-rename'" class="ged-modal-backdrop" @click.self="_modal = null">
+            <div class="ged-modal">
+                <div class="ged-modal-header">
+                    <span>Renommer le document</span>
+                    <button @click="_modal = null" class="ged-modal-close">✕</button>
+                </div>
+                <form @submit.prevent="submitDocRename()">
+                    <div class="ged-modal-body">
+                        <label class="pd-label">Nom <span style="color:var(--pd-danger)">*</span></label>
+                        <input x-ref="docRenameName" x-model="_docRenameName" type="text" class="pd-input" required maxlength="255">
+                        <div x-show="_docRenameError" style="color:var(--pd-danger);font-size:12px;margin-top:8px;" x-text="_docRenameError"></div>
+                    </div>
+                    <div class="ged-modal-footer">
+                        <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Annuler</button>
+                        <button type="submit" class="pd-btn pd-btn-sm pd-btn-primary" :disabled="_loading">
+                            <span x-show="!_loading">Enregistrer</span>
+                            <span x-show="_loading">…</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{-- ── Modal déplacer document ──────────────────────────────── --}}
+        <div x-show="_modal === 'doc-move'" class="ged-modal-backdrop" @click.self="_modal = null">
+            <div class="ged-modal">
+                <div class="ged-modal-header">
+                    <span>Déplacer <span x-text="_docMoveName" style="font-style:italic;font-weight:600;"></span></span>
+                    <button @click="_modal = null" class="ged-modal-close">✕</button>
+                </div>
+                <div class="ged-modal-body">
+                    <label class="pd-label">Dossier de destination</label>
+                    <input type="search" x-model="_docMoveFilter"
+                           placeholder="Filtrer les dossiers…"
+                           class="pd-input"
+                           style="margin-bottom:8px;">
+                    <div x-show="_docMoveFoldersLoading" style="color:var(--pd-muted);font-size:12px;padding:8px 0;">Chargement…</div>
+                    <div x-show="!_docMoveFoldersLoading"
+                         style="max-height:260px;overflow-y:auto;border:1px solid var(--pd-border);border-radius:6px;">
+                        <template x-for="f in _filteredMoveFolders" :key="f.id">
+                            <div @click="_docMoveTargetId = f.id; _docMoveTargetName = f.name"
+                                 :style="_docMoveTargetId === f.id ? 'background:rgba(30,58,95,0.08);font-weight:600;' : ''"
+                                 style="padding:8px 12px;cursor:pointer;font-size:13px;border-bottom:0.5px solid var(--pd-border);"
+                                 onmouseover="if(this.style.fontWeight !== '600') this.style.background='rgba(30,58,95,0.04)'"
+                                 onmouseout="if(this.style.fontWeight !== '600') this.style.background='transparent'">
+                                <span style="color:var(--pd-muted);font-size:11px;margin-right:6px;" x-text="f.path"></span>
+                                <span x-text="f.name"></span>
+                            </div>
+                        </template>
+                        <div x-show="_filteredMoveFolders.length === 0 && !_docMoveFoldersLoading"
+                             style="padding:16px;text-align:center;color:var(--pd-muted);font-size:12px;font-style:italic;">
+                            Aucun dossier trouvé.
+                        </div>
+                    </div>
+                    <div x-show="_docMoveTargetId" style="margin-top:8px;font-size:12px;color:var(--pd-muted);">
+                        Déplacer vers : <strong x-text="_docMoveTargetName"></strong>
+                    </div>
+                    <div x-show="_docMoveError" style="color:var(--pd-danger);font-size:12px;margin-top:8px;" x-text="_docMoveError"></div>
+                </div>
+                <div class="ged-modal-footer">
+                    <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Annuler</button>
+                    <button type="button" class="pd-btn pd-btn-sm pd-btn-primary"
+                            :disabled="_loading || !_docMoveTargetId"
+                            @click="submitDocMove()">
+                        <span x-show="!_loading">Déplacer</span>
+                        <span x-show="_loading">…</span>
+                    </button>
                 </div>
             </div>
         </div>
