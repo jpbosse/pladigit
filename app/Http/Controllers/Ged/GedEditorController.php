@@ -58,7 +58,8 @@ class GedEditorController extends Controller
         $editorPath = ltrim((string) config('collabora.editor_path', '/browser/dist/cool.html'), '/');
 
         // WOPI spec : l'action URL contient WOPISrc, le token est envoyé via form POST
-        $actionUrl = $collaboraUrl.'/'.$editorPath.'?WOPISrc='.urlencode($wopiSrc);
+        // lang=fr force l'interface Collabora en français
+        $actionUrl = $collaboraUrl.'/'.$editorPath.'?WOPISrc='.urlencode($wopiSrc).'&lang=fr';
 
         return view('ged.editor', [
             'document' => $document,
