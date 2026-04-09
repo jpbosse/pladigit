@@ -255,6 +255,30 @@ class GedSyncService
             return;
         }
 
+        // ── Fichier appartenant à une version archivée → ignorer ──────────
+        // Les versions archivées (ged_document_versions) ont leurs propres
+        // disk_path sur le NAS. Sans cette vérification, le sync les recréerait
+        // comme de nouveaux documents indépendants.
+        if (\App\Models\Tenant\GedDocumentVersion::where('disk_path', $diskPath)->exists()) {
+            $stats['files_skipped']++;
+
+            return;
+        }
+
+        // ── Vérification des droits de lecture ────────────────────────────
+        // Fichiers copiés par un autre utilisateur OS avec des permissions
+        // trop restrictives (ex: 600/700). Signaler clairement, ne pas planter.
+        if (isset($entry['readable']) && $entry['readable'] === false) {
+            $stats['errors']++;
+            $stats['error_details'][] = [
+                'path' => $diskPath,
+                'reason' => 'Fichier illisible (droits insuffisants) — exécutez : php artisan ged:fix-perms',
+            ];
+            $stats['files_skipped']++;
+
+            return;
+        }
+
         // ── Validation MIME ────────────────────────────────────────────────
         $ext = strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION));
         $mimeType = $this->mimeFromExtension($ext);

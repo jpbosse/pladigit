@@ -87,6 +87,10 @@ class TenantSettings extends Model
         'ged_versions_max_count',
         // Visioconférence
         'jitsi_base_url',
+        // Collabora Online
+        'collabora_url',
+        'wopi_url',
+        'collabora_token_ttl_minutes',
         // Timestamp
         'updated_at',
     ];
@@ -115,6 +119,8 @@ class TenantSettings extends Model
         // Watermark
         'wm_enabled' => 'boolean',
         'wm_opacity' => 'integer',
+        // Collabora Online
+        'collabora_token_ttl_minutes' => 'integer',
         'updated_at' => 'datetime',
     ];
 

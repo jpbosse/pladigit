@@ -9,10 +9,12 @@ use App\Models\Tenant\GedDocumentVersion;
 use App\Services\AuditService;
 use App\Services\Ged\GedPermissionService;
 use App\Services\Ged\GedStorageInterface;
+use App\Services\Ged\WopiLockService;
 use App\Services\Ged\WopiTokenService;
 use App\Services\TenantManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -25,12 +27,11 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *
  * Spec WOPI : https://learn.microsoft.com/en-us/microsoft-365/cloud-storage-partner-program/rest/
  *
- * Implémenté au Jalon 1 :
+ * Jalons implémentés :
  *   - CheckFileInfo  : GET  /wopi/files/{id}
  *   - GetFile        : GET  /wopi/files/{id}/contents
- *
- * Réservé au Jalon 2 :
  *   - PutFile        : POST /wopi/files/{id}/contents
+ *   - Lock / Unlock / RefreshLock / GetLock : POST /wopi/files/{id}
  */
 class WopiController extends Controller
 {
@@ -38,7 +39,12 @@ class WopiController extends Controller
         private readonly WopiTokenService $tokens,
         private readonly TenantManager $tenantManager,
         private readonly AuditService $audit,
+        private readonly WopiLockService $locks,
     ) {}
+
+    // =========================================================================
+    // CheckFileInfo
+    // =========================================================================
 
     /**
      * CheckFileInfo — retourne les métadonnées du document.
@@ -56,7 +62,7 @@ class WopiController extends Controller
         $doc = $wopiToken->document;
         $user = $wopiToken->user;
 
-        $folder   = $doc->folder;
+        $folder = $doc->folder;
         $canWrite = $folder !== null && app(GedPermissionService::class)->canUpload($user, $folder);
 
         return response()->json([
@@ -68,9 +74,13 @@ class WopiController extends Controller
             'UserFriendlyName' => $user->name,
             'UserCanWrite' => $canWrite,
             'ReadOnly' => ! $canWrite,
-            'SupportsLocks' => false,
+            'SupportsLocks' => true,
         ]);
     }
+
+    // =========================================================================
+    // GetFile
+    // =========================================================================
 
     /**
      * GetFile — retourne le contenu binaire du document.
@@ -88,8 +98,6 @@ class WopiController extends Controller
         $doc = $wopiToken->document;
         $path = $doc->disk_path;
 
-        // Le tenant est maintenant connecté (résolu dans resolveToken()),
-        // on peut résoudre le driver de stockage avec les bons settings.
         $storage = app(GedStorageInterface::class);
 
         abort_unless($storage->exists($path), 404);
@@ -102,12 +110,18 @@ class WopiController extends Controller
         ]);
     }
 
+    // =========================================================================
+    // PutFile
+    // =========================================================================
+
     /**
      * PutFile — reçoit le contenu binaire de Collabora, crée une nouvelle version.
      *
      * POST /wopi/files/{id}/contents?access_token={org_slug}:{raw_token}
+     *
+     * Si SupportsLocks=true, vérifie que X-WOPI-Lock correspond au verrou actif.
      */
-    public function putFile(int $fileId, Request $request): \Illuminate\Http\Response|JsonResponse
+    public function putFile(int $fileId, Request $request): Response|JsonResponse
     {
         $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
 
@@ -123,10 +137,20 @@ class WopiController extends Controller
             return response()->json(['error' => 'Forbidden'], 403);
         }
 
+        // ── Vérification du verrou ────────────────────────────────────────────
+        $requestLockId = (string) $request->header('X-WOPI-Lock', '');
+        if ($this->locks->isLockedByOther($doc->id, $requestLockId)) {
+            $currentLock = $this->locks->getLock($doc->id);
+
+            return response('', 409)->withHeaders([
+                'X-WOPI-Lock' => $currentLock !== null ? $currentLock->lock_id : '',
+            ]);
+        }
+
+        // ── Écriture ──────────────────────────────────────────────────────────
         $storage = app(GedStorageInterface::class);
         $content = $request->getContent();
 
-        // Nouveau chemin UUID pour conserver l'ancienne version intacte sur disque
         $ext = pathinfo($doc->disk_path, PATHINFO_EXTENSION);
         $newPath = dirname($doc->disk_path).'/'.Str::uuid().($ext ? '.'.$ext : '');
 
@@ -147,7 +171,6 @@ class WopiController extends Controller
 
         $oldVersion = $doc->current_version;
 
-        // Mettre à jour le document avec la nouvelle version
         $doc->update([
             'disk_path' => $newPath,
             'size_bytes' => strlen($content),
@@ -163,6 +186,110 @@ class WopiController extends Controller
 
         return response('', 200);
     }
+
+    // =========================================================================
+    // Lock / Unlock / RefreshLock / GetLock
+    // =========================================================================
+
+    /**
+     * Dispatch WOPI selon X-WOPI-Override.
+     *
+     * POST /wopi/files/{id}?access_token={org_slug}:{raw_token}
+     *
+     * Override LOCK          → lock()
+     * Override UNLOCK        → unlock()
+     * Override REFRESH_LOCK  → refreshLock()
+     * Override GET_LOCK      → getLock()
+     */
+    public function lockFile(int $fileId, Request $request): Response
+    {
+        $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
+
+        if ($wopiToken === null || $wopiToken->document_id !== $fileId) {
+            return response('', 401);
+        }
+
+        $override = (string) $request->header('X-WOPI-Override', '');
+        $lockId = (string) $request->header('X-WOPI-Lock', '');
+        $userId = $wopiToken->user->id;
+        $docId = $wopiToken->document->id;
+
+        return match ($override) {
+            'LOCK' => $this->handleLock($docId, $lockId, $userId),
+            'UNLOCK' => $this->handleUnlock($docId, $lockId),
+            'REFRESH_LOCK' => $this->handleRefreshLock($docId, $lockId),
+            'GET_LOCK' => $this->handleGetLock($docId),
+            default => response('Unknown X-WOPI-Override', 400),
+        };
+    }
+
+    // =========================================================================
+    // Handlers privés (lock)
+    // =========================================================================
+
+    private function handleLock(int $docId, string $lockId, int $userId): Response
+    {
+        if ($lockId === '') {
+            return response('Missing X-WOPI-Lock', 400);
+        }
+
+        $result = $this->locks->lock($docId, $lockId, $userId);
+
+        if ($result['status'] === 'conflict') {
+            return response('', 409)->withHeaders([
+                'X-WOPI-Lock' => $result['current_lock_id'],
+            ]);
+        }
+
+        return response('', 200);
+    }
+
+    private function handleUnlock(int $docId, string $lockId): Response
+    {
+        if ($lockId === '') {
+            return response('Missing X-WOPI-Lock', 400);
+        }
+
+        $result = $this->locks->unlock($docId, $lockId);
+
+        if ($result['status'] === 'conflict') {
+            return response('', 409)->withHeaders([
+                'X-WOPI-Lock' => $result['current_lock_id'],
+            ]);
+        }
+
+        return response('', 200);
+    }
+
+    private function handleRefreshLock(int $docId, string $lockId): Response
+    {
+        if ($lockId === '') {
+            return response('Missing X-WOPI-Lock', 400);
+        }
+
+        $result = $this->locks->refreshLock($docId, $lockId);
+
+        if ($result['status'] === 'conflict') {
+            return response('', 409)->withHeaders([
+                'X-WOPI-Lock' => $result['current_lock_id'],
+            ]);
+        }
+
+        return response('', 200);
+    }
+
+    private function handleGetLock(int $docId): Response
+    {
+        $lock = $this->locks->getLock($docId);
+
+        return response('', 200)->withHeaders([
+            'X-WOPI-Lock' => $lock !== null ? $lock->lock_id : '',
+        ]);
+    }
+
+    // =========================================================================
+    // Helper token
+    // =========================================================================
 
     /**
      * Parse l'access_token, résout le tenant, valide le token WOPI.

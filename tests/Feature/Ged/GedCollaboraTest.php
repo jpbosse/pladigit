@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedDocumentVersion;
 use App\Models\Tenant\GedFolder;
+use App\Models\Tenant\GedWopiLock;
 use App\Models\Tenant\GedWopiToken;
 use App\Models\Tenant\User;
 use App\Services\Ged\WopiTokenService;
@@ -427,6 +428,345 @@ class GedCollaboraTest extends TestCase
         );
 
         $response->assertStatus(403);
+    }
+
+    // ── WopiController::lockFile ──────────────────────────────
+
+    public function test_lock_cree_un_verrou(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
+        );
+
+        $response->assertOk();
+        $this->assertDatabaseHas('ged_wopi_locks', [
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-abc-123',
+        ], 'tenant');
+    }
+
+    public function test_lock_meme_lock_id_rafraichit_le_ttl(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-abc-123',
+            'expires_at' => now()->addMinutes(5),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
+        );
+
+        $response->assertOk();
+        $this->assertEquals(1, GedWopiLock::where('document_id', $doc->id)->count());
+    }
+
+    public function test_lock_conflit_409_si_lock_id_different(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-existant',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-nouveau'],
+        );
+
+        $response->assertStatus(409);
+        $this->assertEquals('lock-existant', $response->headers->get('X-WOPI-Lock'));
+    }
+
+    public function test_unlock_supprime_le_verrou(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-abc-123',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'UNLOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
+        );
+
+        $response->assertOk();
+        $this->assertDatabaseMissing('ged_wopi_locks', ['document_id' => $doc->id], 'tenant');
+    }
+
+    public function test_unlock_409_si_lock_id_different(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-existant',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'UNLOCK', 'HTTP_X-WOPI-Lock' => 'lock-mauvais'],
+        );
+
+        $response->assertStatus(409);
+        $this->assertEquals('lock-existant', $response->headers->get('X-WOPI-Lock'));
+    }
+
+    public function test_unlock_409_si_aucun_verrou(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'UNLOCK', 'HTTP_X-WOPI-Lock' => 'lock-inexistant'],
+        );
+
+        $response->assertStatus(409);
+        $this->assertEquals('', $response->headers->get('X-WOPI-Lock'));
+    }
+
+    public function test_refresh_lock_prolonge_le_ttl(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-abc-123',
+            'expires_at' => now()->addMinutes(5),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'REFRESH_LOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
+        );
+
+        $response->assertOk();
+
+        $lock = GedWopiLock::where('document_id', $doc->id)->first();
+        $this->assertNotNull($lock);
+        $this->assertTrue($lock->expires_at->isAfter(now()->addMinutes(25)));
+    }
+
+    public function test_refresh_lock_409_si_lock_id_different(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-existant',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'REFRESH_LOCK', 'HTTP_X-WOPI-Lock' => 'lock-mauvais'],
+        );
+
+        $response->assertStatus(409);
+        $this->assertEquals('lock-existant', $response->headers->get('X-WOPI-Lock'));
+    }
+
+    public function test_get_lock_retourne_le_lock_id_courant(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-abc-123',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'GET_LOCK'],
+        );
+
+        $response->assertOk();
+        $this->assertEquals('lock-abc-123', $response->headers->get('X-WOPI-Lock'));
+    }
+
+    public function test_get_lock_retourne_vide_si_aucun_verrou(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'GET_LOCK'],
+        );
+
+        $response->assertOk();
+        $this->assertEquals('', $response->headers->get('X-WOPI-Lock'));
+    }
+
+    public function test_lock_expire_est_ignore(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        // Verrou expiré en base
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-expire',
+            'expires_at' => now()->subMinutes(5),
+            'locked_by' => $user->id,
+        ]);
+
+        // Un nouveau lock avec un lock_id différent doit réussir
+        $response = $this->call(
+            'POST',
+            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-nouveau'],
+        );
+
+        $response->assertOk();
+        $this->assertDatabaseHas('ged_wopi_locks', [
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-nouveau',
+        ], 'tenant');
+    }
+
+    public function test_put_file_409_si_fichier_verrouille_par_autre(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-collabora',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        // PutFile sans X-WOPI-Lock (ou mauvais lock_id)
+        $response = $this->call(
+            'POST',
+            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Lock' => 'lock-different'],
+            'nouveau contenu'
+        );
+
+        $response->assertStatus(409);
+        $this->assertEquals('lock-collabora', $response->headers->get('X-WOPI-Lock'));
+
+        // Le document ne doit pas avoir été modifié
+        $doc->refresh();
+        $this->assertEquals(1, $doc->current_version);
+    }
+
+    public function test_put_file_ok_si_lock_id_correspond(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        GedWopiLock::create([
+            'document_id' => $doc->id,
+            'lock_id' => 'lock-collabora',
+            'expires_at' => now()->addMinutes(30),
+            'locked_by' => $user->id,
+        ]);
+
+        $response = $this->call(
+            'POST',
+            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            [], [], [],
+            ['HTTP_X-WOPI-Lock' => 'lock-collabora'],
+            'contenu sauvegardé'
+        );
+
+        $response->assertOk();
+        $doc->refresh();
+        $this->assertEquals(2, $doc->current_version);
+    }
+
+    public function test_check_file_info_supports_locks_true(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $token = app(WopiTokenService::class)->generate($doc, $user);
+
+        $response = $this->getJson(
+            route('wopi.files.info', $doc->id).'?access_token='.$this->accessToken($token)
+        );
+
+        $response->assertOk()->assertJsonFragment(['SupportsLocks' => true]);
     }
 
     public function test_put_file_archive_version_courante_sur_disque(): void

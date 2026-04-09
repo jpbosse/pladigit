@@ -247,6 +247,19 @@ class ProjectMilestoneController extends Controller
         // Marquer comme atteint
         if (isset($validated['reached'])) {
             if ($validated['reached'] && ! $milestone->isReached()) {
+                // Guard : une phase ne peut pas être marquée atteinte si des jalons enfants sont en cours
+                if ($milestone->isPhase()) {
+                    $pending = $milestone->children()->whereNull('reached_at')->count();
+                    if ($pending > 0) {
+                        $errorMsg = "Impossible de terminer cette phase : {$pending} jalon".($pending > 1 ? 's' : '').' non atteint'.($pending > 1 ? 's' : '').'.';
+                        if ($request->wantsJson()) {
+                            return response()->json(['success' => false, 'error' => $errorMsg], 422);
+                        }
+
+                        return back()->withErrors(['reached' => $errorMsg]);
+                    }
+                }
+
                 $milestone->markReached();
                 $this->audit->log('milestone.reached', auth()->user(), ['new' => ['project_id' => $project->id, 'milestone_id' => $milestone->id, 'milestone_name' => $milestone->title]]);
             } elseif (! $validated['reached'] && $milestone->isReached()) {

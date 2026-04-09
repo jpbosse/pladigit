@@ -236,4 +236,57 @@ class ProjectMilestoneTest extends TestCase
         $this->assertTrue($child->isChild());
         $this->assertEquals($phase->id, $child->parent_id);
     }
+
+    // ── Guard phase terminée ──────────────────────────────────────────────────
+
+    public function test_phase_avec_jalons_non_atteints_ne_peut_pas_être_terminée(): void
+    {
+        $phase = ProjectMilestone::on('tenant')->create([
+            'project_id' => $this->project->id,
+            'title' => 'Phase A',
+            'due_date' => '2026-12-31',
+            'parent_id' => null,
+        ]);
+
+        // Jalon enfant non atteint
+        ProjectMilestone::on('tenant')->create([
+            'project_id' => $this->project->id,
+            'title' => 'Jalon en cours',
+            'due_date' => '2026-11-30',
+            'parent_id' => $phase->id,
+        ]);
+
+        $this->actingAs($this->owner);
+        $this->patch(route('projects.milestones.update', [$this->project, $phase]), [
+            'reached' => true,
+        ])->assertSessionHasErrors('reached');
+
+        $this->assertNull(ProjectMilestone::on('tenant')->find($phase->id)->reached_at);
+    }
+
+    public function test_phase_peut_être_terminée_quand_tous_les_jalons_sont_atteints(): void
+    {
+        $phase = ProjectMilestone::on('tenant')->create([
+            'project_id' => $this->project->id,
+            'title' => 'Phase B',
+            'due_date' => '2026-12-31',
+            'parent_id' => null,
+        ]);
+
+        // Jalon enfant atteint
+        ProjectMilestone::on('tenant')->create([
+            'project_id' => $this->project->id,
+            'title' => 'Jalon atteint',
+            'due_date' => '2026-11-30',
+            'parent_id' => $phase->id,
+            'reached_at' => now(),
+        ]);
+
+        $this->actingAs($this->owner);
+        $this->patch(route('projects.milestones.update', [$this->project, $phase]), [
+            'reached' => true,
+        ])->assertRedirect();
+
+        $this->assertNotNull(ProjectMilestone::on('tenant')->find($phase->id)->reached_at);
+    }
 }

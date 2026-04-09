@@ -81,10 +81,16 @@ class WopiTokenService
     }
 
     /**
-     * TTL en millisecondes (format attendu par Collabora pour access_token_ttl).
+     * Timestamp d'expiration absolu en millisecondes (format attendu par Collabora).
+     *
+     * La spec WOPI définit access_token_ttl comme un timestamp Unix en ms,
+     * PAS une durée. Envoyer une durée (ex: 1 800 000) est interprété comme
+     * "expire le 01/01/1970 à 00h30" → session immédiatement expirée.
      */
     public function ttlMs(): int
     {
-        return (int) config('collabora.token_ttl', 1800) * 1000;
+        $ttl = (int) config('collabora.token_ttl', 14400);
+
+        return (int) (now()->addSeconds($ttl)->timestamp * 1000);
     }
 }

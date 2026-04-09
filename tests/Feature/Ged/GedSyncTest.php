@@ -4,6 +4,7 @@ namespace Tests\Feature\Ged;
 
 use App\Enums\UserRole;
 use App\Models\Tenant\GedDocument;
+use App\Models\Tenant\GedDocumentVersion;
 use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\User;
 use App\Services\Ged\GedNasDriver;
@@ -224,6 +225,60 @@ class GedSyncTest extends TestCase
         $this->assertSame(1, $result['folders_removed']);
 
         $this->assertTrue(GedFolder::withTrashed()->find($folder->id)?->trashed() ?? false);
+    }
+
+    // =========================================================================
+    // Versions archivées
+    // =========================================================================
+
+    public function test_sync_ignore_les_fichiers_de_versions_archivees(): void
+    {
+        // Simule un document versionné :
+        //   - v1 : uuid1.pdf → archivé dans ged_document_versions
+        //   - v2 : uuid2.pdf → version courante dans ged_documents
+        $folder = GedFolder::create([
+            'name' => 'rh',
+            'slug' => 'rh',
+            'path' => '/rh',
+            'nas_path' => 'rh',
+            'parent_id' => null,
+            'is_private' => false,
+            'created_by' => User::first()->id,
+        ]);
+
+        $user = User::first();
+
+        $doc = GedDocument::create([
+            'folder_id' => $folder->id,
+            'name' => 'contrat.pdf',
+            'disk_path' => 'rh/uuid2.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 2048,
+            'current_version' => 2,
+            'created_by' => $user->id,
+        ]);
+
+        GedDocumentVersion::create([
+            'document_id' => $doc->id,
+            'version_number' => 1,
+            'disk_path' => 'rh/uuid1.pdf',
+            'size_bytes' => 1024,
+            'mime_type' => 'application/pdf',
+            'uploaded_by' => $user->id,
+        ]);
+
+        // Les deux fichiers physiques existent sur le NAS simulé
+        $this->nasDir('rh');
+        $this->nasFile('rh/uuid1.pdf', str_repeat('a', 1024));
+        $this->nasFile('rh/uuid2.pdf', str_repeat('b', 2048));
+
+        $result = $this->syncService->syncFolderTree($this->makeNas());
+
+        // uuid1.pdf est une version archivée → doit être ignoré
+        // uuid2.pdf est la version courante → déjà en base, ignoré aussi
+        $this->assertSame(0, $result['files_added'], 'Aucun nouveau document ne doit être créé');
+        $this->assertSame(2, $result['files_skipped']);
+        $this->assertSame(1, GedDocument::count(), 'Un seul document doit exister');
     }
 
     // =========================================================================

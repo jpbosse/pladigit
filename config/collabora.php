@@ -38,7 +38,17 @@ return [
     | TTL des tokens WOPI (en secondes)
     |--------------------------------------------------------------------------
     */
-    'token_ttl' => (int) env('COLLABORA_TOKEN_TTL', 1800), // 30 min
+    'token_ttl' => (int) env('COLLABORA_TOKEN_TTL', 14400), // 4 heures
+
+    /*
+    |--------------------------------------------------------------------------
+    | TTL des verrous WOPI (en minutes)
+    |--------------------------------------------------------------------------
+    | Durée de vie d'un verrou LOCK avant expiration automatique.
+    | La spec WOPI recommande 30 minutes ; Collabora envoie REFRESH_LOCK
+    | régulièrement pour maintenir le verrou actif tant que l'éditeur est ouvert.
+    */
+    'lock_ttl' => (int) env('COLLABORA_LOCK_TTL', 30), // minutes
 
     /*
     |--------------------------------------------------------------------------
