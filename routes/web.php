@@ -38,6 +38,7 @@ Route::prefix('wopi/files')->name('wopi.')->middleware('wopi')->group(function (
     Route::get('{id}', [\App\Http\Controllers\Ged\WopiController::class, 'checkFileInfo'])->name('files.info');
     Route::get('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'getFile'])->name('files.contents');
     Route::post('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'putFile'])->name('files.put');
+    Route::post('{id}', [\App\Http\Controllers\Ged\WopiController::class, 'lockFile'])->name('files.lock');
 });
 
 // ── Super Admin — Login (sans middleware) ──────────────────
@@ -171,6 +172,9 @@ Route::middleware('tenant')->group(function () {
             Route::put('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'updateGed'])->name('settings.ged.update');
             Route::get('settings/ged/test', [\App\Http\Controllers\Admin\SettingsController::class, 'testGed'])->name('settings.ged.test');
             Route::post('settings/ged/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncGed'])->name('settings.ged.sync');
+            Route::get('settings/collabora', [\App\Http\Controllers\Admin\SettingsController::class, 'collabora'])->name('settings.collabora');
+            Route::put('settings/collabora', [\App\Http\Controllers\Admin\SettingsController::class, 'updateCollabora'])->name('settings.collabora.update');
+            Route::get('settings/collabora/test', [\App\Http\Controllers\Admin\SettingsController::class, 'testCollabora'])->name('settings.collabora.test');
             Route::get('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'visio'])->name('settings.visio');
             Route::put('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'updateVisio'])->name('settings.visio.update');
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');

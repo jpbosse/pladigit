@@ -73,10 +73,8 @@
                             <div class="ged-folder-actions">
                                 <button class="ged-action-btn" title="Renommer"
                                         @click.prevent="openRename({{ $folder->id }}, '{{ addslashes($folder->name) }}', {{ $folder->is_private ? 'true' : 'false' }})">✏️</button>
-                                @if($folder->children_count == 0 && $folder->documents_count == 0)
                                     <button class="ged-action-btn ged-action-delete" title="Supprimer"
-                                            @click.prevent="openDelete({{ $folder->id }}, '{{ addslashes($folder->name) }}')">🗑</button>
-                                @endif
+                                            @click.prevent="openDelete({{ $folder->id }}, '{{ addslashes($folder->name) }}', {{ $folder->documents_count }}, {{ $folder->children_count }})">🗑</button>
                             </div>
                         </div>
                     @endforeach
@@ -173,12 +171,38 @@
                 </div>
                 <div class="ged-modal-body">
                     <p style="font-size:13px;">Supprimer le dossier <strong x-text="_deleteName"></strong> ?</p>
-                    <p style="font-size:12px;color:var(--pd-muted);">Cette action est irréversible.</p>
+
+                    <template x-if="_deleteNeedsConfirm">
+                        <div style="margin-top:10px;padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;">
+                            <p style="font-size:12px;font-weight:600;color:#b91c1c;margin-bottom:6px;">
+                                ⚠ Ce dossier n'est pas vide
+                            </p>
+                            <p style="font-size:12px;color:#7f1d1d;">
+                                <span x-show="_deleteDocCount > 0">
+                                    <strong x-text="_deleteDocCount"></strong> document<span x-show="_deleteDocCount > 1">s</span>
+                                </span>
+                                <span x-show="_deleteDocCount > 0 && _deleteChildCount > 0"> et </span>
+                                <span x-show="_deleteChildCount > 0">
+                                    <strong x-text="_deleteChildCount"></strong> sous-dossier<span x-show="_deleteChildCount > 1">s</span>
+                                </span>
+                                seront <strong>définitivement supprimés</strong> avec tout leur contenu.
+                            </p>
+                            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#991b1b;cursor:pointer;">
+                                <input type="checkbox" x-model="_deleteForce" style="accent-color:#dc2626;width:15px;height:15px;">
+                                Je comprends et confirme la suppression définitive
+                            </label>
+                        </div>
+                    </template>
+
+                    <template x-if="!_deleteNeedsConfirm">
+                        <p style="font-size:12px;color:var(--pd-muted);margin-top:6px;">Cette action est irréversible.</p>
+                    </template>
+
                     <div x-show="_deleteError" style="color:var(--pd-danger);font-size:12px;margin-top:8px;" x-text="_deleteError"></div>
                 </div>
                 <div class="ged-modal-footer">
                     <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Annuler</button>
-                    <button type="button" class="pd-btn pd-btn-sm pd-btn-danger" @click="submitDelete()" :disabled="_loading">
+                    <button type="button" class="pd-btn pd-btn-sm pd-btn-danger" @click="submitDelete()" :disabled="_loading || (_deleteNeedsConfirm && !_deleteForce)">
                         <span x-show="!_loading">Supprimer</span>
                         <span x-show="_loading">…</span>
                     </button>

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Ged;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
@@ -280,10 +281,12 @@ class GedFolderController extends Controller
     }
 
     /**
-     * Supprimer un dossier (soft delete).
-     * Refuse si le dossier contient des documents ou sous-dossiers non supprimés.
+     * Supprimer un dossier.
+     *
+     * Sans paramètre : refuse si le dossier contient des éléments.
+     * Avec `force=true` : suppression récursive (documents + sous-dossiers).
      */
-    public function destroy(GedFolder $folder): RedirectResponse|JsonResponse
+    public function destroy(GedFolder $folder, Request $request): RedirectResponse|JsonResponse
     {
         /** @var User $user */
         $user = auth()->user();
@@ -292,35 +295,89 @@ class GedFolderController extends Controller
 
         $docCount = $folder->documents()->count();
         $childCount = GedFolder::where('parent_id', $folder->id)->count();
+        $isEmpty = $docCount === 0 && $childCount === 0;
+        $force = $request->boolean('force');
 
-        if ($docCount > 0 || $childCount > 0) {
-            $msg = 'Impossible de supprimer un dossier non vide.';
-            if (request()->wantsJson()) {
-                return response()->json(['error' => $msg], 422);
+        if (! $isEmpty && ! $force) {
+            $msg = "Ce dossier contient {$docCount} document(s) et {$childCount} sous-dossier(s). Confirmez la suppression récursive.";
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'error' => $msg,
+                    'needs_force' => true,
+                    'doc_count' => $docCount,
+                    'child_count' => $childCount,
+                ], 422);
             }
 
             return back()->withErrors(['folder' => $msg]);
         }
 
         $name = $folder->name;
+        $parentId = $folder->parent_id;
 
-        $this->audit->log('ged.folder.deleted', $user, [
-            'model_type' => GedFolder::class,
-            'model_id' => $folder->id,
-            'old' => ['name' => $name],
-        ]);
+        if ($force && ! $isEmpty) {
+            $this->deleteRecursive($folder, $user);
+        } else {
+            $this->audit->log('ged.folder.deleted', $user, [
+                'model_type' => GedFolder::class,
+                'model_id' => $folder->id,
+                'old' => ['name' => $name],
+            ]);
+            $folder->delete();
+        }
 
-        $folder->delete();
-
-        if (request()->wantsJson()) {
+        if ($request->wantsJson()) {
             return response()->json(['ok' => true]);
         }
 
-        $redirect = $folder->parent_id
-            ? route('ged.folders.show', $folder->parent_id)
+        $redirect = $parentId
+            ? route('ged.folders.show', $parentId)
             : route('ged.index');
 
-        return redirect($redirect)->with('success', "Dossier « {$name} » supprimé.");
+        return redirect($redirect)->with('success', "Dossier « {$name} » et tout son contenu supprimés.");
+    }
+
+    /**
+     * Suppression récursive : soft-delete tous les documents et sous-dossiers descendants,
+     * puis le dossier lui-même. Chaque suppression est tracée dans l'audit.
+     */
+    private function deleteRecursive(GedFolder $folder, User $user): void
+    {
+        $descendantIds = $folder->descendantIds();
+        $allFolderIds = array_merge([$folder->id], $descendantIds);
+
+        // Soft-delete tous les documents des dossiers concernés
+        $docs = GedDocument::whereIn('folder_id', $allFolderIds)->get();
+        foreach ($docs as $doc) {
+            $this->audit->log('ged.document.deleted', $user, [
+                'model_type' => GedDocument::class,
+                'model_id' => $doc->id,
+                'old' => ['name' => $doc->name, 'folder_id' => $doc->folder_id],
+            ]);
+            $doc->delete();
+        }
+
+        // Soft-delete les sous-dossiers (du plus profond au moins profond)
+        foreach (array_reverse($descendantIds) as $childId) {
+            $child = GedFolder::find($childId);
+            if ($child === null) {
+                continue;
+            }
+            $this->audit->log('ged.folder.deleted', $user, [
+                'model_type' => GedFolder::class,
+                'model_id' => $child->id,
+                'old' => ['name' => $child->name],
+            ]);
+            $child->delete();
+        }
+
+        // Soft-delete le dossier racine
+        $this->audit->log('ged.folder.deleted', $user, [
+            'model_type' => GedFolder::class,
+            'model_id' => $folder->id,
+            'old' => ['name' => $folder->name],
+        ]);
+        $folder->delete();
     }
 
     // ── Helpers privés ───────────────────────────────────────

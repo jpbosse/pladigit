@@ -10,6 +10,7 @@ use App\Services\TenantManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 
 class SettingsController extends Controller
 {
@@ -404,6 +405,52 @@ class SettingsController extends Controller
         $settings->update($data);
 
         return back()->with('success', 'Configuration stockage GED sauvegardée.');
+    }
+
+    // =========================================================================
+    // Collabora Online — Configuration
+    // =========================================================================
+
+    public function collabora(): \Illuminate\View\View
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        return view('admin.settings.collabora', compact('settings'));
+    }
+
+    public function updateCollabora(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $request->validate([
+            'collabora_url' => ['nullable', 'url', 'max:500'],
+            'wopi_url' => ['nullable', 'url', 'max:500'],
+            'collabora_token_ttl_minutes' => ['nullable', 'integer', 'min:5', 'max:10080'],
+        ]);
+
+        TenantSettings::firstOrCreate([])->update($validated);
+
+        return back()->with('success', 'Configuration Collabora enregistrée.');
+    }
+
+    public function testCollabora(): JsonResponse
+    {
+        try {
+            $settings = TenantSettings::firstOrCreate([]);
+            $url = rtrim($settings->collabora_url ?: config('collabora.url', ''), '/');
+
+            if ($url === '') {
+                return response()->json(['ok' => false, 'message' => 'URL Collabora non configurée.']);
+            }
+
+            $response = Http::timeout(5)->get($url.'/hosting/capabilities');
+
+            if ($response->successful()) {
+                return response()->json(['ok' => true, 'message' => 'Connexion Collabora réussie ('.$url.').']);
+            }
+
+            return response()->json(['ok' => false, 'message' => 'Serveur Collabora inaccessible — HTTP '.$response->status().'.']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()]);
+        }
     }
 
     public function testGed(\App\Services\Nas\NasManager $nasManager): JsonResponse

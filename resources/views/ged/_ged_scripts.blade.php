@@ -28,6 +28,10 @@ function gedFolderPage() {
         _deleteId: null,
         _deleteName: '',
         _deleteError: '',
+        _deleteDocCount: 0,
+        _deleteChildCount: 0,
+        _deleteForce: false,
+        _deleteNeedsConfirm: false,
 
         // ── Upload documents ──────────────────────────────────
         _folderId: {{ $parentId ?? 'null' }},
@@ -94,10 +98,14 @@ function gedFolderPage() {
             this.$nextTick(() => this.$refs.renameName?.focus());
         },
 
-        openDelete(id, name) {
+        openDelete(id, name, docCount, childCount) {
             this._deleteId = id;
             this._deleteName = name;
             this._deleteError = '';
+            this._deleteDocCount = docCount ?? 0;
+            this._deleteChildCount = childCount ?? 0;
+            this._deleteForce = false;
+            this._deleteNeedsConfirm = (this._deleteDocCount > 0 || this._deleteChildCount > 0);
             this._modal = 'delete';
         },
 
@@ -168,16 +176,23 @@ function gedFolderPage() {
         },
 
         async submitDelete() {
+            if (this._deleteNeedsConfirm && !this._deleteForce) {
+                this._deleteError = 'Cochez la case pour confirmer la suppression définitive.';
+                return;
+            }
             this._loading = true;
             this._deleteError = '';
             try {
                 const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+                const body = this._deleteNeedsConfirm ? JSON.stringify({ force: true }) : null;
                 const resp = await fetch(`{{ url('ged/folders') }}/${this._deleteId}`, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': csrf,
                         'Accept': 'application/json',
+                        ...(body ? { 'Content-Type': 'application/json' } : {}),
                     },
+                    body,
                 });
                 const data = await resp.json();
                 if (!resp.ok) {

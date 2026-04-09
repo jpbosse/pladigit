@@ -70,6 +70,7 @@ class LocalNasDriver implements NasConnectorInterface
                 'size' => (int) $item->getSize(),
                 'mtime' => (int) $item->getMTime(),
                 'type' => 'file',
+                'readable' => is_readable($absolutePath),
             ];
         }
 

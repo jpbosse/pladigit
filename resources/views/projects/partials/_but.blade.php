@@ -109,24 +109,33 @@
     @endphp
 
     @if($isPhase)
-    {{-- ── Phase avec jalons enfants ── --}}
-    <div style="margin-bottom:14px;border:0.5px solid var(--pd-border);border-radius:8px;overflow:hidden;">
-        {{-- En-tête phase --}}
+    {{-- ── Phase avec jalons enfants (accordéon) ── --}}
+    @php
+        $pendingChildren  = $ms->children->filter(fn($c) => !$c->isReached())->count();
+        $phaseExplicitDone = $ms->reached_at !== null;
+    @endphp
+    <div x-data="{ open: true }" style="margin-bottom:14px;border:0.5px solid var(--pd-border);border-radius:8px;overflow:hidden;">
+        {{-- En-tête phase (cliquable pour ouvrir/fermer) --}}
         <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--pd-bg2);">
+            {{-- Chevron accordéon --}}
+            <button type="button" @click="open = !open"
+                    style="background:none;border:none;padding:0;cursor:pointer;color:var(--pd-muted);display:flex;align-items:center;flex-shrink:0;line-height:1;">
+                <svg :style="open ? 'transform:rotate(90deg)' : ''" style="width:12px;height:12px;transition:transform .15s;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
             <div style="width:12px;height:12px;border-radius:3px;background:{{ $msColor }};flex-shrink:0;"></div>
-            <div style="flex:1;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <span style="font-size:12px;font-weight:700;color:var(--pd-navy);">{{ $ms->title }}</span>
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <div style="min-width:0;cursor:pointer;" @click="open = !open">
+                        <span style="font-size:12px;font-weight:700;color:var(--pd-navy);{{ $phaseExplicitDone ? 'text-decoration:line-through;color:var(--pd-muted);' : '' }}">{{ $ms->title }}</span>
                         @if($ms->description)
                         <div style="font-size:11px;color:var(--pd-muted);font-weight:400;margin-top:1px;">{{ $ms->description }}</div>
                         @endif
                     </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
+                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
                         <span style="font-size:10px;color:{{ $late ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
                             @if($ms->start_date){{ $ms->start_date->format('d/m') }} → @endif
                             {{ $ms->due_date?->translatedFormat('d M Y') }}
-                            @if($reached) ✓ @elseif($late) · En retard @endif
+                            @if($phaseExplicitDone) ✓ @elseif($reached) ✓ @elseif($late) · En retard @endif
                         </span>
                         <span style="font-size:11px;font-weight:700;color:{{ $late ? 'var(--pd-danger)' : 'var(--pd-navy)' }};">{{ $pct }}%</span>
                         @if($canManage)
@@ -149,6 +158,28 @@
                                     style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
                         </form>
                         @endif
+                        {{-- Bouton Terminée / Annuler — basé sur reached_at explicite --}}
+                        @if($phaseExplicitDone)
+                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Annuler la clôture de cette phase ?');">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="reached" value="0">
+                            <button type="submit"
+                                    style="padding:1px 7px;font-size:10px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D;border-radius:4px;cursor:pointer;"
+                                    title="Annuler la clôture">↩ Annuler</button>
+                        </form>
+                        @elseif($pendingChildren === 0)
+                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Marquer cette phase comme terminée ?');">
+                            @csrf @method('PATCH')
+                            <input type="hidden" name="reached" value="1">
+                            <button type="submit"
+                                    style="padding:1px 7px;font-size:10px;background:#F0FDF4;color:#065F46;border:0.5px solid #86EFAC;border-radius:4px;cursor:pointer;font-weight:600;"
+                                    title="Marquer la phase comme terminée">✓ Terminée</button>
+                        </form>
+                        @else
+                        <button type="button" disabled
+                                style="padding:1px 7px;font-size:10px;background:var(--pd-bg2);color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:not-allowed;"
+                                title="{{ $pendingChildren }} jalon{{ $pendingChildren > 1 ? 's' : '' }} non atteint{{ $pendingChildren > 1 ? 's' : '' }}">✓ Terminée</button>
+                        @endif
                         <button @click="openEdit({{ $ms->id }}, '{{ addslashes($ms->title) }}', '{{ $ms->due_date?->format('Y-m-d') }}', '{{ $ms->start_date?->format('Y-m-d') }}', '{{ $ms->color }}', '{{ addslashes($ms->description ?? '') }}')"
                                 style="padding:1px 7px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
                                 title="Modifier cette phase">✏️</button>
@@ -169,8 +200,9 @@
                 </div>
             </div>
         </div>
-        {{-- Jalons enfants --}}
+        {{-- Jalons enfants (repliables) --}}
         @php $childCount = $ms->children->count(); @endphp
+        <div x-show="open" x-cloak>
         @foreach($ms->children as $childIdx => $child)
         @php
             $cpct   = $child->progressionPercent();
@@ -282,6 +314,7 @@
             </div>
         </div>
         @endforeach
+        </div>{{-- /x-show="open" --}}
     </div>
 
     @else

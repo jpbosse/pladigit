@@ -31,6 +31,12 @@ Schedule::command('nas:sync --deep')
         \Log::error('Synchronisation NAS (SHA-256) échouée');
     });
 
+// Correction des droits GED — 5 min avant le sync (fichiers copiés par un autre user OS)
+Schedule::command('ged:fix-perms')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 // Synchronisation GED — toutes les heures
 Schedule::command('ged:sync')
     ->hourly()

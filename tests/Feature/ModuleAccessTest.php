@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Enums\ModuleKey;
 use App\Models\Platform\Organization;
+use App\Models\Tenant\GedDocument;
+use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\User;
 use App\Services\TenantManager;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 /**
@@ -257,5 +260,72 @@ class ModuleAccessTest extends TestCase
         $this->post(route('super-admin.organizations.update-modules', $org), [
             'modules' => ['media'],
         ])->assertRedirect(route('super-admin.login'));
+    }
+
+    // ── Collabora Online — gating via module GED ───────────────────────
+
+    public function test_accès_éditeur_collabora_refusé_si_module_ged_désactivé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => []]);
+
+        $doc = $this->makeGedDocument();
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('ged.documents.editor', $doc))
+            ->assertForbidden();
+    }
+
+    public function test_accès_éditeur_collabora_redirige_si_url_collabora_vide(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => ['ged']]);
+        config(['collabora.url' => '']);
+
+        $doc = $this->makeGedDocument();
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('ged.documents.editor', $doc))
+            ->assertRedirect();
+    }
+
+    public function test_accès_éditeur_collabora_ok_si_ged_activé_et_url_configurée(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => ['ged']]);
+        config(['collabora.url' => 'https://collabora.example.com']);
+
+        $doc = $this->makeGedDocument();
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('ged.documents.editor', $doc))
+            ->assertOk();
+    }
+
+    /** Crée un dossier + document ODT pour les tests Collabora. */
+    private function makeGedDocument(): GedDocument
+    {
+        Storage::fake('local');
+
+        $user = $this->admin;
+
+        $folder = GedFolder::create([
+            'name' => 'Test Collabora',
+            'slug' => 'test-collabora-module',
+            'path' => '/test-collabora-module',
+            'parent_id' => null,
+            'is_private' => false,
+            'created_by' => $user->id,
+        ]);
+
+        $path = 'ged/test/2026/04/module-test.odt';
+        Storage::disk('local')->put($path, 'fake odt');
+
+        return GedDocument::create([
+            'folder_id' => $folder->id,
+            'name' => 'module-test.odt',
+            'disk_path' => $path,
+            'mime_type' => 'application/vnd.oasis.opendocument.text',
+            'size_bytes' => 8,
+            'current_version' => 1,
+            'created_by' => $user->id,
+        ]);
     }
 }

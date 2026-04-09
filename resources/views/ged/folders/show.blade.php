@@ -134,10 +134,8 @@
                             <div class="ged-folder-actions">
                                 <button class="ged-action-btn" title="Renommer"
                                         @click.prevent="openRename({{ $sub->id }}, '{{ addslashes($sub->name) }}', {{ $sub->is_private ? 'true' : 'false' }})">✏️</button>
-                                @if($sub->children_count == 0 && $sub->documents_count == 0)
-                                    <button class="ged-action-btn ged-action-delete" title="Supprimer"
-                                            @click.prevent="openDelete({{ $sub->id }}, '{{ addslashes($sub->name) }}')">🗑</button>
-                                @endif
+                                <button class="ged-action-btn ged-action-delete" title="Supprimer"
+                                        @click.prevent="openDelete({{ $sub->id }}, '{{ addslashes($sub->name) }}', {{ $sub->documents_count }}, {{ $sub->children_count }})">🗑</button>
                             </div>
                         </div>
                     @endforeach
@@ -168,7 +166,9 @@
                             <tr>
                                 <td style="text-align:center;font-size:16px;">{{ $doc->icon() }}</td>
                                 <td>
-                                    @if($doc->isPreviewable())
+                                    @if($doc->isCollaboraSupported())
+                                        <a href="{{ route('ged.documents.editor', $doc) }}" class="ged-doc-name-link" target="_blank">{{ $doc->name }}</a>
+                                    @elseif($doc->isPreviewable())
                                         <button class="ged-doc-name-btn"
                                                 @click="openPreview('{{ route('ged.documents.serve', $doc) }}', '{{ route('ged.documents.download', $doc) }}', '{{ addslashes($doc->name) }}', '{{ addslashes($doc->mime_type ?? '') }}')">
                                             {{ $doc->name }}
@@ -205,7 +205,12 @@
                                                     @click="openPreview('{{ route('ged.documents.serve', $doc) }}', '{{ route('ged.documents.download', $doc) }}', '{{ addslashes($doc->name) }}', '{{ addslashes($doc->mime_type ?? '') }}')">👁</button>
                                         @endif
                                         @if($doc->isCollaboraSupported())
-                                            <a href="{{ route('ged.documents.editor', $doc) }}" class="ged-action-btn" title="Ouvrir dans Collabora" target="_blank">✏️</a>
+                                            <a href="{{ route('ged.documents.editor', $doc) }}" class="ged-action-btn" title="Ouvrir dans Collabora" target="_blank">
+                                                <svg style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24">
+                                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                                                </svg>
+                                            </a>
                                         @endif
                                         <a href="{{ route('ged.documents.download', $doc) }}" class="ged-action-btn" title="Télécharger" download>⬇</a>
                                         <button class="ged-action-btn" title="Renommer"
@@ -294,12 +299,39 @@
                 </div>
                 <div class="ged-modal-body">
                     <p style="font-size:13px;">Supprimer le dossier <strong x-text="_deleteName"></strong> ?</p>
-                    <p style="font-size:12px;color:var(--pd-muted);">Cette action est irréversible.</p>
+
+                    {{-- Avertissement si dossier non vide --}}
+                    <template x-if="_deleteNeedsConfirm">
+                        <div style="margin-top:10px;padding:10px 12px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;">
+                            <p style="font-size:12px;font-weight:600;color:#b91c1c;margin-bottom:6px;">
+                                ⚠ Ce dossier n'est pas vide
+                            </p>
+                            <p style="font-size:12px;color:#7f1d1d;">
+                                <span x-show="_deleteDocCount > 0">
+                                    <strong x-text="_deleteDocCount"></strong> document<span x-show="_deleteDocCount > 1">s</span>
+                                </span>
+                                <span x-show="_deleteDocCount > 0 && _deleteChildCount > 0"> et </span>
+                                <span x-show="_deleteChildCount > 0">
+                                    <strong x-text="_deleteChildCount"></strong> sous-dossier<span x-show="_deleteChildCount > 1">s</span>
+                                </span>
+                                seront <strong>définitivement supprimés</strong> avec tout leur contenu.
+                            </p>
+                            <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:#991b1b;cursor:pointer;">
+                                <input type="checkbox" x-model="_deleteForce" style="accent-color:#dc2626;width:15px;height:15px;">
+                                Je comprends et confirme la suppression définitive
+                            </label>
+                        </div>
+                    </template>
+
+                    <template x-if="!_deleteNeedsConfirm">
+                        <p style="font-size:12px;color:var(--pd-muted);margin-top:6px;">Cette action est irréversible.</p>
+                    </template>
+
                     <div x-show="_deleteError" style="color:var(--pd-danger);font-size:12px;margin-top:8px;" x-text="_deleteError"></div>
                 </div>
                 <div class="ged-modal-footer">
                     <button type="button" class="pd-btn pd-btn-sm" @click="_modal = null">Annuler</button>
-                    <button type="button" class="pd-btn pd-btn-sm pd-btn-danger" @click="submitDelete()" :disabled="_loading">
+                    <button type="button" class="pd-btn pd-btn-sm pd-btn-danger" @click="submitDelete()" :disabled="_loading || (_deleteNeedsConfirm && !_deleteForce)">
                         <span x-show="!_loading">Supprimer</span>
                         <span x-show="_loading">…</span>
                     </button>

@@ -163,7 +163,7 @@ class GedFolderTest extends TestCase
 
         $response = $this->deleteJson(route('ged.folders.destroy', $parent));
 
-        $response->assertUnprocessable()->assertJsonFragment(['error' => 'Impossible de supprimer un dossier non vide.']);
+        $response->assertUnprocessable()->assertJsonPath('needs_force', true);
 
         $this->assertDatabaseHas('ged_folders', ['id' => $parent->id, 'deleted_at' => null], 'tenant');
     }
@@ -188,6 +188,87 @@ class GedFolderTest extends TestCase
         $response = $this->deleteJson(route('ged.folders.destroy', $folder));
 
         $response->assertUnprocessable();
+    }
+
+    public function test_suppression_récursive_dossier_avec_documents(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder(['created_by' => $user->id]);
+
+        $doc = GedDocument::create([
+            'folder_id' => $folder->id,
+            'name' => 'doc.pdf',
+            'disk_path' => '/fake/doc.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 10240,
+            'current_version' => 1,
+            'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->deleteJson(route('ged.folders.destroy', $folder), ['force' => true]);
+
+        $response->assertOk()->assertJsonFragment(['ok' => true]);
+        $this->assertSoftDeleted('ged_folders', ['id' => $folder->id], 'tenant');
+        $this->assertSoftDeleted('ged_documents', ['id' => $doc->id], 'tenant');
+    }
+
+    public function test_suppression_récursive_dossier_avec_sous_dossiers(): void
+    {
+        $user = $this->admin();
+        $parent = $this->makeFolder(['name' => 'Parent', 'slug' => 'parent-rec', 'path' => '/parent-rec', 'created_by' => $user->id]);
+        $child = GedFolder::create([
+            'name' => 'Enfant',
+            'slug' => 'enfant-rec',
+            'path' => '/parent-rec/enfant-rec',
+            'parent_id' => $parent->id,
+            'is_private' => false,
+            'created_by' => $user->id,
+        ]);
+        $doc = GedDocument::create([
+            'folder_id' => $child->id,
+            'name' => 'doc-enfant.odt',
+            'disk_path' => '/fake/doc-enfant.odt',
+            'mime_type' => 'application/vnd.oasis.opendocument.text',
+            'size_bytes' => 512,
+            'current_version' => 1,
+            'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->deleteJson(route('ged.folders.destroy', $parent), ['force' => true]);
+
+        $response->assertOk()->assertJsonFragment(['ok' => true]);
+        $this->assertSoftDeleted('ged_folders', ['id' => $parent->id], 'tenant');
+        $this->assertSoftDeleted('ged_folders', ['id' => $child->id], 'tenant');
+        $this->assertSoftDeleted('ged_documents', ['id' => $doc->id], 'tenant');
+    }
+
+    public function test_sans_force_dossier_non_vide_retourne_needs_force(): void
+    {
+        $user = $this->admin();
+        $folder = $this->makeFolder(['name' => 'Non vide', 'slug' => 'non-vide', 'path' => '/non-vide', 'created_by' => $user->id]);
+        GedDocument::create([
+            'folder_id' => $folder->id,
+            'name' => 'doc.pdf',
+            'disk_path' => '/fake/doc.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 512,
+            'current_version' => 1,
+            'created_by' => $user->id,
+        ]);
+
+        $this->actingAs($user);
+
+        $this->deleteJson(route('ged.folders.destroy', $folder))
+            ->assertUnprocessable()
+            ->assertJsonPath('needs_force', true)
+            ->assertJsonPath('doc_count', 1)
+            ->assertJsonPath('child_count', 0);
+
+        $this->assertDatabaseHas('ged_folders', ['id' => $folder->id, 'deleted_at' => null], 'tenant');
     }
 
     // =========================================================================
