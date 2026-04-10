@@ -6,6 +6,7 @@ use App\Models\Concerns\Shareable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -43,6 +44,7 @@ class MediaItem extends Model
         'sha256_hash',
         'is_duplicate',
         'processing_status',
+        'exif_taken_at',
     ];
 
     protected $casts = [
@@ -51,6 +53,7 @@ class MediaItem extends Model
         'width_px' => 'integer',
         'height_px' => 'integer',
         'is_duplicate' => 'boolean',
+        'exif_taken_at' => 'datetime',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -73,6 +76,14 @@ class MediaItem extends Model
     public function uploader(): BelongsTo
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    /**
+     * @return BelongsToMany<Tag, $this>
+     */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'media_item_tag')->orderBy('name');
     }
 
     // ── Scopes ───────────────────────────────────────────────

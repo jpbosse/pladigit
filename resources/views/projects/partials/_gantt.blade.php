@@ -88,6 +88,17 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
     </div>
 </div>
 
+@if($todayX)
+<div style="display:inline-flex;align-items:center;gap:8px;margin-bottom:8px;
+            padding:5px 12px;border-radius:6px;
+            background:rgba(220,38,38,0.07);border:0.5px solid rgba(220,38,38,0.2);">
+    <svg width="10" height="18" style="flex-shrink:0;">
+        <line x1="5" y1="0" x2="5" y2="18" stroke="#DC2626" stroke-width="1.5" opacity="0.8"/>
+    </svg>
+    <span style="font-size:11px;color:#DC2626;font-weight:500;">Ceci indique la date d'aujourd'hui</span>
+</div>
+@endif
+
 <div style="overflow-x:auto;">
 <div :style="'width:'+Math.round({{ $svgWidth }}*zoom)+'px'">
 
@@ -107,10 +118,6 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
     <text x="{{ $p['x']+6 }}" y="36" font-size="10" fill="var(--pd-muted)">{{ $p['sub'] }}</text>
     @endif
     @endforeach
-    @if($todayX)
-    <rect x="{{ $todayX-18 }}" y="26" width="36" height="14" rx="4" fill="#DC2626"/>
-    <text x="{{ $todayX }}" y="36" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">Auj.</text>
-    @endif
 </svg>
 
 {{-- ── Groupes ── --}}

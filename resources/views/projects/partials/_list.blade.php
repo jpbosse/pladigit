@@ -59,7 +59,7 @@ if (!$nextActiveMs && $project->milestones->isNotEmpty()) {
            class="pd-input" style="flex:1;max-width:280px;">
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--pd-muted);cursor:pointer;">
         <input type="checkbox" x-model="showAll" style="accent-color:var(--pd-navy);">
-        Toutes les tâches
+        Inclure les terminées
     </label>
     @if($canEdit)
     <button @click="$dispatch('open-new-task',{status:'todo'})"

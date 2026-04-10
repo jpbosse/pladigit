@@ -3,7 +3,6 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Tenant\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -13,8 +12,6 @@ use Tests\TestCase;
  */
 class SettingsTest extends TestCase
 {
-    use RefreshDatabase;
-
     private User $admin;
 
     protected function setUp(): void

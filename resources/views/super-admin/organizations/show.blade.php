@@ -143,7 +143,7 @@
                         <div>
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <span style="font-size:13px;font-weight:500;color:#1f2937;">{{ $module->label() }}</span>
-                                <span style="font-size:11px;padding:1px 6px;border-radius:999px;font-family:monospace;background:#dcfce7;color:#15803d;">Phase {{ $module->phase() }}</span>
+                                <span style="font-size:11px;padding:1px 6px;border-radius:999px;font-family:monospace;background:#dcfce7;color:#15803d;">{{ $module->value }}</span>
                             </div>
                             <p style="font-size:12px;color:#6b7280;margin:3px 0 0;line-height:1.4;">{{ $module->description() }}</p>
                         </div>

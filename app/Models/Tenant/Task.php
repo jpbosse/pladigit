@@ -118,6 +118,13 @@ class Task extends Model
         return $this->morphMany(\App\Models\Tenant\ProjectDocument::class, 'documentable')->latest();
     }
 
+    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<ProjectGedLink, $this> */
+    public function gedLinks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(ProjectGedLink::class, 'documentable_id')
+            ->where('documentable_type', self::class);
+    }
+
     /** @return BelongsTo<ProjectMilestone, $this> */
     public function milestone(): BelongsTo
     {

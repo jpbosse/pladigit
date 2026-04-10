@@ -1,7 +1,7 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Paramètres — Visioconférence')
 
-@section('content')
+@section('admin-content')
 <div class="pd-page-header">
     <div>
         <div class="pd-page-title">Visioconférence</div>

@@ -7,7 +7,6 @@ use App\Models\Tenant\User;
 use App\Services\TenantMailer;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class TenantMailerTest extends TestCase
@@ -18,13 +17,6 @@ class TenantMailerTest extends TestCase
     {
         parent::setUp();
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-    }
-
-    protected function tearDown(): void
-    {
-        DB::connection('tenant')->table('users')->delete();
-        DB::connection('mysql')->table('organizations')->delete();
-        parent::tearDown();
     }
 
     public function test_is_configured_false_when_no_host(): void

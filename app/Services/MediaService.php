@@ -132,10 +132,8 @@ class MediaService
                 ]);
             });
 
-            // Si import forcé d'un doublon, s'assurer que l'original est aussi marqué
-            if ($isDuplicate && $existing !== null && ! $existing->is_duplicate) {
-                $existing->update(['is_duplicate' => true]);
-            }
+            // L'original ($existing) garde is_duplicate = false.
+            // Seule la nouvelle copie est marquée is_duplicate = true.
 
         } catch (\Throwable $e) {
             // Compensation : supprimer les fichiers NAS pour éviter les orphelins
@@ -158,6 +156,9 @@ class MediaService
             );
         }
 
+        // Notifier les admins si un seuil de quota est franchi
+        $this->notifyQuotaThresholdIfCrossed(strlen($contents));
+
         // Dispatch du Job de traitement en arrière-plan
         $org = app(\App\Services\TenantManager::class)->current();
         \App\Jobs\ProcessMediaUpload::dispatch(
@@ -178,14 +179,15 @@ class MediaService
 
     // =========================================================================
     /**
-     * Supprime physiquement sur le NAS tous les fichiers d'un album et de ses sous-albums.
+     * Supprime physiquement sur le NAS tous les fichiers d'un album et de ses sous-albums,
+     * puis supprime les dossiers NAS eux-mêmes (du plus profond au plus haut).
      * Appelé avant le soft-delete de l'album en base.
      */
     public function deleteAlbumFiles(MediaAlbum $album): void
     {
         $nas = $this->nasManager->photoDriver();
 
-        // Traiter récursivement les sous-albums d'abord
+        // Traiter récursivement les sous-albums d'abord (enfants avant parents)
         foreach ($album->children as $child) {
             $this->deleteAlbumFiles($child);
         }
@@ -200,13 +202,29 @@ class MediaService
                     $nas->deleteFile($item->thumb_path);
                 }
             } catch (\Throwable $e) {
-                Log::warning('MediaService::deleteAlbumFiles — suppression NAS échouée', [
+                Log::warning('MediaService::deleteAlbumFiles — suppression fichier NAS échouée', [
                     'item_id' => $item->id,
                     'file_path' => $item->file_path,
                     'error' => $e->getMessage(),
                 ]);
             }
         });
+
+        // Supprimer le dossier NAS de cet album (vide après suppression des fichiers)
+        // IMPORTANT : sans cette étape, la prochaine sync NAS recréerait l'album
+        if ($album->nas_path) {
+            try {
+                if ($nas->exists($album->nas_path)) {
+                    $nas->deleteDirectory($album->nas_path);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('MediaService::deleteAlbumFiles — suppression dossier NAS échouée', [
+                    'album_id' => $album->id,
+                    'nas_path' => $album->nas_path,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     // Synchronisation arborescence NAS → albums/sous-albums
@@ -343,13 +361,16 @@ class MediaService
         }
 
         // 2. Synchroniser les fichiers de ce dossier
+        // On passe explicitement le driver NAS reçu par syncDirectory pour garantir
+        // que syncByMtime/syncBySha256 utilisent le même driver (photoDriver) que
+        // doSyncAlbumTree — et non nasManager->driver() qui peut pointer ailleurs.
         try {
             if ($deep) {
-                $result = $this->syncBySha256($album, $nasPath);
+                $result = $this->syncBySha256($album, $nasPath, $nas);
                 $stats['files_added'] += $result['updated'];
                 $stats['files_skipped'] += $result['unchanged'];
             } else {
-                $result = $this->syncByMtime($album, $nasPath);
+                $result = $this->syncByMtime($album, $nasPath, $nas);
                 $stats['files_added'] += $result['added'];
                 $stats['files_skipped'] += $result['skipped'];
             }
@@ -544,11 +565,12 @@ class MediaService
      * Synchronisation légère par mtime/taille (niveau 1 — toutes les heures).
      * Détecte les nouveaux fichiers dans le répertoire racine du NAS.
      *
+     * @param  NasConnectorInterface|null  $nas  Driver à utiliser (null = driver générique)
      * @return array{added: int, skipped: int}
      */
-    public function syncByMtime(MediaAlbum $album, string $nasDirectory = ''): array
+    public function syncByMtime(MediaAlbum $album, string $nasDirectory = '', ?NasConnectorInterface $nas = null): array
     {
-        $nas = $this->nasManager->driver();
+        $nas ??= $this->nasManager->driver();
         $files = $nas->listFiles($nasDirectory);
         $added = 0;
         $skipped = 0;
@@ -571,9 +593,19 @@ class MediaService
                 continue;
             }
 
-            $existing = MediaItem::where('album_id', $album->id)
+            // Chercher l'item existant, y compris les soft-deleted (même chemin NAS)
+            $existing = MediaItem::withTrashed()
+                ->where('album_id', $album->id)
                 ->where('file_path', $entry['path'])
                 ->first();
+
+            // Restaurer un item soft-deleted plutôt que d'en créer un nouveau
+            if ($existing && $existing->trashed()) {
+                $existing->restore(); // déclenche MediaItemObserver::restored
+                $added++;
+
+                continue;
+            }
 
             if ($existing) {
                 // Fichier déjà connu — vérifier si modifié par mtime
@@ -588,8 +620,11 @@ class MediaService
             }
 
             // Nouveau fichier → ingestion légère (sans lecture complète)
-            $this->ingestNasFile($entry, $album, $nas);
-            $added++;
+            if ($this->ingestNasFile($entry, $album, $nas)) {
+                $added++;
+            } else {
+                $skipped++; // quota dépassé
+            }
         }
 
         return compact('added', 'skipped');
@@ -599,11 +634,12 @@ class MediaService
      * Synchronisation complète par SHA-256 (niveau 2 — quotidienne à 23h30).
      * Garantit l'intégrité sans faux négatifs.
      *
+     * @param  NasConnectorInterface|null  $nas  Driver à utiliser (null = driver générique)
      * @return array{updated: int, unchanged: int}
      */
-    public function syncBySha256(MediaAlbum $album, string $nasDirectory = ''): array
+    public function syncBySha256(MediaAlbum $album, string $nasDirectory = '', ?NasConnectorInterface $nas = null): array
     {
-        $nas = $this->nasManager->driver();
+        $nas ??= $this->nasManager->driver();
         $files = $nas->listFiles($nasDirectory);
         $updated = 0;
         $unchanged = 0;
@@ -771,6 +807,13 @@ class MediaService
 
                     if (! empty($exifData) && ($force || empty($item->exif_data))) {
                         $changes['exif_data'] = $exifData;
+                        // Mise à jour simultanée de la colonne dédiée pour le tri
+                        $takenAt = $this->extractTakenAt($exifData);
+                        $changes['exif_taken_at'] = $takenAt?->format('Y-m-d H:i:s');
+                    } elseif ($force && ! empty($item->exif_data)) {
+                        // --force sans nouveau exif_data (ex: image sans EXIF) → on reparse
+                        $takenAt = $this->extractTakenAt($item->exif_data);
+                        $changes['exif_taken_at'] = $takenAt?->format('Y-m-d H:i:s');
                     }
 
                     if ($width && ($force || ! $item->width_px)) {
@@ -864,6 +907,45 @@ class MediaService
     // =========================================================================
 
     /**
+     * Extrait la date de prise de vue depuis un tableau EXIF brut.
+     *
+     * Priorité des clés EXIF (norme JEITA EXIF 2.32) :
+     *   1. DateTimeOriginal  — date de déclenchement réel de l'obturateur
+     *   2. DateTime          — date de dernière modification du fichier
+     *   3. DateTimeDigitized — date de numérisation (scanners)
+     *
+     * Format EXIF : "YYYY:MM:DD HH:MM:SS" — on remplace les deux-points
+     * de la partie date par des tirets pour que PHP puisse parser.
+     *
+     * Retourne null si aucune clé n'est trouvable ou si le format est invalide.
+     */
+    public function extractTakenAt(array $exifData): ?\DateTimeImmutable
+    {
+        $raw = $exifData['DateTimeOriginal']
+            ?? $exifData['DateTime']
+            ?? $exifData['DateTimeDigitized']
+            ?? null;
+
+        if (empty($raw) || ! is_string($raw)) {
+            return null;
+        }
+
+        // "0000:00:00 00:00:00" est une valeur nulle EXIF courante
+        if (str_starts_with($raw, '0000:')) {
+            return null;
+        }
+
+        // Convertit "2024:07:14 15:32:00" → "2024-07-14 15:32:00"
+        $normalized = preg_replace('/^(\d{4}):(\d{2}):(\d{2})/', '$1-$2-$3', $raw);
+
+        try {
+            return new \DateTimeImmutable((string) $normalized);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
      * Construit le chemin NAS de destination pour un upload.
      * Ex : albums/42/2026/04/mon-fichier.jpg
      */
@@ -883,18 +965,24 @@ class MediaService
      */
     public function recalculateDuplicateFlag(string $sha256): void
     {
-        $items = MediaItem::where('sha256_hash', $sha256)->get(['id', 'is_duplicate']);
+        $items = MediaItem::where('sha256_hash', $sha256)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get(['id', 'album_id', 'file_path', 'is_duplicate']);
 
         if ($items->isEmpty()) {
             return;
         }
 
-        $isDuplicate = $items->count() > 1;
+        // Vrais doublons = file_path distincts (un fichier par chemin NAS unique)
+        $uniquePaths = $items->unique('file_path')->values();
+        $hasRealDuplicates = $uniquePaths->count() > 1;
 
-        // Mise à jour uniquement si le flag doit changer (évite des UPDATE inutiles)
         foreach ($items as $item) {
-            if ($item->is_duplicate !== $isDuplicate) {
-                $item->update(['is_duplicate' => $isDuplicate]);
+            // Si un seul file_path existe pour ce hash → plus de doublon
+            $shouldBeDuplicate = $hasRealDuplicates && $item->id !== $uniquePaths->first()->id;
+            if ($item->is_duplicate !== $shouldBeDuplicate) {
+                $item->update(['is_duplicate' => $shouldBeDuplicate]);
             }
         }
     }
@@ -953,8 +1041,27 @@ class MediaService
      *
      * @param  array{name: string, path: string, size: int, mtime: int, type: string}  $entry
      */
-    private function ingestNasFile(array $entry, MediaAlbum $album, NasConnectorInterface $nas): void
+    /**
+     * Retourne true si le fichier a été ingéré, false si ignoré (quota dépassé).
+     */
+    private function ingestNasFile(array $entry, MediaAlbum $album, NasConnectorInterface $nas): bool
     {
+        // Vérification quota avant ingestion (la sync ne doit pas dépasser le quota)
+        $quotaInfo = $this->quotaInfo();
+        if ($quotaInfo !== null) {
+            [$usedBytes, $quotaBytes] = $quotaInfo;
+            if (($usedBytes + $entry['size']) > $quotaBytes) {
+                Log::warning('MediaService::ingestNasFile — quota dépassé, fichier ignoré', [
+                    'path' => $entry['path'],
+                    'size_bytes' => $entry['size'],
+                    'used_mb' => round($usedBytes / 1048576, 1),
+                    'quota_mb' => round($quotaBytes / 1048576),
+                ]);
+
+                return false;
+            }
+        }
+
         $ext = strtolower(pathinfo($entry['name'], PATHINFO_EXTENSION));
         $mimeType = self::ALLOWED_EXTENSIONS[$ext] ?? 'application/octet-stream';
 
@@ -991,32 +1098,19 @@ class MediaService
         }
 
         // Détection doublon lors de la sync NAS
+        // On cherche uniquement dans les AUTRES albums — un même contenu
+        // dans le même album n'est pas un doublon (même photo, même dossier).
         $isDuplicate = false;
         if ($sha256) {
-            $existingDup = MediaItem::where('sha256_hash', $sha256)->first();
+            $existingDup = MediaItem::where('sha256_hash', $sha256)
+                ->where('album_id', '!=', $album->id)
+                ->first();
 
             if ($existingDup) {
-                if ($existingDup->album_id === $album->id) {
-                    // Même album + même contenu = fichier renommé sur le NAS
-                    // → on met à jour le nom et le chemin, on ne crée pas de doublon
-                    $existingDup->update([
-                        'file_name' => $entry['name'],
-                        'file_path' => $entry['path'],
-                    ]);
-                    Log::info('MediaService::ingestNasFile — fichier renommé détecté, mise à jour du nom', [
-                        'item_id' => $existingDup->id,
-                        'old_name' => $existingDup->file_name,
-                        'new_name' => $entry['name'],
-                    ]);
-
-                    return; // pas de création d'item supplémentaire
-                }
-
-                // Album différent = vrai doublon inter-albums
+                // Album différent = vrai doublon inter-albums.
+                // L'original ($existingDup) garde is_duplicate = false.
+                // Seule la nouvelle copie ingérée sera is_duplicate = true.
                 $isDuplicate = true;
-                if (! $existingDup->is_duplicate) {
-                    $existingDup->update(['is_duplicate' => true]);
-                }
                 Log::info('MediaService::ingestNasFile — doublon inter-albums détecté via sync NAS', [
                     'new_path' => $entry['path'],
                     'original_id' => $existingDup->id,
@@ -1037,34 +1131,56 @@ class MediaService
             'width_px' => $width,
             'height_px' => $height,
             'exif_data' => $exifData,
+            'exif_taken_at' => $exifData ? $this->extractTakenAt($exifData)?->format('Y-m-d H:i:s') : null,
             'caption' => null,
             'sha256_hash' => $sha256,
             'is_duplicate' => $isDuplicate,
         ]);
+
+        // Notifier les admins si un seuil de quota est franchi
+        $this->notifyQuotaThresholdIfCrossed($entry['size']);
+
+        return true;
+    }
+
+    /**
+     * Retourne [usedBytes, quotaBytes] pour l'organisation courante,
+     * ou null si aucun contexte tenant (tests CLI, jobs sans org).
+     *
+     * @return array{0: int, 1: int}|null
+     */
+    private function quotaInfo(): ?array
+    {
+        $org = app(\App\Services\TenantManager::class)->current();
+
+        if (! $org) {
+            return null;
+        }
+
+        $quotaBytes = ($org->storage_quota_mb ?? 10240) * 1024 * 1024;
+        $usedBytes = (int) MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+
+        return [$usedBytes, $quotaBytes];
     }
 
     /**
      * Vérifie que l'ajout du fichier ne dépasse pas le quota de l'organisation.
      *
-     * Le quota (storage_quota_mb) est défini sur l'Organization dans pladigit_platform.
-     * La valeur par défaut est 10 240 Mo (10 Go), conformément à la migration.
-     *
      * @throws RuntimeException si le quota serait dépassé après l'upload
      */
     private function assertQuota(UploadedFile $file, User $uploader): void
     {
-        $org = app(\App\Services\TenantManager::class)->current();
+        $info = $this->quotaInfo();
 
-        if (! $org) {
+        if ($info === null) {
             return; // Pas de tenant résolu (tests unitaires, CLI) → on laisse passer
         }
 
-        $quotaMb = $org->storage_quota_mb ?? 10240;
-        $quotaBytes = $quotaMb * 1024 * 1024;
-        $usedBytes = (int) MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+        [$usedBytes, $quotaBytes] = $info;
         $incomingBytes = $file->getSize();
 
         if (($usedBytes + $incomingBytes) > $quotaBytes) {
+            $quotaMb = round($quotaBytes / 1048576);
             $usedMb = round($usedBytes / 1048576, 1);
             $freeMb = max(0, round(($quotaBytes - $usedBytes) / 1048576, 1));
             $fileMb = round($incomingBytes / 1048576, 1);
@@ -1075,6 +1191,38 @@ class MediaService
                 ."Espace libre : {$freeMb} Mo. "
                 ."Fichier : {$fileMb} Mo."
             );
+        }
+    }
+
+    /**
+     * Envoie une notification aux admins si un seuil de quota vient d'être franchi.
+     * Seuils surveillés : 80 %, 90 %, 95 %.
+     * Évite le spam : une seule notification par seuil franchi (pas de ré-émission
+     * tant que la consommation reste au-dessus du seuil).
+     */
+    private function notifyQuotaThresholdIfCrossed(int $addedBytes): void
+    {
+        $info = $this->quotaInfo();
+
+        if ($info === null) {
+            return;
+        }
+
+        [$usedBytesAfter, $quotaBytes] = $info;
+
+        if ($quotaBytes === 0) {
+            return;
+        }
+
+        $usedBytesBefore = max(0, $usedBytesAfter - $addedBytes);
+        $pctBefore = (int) floor($usedBytesBefore / $quotaBytes * 100);
+        $pctAfter = (int) floor($usedBytesAfter / $quotaBytes * 100);
+
+        foreach ([80, 90, 95] as $threshold) {
+            if ($pctBefore < $threshold && $pctAfter >= $threshold) {
+                app(NotificationService::class)->quotaWarning($usedBytesAfter, $quotaBytes, $threshold);
+                break; // un seul seuil par upload
+            }
         }
     }
 

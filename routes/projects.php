@@ -5,6 +5,7 @@ use App\Http\Controllers\Projects\ProjectBudgetController;
 use App\Http\Controllers\Projects\ProjectChangeController;
 use App\Http\Controllers\Projects\ProjectController;
 use App\Http\Controllers\Projects\ProjectEventController;
+use App\Http\Controllers\Projects\ProjectGedLinkController;
 use App\Http\Controllers\Projects\ProjectHistoryController;
 use App\Http\Controllers\Projects\ProjectMemberController;
 use App\Http\Controllers\Projects\ProjectMilestoneController;
@@ -150,4 +151,10 @@ Route::prefix('projects')
         Route::post('/{project}/documents/link', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'storeLink'])->name('documents.link');
         Route::get('/{project}/documents/{document}/download', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'download'])->name('documents.download');
         Route::delete('/{project}/documents/{document}', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'destroy'])->name('documents.destroy');
+
+        // ── Liens GED ↔ Projet / Tâche ───────────────────────────────────
+        Route::get('/{project}/ged-links', [ProjectGedLinkController::class, 'index'])->name('ged_links.index');
+        Route::get('/{project}/ged-links/picker', [ProjectGedLinkController::class, 'picker'])->name('ged_links.picker');
+        Route::post('/{project}/ged-links', [ProjectGedLinkController::class, 'store'])->name('ged_links.store');
+        Route::delete('/{project}/ged-links/{link}', [ProjectGedLinkController::class, 'destroy'])->name('ged_links.destroy');
     });

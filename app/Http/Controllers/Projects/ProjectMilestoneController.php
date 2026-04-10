@@ -97,7 +97,7 @@ class ProjectMilestoneController extends Controller
     }
 
     /**
-     * Déplace une phase vers le haut ou vers le bas.
+     * Déplace une phase ou un jalon enfant vers le haut ou vers le bas.
      * Renumérote tous les sort_order avant d'échanger pour garantir un ordre stable.
      */
     public function move(Request $request, Project $project, ProjectMilestone $milestone)
@@ -108,7 +108,48 @@ class ProjectMilestoneController extends Controller
             'direction' => ['required', 'in:up,down'],
         ])['direction'];
 
-        // Toutes les phases du projet, dans l'ordre actuel
+        // Jalon enfant : réordonner les frères dans la même phase parente
+        if ($milestone->parent_id !== null) {
+            $siblings = $project->milestones()
+                ->where('parent_id', $milestone->parent_id)
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get();
+
+            foreach ($siblings as $i => $sib) {
+                $sib->update(['sort_order' => ($i + 1) * 10]);
+            }
+
+            $siblings = $project->milestones()
+                ->where('parent_id', $milestone->parent_id)
+                ->orderBy('sort_order')
+                ->get();
+
+            $index = $siblings->search(fn ($s) => $s->id === $milestone->id);
+
+            if ($index === false) {
+                return back();
+            }
+
+            $swapIndex = $direction === 'up' ? $index - 1 : $index + 1;
+
+            if ($swapIndex < 0 || $swapIndex >= $siblings->count()) {
+                return back();
+            }
+
+            $current = $siblings[$index];
+            $neighbor = $siblings[$swapIndex];
+
+            $currentOrder = $current->sort_order;
+            $neighborOrder = $neighbor->sort_order;
+
+            $current->update(['sort_order' => $neighborOrder]);
+            $neighbor->update(['sort_order' => $currentOrder]);
+
+            return back()->with('success', 'Ordre mis à jour.');
+        }
+
+        // Phase (jalon racine)
         $phases = $project->milestones()
             ->whereNull('parent_id')
             ->orderBy('sort_order')
@@ -206,6 +247,19 @@ class ProjectMilestoneController extends Controller
         // Marquer comme atteint
         if (isset($validated['reached'])) {
             if ($validated['reached'] && ! $milestone->isReached()) {
+                // Guard : une phase ne peut pas être marquée atteinte si des jalons enfants sont en cours
+                if ($milestone->isPhase()) {
+                    $pending = $milestone->children()->whereNull('reached_at')->count();
+                    if ($pending > 0) {
+                        $errorMsg = "Impossible de terminer cette phase : {$pending} jalon".($pending > 1 ? 's' : '').' non atteint'.($pending > 1 ? 's' : '').'.';
+                        if ($request->wantsJson()) {
+                            return response()->json(['success' => false, 'error' => $errorMsg], 422);
+                        }
+
+                        return back()->withErrors(['reached' => $errorMsg]);
+                    }
+                }
+
                 $milestone->markReached();
                 $this->audit->log('milestone.reached', auth()->user(), ['new' => ['project_id' => $project->id, 'milestone_id' => $milestone->id, 'milestone_name' => $milestone->title]]);
             } elseif (! $validated['reached'] && $milestone->isReached()) {

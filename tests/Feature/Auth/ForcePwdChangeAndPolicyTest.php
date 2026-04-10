@@ -11,7 +11,8 @@ class ForcePwdChangeAndPolicyTest extends TestCase
 {
     private function settings(): TenantSettings
     {
-        TenantSettings::truncate();
+        // Note : TRUNCATE cause un implicit commit en MySQL → on utilise delete()
+        TenantSettings::query()->delete();
 
         return TenantSettings::factory()->create([
             'pwd_min_length' => 12,

@@ -12,8 +12,8 @@ namespace App\Enums;
  *
  * Convention de phases :
  *   Phase 3–4  : media
- *   Phase 5    : ged
- *   Phase 6    : collabora
+ *   Phase 6    : ged
+ *   Phase 7    : collabora
  *   Phase 7    : erp
  *   Phase 8    : projects
  *   Phase 9    : chat
@@ -45,7 +45,7 @@ enum ModuleKey: string
     {
         return match ($this) {
             self::MEDIA => 'Photothèque',
-            self::GED => 'Gestion documentaire',
+            self::GED => 'GED documentaire',
             self::COLLABORA => 'Édition collaborative (Collabora)',
             self::ERP => 'ERP DataGrid',
             self::PROJECTS => 'Gestion de projet',
@@ -79,7 +79,7 @@ enum ModuleKey: string
     {
         return match ($this) {
             self::MEDIA => 3,
-            self::GED => 5,
+            self::GED => 6,
             self::COLLABORA => 6,
             self::ERP => 7,
             self::PROJECTS => 5,  // Phase 5bis
@@ -91,11 +91,11 @@ enum ModuleKey: string
 
     /**
      * Indique si le module est déployé (phase livrée ou en cours).
-     * Phases 1–5bis livrées → media + projects + ged disponibles.
+     * Phases 1–6 livrées → media + projects + ged disponibles.
      */
     public function isAvailable(): bool
     {
-        return in_array($this, [self::MEDIA, self::PROJECTS], true);
+        return in_array($this, [self::MEDIA, self::PROJECTS, self::GED], true);
     }
 
     /**

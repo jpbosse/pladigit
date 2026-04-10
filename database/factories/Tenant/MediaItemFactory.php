@@ -73,6 +73,22 @@ class MediaItemFactory extends Factory
                 'GPSLongitude' => [1.0, 53.0, 57.0],
                 'GPSLongitudeRef' => 'E',
             ],
+            'exif_taken_at' => '2024-06-15 14:30:00',
+        ]);
+    }
+
+    /**
+     * Item image avec une date EXIF spécifique.
+     * Pratique pour tester le tri par date de prise de vue.
+     */
+    public function withTakenAt(string $dateTime): static
+    {
+        $exifFmt = preg_replace('/^(\d{4})-(\d{2})-(\d{2})/', '$1:$2:$3', $dateTime);
+
+        return $this->state([
+            'mime_type' => 'image/jpeg',
+            'exif_data' => ['DateTimeOriginal' => $exifFmt],
+            'exif_taken_at' => $dateTime,
         ]);
     }
 }

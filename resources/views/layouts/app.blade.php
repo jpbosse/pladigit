@@ -175,6 +175,14 @@
         </a>
         @endif
 
+        @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::GED))
+        <a href="{{ route('ged.index') }}" class="pd-nav-item {{ str_starts_with($route, 'ged.') ? 'active' : '' }}">
+            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></span>
+            <span class="pd-nav-label">GED</span>
+            <span class="pd-nav-tip">GED documentaire</span>
+        </a>
+        @endif
+
 
 @if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
     <a href="{{ route('projects.index') }}"
@@ -301,6 +309,7 @@
 </main>
 
 {{-- ══════════ FOOTER ══════════ --}}
+<!--
 <footer class="pd-footer" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:16px 24px;">
 
     {{-- Bloc gauche — infos système --}}
@@ -342,6 +351,36 @@
     </div>
 
 </footer>
+-->
+
+<footer class="pd-footer">
+    <div class="pd-footer-container">
+        <div class="pd-footer-brand">
+            <div class="pd-footer-logo-mini">P</div>
+            <div class="pd-footer-info">
+                <b>{{ config('app.name') }}</b>
+                <span>© {{ date('Y') }} — Les Bézots · Soullans</span>
+            </div>
+        </div>
+
+        <div class="pd-footer-status-pill">
+            <div class="pd-status-dot" id="health-dot"></div>
+            <span id="health-label">Connexion...</span>
+            @if($tenant)
+                <span class="pd-footer-sep">|</span>
+                <span class="pd-tenant-name">{{ $tenant->name }}</span>
+            @endif
+        </div>
+
+        <div class="pd-footer-links">
+            <a href="{{ route('legal.mentions') }}">Mentions légales</a>
+            <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
+            <a href="#">Support</a>
+            <span class="pd-v-tag">v1.5</span>
+        </div>
+    </div>
+</footer>
+
 
 {{-- ══════════ DRAWER NOTIFICATIONS ══════════ --}}
 @auth

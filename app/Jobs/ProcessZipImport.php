@@ -49,8 +49,13 @@ class ProcessZipImport implements ShouldQueue
         }
 
         $zip = new \ZipArchive;
-        if ($zip->open($zipPath) !== true) {
-            Log::error('ProcessZipImport — impossible d\'ouvrir le ZIP', ['path' => $zipPath]);
+        $openResult = $zip->open($zipPath);
+        if ($openResult !== true) {
+            Log::error('ProcessZipImport — impossible d\'ouvrir le ZIP', [
+                'path' => $zipPath,
+                'error_code' => $openResult,
+                'file_size' => (int) filesize($zipPath),
+            ]);
             @unlink(storage_path('app/private/'.$this->zipStoragePath));
 
             return;

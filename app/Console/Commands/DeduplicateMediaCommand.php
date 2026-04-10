@@ -8,7 +8,10 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Détecte et marque les doublons SHA-256 dans tous les albums d'un tenant.
+ * Détecte et marque les doublons SHA-256 inter-albums dans un tenant.
+ *
+ * Définition d'un doublon : même SHA-256 présent dans au moins 2 albums DIFFÉRENTS.
+ * Des copies du même fichier dans le MÊME album ne sont PAS des doublons.
  *
  * Usage :
  *   php artisan media:deduplicate                  — tous les tenants actifs
@@ -21,7 +24,7 @@ class DeduplicateMediaCommand extends Command
                             {--slug= : Slug d\'une organisation spécifique}
                             {--dry-run : Afficher les doublons sans modifier la base}';
 
-    protected $description = 'Détecte et marque les doublons SHA-256 dans la photothèque (sync NAS incluse)';
+    protected $description = 'Détecte et marque les doublons SHA-256 inter-albums dans la photothèque';
 
     public function __construct(private TenantManager $tenantManager)
     {
@@ -55,6 +58,7 @@ class DeduplicateMediaCommand extends Command
 
         $totalMarked = 0;
         $totalGroups = 0;
+        $totalCleaned = 0;
 
         foreach ($organizations as $org) {
             $this->line("  → <fg=cyan>{$org->slug}</> (<fg=gray>{$org->db_name}</>)");
@@ -62,12 +66,13 @@ class DeduplicateMediaCommand extends Command
             try {
                 $this->tenantManager->connectTo($org);
 
-                [$groups, $marked] = $this->processTenant($dryRun);
+                [$groups, $marked, $cleaned] = $this->processTenant($dryRun);
 
                 $totalGroups += $groups;
                 $totalMarked += $marked;
+                $totalCleaned += $cleaned;
 
-                $this->line("     <fg=green>✓</> {$groups} groupe(s) de doublons — {$marked} item(s) marqué(s)");
+                $this->line("     <fg=green>✓</> {$groups} groupe(s) — {$marked} marqué(s) — {$cleaned} faux positif(s) nettoyé(s)");
 
             } catch (\Throwable $e) {
                 $this->line("     <fg=red>✗ Erreur : {$e->getMessage()}</>");
@@ -79,7 +84,7 @@ class DeduplicateMediaCommand extends Command
         }
 
         $this->line('─────────────────────────────────────────');
-        $this->line("  <fg=green>{$totalGroups} groupe(s) de doublons</> — <fg=yellow>{$totalMarked} item(s) marqué(s)</>");
+        $this->line("  <fg=green>{$totalGroups} groupe(s) de doublons</> — <fg=yellow>{$totalMarked} item(s) marqué(s)</> — <fg=green>{$totalCleaned} nettoyé(s)</>");
 
         if ($dryRun) {
             $this->line('  <fg=yellow>Dry-run : aucune modification effectuée.</>');
@@ -89,37 +94,33 @@ class DeduplicateMediaCommand extends Command
     }
 
     /**
-     * Traite un tenant : trouve les SHA-256 dupliqués et marque les items.
+     * Traite un tenant : trouve les SHA-256 dupliqués inter-albums et marque les items.
      *
-     * @return array{int, int} [nombre de groupes, nombre d'items marqués]
+     * @return array{int, int, int} [groupes, items marqués, faux positifs nettoyés]
      */
     private function processTenant(bool $dryRun): array
     {
-        // Trouver tous les SHA-256 qui apparaissent plus d'une fois
+        // SHA-256 présents dans au moins 2 albums distincts = vrais doublons inter-albums
         $duplicateHashes = DB::connection('tenant')
             ->table('media_items')
             ->whereNotNull('sha256_hash')
             ->whereNull('deleted_at')
-            ->select('sha256_hash', DB::raw('COUNT(*) as cnt'))
+            ->select('sha256_hash', DB::raw('COUNT(DISTINCT album_id) as album_cnt'))
             ->groupBy('sha256_hash')
-            ->having('cnt', '>', 1)
-            ->pluck('cnt', 'sha256_hash');
-
-        if ($duplicateHashes->isEmpty()) {
-            return [0, 0];
-        }
+            ->having('album_cnt', '>', 1)
+            ->pluck('album_cnt', 'sha256_hash');
 
         $groups = $duplicateHashes->count();
         $marked = 0;
 
-        foreach ($duplicateHashes as $hash => $count) {
+        foreach ($duplicateHashes as $hash => $albumCount) {
             $items = DB::connection('tenant')
                 ->table('media_items')
                 ->whereNull('deleted_at')
                 ->where('sha256_hash', $hash)
                 ->get(['id', 'file_name', 'album_id', 'is_duplicate']);
 
-            $this->line('     SHA-256 <fg=gray>'.substr($hash, 0, 12)."…</> × {$count} :");
+            $this->line('     SHA-256 <fg=gray>'.substr((string) $hash, 0, 12)."…</> × {$albumCount} album(s) :");
 
             foreach ($items as $item) {
                 $alreadyMarked = (bool) $item->is_duplicate;
@@ -141,32 +142,43 @@ class DeduplicateMediaCommand extends Command
         }
 
         // Nettoyer les faux positifs : items marqués is_duplicate mais dont le SHA
-        // n'apparaît plus qu'une fois (ex: l'original a été supprimé)
+        // n'apparaît que dans un seul album (bug de l'ancienne logique).
+        $cleaned = 0;
         if (! $dryRun) {
-            $singleHashes = DB::connection('tenant')
-                ->table('media_items')
-                ->whereNotNull('sha256_hash')
-                ->whereNull('deleted_at')
-                ->where('is_duplicate', true)
-                ->select('sha256_hash', DB::raw('COUNT(*) as cnt'))
-                ->groupBy('sha256_hash')
-                ->having('cnt', '=', 1)
-                ->pluck('sha256_hash');
-
-            if ($singleHashes->isNotEmpty()) {
-                $cleaned = DB::connection('tenant')
-                    ->table('media_items')
-                    ->whereNull('deleted_at')
-                    ->whereIn('sha256_hash', $singleHashes)
-                    ->where('is_duplicate', true)
-                    ->update(['is_duplicate' => false]);
-
-                if ($cleaned > 0) {
-                    $this->line("     <fg=green>↺ {$cleaned} faux positif(s) nettoyé(s)</>");
-                }
+            $cleaned = $this->cleanFalsePositives();
+            if ($cleaned > 0) {
+                $this->line("     <fg=green>↺ {$cleaned} faux positif(s) nettoyé(s)</>");
             }
         }
 
-        return [$groups, $marked];
+        return [$groups, $marked, $cleaned];
+    }
+
+    /**
+     * Remet is_duplicate = false sur les items dont le SHA-256
+     * n'apparaît que dans un seul album (faux positifs intra-album).
+     */
+    private function cleanFalsePositives(): int
+    {
+        $singleAlbumHashes = DB::connection('tenant')
+            ->table('media_items')
+            ->whereNotNull('sha256_hash')
+            ->whereNull('deleted_at')
+            ->where('is_duplicate', true)
+            ->select('sha256_hash', DB::raw('COUNT(DISTINCT album_id) as album_cnt'))
+            ->groupBy('sha256_hash')
+            ->having('album_cnt', '=', 1)
+            ->pluck('sha256_hash');
+
+        if ($singleAlbumHashes->isEmpty()) {
+            return 0;
+        }
+
+        return DB::connection('tenant')
+            ->table('media_items')
+            ->whereNull('deleted_at')
+            ->whereIn('sha256_hash', $singleAlbumHashes)
+            ->where('is_duplicate', true)
+            ->update(['is_duplicate' => false]);
     }
 }

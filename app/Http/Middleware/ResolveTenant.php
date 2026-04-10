@@ -37,6 +37,7 @@ class ResolveTenant
             }
 
             $this->applySessionLifetime();
+            $this->applyCollaboraConfig();
         } catch (\Throwable $e) {
             \Log::error('ResolveTenant FAIL', ['host' => $request->getHost(), 'error' => $e->getMessage()]);
             config(['auth.defaults.guard' => 'null_guard']);
@@ -93,6 +94,28 @@ class ResolveTenant
         }
 
         return $next($request);
+    }
+
+    /**
+     * Écrase config('collabora.*') avec les valeurs enregistrées par le tenant.
+     * Permet à chaque tenant de pointer vers son instance Collabora.
+     */
+    private function applyCollaboraConfig(): void
+    {
+        try {
+            $settings = TenantSettings::first();
+            if ($settings?->collabora_url) {
+                config(['collabora.url' => $settings->collabora_url]);
+            }
+            if ($settings?->wopi_url) {
+                config(['collabora.wopi_url' => $settings->wopi_url]);
+            }
+            if ($settings !== null && $settings->collabora_token_ttl_minutes > 0) {
+                config(['collabora.token_ttl' => $settings->collabora_token_ttl_minutes * 60]);
+            }
+        } catch (\Throwable) {
+            // Tenant non résolu ou table absente → on garde les valeurs .env
+        }
     }
 
     /**
