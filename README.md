@@ -1,27 +1,13 @@
 # Pladigit — Plateforme de Digitalisation Interne
 
-> Alternative souveraine et open source aux outils Microsoft (Teams, SharePoint, OneDrive, Word, Excel, Planner) — conçue pour les collectivités locales, associations et structures du secteur parapublic.
+> Alternative souveraine et open source aux outils Microsoft (Teams, SharePoint, OneDrive, Word, Excel, Planner)  
+> Conçue pour les collectivités locales, associations et structures du secteur parapublic français.
 
 ![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?logo=laravel&logoColor=white)
-![Alpine.js](https://img.shields.io/badge/Alpine.js-3.x-8BC0D0?logo=alpine.js&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-757%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-759%20passed-brightgreen)
 ![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-blue)
 ![CI](https://github.com/jpbosse/pladigit/actions/workflows/ci.yml/badge.svg?branch=main)
-
----
-
-## Table des matières
-
-1. [Présentation](#présentation)
-2. [Fonctionnalités](#fonctionnalités)
-3. [Stack technique](#stack-technique)
-4. [Installation](#installation)
-5. [Configuration](#configuration)
-6. [Tests & qualité](#tests--qualité)
-7. [Phases du projet](#phases-du-projet)
-8. [Licence](#licence)
-9. [Auteur](#auteur)
 
 ---
 
@@ -29,101 +15,72 @@
 
 **Pladigit** est une plateforme SaaS multi-tenant destinée aux organisations publiques et parapubliques françaises souhaitant reprendre le contrôle de leurs outils numériques.
 
-Chaque organisation cliente dispose d'un espace **isolé, sécurisé et personnalisé**, hébergé en France, sans aucune dépendance à un cloud propriétaire (AWS, Azure, GCP).
+Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**, hébergé en France, sans aucune dépendance à un cloud propriétaire.
 
 ### Pourquoi Pladigit ?
 
-- **Souveraineté numérique** — hébergement en France, données hors UE impossibles
-- **Open source** — code auditable, pas de vendor lock-in, formats ouverts (ODF)
-- **Conçu pour les collectivités** — mairies, communautés de communes, associations
-- **Offre gratuite** — auto-hébergeable sous licence AGPL-3.0
-- **Développement accéléré par IA** — planning ramené de 48 à 26 mois
-
-### Les 3 offres
-
-| Communautaire | Assistance | Enterprise |
-|---------------|------------|------------|
-| **0 € / mois** | **150 € / mois** | **Sur devis** |
-| Tous les modules, LDAP, 2FA, multi-tenant, auto-hébergé | + Support, formation, mises à jour | + Hébergement dédié, SLA, développements sur mesure |
+- **Souveraineté numérique** — hébergement en France, données hors UE impossibles, formats ouverts (ODF)
+- **Open source AGPL-3.0** — code auditable, pas de vendor lock-in, déployable sur vos serveurs
+- **Conçu pour les collectivités** — mairies, communautés de communes, associations, secteur parapublic
+- **Zéro abonnement logiciel** — aucune licence Microsoft, aucun abonnement cloud
 
 ---
 
-## Fonctionnalités
+## Fonctionnalités livrées
 
-### Livrées (Phases 1 à 7 — Octobre 2025 → Avril 2026)
+### Socle (Phases 1–2)
+- Authentification locale sécurisée — bcrypt coût 12, verrouillage de compte, politique de mot de passe configurable
+- Double authentification TOTP (Google Authenticator, Aegis) avec codes de secours chiffrés AES-256
+- Authentification LDAP / Active Directory (LDAPS obligatoire, circuit breaker, sync automatique)
+- Architecture multi-tenant — base MySQL dédiée par organisation, isolation totale
+- Gestion des rôles hiérarchiques — Admin, Président, DGS, Resp. Direction, Resp. Service, Agent
+- Structure organisationnelle — Directions > Services > Agents
+- Journalisation complète — audit trail avec export CSV/JSON, rétention configurable (RGPD)
+- CI/CD GitHub Actions — PHPUnit, Pint PSR-12, PHPStan niveau 5, Composer audit
 
-#### Phase 1 — Socle technique
-- Authentification locale sécurisée (bcrypt coût 12, sessions, verrouillage compte)
-- Double authentification TOTP (Google Authenticator, Aegis) avec codes de secours
-- Architecture multi-tenant — base MySQL dédiée par organisation
-- CI/CD GitHub Actions (PHPUnit, Pint, PHPStan niveau 5, Composer audit)
-
-#### Phase 2 — Organisations & utilisateurs
-- Authentification LDAP/Active Directory (LDAPS obligatoire, chiffrement AES-256, circuit breaker)
-- Gestion des rôles : Admin, Président, DGS, Resp. Direction, Resp. Service, Agent
-- Structure organisationnelle hiérarchique : Directions > Services > Agents
-- Profil utilisateur, invitation par email, personnalisation visuelle (logo, couleurs)
-- Dashboard avec statistiques et widgets par rôle
-
-#### Phase 3 — Gestion de projet *(remplace Microsoft Planner)*
-- Vues : Kanban par jalon, Gantt SVG avec drag & drop, Liste, Charge de travail
-- Tâches : récurrence, dépendances, commentaires, dates, assignation
+### Gestion de projet (Phase 3) — *remplace Microsoft Planner*
+- Vues : Kanban par jalon, Gantt SVG avec drag & drop, Liste, Charge de travail, Agenda
+- Tâches : récurrence, dépendances (Fin→Fin), commentaires, sous-tâches, assignation
 - Budget : investissement / fonctionnement, co-financement, graphiques
 - Risques, observations, parties prenantes, conduite du changement
-- Export PDF, modèles de projet, duplication
-- Droits : double couche UserRole (global) + ProjectRole (par projet)
+- Export PDF élus, export iCal jalons, modèles de projet, duplication
+- Droits : UserRole global + ProjectRole par projet (ADR-010, ADR-011)
 
-#### Phases 4 & 5 — Photothèque NAS *(remplace OneDrive/SharePoint photos)*
-- Galerie d'albums avec navigation par dossier et vue mosaïque
-- Upload drag & drop, traitement asynchrone (job queue)
-- Déduplication SHA-256, extraction EXIF, watermark configurable
-- Partage par lien sécurisé, export ZIP, streaming range HTTP
-- Synchronisation planifiée depuis un NAS (local, SFTP ou SMB)
-- Droits par album (rôles globaux + overrides utilisateur)
-- Quotas de stockage stricts par organisation
+### Photothèque NAS (Phases 4–5) — *remplace OneDrive Photos*
+- Albums hiérarchiques, upload drag & drop, traitement asynchrone (queue)
+- Déduplication SHA-256 cross-album, extraction EXIF, watermark configurable
+- Partage par lien sécurisé temporaire, export ZIP, streaming range HTTP
+- Synchronisation planifiée depuis NAS (local, SFTP, SMB)
+- Droits par album, quotas de stockage stricts par organisation
 
-#### Phases 6 & 7 — GED + Collabora Online *(remplace SharePoint + Microsoft Office)*
-
-La GED et l'édition collaborative forment un module cohérent livré ensemble.
-
-**GED documentaire :**
+### GED documentaire (Phase 6) — *remplace SharePoint*
 - Arborescence de dossiers avec permissions fines (rôle, direction, service, utilisateur)
-- Upload drag & drop, prévisualisation inline (PDF, images)
-- Versioning complet — historique, restauration, archivage horodaté
-- Synchronisation NAS → GED (détection nouveaux fichiers, correction permissions)
-- Suppression récursive de dossiers avec confirmation et audit
-- Recherche plein texte
+- Upload drag & drop, prévisualisation inline, versioning complet
+- Synchronisation NAS → GED (détection nouveaux fichiers, mtime 5 min)
+- Recherche plein texte (MySQL FULLTEXT — ADR-014)
 - Gouvernance admin : transfert de propriété, purge, intégrité des fichiers
+- Intégration GED ↔ Projets (ProjectGedLink)
 
-**Collabora Online (WOPI) :**
+### Collabora Online (Phase 7) — *remplace Microsoft Office*
 - Édition collaborative des formats ODF (ODT, ODS, ODP) et Microsoft Office
 - Protocole WOPI complet : CheckFileInfo, GetFile, PutFile, Lock/Unlock/RefreshLock/GetLock
-- Token d'accès multi-tenant (`{org_slug}:{raw_token}`) — un seul aliasgroup Collabora pour tous les tenants
-- Versioning automatique à chaque sauvegarde
-- Administration : URL, URL WOPI, TTL session, test de connexion
+- Token d'accès multi-tenant sécurisé — un seul aliasgroup Collabora pour tous les tenants
+- Versioning automatique à chaque sauvegarde Collabora
+- Administration : URL, TTL session, test de connexion depuis l'interface admin
 
-### Planifiées (Phases 8–13 — Été 2026 → Novembre 2027)
+---
 
-| Phase | Période | Module |
-|-------|---------|--------|
-| 8 | Mai–Jun 2026 | ERP DataGrid — tables no-code, audit trail, export |
-| 9 | Jul–Aoû 2026 | Chat temps réel — canaux, 1:1, WebSocket |
-| 10 | Sep–Oct 2026 | Agenda global — CalDAV, récurrence, export iCal |
-| 11 | Nov 2026 | Fil RSS + Sondages & questionnaires |
-| 12 | Jan–Mar 2027 | Production — VPS, monitoring, PRA, audit sécurité |
-| 13 | Sep–Nov 2027 | Open source — publication, communauté, documentation |
-
-### Remplacement des outils Microsoft
+## Remplacement des outils Microsoft
 
 | Microsoft | Alternative Pladigit | Statut |
 |-----------|---------------------|--------|
-| Planner | Gestion de projet | ✅ Livré (Phase 3) |
-| OneDrive / Photos | Photothèque NAS | ✅ Livré (Phases 4–5) |
-| SharePoint | GED Pladigit | ✅ Livré (Phase 6) |
-| Word / Excel / PowerPoint | Collabora Online | ✅ Livré (Phase 7) |
-| Teams | Chat Pladigit | Planifié (Phase 9) |
-| Outlook Calendrier | Agenda + iCal | Planifié (Phase 10) |
-| Forms | Sondages Pladigit | Planifié (Phase 11) |
+| Planner | Gestion de projet | ✅ Livré |
+| OneDrive / Photos | Photothèque NAS | ✅ Livré |
+| SharePoint | GED Pladigit | ✅ Livré |
+| Word / Excel / PowerPoint | Collabora Online | ✅ Livré |
+| Teams | Chat Pladigit | Planifié |
+| Outlook Calendrier | Agenda global + CalDAV | Planifié |
+| Forms | Sondages Pladigit | Planifié |
 
 ---
 
@@ -131,162 +88,115 @@ La GED et l'édition collaborative forment un module cohérent livré ensemble.
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| PHP | 8.4 | Langage backend principal |
-| Laravel | 11.x | Framework MVC — routing, Eloquent ORM, Artisan, jobs |
-| Alpine.js | 3.x | Interactivité frontend (modales, drag & drop, upload) |
-| MySQL | 8.0+ | SGBD — base plateforme + base dédiée par tenant |
-| Redis | 7.x | Cache, files de tâches (queue), sessions |
-| Tailwind CSS | 3.x | Framework CSS utilitaire |
-| DomPDF | 3.1 | Génération PDF (rapports, exports) |
-| Collabora Online | CODE 24.x | Éditeur bureautique open source — protocole WOPI |
-| Docker | 24+ | Conteneurisation Collabora Online |
-| PHPUnit | 11.x | Tests unitaires et fonctionnels (757 tests) |
+| PHP | 8.4 | Langage backend |
+| Laravel | 11.x | Framework MVC |
+| Alpine.js | 3.x | Interactivité frontend |
+| Livewire | 4.2 | Composants réactifs |
+| MySQL | 8.0+ | SGBD multi-tenant |
+| Redis | 7.x | Cache, queues, sessions |
+| Tailwind CSS | 3.x | Framework CSS |
+| Collabora Online | CODE 24.x | Éditeur bureautique WOPI |
+| Docker | 24+ | Conteneurisation Collabora |
+| PHPUnit | 11.x | Tests (759 tests / 1645 assertions) |
 | PHPStan | 1.x | Analyse statique niveau 5 |
-| Laravel Pint | 1.x | Formatage PSR-12 |
 
 ---
 
-## Installation
-
-### Prérequis
-
-- PHP 8.4 avec extensions : `pdo_mysql`, `redis`, `gd`, `exif`, `intl`, `mbstring`
-- MySQL 8.0+
-- Redis 7+
-- Node.js 20+ et npm
-- Composer 2+
-- Docker (pour Collabora Online)
-
-### Étapes
+## Installation rapide
 
 ```bash
-# 1. Cloner le dépôt
-git clone https://github.com/jpbosse/pladigit.git
-cd pladigit
-
-# 2. Dépendances PHP
+git clone https://github.com/jpbosse/pladigit.git && cd pladigit
 composer install --no-dev --optimize-autoloader
-
-# 3. Dépendances JS et compilation des assets
 npm install && npm run build
-
-# 4. Environnement
-cp .env.example .env
-php artisan key:generate
-
-# 5. Migrations plateforme
+cp .env.example .env && php artisan key:generate
 php artisan migrate --database=mysql --path=database/migrations/platform
-
-# 6. Créer un tenant de démonstration
 php artisan tenant:create --name="Demo" --slug="demo" --email="admin@demo.pladigit.fr"
-
-# 7. Collabora Online (optionnel — module COLLABORA)
-docker compose up -d collabora
 ```
 
-Pour plus de détails, voir [INSTALL.md](INSTALL.md).
-
----
-
-## Configuration
-
-### Variables d'environnement principales (`.env`)
-
-```env
-APP_NAME=Pladigit
-APP_ENV=production
-APP_URL=https://pladigit.fr
-
-# Base centrale (organisations)
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_DATABASE=pladigit_platform
-
-# Redis
-REDIS_HOST=127.0.0.1
-REDIS_PORT=6379
-
-# Super Admin (hors base de données)
-SUPER_ADMIN_EMAIL=superadmin@pladigit.fr
-
-# bcrypt (12 en production, 4 en test)
-BCRYPT_ROUNDS=12
-
-# Collabora Online
-COLLABORA_URL=https://collabora.mairie.fr
-WOPI_URL=https://pladigit.fr
-COLLABORA_TOKEN_TTL=14400  # secondes (4h)
-```
-
-### Infrastructure de production recommandée
-
-```
-VPS Ubuntu 24 LTS (8 vCPU, 16 Go RAM, 200 Go SSD) ~600 €/an
-├── Nginx (reverse proxy + SSL Let's Encrypt)
-├── PHP-FPM 8.4
-├── MySQL 8 (bases dédiées par tenant)
-├── Redis 7
-└── Docker → Collabora Online CODE
-```
+Pour l'installation complète : [INSTALL.md](INSTALL.md)
 
 ---
 
 ## Tests & qualité
 
 ```bash
-# Tests PHPUnit (hors groupes ldap et integration)
-php artisan test --exclude-group ldap,integration
-
-# Formatage PSR-12
-./vendor/bin/pint
-
-# Analyse statique niveau 5
-./vendor/bin/phpstan analyse --memory-limit=512M
-
-# Audit des dépendances
-composer audit
+php artisan test --exclude-group ldap,integration   # 759 tests
+./vendor/bin/pint                                    # PSR-12
+./vendor/bin/phpstan analyse --memory-limit=512M     # PHPStan niveau 5
+composer audit                                       # 0 vulnérabilité
 ```
 
-### État CI/CD — Avril 2026 (Phases 1 à 7 livrées)
-
-| Check | Outil | Résultat |
-|-------|-------|----------|
-| Tests | PHPUnit 11 | **757 tests / 1640 assertions ✅** |
-| Style | Laravel Pint | PSR-12 ✅ |
-| Types | PHPStan niveau 5 | 0 erreur ✅ |
-| Sécurité | Composer audit | 0 vulnérabilité ✅ |
+| Check | Résultat |
+|-------|----------|
+| PHPUnit 11 | **759 tests / 1645 assertions ✅** |
+| Laravel Pint | PSR-12 ✅ |
+| PHPStan niveau 5 | 0 erreur ✅ |
+| Composer audit | 0 vulnérabilité ✅ |
 
 ---
 
-## Phases du projet
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [INSTALL.md](INSTALL.md) | Installation complète — prérequis, configuration, production |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Comment contribuer |
+| [SECURITY.md](SECURITY.md) | Signaler une vulnérabilité |
+| [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| [docs/](docs/README.md) | Documentation technique complète |
+| [docs/guides/guide-utilisateur-phototheque.md](docs/guides/guide-utilisateur-phototheque.md) | Guide utilisateur Photothèque |
+| [docs/guides/guide-utilisateur-ged.md](docs/guides/guide-utilisateur-ged.md) | Guide utilisateur GED + Collabora |
+
+---
+
+## Roadmap
 
 ```
-Oct 2025 ────────────────────────────────────────── Nov 2027
-│ Ph.1 │ Ph.2 │ Ph.3 │ Ph.4–5 │ Ph.6–7 │ Ph.8–13 │
-│Socle │Users │Projets│Phototh.│GED+Col.│  Suite  │
-│  ✅  │  ✅  │  ✅  │  ✅   │   ✅   │   📋   │
+Oct 2025          Avr 2026               2027
+│                 │                      │
+├─ Ph.1 Socle ✅  ├─ Ph.6 GED ✅        ├─ Chat
+├─ Ph.2 Users ✅  ├─ Ph.7 Collabora ✅  ├─ Agenda global
+├─ Ph.3 Projets ✅│                      ├─ Sondages
+├─ Ph.4-5 Photo ✅│                      └─ Publication open source
 ```
 
-Planning : **26 mois** (Octobre 2025 → Novembre 2027) — accéléré par l'intégration d'un assistant IA dans le développement (planning initial : 48 mois).
+Voir [ROADMAP.md](ROADMAP.md) pour le détail.
 
-Voir le [Cahier des Charges v2.3](docs/CDC_Pladigit_v2.2.md) pour le détail complet.
+---
+
+## Instance de démonstration
+
+Une instance est disponible sur **[pladigit.fr](https://pladigit.fr)** à titre de démonstration.
+
+> ⚠ Cette instance tourne sur infrastructure personnelle. La disponibilité n'est pas garantie.  
+> Elle est réinitialisée périodiquement. Ne pas y déposer de données sensibles.
+
+---
+
+## Contribuer
+
+Les contributions sont les bienvenues — code, documentation, traductions, retours d'usage.
+
+Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour démarrer.
+
+L'infrastructure de démonstration (VPS, domaine) est financée personnellement.  
+Si ce projet vous est utile, vous pouvez soutenir son développement via [GitHub Sponsors](https://github.com/sponsors/jpbosse).
 
 ---
 
 ## Licence
 
 - **Code source** — [AGPL-3.0](LICENSE)
-
-> Le code source est fourni gratuitement. Les interventions humaines (installation, formation, développement sur mesure) relèvent des offres Assistance ou Enterprise.
+- **Documentation** — [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)
 
 ---
 
 ## Auteur
 
-**Jean-Pierre Bossé** — [Les Bézots](https://lesbezots.fr), Soullans (Vendée, France)
+**Jean-Pierre Bossé** — Soullans (Vendée, France)
 
 - GitHub : [@jpbosse](https://github.com/jpbosse)
-- Email : jpbosse1@gmail.com
+- Email : contact@pladigit.fr
 
 ---
 
