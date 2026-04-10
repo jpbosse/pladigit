@@ -167,13 +167,21 @@ Le planning v2.3 abandonne la numérotation séquentielle des phases au profit d
 - Historique des validations — qui a approuvé, quand
 
 #### Signature électronique
-Intégrée dans la GED, activable par niveau d'offre.
+Intégrée dans la GED. Le type de signature dépend du **rôle de la personne qui signe**, pas du niveau d'offre. Les deux types sont disponibles dès la version Communautaire.
 
-| Offre | Fonctionnalité |
+| Rôle | Type de signature | Valeur |
+|------|------------------|--------|
+| Président, Maire, Élu signataire | RGS \*\* via prestataire souverain (Yousign, Docaposte) | Légale — opposable en préfecture |
+| DGS, Resp. Direction | RGS \*\* ou PKI interne selon l'acte | Selon le besoin |
+| Agents, Resp. Service | PKI interne auto-hébergée | Usage interne uniquement |
+
+Ce qui distingue les offres est le niveau d'accompagnement, pas l'accès à la fonctionnalité :
+
+| Offre | Accompagnement |
 |-------|----------------|
-| Communautaire | PKI interne auto-hébergée — clés propres, usage interne uniquement |
-| Assistance | PKI interne + intégration RGS \*\* via prestataire souverain (Yousign, Docaposte) |
-| Enterprise | Tout + accompagnement déploiement PKI sur mesure + SLA chaîne de signature |
+| Communautaire | Tout disponible — configuration autonome |
+| Assistance | Accompagnement configuration prestataire RGS \*\* et PKI interne |
+| Enterprise | Déploiement PKI sur mesure + SLA chaîne de signature |
 
 #### DataGrid — listes structurées no-code
 - Définition des structures de tables par le Super Admin (aucun accès MySQL direct pour les utilisateurs)
