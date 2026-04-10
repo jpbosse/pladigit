@@ -31,7 +31,7 @@ docs/
 ├── index-annexes.md            ← index et rôles de toutes les annexes
 ├── glossaire.md                ← glossaire des termes techniques et métier
 │
-├── adr/                        ← Décisions architecturales (ADR-001 à ADR-022)
+├── adr/                        ← Décisions architecturales (ADR-001 à ADR-025)
 │   ├── ADR-001-stack-frontend.md
 │   ├── ADR-002-multi-tenant-base-dedier.md
 │   └── ...
@@ -94,3 +94,6 @@ Les ADR documentent les choix techniques importants — pourquoi telle décision
 | [ADR-020](adr/ADR-020-ged-storage-interface.md) | GED : abstraction stockage |
 | [ADR-021](adr/ADR-021-wopi-access-token-ttl-timestamp-absolu.md) | WOPI : access_token_ttl timestamp absolu |
 | [ADR-022](adr/ADR-022-collabora-integre-ged-pas-module-separe.md) | Collabora intégré à GED |
+| [ADR-023](adr/ADR-023-wopi-locks.md) | Verrous WOPI — édition simultanée |
+| [ADR-024](adr/ADR-024-collabora-settings-par-tenant.md) | Configuration Collabora par tenant |
+| [ADR-025](adr/ADR-025-recherche-ged-like.md) | Recherche GED par LIKE |
