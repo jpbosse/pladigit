@@ -418,15 +418,16 @@ php artisan pladigit:purge-expired-data
 
 ## 11. Recherche plein texte
 
-La recherche GED utilise MySQL FULLTEXT (ADR-014) sur les colonnes `name` et `mime_type` de `ged_documents`.
+La recherche GED utilise des requêtes `LIKE '%terme%'` sur les colonnes `name` de `ged_documents` et `ged_folders` (ADR-025). Les résultats sont ensuite filtrés selon les droits de l'utilisateur.
 
-**Avantages du choix FULLTEXT :**
-- Aucun service externe (pas de Meilisearch, pas d'Elasticsearch)
-- Opérationnel immédiatement sur n'importe quelle installation MySQL 8
-- Suffisant pour rechercher par nom de fichier et type
+**Avantages du choix LIKE :**
+- Recherche par sous-chaîne — trouve "rapport" dans "Rapport_final_2026"
+- Pas d'index FULLTEXT à maintenir
+- Volume modeste des collectivités cibles (quelques milliers de documents)
+- Code simple et lisible
 
 **Limites assumées :**
-- Ne recherche pas dans le contenu des fichiers (texte des PDF, ODT, etc.)
+- Ne recherche pas dans le contenu des fichiers (texte d'un ODT ou PDF)
 - La recherche sémantique par contenu est prévue en Phase IA (Ollama + Mistral)
 
 La recherche est accessible depuis la barre de recherche globale et depuis l'interface GED (`/ged/search`).
