@@ -5,7 +5,6 @@ namespace Tests\Feature\Admin;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -23,13 +22,6 @@ class SecuritySettingsTest extends TestCase
         parent::setUp();
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
         $this->user = User::factory()->create(['role' => 'user', 'status' => 'active']);
-    }
-
-    protected function tearDown(): void
-    {
-        DB::connection('tenant')->table('users')->delete();
-        DB::connection('tenant')->table('tenant_settings')->delete();
-        parent::tearDown();
     }
 
     public function test_admin_peut_accéder_à_la_page_sécurité(): void

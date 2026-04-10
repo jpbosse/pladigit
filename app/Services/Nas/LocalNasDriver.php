@@ -45,29 +45,32 @@ class LocalNasDriver implements NasConnectorInterface
         if (! is_dir($fullPath)) {
             return [];
         }
+
         $entries = [];
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::LEAVES_ONLY
-        );
+        $basePath = $this->resolve('');
+
+        // Non-récursif : fichiers du répertoire courant uniquement.
+        // La récursion dans les sous-dossiers est gérée par syncDirectory.
+        $iterator = new \FilesystemIterator($fullPath, \FilesystemIterator::SKIP_DOTS);
+
         foreach ($iterator as $item) {
             if (! $item->isFile()) {
-
-                // Exclure les dossiers thumbs
-                if (str_contains($item->getRealPath(), DIRECTORY_SEPARATOR.'thumbs'.DIRECTORY_SEPARATOR)) {
-                    continue;
-                }
-
+                continue;
+            }
+            // Exclure le dossier thumbs/ (miniatures générées)
+            if ($item->getFilename() === 'thumbs') {
                 continue;
             }
             $absolutePath = $item->getRealPath();
-            $relativePath = ltrim(str_replace($this->resolve(''), '', $absolutePath), '/');
+            $relativePath = ltrim(str_replace($basePath, '', $absolutePath), DIRECTORY_SEPARATOR.'/');
+
             $entries[] = [
                 'name' => $item->getFilename(),
-                'path' => $relativePath,
+                'path' => str_replace('\\', '/', $relativePath),
                 'size' => (int) $item->getSize(),
                 'mtime' => (int) $item->getMTime(),
                 'type' => 'file',
+                'readable' => is_readable($absolutePath),
             ];
         }
 
@@ -135,6 +138,34 @@ class LocalNasDriver implements NasConnectorInterface
         }
 
         return mkdir($fullPath, 0775, true);
+    }
+
+    /**
+     * Supprime récursivement un dossier et tout son contenu.
+     * Retourne true si le dossier n'existe plus (déjà absent = succès).
+     */
+    public function deleteDirectory(string $path): bool
+    {
+        $fullPath = $this->resolve($path);
+
+        if (! is_dir($fullPath)) {
+            return true; // Déjà absent — pas d'erreur
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($fullPath, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($iterator as $item) {
+            if ($item->isDir()) {
+                @rmdir($item->getRealPath());
+            } else {
+                @unlink($item->getRealPath());
+            }
+        }
+
+        return @rmdir($fullPath);
     }
 
     /**
@@ -222,6 +253,44 @@ class LocalNasDriver implements NasConnectorInterface
         $this->assertFile($fullPath);
 
         return (int) filesize($fullPath);
+    }
+
+    public function moveDir(string $from, string $to): bool
+    {
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        if (! is_dir($srcPath)) {
+            throw new RuntimeException("Dossier source introuvable : {$from}");
+        }
+
+        $dstParent = dirname($dstPath);
+        if (! is_dir($dstParent)) {
+            mkdir($dstParent, 0755, true);
+        }
+
+        return rename($srcPath, $dstPath);
+    }
+
+    public function moveFile(string $from, string $to): bool
+    {
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        if (! is_file($srcPath)) {
+            throw new RuntimeException("Fichier source introuvable : {$from}");
+        }
+
+        $dstDir = dirname($dstPath);
+        if (! is_dir($dstDir) && ! mkdir($dstDir, 0755, true) && ! is_dir($dstDir)) {
+            throw new RuntimeException("Impossible de créer le dossier destination : {$dstDir}");
+        }
+
+        if (! @rename($srcPath, $dstPath)) {
+            throw new RuntimeException("Impossible de déplacer le fichier (permission ?) : {$from} → {$to}");
+        }
+
+        return true;
     }
 
     public function listDirectories(string $directory): array

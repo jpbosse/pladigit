@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Tenant\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -12,8 +11,6 @@ use Tests\TestCase;
  */
 class ProfileTest extends TestCase
 {
-    use RefreshDatabase;
-
     private User $user;
 
     protected function setUp(): void

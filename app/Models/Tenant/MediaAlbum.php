@@ -161,7 +161,7 @@ class MediaAlbum extends Model
                 ->get(['id', 'parent_id', 'created_by', 'visibility']);
 
             return $allAlbums
-                ->filter(fn (MediaAlbum $album) => $service->canView($user, $album))
+                ->filter(fn (MediaAlbum $album) => $service->canView($user, $album, $allAlbums))
                 ->pluck('id')
                 ->toArray();
         });

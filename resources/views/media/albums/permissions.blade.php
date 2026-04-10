@@ -38,18 +38,72 @@
 
     {{-- Info héritage parent --}}
     @if(isset($inheritedFrom) && $inheritedFrom)
-        <div class="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700 flex items-start gap-3">
-            <span class="text-lg">ℹ️</span>
-            <div>
-                <p class="font-semibold">Héritage actif</p>
-                <p class="mt-0.5">Cet album hérite des droits de
-                    <a href="{{ route('media.albums.permissions.edit', $inheritedFrom) }}" class="underline font-medium">
-                        {{ $inheritedFrom->name }}
-                    </a>
-                    sauf si une permission explicite est définie ci-dessous.
-                    Une permission explicite sur cet album <strong>prime sur l'héritage</strong>.
-                </p>
+        @php
+            $hasParentPerms = $parentPermissions &&
+                ($parentPermissions['role']->isNotEmpty() ||
+                 $parentPermissions['department']->isNotEmpty() ||
+                 $parentPermissions['user']->isNotEmpty());
+        @endphp
+        <div class="mb-6 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-800 overflow-hidden">
+            <div class="p-4 flex items-start gap-3">
+                <span class="text-lg mt-0.5">ℹ️</span>
+                <div class="flex-1">
+                    <p class="font-semibold">Héritage actif depuis
+                        <a href="{{ route('media.albums.permissions.edit', $inheritedFrom) }}" class="underline">{{ $inheritedFrom->name }}</a>
+                    </p>
+                    <p class="mt-1 text-blue-700">
+                        Les permissions ci-dessous s'appliquent <strong>en plus</strong> de celles héritées.
+                        Une permission explicite sur cet album <strong>prime sur l'héritage</strong> pour le même sujet.
+                        Pour couper l'héritage pour un sujet, définissez-lui le niveau <em>Aucun droit</em>.
+                    </p>
+                </div>
             </div>
+
+            {{-- Détail des permissions héritées --}}
+            @if($hasParentPerms)
+                <div class="border-t border-blue-100 px-4 py-3">
+                    <p class="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-2">Permissions héritées du parent</p>
+                    <div class="flex flex-wrap gap-2">
+
+                        {{-- Rôles --}}
+                        @foreach($parentPermissions['role'] as $p)
+                            @php
+                                $lbl = match($p->subject_role) {
+                                    'resp_direction' => 'Resp. Direction+',
+                                    'resp_service'   => 'Resp. Service+',
+                                    'user'           => 'Tous les utilisateurs',
+                                    default          => $p->subject_role,
+                                };
+                            @endphp
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-blue-200 rounded-full text-xs text-blue-800">
+                                👥 {{ $lbl }}
+                                @include('media.albums._permission_level_badge', ['level' => $p->level])
+                            </span>
+                        @endforeach
+
+                        {{-- Entités --}}
+                        @foreach($parentPermissions['department'] as $p)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-blue-200 rounded-full text-xs text-blue-800">
+                                🏢 {{ $p->department?->name ?? '—' }}
+                                @include('media.albums._permission_level_badge', ['level' => $p->level])
+                            </span>
+                        @endforeach
+
+                        {{-- Utilisateurs --}}
+                        @foreach($parentPermissions['user'] as $p)
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white border border-blue-200 rounded-full text-xs text-blue-800">
+                                👤 {{ $p->user?->name ?? '—' }}
+                                @include('media.albums._permission_level_badge', ['level' => $p->level])
+                            </span>
+                        @endforeach
+
+                    </div>
+                </div>
+            @else
+                <div class="border-t border-blue-100 px-4 py-2">
+                    <p class="text-xs text-blue-500 italic">Le parent n'a pas de permissions explicites — l'héritage remonte plus haut dans l'arborescence.</p>
+                </div>
+            @endif
         </div>
     @endif
 

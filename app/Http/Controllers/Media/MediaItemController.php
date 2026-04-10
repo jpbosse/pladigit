@@ -21,6 +21,7 @@ class MediaItemController extends Controller
 {
     public function __construct(
         private readonly MediaService $mediaService,
+        private readonly NasManager $nasManager,
     ) {}
 
     /**
@@ -55,15 +56,27 @@ class MediaItemController extends Controller
 
         // ── Pré-vérification quota ────────────────────────────────────────────
         $org = app(\App\Services\TenantManager::class)->current();
-        $quotaMb = $org !== null ? $org->storage_quota_mb ?? 10240 : 10240;
+        $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
         $quotaBytes = $quotaMb * 1024 * 1024;
         $usedBytes = (int) \App\Models\Tenant\MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
         $freeBytes = max(0, $quotaBytes - $usedBytes);
+        $totalIncoming = (int) array_sum(array_map(
+            fn ($f) => $f->getSize(),
+            $request->file('files', [])
+        ));
 
-        if ($freeBytes === 0) {
-            return redirect()
-                ->route('media.albums.show', $album)
-                ->with('error', "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur.");
+        if ($freeBytes === 0 || $totalIncoming > $freeBytes) {
+            $freeMb = round($freeBytes / 1048576, 1);
+            $incomingMb = round($totalIncoming / 1048576, 1);
+            $msg = $freeBytes === 0
+                ? "Quota de stockage atteint ({$quotaMb} Mo). Aucun fichier importé. Contactez votre administrateur."
+                : "Les fichiers sélectionnés ({$incomingMb} Mo) dépassent l'espace disponible ({$freeMb} Mo / {$quotaMb} Mo).";
+
+            if ($request->wantsJson() || $request->ajax()) {
+                return response()->json(['error' => $msg], 422);
+            }
+
+            return redirect()->route('media.albums.show', $album)->with('error', $msg);
         }
 
         $forceNames = $request->input('force_names', []);
@@ -119,7 +132,7 @@ class MediaItemController extends Controller
         $this->authorize('upload', $album);
 
         $request->validate([
-            'zip_file' => ['required', 'file', 'mimes:zip', 'max:512000'], // 500 Mo max
+            'zip_file' => ['required', 'file', 'mimes:zip', 'max:2097152'], // 2 Go max
         ]);
 
         /** @var User $user */
@@ -181,6 +194,117 @@ class MediaItemController extends Controller
         $item->update(['caption' => $request->caption]);
 
         return response()->json(['ok' => true, 'caption' => $item->caption]);
+    }
+
+    /**
+     * Rotation d'une image (90°, 180°, 270°) — réécrit le fichier sur le NAS.
+     */
+    public function rotate(Request $request, MediaAlbum $album, MediaItem $item): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('manage', $album);
+        $this->assertBelongsToAlbum($item, $album);
+
+        $degrees = (int) $request->input('degrees', 90);
+        if (! in_array($degrees, [90, 180, 270], true)) {
+            return response()->json(['error' => 'Degrés invalides (90, 180 ou 270)'], 422);
+        }
+
+        $nas = app(NasManager::class)->photoDriver();
+        $contents = $nas->readFile($item->file_path);
+        $src = @imagecreatefromstring($contents);
+
+        if (! $src) {
+            return response()->json(['error' => 'Format non supporté'], 422);
+        }
+
+        // GD tourne dans le sens anti-horaire — on inverse pour avoir le sens horaire
+        $rotated = imagerotate($src, 360 - $degrees, 0);
+        imagedestroy($src);
+
+        ob_start();
+        $mime = $item->mime_type ?? 'image/jpeg';
+        if ($mime === 'image/png') {
+            imagepng($rotated, null, 6);
+        } else {
+            imagejpeg($rotated, null, 92);
+        }
+        $output = ob_get_clean();
+        imagedestroy($rotated);
+
+        $nas->writeFile($item->file_path, $output);
+
+        // Nouvelles dimensions (permutées pour 90°/270°)
+        $swap = in_array($degrees, [90, 270], true);
+        $newW = $swap ? $item->height_px : $item->width_px;
+        $newH = $swap ? $item->width_px : $item->height_px;
+
+        $thumbPath = app(MediaService::class)->generateThumbnail($output, $item->file_path, $nas);
+        $item->update([
+            'file_size_bytes' => strlen($output),
+            'width_px' => $newW,
+            'height_px' => $newH,
+            'thumb_path' => $thumbPath ?? $item->thumb_path,
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Recadrage d'une image — réécrit le fichier sur le NAS.
+     */
+    public function crop(Request $request, MediaAlbum $album, MediaItem $item): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('manage', $album);
+        $this->assertBelongsToAlbum($item, $album);
+
+        $request->validate([
+            'x' => ['required', 'integer', 'min:0'],
+            'y' => ['required', 'integer', 'min:0'],
+            'width' => ['required', 'integer', 'min:10'],
+            'height' => ['required', 'integer', 'min:10'],
+        ]);
+
+        $nas = app(NasManager::class)->photoDriver();
+        $contents = $nas->readFile($item->file_path);
+        $src = @imagecreatefromstring($contents);
+
+        if (! $src) {
+            return response()->json(['error' => 'Format non supporté'], 422);
+        }
+
+        $cropped = imagecrop($src, [
+            'x' => $request->integer('x'),
+            'y' => $request->integer('y'),
+            'width' => $request->integer('width'),
+            'height' => $request->integer('height'),
+        ]);
+        imagedestroy($src);
+
+        if (! $cropped) {
+            return response()->json(['error' => 'Recadrage hors limites'], 422);
+        }
+
+        ob_start();
+        $mime = $item->mime_type ?? 'image/jpeg';
+        if ($mime === 'image/png') {
+            imagepng($cropped, null, 6);
+        } else {
+            imagejpeg($cropped, null, 92);
+        }
+        $output = ob_get_clean();
+        imagedestroy($cropped);
+
+        $nas->writeFile($item->file_path, $output);
+
+        $thumbPath = app(MediaService::class)->generateThumbnail($output, $item->file_path, $nas);
+        $item->update([
+            'file_size_bytes' => strlen($output),
+            'width_px' => $request->integer('width'),
+            'height_px' => $request->integer('height'),
+            'thumb_path' => $thumbPath ?? $item->thumb_path,
+        ]);
+
+        return response()->json(['ok' => true]);
     }
 
     /**
@@ -283,19 +407,34 @@ class MediaItemController extends Controller
             }
         }
 
+        // Cache-Control : 7 jours pour les thumbnails (ne changent qu'après rotation/crop),
+        // 1 jour pour les originaux. ETag + Last-Modified pour les requêtes conditionnelles.
+        $isThumb = $type === 'thumb';
+        $maxAge = $isThumb ? 604800 : 86400;
+        $etag = '"'.$item->updated_at->timestamp.($isThumb ? 't' : 'f').'"';
+        $lastModified = $item->updated_at->format('D, d M Y H:i:s').' GMT';
+
+        if (request()->header('If-None-Match') === $etag) {
+            return response('', 304, [
+                'ETag' => $etag,
+                'Cache-Control' => "public, max-age={$maxAge}, must-revalidate",
+            ]);
+        }
+
         try {
             $nas = app(NasManager::class)->photoDriver();
-            $path = ($type === 'thumb' && $item->thumb_path)
+            $path = ($isThumb && $item->thumb_path)
                 ? $item->thumb_path
                 : $item->file_path;
 
             $contents = $nas->readFile($path);
-
-            $mime = ($type === 'thumb') ? 'image/jpeg' : $item->mime_type;
+            $mime = $isThumb ? 'image/jpeg' : $item->mime_type;
 
             return response($contents, 200, [
                 'Content-Type' => $mime,
-                'Cache-Control' => 'public, max-age=86400',
+                'Cache-Control' => "public, max-age={$maxAge}, must-revalidate",
+                'ETag' => $etag,
+                'Last-Modified' => $lastModified,
             ]);
         } catch (\RuntimeException $e) {
             abort(404);
@@ -389,6 +528,120 @@ class MediaItemController extends Controller
             status: $status,
             headers: $headers,
         );
+    }
+
+    /**
+     * Déplace un lot de médias vers un autre album.
+     * Met à jour album_id, file_path et thumb_path en remplaçant le préfixe NAS.
+     */
+    public function moveItems(Request $request, MediaAlbum $album): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('upload', $album);
+
+        $validated = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1'],
+            'item_ids.*' => ['integer'],
+            'target_album_id' => ['required', 'integer', 'exists:tenant.media_albums,id'],
+        ]);
+
+        $targetId = (int) $validated['target_album_id'];
+
+        if ($targetId === $album->id) {
+            return response()->json(['error' => 'L\'album cible doit être différent de l\'album source.'], 422);
+        }
+
+        $target = MediaAlbum::findOrFail($targetId);
+        $this->authorize('upload', $target);
+
+        $sourcePrefix = rtrim((string) $album->nas_path, '/');
+        $targetPrefix = rtrim((string) $target->nas_path, '/');
+
+        $items = MediaItem::where('album_id', $album->id)
+            ->whereIn('id', $validated['item_ids'])
+            ->get();
+
+        $nas = $this->nasManager->photoDriver();
+
+        $errors = [];
+
+        foreach ($items as $item) {
+            $newFilePath = $sourcePrefix !== '' && str_starts_with($item->file_path, $sourcePrefix.'/')
+                ? $targetPrefix.'/'.substr($item->file_path, strlen($sourcePrefix) + 1)
+                : $item->file_path;
+
+            $newThumbPath = $item->thumb_path !== null && $sourcePrefix !== '' && str_starts_with($item->thumb_path, $sourcePrefix.'/')
+                ? $targetPrefix.'/'.substr($item->thumb_path, strlen($sourcePrefix) + 1)
+                : $item->thumb_path;
+
+            // Vérifier AVANT le déplacement NAS si un doublon existe déjà dans l'album cible
+            // pour éviter une incohérence (fichier déplacé mais DB non mise à jour).
+            if (MediaItem::where('album_id', $target->id)->where('file_path', $newFilePath)->exists()) {
+                \Illuminate\Support\Facades\Log::warning('moveItems — doublon ignoré', [
+                    'item_id' => $item->id,
+                    'file_path' => $newFilePath,
+                    'target_album_id' => $target->id,
+                ]);
+                $errors[] = $item->file_name.' : déjà présent dans l\'album cible (doublon)';
+
+                continue;
+            }
+
+            // Mettre à jour le chemin DB seulement si le fichier a effectivement été déplacé.
+            // Si le fichier source est absent sur le NAS, conserver l'ancien chemin DB
+            // pour ne pas pointer vers un emplacement inexistant.
+            $fileToSave = $item->file_path;
+            if ($newFilePath !== $item->file_path) {
+                if ($nas->exists($item->file_path)) {
+                    try {
+                        $nas->moveFile($item->file_path, $newFilePath);
+                        $fileToSave = $newFilePath;
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::error('moveItems — échec déplacement fichier', [
+                            'item_id' => $item->id,
+                            'from' => $item->file_path,
+                            'to' => $newFilePath,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $errors[] = $item->file_name.': '.$e->getMessage();
+
+                        continue; // passer à l'item suivant sans mettre à jour la DB
+                    }
+                }
+            }
+
+            $thumbToSave = $item->thumb_path;
+            if ($item->thumb_path && $newThumbPath !== $item->thumb_path) {
+                if ($nas->exists($item->thumb_path)) {
+                    try {
+                        $nas->moveFile($item->thumb_path, $newThumbPath);
+                        $thumbToSave = $newThumbPath;
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('moveItems — échec déplacement thumb', [
+                            'item_id' => $item->id,
+                            'from' => $item->thumb_path,
+                            'to' => $newThumbPath,
+                            'error' => $e->getMessage(),
+                        ]);
+                        // Le fichier principal a été déplacé ; continuer sans le thumb
+                    }
+                }
+            }
+
+            $item->update([
+                'album_id' => $target->id,
+                'file_path' => $fileToSave,
+                'thumb_path' => $thumbToSave,
+            ]);
+        }
+
+        $moved = $items->count() - count($errors);
+
+        return response()->json([
+            'moved' => $moved,
+            'target_name' => $target->name,
+            'target_url' => route('media.albums.show', $target),
+            'errors' => $errors,
+        ]);
     }
 
     // ── Helpers privés ───────────────────────────────────────────────────────

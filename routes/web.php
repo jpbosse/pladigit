@@ -31,6 +31,16 @@ Route::get('check-org-ajax/{slug}', function ($slug) {
     return response()->json(['exists' => $exists]);
 });
 
+// ── WOPI — endpoints Collabora Online (URL fixe, hors middleware tenant) ──
+// Le tenant est résolu depuis le préfixe du token : {org_slug}:{raw_token}.
+// Collabora n'a besoin que d'un seul aliasgroup fixe (ex : https://pladigit.fr).
+Route::prefix('wopi/files')->name('wopi.')->middleware('wopi')->group(function () {
+    Route::get('{id}', [\App\Http\Controllers\Ged\WopiController::class, 'checkFileInfo'])->name('files.info');
+    Route::get('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'getFile'])->name('files.contents');
+    Route::post('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'putFile'])->name('files.put');
+    Route::post('{id}', [\App\Http\Controllers\Ged\WopiController::class, 'lockFile'])->name('files.lock');
+});
+
 // ── Super Admin — Login (sans middleware) ──────────────────
 Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showLoginForm'])
     ->name('super-admin.login');
@@ -78,6 +88,15 @@ Route::middleware('tenant')->group(function () {
         ->middleware('throttle:5,10')
         ->name('2fa.verify');
 
+    // Supprimé — routes WOPI déplacées hors du groupe tenant (voir ci-dessous)
+
+    // Liens de partage temporaires — accès public (pas d'auth requise)
+    Route::get('/s/{token}', [\App\Http\Controllers\Media\SharedAlbumController::class, 'show'])->name('media.shared.show');
+    Route::post('/s/{token}/verify', [\App\Http\Controllers\Media\SharedAlbumController::class, 'authenticate'])->name('media.shared.auth');
+    Route::get('/s/{token}/items/{itemId}/serve/{type?}', [\App\Http\Controllers\Media\SharedAlbumController::class, 'serveItem'])->name('media.shared.serve');
+    Route::get('/s/{token}/items/{itemId}/download', [\App\Http\Controllers\Media\SharedAlbumController::class, 'downloadItem'])->name('media.shared.download');
+    Route::get('/s/{token}/export-zip', [\App\Http\Controllers\Media\SharedAlbumController::class, 'exportZip'])->name('media.shared.export-zip');
+
     // Invitation — activation de compte par email (routes publiques, pas d'auth)
     Route::get('/invitation/{token}', [App\Http\Controllers\Auth\InvitationController::class, 'show'])
         ->name('invitation.show');
@@ -101,6 +120,7 @@ Route::middleware('tenant')->group(function () {
         Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
         Route::patch('/profile/info', [App\Http\Controllers\ProfileController::class, 'updateInfo'])->name('profile.update-info');
         Route::patch('/profile/password', [App\Http\Controllers\ProfileController::class, 'updatePassword'])->name('profile.update-password');
+        Route::patch('/profile/preferences', [App\Http\Controllers\ProfileController::class, 'updatePreferences'])->name('profile.update-preferences');
 
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -148,12 +168,26 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'nas'])->name('settings.nas');
             Route::put('settings/nas', [App\Http\Controllers\Admin\SettingsController::class, 'updateNas'])->name('settings.nas.update');
             Route::post('settings/nas/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncNas'])->name('settings.nas.sync');
+            Route::get('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'ged'])->name('settings.ged');
+            Route::put('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'updateGed'])->name('settings.ged.update');
+            Route::get('settings/ged/test', [\App\Http\Controllers\Admin\SettingsController::class, 'testGed'])->name('settings.ged.test');
+            Route::post('settings/ged/sync', [\App\Http\Controllers\Admin\SettingsController::class, 'syncGed'])->name('settings.ged.sync');
+            Route::get('settings/collabora', [\App\Http\Controllers\Admin\SettingsController::class, 'collabora'])->name('settings.collabora');
+            Route::put('settings/collabora', [\App\Http\Controllers\Admin\SettingsController::class, 'updateCollabora'])->name('settings.collabora.update');
+            Route::get('settings/collabora/test', [\App\Http\Controllers\Admin\SettingsController::class, 'testCollabora'])->name('settings.collabora.test');
             Route::get('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'visio'])->name('settings.visio');
             Route::put('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'updateVisio'])->name('settings.visio.update');
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
 
-            // Journal d'audit
+            // Purge GED — réservé au module GED
+            Route::middleware('module:ged')->group(function () {
+                Route::get('purge', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'index'])->name('purge.index');
+                Route::put('purge/config', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'updateConfig'])->name('purge.config.update');
+                Route::post('purge/preview', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'preview'])->name('purge.preview');
+                Route::post('purge/run', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'run'])->name('purge.run');
+            });
+
             // Journal d'audit
             Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
             Route::get('audit/stats', [App\Http\Controllers\Admin\AuditController::class, 'stats'])->name('audit.stats');
@@ -168,9 +202,25 @@ Route::middleware('tenant')->group(function () {
         // ── Photothèque — module activable par organisation ──
         Route::prefix('media')->name('media.')->middleware('module:media')->group(function () {
 
+            // Doublons (admin / président / dgs uniquement — contrôleur vérifie le rôle)
+            Route::get('duplicates', [\App\Http\Controllers\Media\MediaDuplicateController::class, 'index'])->name('duplicates.index');
+            Route::post('duplicates/destroy', [\App\Http\Controllers\Media\MediaDuplicateController::class, 'destroySelected'])->name('duplicates.destroy');
+
+            // Intégrité NAS ↔ BDD (admin / président / dgs uniquement — contrôleur vérifie le rôle)
+            Route::get('integrity', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'index'])->name('integrity.index');
+            Route::post('integrity/scan', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'scan'])->name('integrity.scan');
+            Route::post('integrity/purge', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbOrphans'])->name('integrity.purge');
+            Route::post('integrity/purge-soft', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbSoftDeleted'])->name('integrity.purge-soft');
+            Route::post('integrity/purge-soft-albums', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbSoftAlbums'])->name('integrity.purge-soft-albums');
+            Route::post('integrity/purge-albums', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeOrphanAlbums'])->name('integrity.purge-albums');
+            Route::post('integrity/purge-share-links', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeOrphanShareLinks'])->name('integrity.purge-share-links');
+            Route::post('integrity/purge-db-duplicates', [\App\Http\Controllers\Media\MediaIntegrityController::class, 'purgeDbDuplicates'])->name('integrity.purge-db-duplicates');
+
             // Albums
             Route::get('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'index'])->name('albums.index');
+            Route::get('search', [\App\Http\Controllers\Media\MediaSearchController::class, 'index'])->name('search');
             Route::get('albums/search', [\App\Http\Controllers\Media\MediaAlbumController::class, 'search'])->name('albums.search');
+            Route::get('albums/{album}/children', [\App\Http\Controllers\Media\MediaAlbumController::class, 'children'])->name('albums.children');
             Route::get('albums/create', [\App\Http\Controllers\Media\MediaAlbumController::class, 'create'])->name('albums.create');
             Route::post('albums', [\App\Http\Controllers\Media\MediaAlbumController::class, 'store'])->name('albums.store');
             Route::get('albums/{album}', [\App\Http\Controllers\Media\MediaAlbumController::class, 'show'])->name('albums.show');
@@ -192,6 +242,11 @@ Route::middleware('tenant')->group(function () {
                     Route::delete('/user/{permission}', 'destroyUser')->name('destroy-user');
                 });
 
+            // Tags
+            Route::post('items/{item}/tags', [\App\Http\Controllers\Media\MediaItemTagController::class, 'store'])->name('items.tags.store');
+            Route::delete('items/{item}/tags/{tag}', [\App\Http\Controllers\Media\MediaItemTagController::class, 'destroy'])->name('items.tags.destroy');
+            Route::get('tags/suggest', [\App\Http\Controllers\Media\MediaItemTagController::class, 'suggest'])->name('tags.suggest');
+
             // Partages individuels par média
             Route::get('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'edit'])->name('items.shares.edit');
             Route::post('items/{item}/shares', [\App\Http\Controllers\Media\MediaItemShareController::class, 'store'])->name('items.shares.store');
@@ -202,6 +257,10 @@ Route::middleware('tenant')->group(function () {
             Route::get('nas/test', [\App\Http\Controllers\Media\MediaAlbumController::class, 'testNasConnection'])->name('nas.test');
 
             // Médias (imbriqués sous album)
+            Route::get('albums/{album}/export-zip', [\App\Http\Controllers\Media\MediaAlbumController::class, 'exportZip'])->name('albums.export-zip');
+            Route::get('albums/{album}/share-links', [\App\Http\Controllers\Media\MediaShareLinkController::class, 'index'])->name('albums.share-links.index');
+            Route::post('albums/{album}/share-links', [\App\Http\Controllers\Media\MediaShareLinkController::class, 'store'])->name('albums.share-links.store');
+            Route::delete('albums/{album}/share-links/{link}', [\App\Http\Controllers\Media\MediaShareLinkController::class, 'destroy'])->name('albums.share-links.destroy');
             Route::get('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'create'])->name('items.create');
             Route::post('albums/{album}/upload', [\App\Http\Controllers\Media\MediaItemController::class, 'store'])->name('items.store');
             Route::post('albums/{album}/import-zip', [\App\Http\Controllers\Media\MediaItemController::class, 'importZip'])->name('items.import-zip');
@@ -210,6 +269,10 @@ Route::middleware('tenant')->group(function () {
             Route::post('prefs/cols', [\App\Http\Controllers\Media\MediaPreferenceController::class, 'setCols'])->name('prefs.cols');
             Route::post('sync', [\App\Http\Controllers\Media\MediaAlbumController::class, 'syncNas'])->name('sync');
             Route::patch('albums/{album}/items/{item}/caption', [\App\Http\Controllers\Media\MediaItemController::class, 'updateCaption'])->name('items.updateCaption');
+            Route::post('albums/{album}/items/{item}/rotate', [\App\Http\Controllers\Media\MediaItemController::class, 'rotate'])->name('items.rotate');
+            Route::post('albums/{album}/items/{item}/crop', [\App\Http\Controllers\Media\MediaItemController::class, 'crop'])->name('items.crop');
+            Route::post('albums/{album}/items/move', [\App\Http\Controllers\Media\MediaItemController::class, 'moveItems'])->name('items.move');
+            Route::post('albums/{album}/move-album', [\App\Http\Controllers\Media\MediaAlbumController::class, 'moveAlbum'])->name('albums.move');
 
             // Servir les fichiers (inline et téléchargement)
             Route::get('albums/{album}/items/{item}/serve/{type?}', [\App\Http\Controllers\Media\MediaItemController::class, 'serve'])->name('items.serve');
@@ -219,11 +282,17 @@ Route::middleware('tenant')->group(function () {
 
         // ── Zone DGS et plus ──────────────────────────────
         Route::middleware('role:dgs')->group(function () {
-            // Rapports, exports… (phases futures)
-
+            // Gouvernance GED (transfert propriété, orphelins)
+            Route::middleware('module:ged')->prefix('admin')->name('admin.')->group(function () {
+                Route::get('ged', [\App\Http\Controllers\Admin\AdminGedController::class, 'index'])->name('ged.index');
+                Route::post('ged/transfer-ownership', [\App\Http\Controllers\Admin\AdminGedController::class, 'transferOwnership'])->name('ged.transfer-ownership');
+            });
         });
 
         require base_path('routes/projects.php');
+
+        // ── GED — Gestion Électronique de Documents ───────────
+        require base_path('routes/ged.php');
 
     });
 });

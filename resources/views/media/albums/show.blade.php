@@ -2,77 +2,18 @@
 
 @section('title', $album->name . ' — Photothèque')
 
+@if($canAdmin)
 @push('styles')
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+@endpush
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+@endpush
+@endif
+
+@push('styles')
+@include('media._ph_base_styles')
 <style>
-/* ── Layout général ─────────────────────────────────────── */
-#ph-wrap {
-    display: flex;
-    height: calc(100vh - var(--pd-topbar-h) - var(--pd-footer-h));
-    overflow: hidden;
-}
-/* ── Sidebar ────────────────────────────────────────────── */
-#ph-sidebar {
-    width: 220px; flex-shrink: 0;
-    border-right: 1px solid var(--pd-border);
-    display: flex; flex-direction: column;
-    background: var(--pd-surface2); overflow: hidden;
-}
-.ph-sidebar-header { padding: 12px 14px 10px; border-bottom: 1px solid var(--pd-border); }
-.ph-upload-btn {
-    width: 100%; padding: 7px 12px;
-    background: var(--pd-navy); color: #fff;
-    border: none; border-radius: 8px; font-size: 12px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    transition: background .15s;
-}
-.ph-upload-btn:hover { background: var(--pd-navy-light); }
-.ph-nav { flex: 1; overflow-y: auto; padding: 6px 0; }
-.ph-nav-section { padding: 8px 14px 3px; font-size: 10px; font-weight: 600; color: var(--pd-muted); text-transform: uppercase; letter-spacing: .5px; }
-.ph-nav-item {
-    display: flex; align-items: center; gap: 7px;
-    padding: 5px 14px; cursor: pointer; color: var(--pd-muted);
-    font-size: 12px; text-decoration: none;
-    transition: background .1s, color .1s;
-    border-right: 2px solid transparent; border: none; width: 100%; background: transparent; text-align: left;
-}
-.ph-nav-item:hover { background: var(--pd-surface); color: var(--pd-text); }
-.ph-nav-item.active { background: var(--pd-surface); color: var(--pd-navy); font-weight: 600; border-right: 2px solid var(--pd-accent); }
-.ph-nav-child { padding-left: 28px; }
-.ph-nav-count { margin-left: auto; font-size: 10px; background: var(--pd-border); padding: 1px 6px; border-radius: 10px; color: var(--pd-muted); }
-.ph-storage { padding: 10px 14px; border-top: 1px solid var(--pd-border); font-size: 11px; color: var(--pd-muted); }
-.ph-storage-bar { height: 4px; background: var(--pd-border); border-radius: 2px; margin: 5px 0 3px; overflow: hidden; }
-.ph-storage-fill { height: 100%; background: var(--pd-accent); border-radius: 2px; }
-/* ── Main ───────────────────────────────────────────────── */
-#ph-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
-#ph-header {
-    height: 46px; flex-shrink: 0;
-    border-bottom: 1px solid var(--pd-border);
-    display: flex; align-items: center; padding: 0 16px; gap: 12px;
-    background: var(--pd-surface);
-}
-.ph-breadcrumb { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--pd-muted); white-space: nowrap; }
-.ph-breadcrumb a { color: var(--pd-muted); text-decoration: none; }
-.ph-breadcrumb a:hover { color: var(--pd-text); }
-.ph-breadcrumb .current { color: var(--pd-text); font-weight: 600; }
-.ph-search-wrap {
-    flex: 1; max-width: 280px;
-    display: flex; align-items: center; gap: 6px;
-    background: var(--pd-bg); border: 1px solid var(--pd-border);
-    border-radius: 8px; padding: 0 10px; height: 30px;
-}
-.ph-search-wrap input { border: none; background: transparent; font-size: 12px; color: var(--pd-text); outline: none; width: 100%; }
-.ph-header-right { margin-left: auto; display: flex; align-items: center; gap: 5px; }
-.ph-hbtn {
-    width: 28px; height: 28px;
-    border: 1px solid var(--pd-border); border-radius: 7px;
-    background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--pd-muted); font-size: 12px; transition: all .15s;
-    text-decoration: none;
-}
-.ph-hbtn:hover { background: var(--pd-bg); color: var(--pd-text); }
-.ph-hbtn.active { background: var(--pd-navy); color: #fff; border-color: var(--pd-navy); }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 #ph-toolbar {
     height: 40px; flex-shrink: 0;
     border-bottom: 1px solid var(--pd-border);
@@ -87,7 +28,6 @@
 }
 .ph-filter:hover { border-color: var(--pd-accent); color: var(--pd-text); }
 .ph-filter.active { background: var(--pd-navy); color: #fff; border-color: var(--pd-navy); }
-.ph-vsep { width: 1px; height: 18px; background: var(--pd-border); flex-shrink: 0; }
 .ph-select {
     font-size: 11px; border: 1px solid var(--pd-border);
     border-radius: 6px; padding: 3px 6px;
@@ -202,7 +142,7 @@
 /* Vue liste */
 .ph-list { display: flex; flex-direction: column; gap: 2px; }
 .ph-list-row {
-    display: grid; grid-template-columns: 36px 1fr 60px 90px 70px 50px;
+    display: grid; grid-template-columns: 36px 1fr 60px 90px 70px 90px 36px;
     align-items: center; gap: 10px; padding: 5px 8px; border-radius: 6px;
     font-size: 12px; cursor: pointer; border: 1px solid transparent; transition: background .1s;
 }
@@ -294,11 +234,26 @@
 .ph-lb-nav:hover { background: rgba(255,255,255,.3); }
 .ph-lb-nav.prev { left: 20px; }
 .ph-lb-nav.next { right: 20px; }
-.ph-lb-info {
+/* Lightbox — barre de contrôles slideshow */
+#lb-controls {
     position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,.6); color: #fff;
-    font-size: 12px; padding: 4px 14px; border-radius: 20px; white-space: nowrap;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(0,0,0,.65); padding: 7px 16px; border-radius: 24px; white-space: nowrap;
 }
+#lb-play {
+    background: none; border: none; color: #fff; font-size: 15px; cursor: pointer;
+    padding: 0; width: 18px; line-height: 1; flex-shrink: 0;
+    transition: opacity .15s;
+}
+#lb-play:hover { opacity: .75; }
+.lb-spd {
+    background: rgba(255,255,255,.15); border: none; color: rgba(255,255,255,.7);
+    font-size: 10px; padding: 2px 8px; border-radius: 10px; cursor: pointer; transition: background .1s;
+}
+.lb-spd:hover, .lb-spd.active { background: rgba(255,255,255,.35); color: #fff; }
+#lb-info { font-size: 12px; color: rgba(255,255,255,.85); }
+#lb-edit-btns { display: none; }
+#lb-edit-btns .lb-spd { font-size: 13px; padding: 2px 6px; }
 /* Modal import */
 #ph-import-modal {
     position: fixed; inset: 0; z-index: 9998;
@@ -321,76 +276,35 @@
 .ph-import-file .size { color: var(--pd-muted); white-space: nowrap; font-size: 11px; }
 .ph-badge { font-size: 10px; padding: 1px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
 .ph-badge.new { background: #dcfce7; color: #15803d; }
+/* Drag-and-drop photos vers album */
+.ph-card.dragging { opacity: .4; outline: 2px dashed var(--pd-accent); outline-offset: 2px; }
+.ph-sub-card.drop-over { border-color: var(--pd-accent) !important; background: rgba(59,154,225,.12) !important; box-shadow: 0 0 0 2px var(--pd-accent); }
+/* Modal déplacer vers */
+#ph-move-modal { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,.5); display: none; align-items: center; justify-content: center; }
+#ph-move-modal.open { display: flex; }
+.ph-move-result {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border-radius: 7px; border: 1px solid var(--pd-border);
+    background: var(--pd-surface); cursor: pointer; margin-bottom: 6px;
+    transition: background .1s;
+}
+.ph-move-result:hover { background: var(--pd-bg); border-color: var(--pd-accent); }
 </style>
 @endpush
 
 @section('content')
-@php
-    $quotaMb  = app(\App\Services\TenantManager::class)->current()?->storage_quota_mb ?? 10240;
-    $usedBytes = \App\Models\Tenant\MediaItem::sum('file_size_bytes');
-    $usedMb   = round($usedBytes / 1024 / 1024, 1);
-    $usedPct  = $quotaMb > 0 ? min(100, round($usedMb / $quotaMb * 100)) : 0;
-@endphp
 
 <div id="ph-wrap"
      x-data="phototheque('{{ route('media.items.store', $album) }}', '{{ csrf_token() }}', {{ $userCols }})"
      @dragover.window.prevent @drop.window.prevent>
 
     {{-- ══ SIDEBAR ══════════════════════════════════════════ --}}
-    <aside id="ph-sidebar">
-        <div class="ph-sidebar-header">
-            @can('upload', $album)
-            <button class="ph-upload-btn" @click="$refs.fileInput.click()">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-                Téléverser
-            </button>
-            @endcan
-        </div>
-
-        <nav class="ph-nav">
-            <div class="ph-nav-section">Navigation</div>
-            <a href="{{ route('media.albums.index') }}" class="ph-nav-item">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Tous les albums
-            </a>
-
-            <div class="ph-nav-section">Albums</div>
-            @foreach($albumTree as $root)
-                <a href="{{ route('media.albums.show', $root) }}"
-                   class="ph-nav-item {{ $root->id === $album->id ? 'active' : '' }}">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                    <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $root->name }}</span>
-                    <span class="ph-nav-count">{{ $root->items_count }}</span>
-                </a>
-                @foreach($root->children as $child)
-                    <a href="{{ route('media.albums.show', $child) }}"
-                       class="ph-nav-item ph-nav-child {{ $child->id === $album->id ? 'active' : '' }}">
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $child->name }}</span>
-                        <span class="ph-nav-count">{{ $child->items_count }}</span>
-                    </a>
-                @endforeach
-            @endforeach
-
-            <div class="ph-nav-section">Actions</div>
-            <a href="{{ route('media.albums.create') }}" class="ph-nav-item">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                Nouvel album
-            </a>
-            <a href="{{ route('media.albums.create', ['parent_id' => $album->id]) }}" class="ph-nav-item">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><path d="M12 11v6M9 14h6"/></svg>
-                Nouveau sous-dossier
-            </a>
-        </nav>
-
-        <div class="ph-storage">
-            {{ $usedMb }} Mo / {{ $quotaMb >= 1024 ? round($quotaMb/1024,1).' Go' : $quotaMb.' Mo' }}
-            <div class="ph-storage-bar">
-                <div class="ph-storage-fill" style="width:{{ $usedPct }}%"></div>
-            </div>
-            {{ $usedPct }}% utilisé
-        </div>
-    </aside>
+    @include('media._ph_sidebar', [
+        'albumTree'     => $albumTree,
+        'activeAlbumId' => $album->id,
+        'ancestorIds'   => $ancestorIds,
+        'album'         => $album,
+    ])
 
     {{-- ══ MAIN ═════════════════════════════════════════════ --}}
     <div id="ph-main">
@@ -413,6 +327,10 @@
             </div>
 
             <div class="ph-header-right">
+                <a href="{{ route('media.search') }}" class="ph-hbtn" title="Recherche globale">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </a>
+                <div class="ph-vsep"></div>
                 @foreach([3,4,5,6] as $c)
                 <button class="ph-hbtn" :class="{ active: cols === {{ $c }} }" @click="setCols({{ $c }})">{{ $c }}</button>
                 @endforeach
@@ -440,6 +358,22 @@
                             style="color:#e74c3c;border-color:rgba(231,76,60,.3);">🗑</button>
                 </form>
                 @endcan
+                @can('download', $album)
+                <a href="{{ route('media.albums.export-zip', $album) }}"
+                   class="ph-hbtn" title="Exporter l'album en ZIP">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                    </svg>
+                </a>
+                @endcan
+                @can('manage', $album)
+                <button class="ph-hbtn" onclick="openShareModal()" title="Partager par lien">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                    </svg>
+                </button>
+                @endcan
                 <div class="ph-vsep"></div>
                 <button class="ph-hbtn" id="btn-nas-sync" onclick="syncNas()" title="Synchroniser le NAS">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -452,6 +386,9 @@
             <span x-text="selected.length + ' sélectionné(s)'"></span>
             <button class="ph-sel-btn" @click="selectAll()">Tout</button>
             <button class="ph-sel-btn" @click="clearSelection()">Annuler</button>
+            @if($canAdmin)
+            <button class="ph-sel-btn" @click="openMoveModal()">↗ Déplacer vers…</button>
+            @endif
             @can('upload', $album)
             <button class="ph-sel-btn" @click="deleteSelected()">🗑 Supprimer</button>
             @endcan
@@ -466,7 +403,7 @@
             <div class="ph-vsep"></div>
             <span style="font-size:11px;color:var(--pd-muted);">Tri :</span>
             <select class="ph-select" onchange="location.href=this.value">
-                @foreach(['date' => 'Date', 'name' => 'Nom', 'size' => 'Taille'] as $v => $l)
+                @foreach(['date' => 'Date ajout', 'exif_date' => 'Date prise de vue', 'name' => 'Nom', 'size' => 'Taille'] as $v => $l)
                     <option value="{{ request()->fullUrlWithQuery(['sort' => $v, 'page' => 1]) }}" {{ $sortBy === $v ? 'selected' : '' }}>{{ $l }}</option>
                 @endforeach
             </select>
@@ -474,7 +411,7 @@
                class="ph-hbtn" style="text-decoration:none;" title="Inverser">{{ $sortDir === 'asc' ? '↑' : '↓' }}</a>
             <div class="ph-toolbar-right">
                 <span>Par page :</span>
-                @foreach([10, 24, 48] as $n)
+                @foreach([5, 10, 20] as $n)
                     <a href="{{ request()->fullUrlWithQuery(['per_page' => $n, 'page' => 1]) }}"
                        class="ph-filter {{ !$showAll && $perPage === $n ? 'active' : '' }}" style="padding:2px 8px;">{{ $n }}</a>
                 @endforeach
@@ -523,7 +460,7 @@
                         🗜 Importer un ZIP
                     </button>
                 </div>
-                <p style="font-size:10px;margin-top:7px;color:var(--pd-muted);">JPEG · PNG · WEBP · GIF · MP4 · MOV · PDF — 200 Mo max · ZIP 500 Mo max</p>
+                <p style="font-size:10px;margin-top:7px;color:var(--pd-muted);">JPEG · PNG · WEBP · GIF · MP4 · MOV · PDF — 200 Mo max · ZIP 2 Go max</p>
 
 
 
@@ -542,7 +479,12 @@
                 </div>
                 <div class="ph-subalbums">
                     @foreach($album->children as $child)
-                        <a href="{{ route('media.albums.show', $child) }}" class="ph-sub-card">
+                        <a href="{{ route('media.albums.show', $child) }}" class="ph-sub-card"
+                           @if($canAdmin)
+                           @dragover.prevent="$event.currentTarget.classList.add('drop-over')"
+                           @dragleave="$event.currentTarget.classList.remove('drop-over')"
+                           @drop.prevent.stop="$event.currentTarget.classList.remove('drop-over'); subAlbumDrop({{ $child->id }}, '{{ addslashes($child->name) }}', $event)"
+                           @endif>
                             <div class="ph-sub-thumb">🗂️</div>
                             <div class="ph-sub-info">
                                 <div class="ph-sub-name">{{ $child->name }}</div>
@@ -568,8 +510,16 @@
                     @foreach($items as $index => $item)
                         <div class="ph-card"
                              :class="{ selected: isSelected({{ $item->id }}) }"
+                             data-item-id="{{ $item->id }}"
                              data-duplicate="{{ $item->is_duplicate ? 'true' : 'false' }}"
-                             @click="cardClick({{ $item->id }}, {{ $index }}, $event)">
+                             @click="cardClick({{ $item->id }}, {{ $index }}, $event)"
+                             @dblclick.stop="openLightbox({{ $index }})"
+                             title="Double-clic pour agrandir"
+                             @if($canAdmin)
+                             draggable="true"
+                             @dragstart="cardDragStart({{ $item->id }}, $event)"
+                             @dragend="cardDragEnd($event)"
+                             @endif>
                             @if($item->isVideo())
                                 <span class="ph-type-badge">Vidéo</span>
                                 <div style="width:100%;height:100%;background:linear-gradient(135deg,#1e293b,#334155);display:flex;align-items:center;justify-content:center;">
@@ -582,8 +532,13 @@
                                 <img src="{{ route('media.items.serve', [$album, $item, 'thumb']) }}"
                                      alt="{{ $item->caption ?? $item->file_name }}" loading="lazy">
                             @endif
-                            @if($item->is_duplicate)
-                            <div class="ph-dup-badge" title="Ce fichier existe en doublon dans la photothèque">⚠ Doublon</div>
+                            @if($item->tags->isNotEmpty())
+                            <div class="ph-tag-badge" title="{{ $item->tags->pluck('name')->join(', ') }}">🏷 {{ $item->tags->count() }}</div>
+                            @endif
+                            @if($sortBy === 'exif_date' && $item->exif_taken_at)
+                            <div style="position:absolute;bottom:28px;left:6px;background:rgba(0,0,0,.6);color:#fff;font-size:9px;padding:2px 5px;border-radius:4px;pointer-events:none;line-height:1.4;">
+                                📅 {{ $item->exif_taken_at->format('d/m/Y') }}
+                            </div>
                             @endif
                             <div class="ph-check" @click.stop="toggleSelect({{ $item->id }})">✓</div>
                             <div class="ph-overlay">
@@ -617,7 +572,9 @@
                     <div class="ph-list-row ph-list-th" style="border:none;cursor:default;">
                         <div></div><div>Nom</div><div style="text-align:right;">Type</div>
                         <div style="text-align:right;">Dimensions</div>
-                        <div style="text-align:right;">Taille</div><div></div>
+                        <div style="text-align:right;">Taille</div>
+                        <div style="text-align:right;">{{ $sortBy === 'exif_date' ? 'Prise de vue' : 'Ajouté le' }}</div>
+                        <div></div>
                     </div>
                     @foreach($items as $index => $item)
                         <div class="ph-list-row" :class="{ selected: isSelected({{ $item->id }}) }"
@@ -629,10 +586,32 @@
                             @else
                                 <div class="ph-list-thumb-icon" style="background:#fde68a;">📄</div>
                             @endif
-                            <div class="ph-list-name">{{ $item->caption ?? $item->file_name }}</div>
+                            <div class="ph-list-name">
+                                {{ $item->caption ?? $item->file_name }}
+                                @if($item->tags->isNotEmpty())
+                                <span style="margin-left:6px;display:inline-flex;gap:3px;">
+                                    @foreach($item->tags as $tag)
+                                    <a href="{{ route('media.albums.show', $album) }}?tag_id={{ $tag->id }}" @click.stop
+                                       style="font-size:9px;font-weight:500;padding:1px 6px;border-radius:10px;background:#e0e7ff;color:#3730a3;text-decoration:none;">{{ $tag->name }}</a>
+                                    @endforeach
+                                </span>
+                                @endif
+                            </div>
                             <div class="ph-list-meta">{{ strtoupper(pathinfo($item->file_name, PATHINFO_EXTENSION)) }}</div>
                             <div class="ph-list-meta">{{ $item->width_px ? $item->width_px.'×'.$item->height_px : '—' }}</div>
                             <div class="ph-list-meta">{{ $item->humanSize() }}</div>
+                            <div class="ph-list-meta" title="{{ $sortBy === 'exif_date' && $item->exif_taken_at ? 'Prise le '.$item->exif_taken_at->format('d/m/Y H:i') : '' }}">
+                                @if($sortBy === 'exif_date')
+                                    @if($item->exif_taken_at)
+                                        <span style="color:var(--pd-text);">{{ $item->exif_taken_at->format('d/m/Y') }}</span>
+                                        <span style="color:var(--pd-muted);font-size:10px;"> {{ $item->exif_taken_at->format('H:i') }}</span>
+                                    @else
+                                        <span style="color:var(--pd-muted);font-style:italic;">Sans EXIF</span>
+                                    @endif
+                                @else
+                                    {{ $item->created_at->format('d/m/Y') }}
+                                @endif
+                            </div>
                             <div class="ph-list-meta">
                                 <a href="{{ route('media.items.download', [$album, $item]) }}" @click.stop style="color:var(--pd-muted);text-decoration:none;font-size:13px;">↓</a>
                             </div>
@@ -673,14 +652,39 @@
                         <img :src="activeItem.thumb" :alt="activeItem.name" x-show="activeItem.isImage" style="width:100%;height:100%;object-fit:cover;">
                         <span x-show="!activeItem.isImage" style="font-size:32px;" x-text="activeItem.isPdf ? '📄' : '🎬'"></span>
                     </div>
-                    <div class="ph-panel-title" x-text="activeItem.name"></div>
-                    <template x-if="activeItem.is_duplicate">
-                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:6px 10px;margin:6px 0;display:flex;align-items:center;gap:6px;font-size:11px;color:#dc2626;">
-                            <span>⚠</span>
-                            <span>Ce fichier est un doublon</span>
-                        </div>
+                    <div class="ph-panel-title" x-text="activeItem.caption || activeItem.file_name"></div>
+                    <template x-if="activeItem.caption">
+                        <div style="font-size:10px;color:var(--pd-muted);margin:-4px 0 6px;padding:0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="activeItem.file_name"></div>
                     </template>
                     <div>
+                        @can('upload', $album)
+                        {{-- Légende éditable --}}
+                        <div style="margin-bottom:10px;" x-data="captionEditor()">
+                            <div style="font-size:10px;font-weight:600;color:var(--pd-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;">Légende</div>
+                            <template x-if="!editing">
+                                <div @click="startEdit()"
+                                     style="font-size:12px;padding:6px 8px;border:1px dashed var(--pd-border);border-radius:6px;cursor:text;min-height:32px;color:var(--pd-text);"
+                                     :style="!activeItem.caption ? 'color:var(--pd-muted);font-style:italic;' : ''"
+                                     x-text="activeItem.caption || 'Cliquer pour ajouter une légende…'">
+                                </div>
+                            </template>
+                            <template x-if="editing">
+                                <div>
+                                    <textarea x-ref="captionInput" x-model="draft"
+                                              @keydown.enter.prevent="save()"
+                                              @keydown.escape="cancel()"
+                                              rows="2"
+                                              style="width:100%;box-sizing:border-box;padding:6px 8px;border:1.5px solid var(--pd-accent);border-radius:6px;font-size:12px;resize:none;background:var(--pd-surface);color:var(--pd-text);outline:none;"></textarea>
+                                    <div style="display:flex;gap:6px;margin-top:4px;">
+                                        <button @click="save()" style="flex:1;padding:4px;background:var(--pd-navy);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;">Enregistrer</button>
+                                        <button @click="cancel()" style="flex:1;padding:4px;background:var(--pd-bg);color:var(--pd-text);border:1px solid var(--pd-border);border-radius:5px;font-size:11px;cursor:pointer;">Annuler</button>
+                                    </div>
+                                    <div style="font-size:10px;color:var(--pd-muted);margin-top:3px;">Entrée = sauvegarder · Échap = annuler</div>
+                                </div>
+                            </template>
+                        </div>
+                        @endcan
+
                         <div class="ph-meta-row"><span class="ph-meta-lbl">Taille</span><span class="ph-meta-val" x-text="activeItem.size"></span></div>
                         <template x-if="activeItem.dims">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">Dimensions</span><span class="ph-meta-val" x-text="activeItem.dims"></span></div>
@@ -689,8 +693,14 @@
                             <div class="ph-meta-row"><span class="ph-meta-lbl">Prise le</span><span class="ph-meta-val" x-text="activeItem.taken_at"></span></div>
                         </template>
                         <div class="ph-meta-row"><span class="ph-meta-lbl">Ajouté le</span><span class="ph-meta-val" x-text="activeItem.date"></span></div>
+                        <template x-if="activeItem.uploader_name">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">Par</span><span class="ph-meta-val" x-text="activeItem.uploader_name"></span></div>
+                        </template>
                         <template x-if="activeItem.camera">
-                            <div class="ph-meta-row"><span class="ph-meta-lbl">Appareil</span><span class="ph-meta-val" x-text="activeItem.camera"></span></div>
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">📷 Appareil</span><span class="ph-meta-val" x-text="activeItem.camera"></span></div>
+                        </template>
+                        <template x-if="activeItem.lens">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">🔭 Objectif</span><span class="ph-meta-val" x-text="activeItem.lens"></span></div>
                         </template>
                         <template x-if="activeItem.software">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">💾 Logiciel</span><span class="ph-meta-val" x-text="activeItem.software"></span></div>
@@ -703,6 +713,9 @@
                         </template>
                         <template x-if="activeItem.exposure">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">Exposition</span><span class="ph-meta-val" x-text="activeItem.exposure"></span></div>
+                        </template>
+                        <template x-if="activeItem.exposure_bias">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">Compensation</span><span class="ph-meta-val" x-text="activeItem.exposure_bias"></span></div>
                         </template>
                         <template x-if="activeItem.iso">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">ISO</span><span class="ph-meta-val" x-text="activeItem.iso"></span></div>
@@ -717,7 +730,19 @@
                             <div class="ph-meta-row"><span class="ph-meta-lbl">🌡 Balance</span><span class="ph-meta-val" x-text="activeItem.white_balance"></span></div>
                         </template>
                         <template x-if="activeItem.exposure_mode">
-                            <div class="ph-meta-row"><span class="ph-meta-lbl">📊 Exposition</span><span class="ph-meta-val" x-text="activeItem.exposure_mode"></span></div>
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">Mode expo</span><span class="ph-meta-val" x-text="activeItem.exposure_mode"></span></div>
+                        </template>
+                        <template x-if="activeItem.scene_type">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">Scène</span><span class="ph-meta-val" x-text="activeItem.scene_type"></span></div>
+                        </template>
+                        <template x-if="activeItem.color_space">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">Colorimétrie</span><span class="ph-meta-val" x-text="activeItem.color_space"></span></div>
+                        </template>
+                        <template x-if="activeItem.artist">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">✍️ Auteur</span><span class="ph-meta-val" x-text="activeItem.artist"></span></div>
+                        </template>
+                        <template x-if="activeItem.copyright">
+                            <div class="ph-meta-row"><span class="ph-meta-lbl">© Copyright</span><span class="ph-meta-val" x-text="activeItem.copyright"></span></div>
                         </template>
                         <template x-if="activeItem.gps_label">
                             <div class="ph-meta-row">
@@ -731,6 +756,52 @@
                         <template x-if="activeItem.sha256">
                             <div class="ph-meta-row"><span class="ph-meta-lbl">SHA-256</span><span class="ph-meta-val" style="font-size:10px;font-family:monospace;" x-text="activeItem.sha256"></span></div>
                         </template>
+
+                        {{-- Tags --}}
+                        <div style="padding:6px 0;border-bottom:1px solid var(--pd-border);">
+                            <div style="font-size:10px;color:var(--pd-muted);margin-bottom:4px;">🏷 Tags</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">
+                                <template x-for="tag in (activeItem.tags || [])" :key="tag.id">
+                                    <span style="display:inline-flex;align-items:center;gap:2px;padding:1px 8px 1px 8px;border-radius:20px;font-size:10px;font-weight:500;background:#e0e7ff;color:#3730a3;">
+                                        <a :href="`{{ route('media.albums.show', $album) }}?tag_id=${tag.id}`"
+                                           style="color:inherit;text-decoration:none;" x-text="tag.name"></a>
+                                        @if($canAdmin)
+                                        <button @click.prevent="tagRemove(tag.id)"
+                                                style="background:none;border:none;cursor:pointer;color:#6366f1;padding:0 0 0 2px;font-size:12px;line-height:1;"
+                                                title="Retirer ce tag">×</button>
+                                        @endif
+                                    </span>
+                                </template>
+                                @if($canAdmin)
+                                <button x-show="!_tagAdding"
+                                        @click="tagStartAdd()"
+                                        style="font-size:10px;color:var(--pd-muted);padding:1px 8px;border-radius:20px;border:1px dashed var(--pd-border);background:none;cursor:pointer;">
+                                    + tag
+                                </button>
+                                @endif
+                            </div>
+                            @if($canAdmin)
+                            <div x-show="_tagAdding" style="margin-top:6px;">
+                                <input type="text"
+                                       x-ref="tagInlineInput"
+                                       x-model="_tagInput"
+                                       @keydown.enter.prevent="tagAdd()"
+                                       @keydown.escape="tagCancelAdd()"
+                                       @input.debounce.250ms="tagFetchSuggestions()"
+                                       @focus="tagFetchAll()"
+                                       placeholder="Nom du tag… (Entrée pour valider)"
+                                       style="width:100%;box-sizing:border-box;font-size:10px;border:1px solid var(--pd-border);border-radius:6px;padding:4px 8px;outline:none;background:var(--pd-bg);color:var(--pd-text);">
+                                <div x-show="_tagSuggestions.length" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;">
+                                    <span style="font-size:9px;color:var(--pd-muted);width:100%;margin-bottom:1px;">Suggestions :</span>
+                                    <template x-for="s in _tagSuggestions" :key="s">
+                                        <button @click="tagSelectSuggestion(s)"
+                                                style="font-size:9px;padding:2px 8px;border-radius:10px;background:var(--pd-border);color:var(--pd-text);border:none;cursor:pointer;"
+                                                x-text="s"></button>
+                                    </template>
+                                </div>
+                            </div>
+                            @endif
+                        </div>
                     </div>
                 </div>
             </template>
@@ -743,6 +814,13 @@
             <button class="ph-panel-btn" @click="openLightboxItem()">⤢ Plein écran</button>
             @if($canAdmin)
             <button class="ph-panel-btn" x-show="activeItem?.isImage" @click="setCoverItem()">⭐ Couverture</button>
+            <template x-if="activeItem?.isImage">
+                <div style="display:flex;gap:4px;width:100%;">
+                    <button class="ph-panel-btn" style="flex:1;" @click="rotateItem(activeItem, 270)" title="Rotation gauche">↺ Gauche</button>
+                    <button class="ph-panel-btn" style="flex:1;" @click="rotateItem(activeItem, 90)"  title="Rotation droite">↻ Droite</button>
+                    <button class="ph-panel-btn" style="flex:1;" @click="openCropModal(activeItem)"  title="Recadrer">✂ Recadrer</button>
+                </div>
+            </template>
             @endif
             @can('upload', $album)
             <button class="ph-panel-btn danger" @click="deletePanelItem()">🗑 Supprimer</button>
@@ -758,7 +836,86 @@
     <button class="ph-lb-nav prev" id="lb-prev" onclick="lbGo(-1)">‹</button>
     <div id="lb-content" style="display:flex;align-items:center;justify-content:center;max-width:90vw;max-height:85vh;"></div>
     <button class="ph-lb-nav next" id="lb-next" onclick="lbGo(1)">›</button>
-    <div class="ph-lb-info" id="lb-info"></div>
+
+    {{-- Barre slideshow --}}
+    <div id="lb-controls">
+        <button id="lb-play" onclick="lbTogglePlay()" title="Diaporama — Espace">▶</button>
+        <div style="display:flex;gap:3px;">
+            <button class="lb-spd" data-s="2" onclick="lbSetSpeed(2)">2s</button>
+            <button class="lb-spd active" data-s="3" onclick="lbSetSpeed(3)">3s</button>
+            <button class="lb-spd" data-s="5" onclick="lbSetSpeed(5)">5s</button>
+        </div>
+        <span id="lb-info"></span>
+        @if($canAdmin)
+        <div id="lb-edit-btns" style="display:none;gap:4px;">
+            <button class="lb-spd" onclick="lbRotate(270)" title="Rotation gauche">↺</button>
+            <button class="lb-spd" onclick="lbRotate(90)"  title="Rotation droite">↻</button>
+            <button class="lb-spd" onclick="lbOpenCrop()"  title="Recadrer">✂</button>
+        </div>
+        @endif
+    </div>
+</div>
+
+@if($canAdmin)
+{{-- Modale recadrage --}}
+<div id="ph-crop-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.95);flex-direction:column;align-items:center;justify-content:center;gap:14px;">
+    <div style="max-width:90vw;max-height:75vh;overflow:hidden;">
+        <img id="crop-img" src="" alt="" style="display:block;max-width:90vw;max-height:75vh;">
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+        <button onclick="confirmCrop()" style="padding:8px 22px;background:var(--pd-navy);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">✓ Recadrer</button>
+        <button onclick="closeCropModal()" style="padding:8px 18px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;">Annuler</button>
+        <span id="crop-status" style="font-size:12px;color:rgba(255,255,255,.6);"></span>
+    </div>
+</div>
+@endif
+
+{{-- Modal partage par lien --}}
+<div id="ph-share-modal" style="display:none;position:fixed;inset:0;z-index:8000;background:rgba(0,0,0,.5);align-items:center;justify-content:center;">
+    <div style="background:var(--pd-surface);border-radius:14px;border:1px solid var(--pd-border);width:480px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,.2);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--pd-border);">
+            <span style="font-size:13px;font-weight:700;color:var(--pd-text);">Partager l'album par lien</span>
+            <button onclick="closeShareModal()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--pd-muted);">✕</button>
+        </div>
+        <div style="padding:18px;">
+
+            {{-- Formulaire création --}}
+            <div style="margin-bottom:16px;padding:14px;background:var(--pd-bg);border-radius:10px;border:1px solid var(--pd-border);">
+                <div style="font-size:11px;font-weight:600;color:var(--pd-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Créer un nouveau lien</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">Expiration</label>
+                        <select id="sl-expires" style="width:100%;padding:6px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;background:var(--pd-surface);color:var(--pd-text);">
+                            <option value="1">1 jour</option>
+                            <option value="7" selected>7 jours</option>
+                            <option value="30">30 jours</option>
+                            <option value="90">90 jours</option>
+                            <option value="">Sans expiration</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:11px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">Mot de passe (optionnel)</label>
+                        <input type="text" id="sl-password" placeholder="Laisser vide = aucun"
+                               style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;background:var(--pd-surface);color:var(--pd-text);">
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;justify-content:space-between;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--pd-text);cursor:pointer;">
+                        <input type="checkbox" id="sl-download" checked style="accent-color:var(--pd-navy);">
+                        Autoriser le téléchargement
+                    </label>
+                    <button onclick="createShareLink()" style="padding:6px 14px;background:var(--pd-navy);color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+                        Créer le lien
+                    </button>
+                </div>
+            </div>
+
+            {{-- Liste des liens existants --}}
+            <div id="sl-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;">
+                <div style="text-align:center;padding:16px;font-size:12px;color:var(--pd-muted);">Chargement…</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 {{-- Modal import dossier --}}
@@ -774,7 +931,7 @@
                 <p style="font-size:13px;margin-bottom:14px;">Sélectionnez le dossier de votre appareil photo<br><span style="font-size:11px;">(DCIM, Téléchargements, Images…)</span></p>
                 <label class="ph-dz-btn primary" style="cursor:pointer;display:inline-block;">
                     Choisir un dossier
-                    <input type="file" id="folder-input" webkitdirectory multiple accept="image/*,video/*,application/pdf" class="hidden" onchange="scanFolder(this.files)">
+                    <input type="file" id="folder-input" webkitdirectory multiple class="hidden" onchange="scanFolder(this.files)">
                 </label>
             </div>
         </div>
@@ -811,7 +968,6 @@
 
 @push('scripts')
 <script>
-const PH_ITEMS = @json($itemsForJs);
 const PH_CSRF = '{{ csrf_token() }}';
 let lbIdx = 0;
 
@@ -822,6 +978,8 @@ document.addEventListener('alpine:init', () => {
         dragging: false, uploading: false, progress: 0, statusText: '',
         cols: defaultCols, viewMode: 'grid', panelOpen: true,
         selected: [], activeItem: null, search: '',
+        // Tags inline
+        _tagInput: '', _tagAdding: false, _tagSuggestions: [], _tagTimer: null,
 
         setCols(n) {
             this.cols = n;
@@ -844,6 +1002,7 @@ document.addEventListener('alpine:init', () => {
             if (event.ctrlKey || event.metaKey || event.shiftKey) {
                 this.toggleSelect(id);
             } else {
+                this.tagCancelAdd();
                 this.activeItem = PH_ITEMS.find(i => i.id === id) || null;
                 if (this.activeItem && !this.panelOpen) this.panelOpen = true;
             }
@@ -853,6 +1012,8 @@ document.addEventListener('alpine:init', () => {
 
         handleDrop(event) {
             this.dragging = false;
+            // Ignorer les drops de cartes médias (gérés par subAlbumDrop)
+            if (event.dataTransfer.getData('application/x-media-item-id')) return;
             if (event.dataTransfer.files.length) this.upload(event.dataTransfer.files);
         },
         handleFileInput(event) {
@@ -926,23 +1087,304 @@ document.addEventListener('alpine:init', () => {
                 return fetch(item.destroy, { method: 'POST', headers: { 'X-CSRF-TOKEN': PH_CSRF }, body: new URLSearchParams({ _method: 'DELETE' }) });
             })).then(() => location.reload());
         },
+
+        // ── Drag-and-drop photos vers sous-album ─────────────────
+        _draggingId: null,
+        cardDragStart(id, event) {
+            this._draggingId = id;
+            // Si la photo draguée fait partie d'une sélection multiple, déplacer toute la sélection
+            const ids = (this.selected.includes(id) && this.selected.length > 1)
+                ? this.selected
+                : [id];
+            event.dataTransfer.setData('application/x-media-item-id', ids.join(','));
+            event.dataTransfer.setData('application/x-media-source-album', '{{ $album->id }}');
+            event.dataTransfer.effectAllowed = 'move';
+            event.currentTarget.classList.add('dragging');
+        },
+        cardDragEnd(event) {
+            event.currentTarget.classList.remove('dragging');
+            this._draggingId = null;
+        },
+        async subAlbumDrop(albumId, albumName, event) {
+            const mediaData = event.dataTransfer.getData('application/x-media-item-id');
+            if (!mediaData) return;
+            const ids = mediaData.split(',').map(Number).filter(Boolean);
+            if (!ids.length) return;
+            await this._moveItems(ids, albumId, albumName);
+        },
+        async _moveItems(ids, albumId, albumName) {
+            try {
+                const resp = await fetch('{{ route('media.items.move', $album) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ item_ids: ids, target_album_id: albumId }),
+                });
+                const data = await resp.json();
+                if (!resp.ok) { alert(data.error || 'Erreur lors du déplacement.'); return; }
+                if (data.errors && data.errors.length) alert(data.errors.join('\n'));
+                if (data.moved > 0) location.reload();
+            } catch { alert('Erreur réseau.'); }
+        },
+
+        // ── Tags inline ───────────────────────────────────────────
+        tagStartAdd() {
+            this._tagAdding = true;
+            this.$nextTick(() => this.$refs.tagInlineInput?.focus());
+        },
+        tagCancelAdd() {
+            this._tagAdding = false;
+            this._tagInput = '';
+            this._tagSuggestions = [];
+            clearTimeout(this._tagTimer);
+        },
+        async tagAdd() {
+            const name = this._tagInput.trim().toLowerCase();
+            if (!name || !this.activeItem) { this.tagCancelAdd(); return; }
+            if (this.activeItem.tags?.some(t => t.name === name)) { this.tagCancelAdd(); return; }
+            try {
+                const resp = await fetch(`{{ url('media/items') }}/${this.activeItem.id}/tags`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ name }),
+                });
+                if (!resp.ok) { this.tagCancelAdd(); return; }
+                const tag = await resp.json();
+                if (!this.activeItem.tags) this.activeItem.tags = [];
+                this.activeItem.tags.push(tag);
+                const ph = PH_ITEMS.find(i => i.id === this.activeItem.id);
+                if (ph) { if (!ph.tags) ph.tags = []; ph.tags.push(tag); }
+            } catch {}
+            this.tagCancelAdd();
+        },
+        async tagRemove(tagId) {
+            if (!this.activeItem) return;
+            try {
+                const resp = await fetch(`{{ url('media/items') }}/${this.activeItem.id}/tags/${tagId}`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': PH_CSRF, 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new URLSearchParams({ _method: 'DELETE' }),
+                });
+                if (!resp.ok) return;
+                this.activeItem.tags = this.activeItem.tags.filter(t => t.id !== tagId);
+                const ph = PH_ITEMS.find(i => i.id === this.activeItem.id);
+                if (ph) ph.tags = ph.tags?.filter(t => t.id !== tagId) ?? [];
+            } catch {}
+        },
+        async tagFetchAll() {
+            clearTimeout(this._tagTimer);
+            try {
+                const resp = await fetch(`{{ route('media.tags.suggest') }}?q=${encodeURIComponent(this._tagInput)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const all = await resp.json();
+                this._tagSuggestions = all.filter(s => !this.activeItem?.tags?.some(t => t.name === s));
+            } catch { this._tagSuggestions = []; }
+        },
+        tagFetchSuggestions() {
+            clearTimeout(this._tagTimer);
+            this._tagTimer = setTimeout(() => this.tagFetchAll(), 250);
+        },
+        tagSelectSuggestion(name) {
+            this._tagInput = name;
+            this._tagSuggestions = [];
+            this.tagAdd();
+        },
+
+        // ── Modal déplacer vers ───────────────────────────────────
+        openMoveModal() {
+            const modal = document.getElementById('ph-move-modal');
+            if (!modal) return;
+            const alpine = Alpine.$data(modal);
+            alpine.open = true;
+            alpine.count = this.selected.length;
+            alpine.pendingIds = [...this.selected];
+            alpine.query = '';
+            alpine.results = [];
+            alpine.moveCallback = async (albumId, albumName) => {
+                await this._moveItems(this.selected, albumId, albumName);
+                this.clearSelection();
+            };
+            this.$nextTick(() => modal.querySelector('input')?.focus());
+        },
+    }));
+});
+
+// ── Alpine component : modal déplacer vers ───────────────────────────────────
+document.addEventListener('alpine:init', () => {
+    Alpine.data('moveModal', (moveUrl, searchUrl) => ({
+        open: false,
+        query: '',
+        results: [],
+        searching: false,
+        count: 0,
+        pendingIds: [],
+        moveCallback: null,
+
+        get countLabel() {
+            return this.count > 1 ? `${this.count} fichiers sélectionnés` : '1 fichier sélectionné';
+        },
+        close() { this.open = false; this.query = ''; this.results = []; },
+        async search() {
+            if (this.query.length < 2) { this.results = []; return; }
+            this.searching = true;
+            try {
+                const resp = await fetch(searchUrl + '?q=' + encodeURIComponent(this.query), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                this.results = await resp.json();
+            } catch { this.results = []; }
+            this.searching = false;
+        },
+        async moveTo(albumId, albumName) {
+            if (!this.moveCallback) return;
+            this.close();
+            await this.moveCallback(albumId, albumName);
+        },
     }));
 });
 
 // Lightbox
+let PH_ITEMS = @json($itemsForJs);
+
 function renderLb() {
     const item = PH_ITEMS[lbIdx];
     if (!item) return;
     const el = document.getElementById('lb-content');
-    if (item.isImage) el.innerHTML = `<img src="${item.full}" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:4px;">`;
+    const bust = item._ts ? '?ts=' + item._ts : '';
+    if (item.isImage) el.innerHTML = `<img src="${item.full}${bust}" style="max-width:90vw;max-height:85vh;object-fit:contain;border-radius:4px;">`;
     else if (item.isVideo) el.innerHTML = `<video controls autoplay style="max-width:90vw;max-height:85vh;border-radius:4px;"><source src="${item.full}" type="${item.mime}"></video>`;
     else el.innerHTML = `<div style="text-align:center;color:#fff;padding:40px;"><div style="font-size:50px;margin-bottom:14px;">📄</div><p style="font-size:14px;">${item.name}</p><a href="${item.download}" style="display:inline-block;margin-top:14px;padding:8px 20px;background:rgba(255,255,255,.2);color:#fff;border-radius:8px;text-decoration:none;">↓ Télécharger</a></div>`;
     document.getElementById('lb-info').textContent = `${item.name} — ${lbIdx + 1} / ${PH_ITEMS.length}`;
     document.getElementById('lb-prev').style.display = lbIdx > 0 ? '' : 'none';
     document.getElementById('lb-next').style.display = lbIdx < PH_ITEMS.length - 1 ? '' : 'none';
+    const editBtns = document.getElementById('lb-edit-btns');
+    if (editBtns) editBtns.style.display = item.isImage ? 'flex' : 'none';
 }
 function lbGo(d) { lbIdx = Math.max(0, Math.min(PH_ITEMS.length-1, lbIdx+d)); renderLb(); }
-function closeLb() { document.getElementById('ph-lb').classList.remove('open'); }
+function closeLb() { lbPause(); document.getElementById('ph-lb').classList.remove('open'); }
+
+// Slideshow
+let lbPlaying = false;
+let lbSpeed   = 3;
+let lbTimer   = null;
+
+function lbTogglePlay() { lbPlaying ? lbPause() : lbPlayStart(); }
+
+function lbPlayStart() {
+    lbPlaying = true;
+    document.getElementById('lb-play').textContent = '⏸';
+    lbTimer = setInterval(() => {
+        if (lbIdx >= PH_ITEMS.length - 1) { lbPause(); return; }
+        lbGo(1);
+    }, lbSpeed * 1000);
+}
+
+function lbPause() {
+    lbPlaying = false;
+    clearInterval(lbTimer);
+    lbTimer = null;
+    const btn = document.getElementById('lb-play');
+    if (btn) btn.textContent = '▶';
+}
+
+function lbSetSpeed(s) {
+    lbSpeed = s;
+    document.querySelectorAll('.lb-spd').forEach(b => b.classList.toggle('active', +b.dataset.s === s));
+    if (lbPlaying) { lbPause(); lbPlayStart(); }
+}
+
+@if($canAdmin)
+// ── Rotation / Recadrage ────────────────────────────────────────────────────
+const PH_ALBUM_ID = {{ $album->id }};
+
+function _refreshItemInGrid(itemId) {
+    document.querySelectorAll(`.ph-card[data-item-id="${itemId}"] img`).forEach(img => {
+        const base = img.src.split('?')[0];
+        img.src = base + '?ts=' + Date.now();
+    });
+}
+
+async function lbRotate(degrees) {
+    const item = PH_ITEMS[lbIdx];
+    if (!item || !item.isImage) return;
+    const resp = await fetch(`{{ url('media/albums') }}/${PH_ALBUM_ID}/items/${item.id}/rotate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF },
+        body: JSON.stringify({ degrees })
+    });
+    const data = await resp.json();
+    if (data.ok) {
+        item._ts = Date.now();
+        renderLb();
+        _refreshItemInGrid(item.id);
+    }
+}
+
+function lbOpenCrop() {
+    const item = PH_ITEMS[lbIdx];
+    if (item && item.isImage) openCropModal(item);
+}
+
+function rotateItem(item, degrees) {
+    if (!item || !item.isImage) return;
+    fetch(`{{ url('media/albums') }}/${PH_ALBUM_ID}/items/${item.id}/rotate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF },
+        body: JSON.stringify({ degrees })
+    }).then(r => r.json()).then(data => {
+        if (data.ok) {
+            const idx = PH_ITEMS.findIndex(i => i.id === item.id);
+            if (idx >= 0) { PH_ITEMS[idx]._ts = Date.now(); if (idx === lbIdx) renderLb(); }
+            _refreshItemInGrid(item.id);
+        }
+    });
+}
+
+// ── Crop modal (Cropper.js) ────────────────────────────────────────────────
+let _cropper = null;
+let _cropItemId = null;
+
+function openCropModal(item) {
+    _cropItemId = item.id;
+    const img = document.getElementById('crop-img');
+    const modal = document.getElementById('ph-crop-modal');
+    img.src = '';
+    modal.style.display = 'flex';
+    document.getElementById('crop-status').textContent = 'Chargement…';
+    img.onload = () => {
+        document.getElementById('crop-status').textContent = '';
+        if (_cropper) { _cropper.destroy(); _cropper = null; }
+        _cropper = new Cropper(img, { viewMode: 1, autoCropArea: 0.8, movable: true, zoomable: true });
+    };
+    img.src = item.full + '?ts=' + Date.now();
+}
+
+function closeCropModal() {
+    if (_cropper) { _cropper.destroy(); _cropper = null; }
+    document.getElementById('ph-crop-modal').style.display = 'none';
+}
+
+async function confirmCrop() {
+    if (!_cropper || !_cropItemId) return;
+    const d = _cropper.getData(true);
+    if (d.width < 10 || d.height < 10) return;
+    document.getElementById('crop-status').textContent = 'Recadrage en cours…';
+    const resp = await fetch(`{{ url('media/albums') }}/${PH_ALBUM_ID}/items/${_cropItemId}/crop`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF },
+        body: JSON.stringify({ x: d.x, y: d.y, width: d.width, height: d.height })
+    });
+    const result = await resp.json();
+    if (result.ok) {
+        closeCropModal();
+        const idx = PH_ITEMS.findIndex(i => i.id === _cropItemId);
+        if (idx >= 0) { PH_ITEMS[idx]._ts = Date.now(); if (idx === lbIdx) renderLb(); }
+        _refreshItemInGrid(_cropItemId);
+    } else {
+        document.getElementById('crop-status').textContent = result.error ?? 'Erreur';
+    }
+}
+@endif
 
 // ── Modale doublons ───────────────────────────────────────────────────────────
 let _dupPhComponent = null;
@@ -1013,56 +1455,151 @@ function confirmDuplicates() {
 document.getElementById('ph-lb')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLb(); });
 
 // Import dossier
-let folderFiles = [];
+let folderFiles  = [];
+let folderGroups = {}; // subPath -> File[]
+
 function openImportModal()  { document.getElementById('ph-import-modal').classList.add('open'); }
 function closeImportModal() { document.getElementById('ph-import-modal').classList.remove('open'); resetImport(); }
 function resetImport() {
-    folderFiles = [];
+    folderFiles = []; folderGroups = {};
     document.getElementById('import-body').innerHTML = `
         <div style="text-align:center;padding:24px 0;color:var(--pd-muted);">
             <div style="font-size:30px;margin-bottom:10px;">📂</div>
             <p style="font-size:13px;margin-bottom:14px;">Sélectionnez le dossier de votre appareil photo</p>
             <label class="ph-dz-btn primary" style="cursor:pointer;display:inline-block;">Choisir un dossier
-                <input type="file" id="folder-input" webkitdirectory multiple accept="image/*,video/*,application/pdf" class="hidden" onchange="scanFolder(this.files)">
+                <input type="file" id="folder-input" webkitdirectory multiple class="hidden" onchange="scanFolder(this.files)">
             </label>
         </div>`;
     document.getElementById('import-footer').style.display = 'none';
 }
+
 function scanFolder(files) {
-    const allowed = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/quicktime','application/pdf'];
-    folderFiles = Array.from(files).filter(f => allowed.includes(f.type));
-    const fmt = b => b > 1048576 ? (b/1048576).toFixed(1)+' Mo' : Math.round(b/1024)+' Ko';
+    const allowedMime = ['image/jpeg','image/png','image/webp','image/gif','video/mp4','video/quicktime','application/pdf'];
+    const allowedExt  = ['jpg','jpeg','png','webp','gif','mp4','mov','pdf'];
+    folderFiles  = Array.from(files).filter(f => {
+        if (f.type && allowedMime.includes(f.type)) return true;
+        const ext = f.name.split('.').pop().toLowerCase();
+        return allowedExt.includes(ext);
+    });
+    folderGroups = {};
+
+    folderFiles.forEach(f => {
+        const parts   = f.webkitRelativePath.split('/');
+        // parts[0] = nom du dossier racine sélectionné, parts[last] = nom du fichier
+        const subPath = parts.slice(1, -1).join('/'); // '' = racine, 'Sous/Dossier' = imbriqué
+        if (!folderGroups[subPath]) folderGroups[subPath] = [];
+        folderGroups[subPath].push(f);
+    });
+
     const body = document.getElementById('import-body');
     if (!folderFiles.length) { body.innerHTML = '<p style="text-align:center;padding:20px;font-size:13px;color:var(--pd-muted);">Aucun fichier supporté.</p>'; return; }
-    body.innerHTML = `
-        <p style="font-size:12px;color:var(--pd-muted);margin-bottom:10px;"><strong style="color:var(--pd-text);">${folderFiles.length} fichier(s)</strong> trouvé(s). Les doublons seront ignorés automatiquement.</p>
-        <div style="max-height:260px;overflow-y:auto;">
-            ${folderFiles.slice(0,50).map(f => `
-                <div class="ph-import-file">
-                    <span class="name">${f.name}</span>
-                    <span class="size">${fmt(f.size)}</span>
-                    <span class="ph-badge new">Nouveau</span>
-                </div>`).join('')}
-            ${folderFiles.length > 50 ? `<p style="font-size:11px;color:var(--pd-muted);padding:6px 0;">… et ${folderFiles.length-50} autres</p>` : ''}
+
+    // Prévisualisation : arborescence des sous-dossiers
+    const sortedPaths = Object.keys(folderGroups).sort();
+    const treeHtml = sortedPaths.map(p => {
+        const depth  = p ? p.split('/').length : 0;
+        const label  = p ? p.split('/').pop() : '(racine)';
+        const count  = folderGroups[p].length;
+        const indent = 'margin-left:' + (depth * 16) + 'px';
+        return `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;${indent}">
+            <span>${depth === 0 ? '📄' : '📁'}</span>
+            <span style="color:var(--pd-text);font-weight:${depth===0?'400':'600'}">${label}</span>
+            <span style="color:var(--pd-muted);font-size:11px;">— ${count} fichier(s)</span>
         </div>`;
+    }).join('');
+
+    const nbAlbums = sortedPaths.filter(p => p !== '').length;
+    body.innerHTML = `
+        <p style="font-size:12px;color:var(--pd-muted);margin-bottom:10px;">
+            <strong style="color:var(--pd-text);">${folderFiles.length} fichier(s)</strong>
+            ${nbAlbums ? ` · <strong style="color:var(--pd-text);">${nbAlbums} sous-album(s)</strong> seront créés` : ''}
+        </p>
+        <div style="max-height:260px;overflow-y:auto;">${treeHtml}</div>`;
     document.getElementById('import-footer').style.display = 'flex';
     document.getElementById('import-btn').textContent = `Importer ${folderFiles.length} fichier(s)`;
 }
-function launchImport() {
+
+async function launchImport() {
     if (!folderFiles.length) return;
     const btn = document.getElementById('import-btn');
-    btn.disabled = true; let done = 0;
-    const BATCH = 5;
-    function next(i) {
-        if (i >= folderFiles.length) { closeImportModal(); location.reload(); return; }
-        const batch = folderFiles.slice(i, i+BATCH);
-        const fd = new FormData();
-        batch.forEach(f => fd.append('files[]', f));
-        fd.append('_token', PH_CSRF);
-        fetch('{{ route('media.items.store', $album) }}', { method:'POST', body:fd })
-            .finally(() => { done += batch.length; btn.textContent = `Import… ${done}/${folderFiles.length}`; next(i+BATCH); });
+    btn.disabled = true;
+
+    const ALBUM_STORE_URL  = '{{ route('media.albums.store') }}';
+    const CURRENT_UPLOAD   = '{{ route('media.items.store', $album) }}';
+    const UPLOAD_BASE      = CURRENT_UPLOAD.replace(/\/\d+\/upload$/, '');
+    const VISIBILITY       = '{{ $album->visibility }}';
+    const ROOT_ALBUM_ID    = {{ $album->id }};
+    const BATCH            = 5;
+
+    // Résolution album : subPath -> id ('' = album courant)
+    const albumCache = { '': ROOT_ALBUM_ID };
+
+    // Collecter TOUS les chemins intermédiaires (même sans fichiers directs)
+    const allPaths = new Set();
+    Object.keys(folderGroups).filter(p => p !== '').forEach(p => {
+        const parts = p.split('/');
+        parts.forEach((_, i) => allPaths.add(parts.slice(0, i + 1).join('/')));
+    });
+    const subPaths = Array.from(allPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+
+    console.log('[Import] UPLOAD_BASE =', UPLOAD_BASE);
+    console.log('[Import] folderGroups =', Object.fromEntries(Object.entries(folderGroups).map(([k,v]) => [k, v.length + ' fichiers'])));
+    console.log('[Import] subPaths à créer =', subPaths);
+
+    // ── 1. Créer les sous-albums ──────────────────────────────────────────
+    for (const path of subPaths) {
+        const parts      = path.split('/');
+        const parentPath = parts.slice(0, -1).join('/');
+        const name       = parts[parts.length - 1];
+        const parentId   = albumCache[parentPath] ?? ROOT_ALBUM_ID;
+
+        try {
+            const resp = await fetch(ALBUM_STORE_URL, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF, 'Accept': 'application/json' },
+                body:    JSON.stringify({ name, parent_id: parentId, visibility: VISIBILITY }),
+            });
+            const text = await resp.text();
+            let data;
+            try { data = JSON.parse(text); } catch { data = {}; }
+            if (data.id) albumCache[path] = data.id;
+            else btn.textContent = `Erreur album "${name}": ${text.slice(0,80)}`;
+        } catch(e) {
+            btn.textContent = `Erreur réseau album "${name}"`;
+        }
     }
-    next(0);
+
+    // ── 2. Uploader les fichiers ──────────────────────────────────────────
+    let done = 0;
+    const total = folderFiles.length;
+
+    for (const [path, files] of Object.entries(folderGroups)) {
+        const albumId   = albumCache[path] ?? ROOT_ALBUM_ID;
+        const uploadUrl = `${UPLOAD_BASE}/${albumId}/upload`;
+
+        for (let i = 0; i < files.length; i += BATCH) {
+            const batch = files.slice(i, i + BATCH);
+            const fd    = new FormData();
+            batch.forEach(f => fd.append('files[]', f));
+            fd.append('_token', PH_CSRF);
+            try {
+                const r = await fetch(uploadUrl, { method: 'POST', body: fd });
+                if (!r.ok) {
+                    const errText = await r.text();
+                    btn.textContent = `Upload échoué (${r.status}): ${errText.slice(0,80)}`;
+                    return; // stopper pour voir l'erreur
+                }
+            } catch(e) {
+                btn.textContent = `Erreur réseau upload: ${e.message}`;
+                return;
+            }
+            done += batch.length;
+            btn.textContent = `Import… ${done}/${total}`;
+        }
+    }
+
+    btn.textContent = `✓ ${done} fichier(s) importé(s)`;
+    setTimeout(() => { closeImportModal(); location.reload(); }, 2000);
 }
 
 // Sync NAS
@@ -1072,10 +1609,15 @@ function syncNas() {
     btn.disabled = true;
     btn.style.color = 'var(--pd-accent)';
     btn.querySelector('svg').style.animation = 'spin 1s linear infinite';
+
     fetch('{{ route('media.sync') }}', { method:'POST', headers:{ 'X-CSRF-TOKEN': PH_CSRF, 'Accept':'application/json' } })
         .then(r => r.json())
         .then(d => {
+            // Arrêter l'animation immédiatement — la sync tourne en arrière-plan
+            btn.querySelector('svg').style.animation = '';
             btn.style.color = d.ok ? '#22c55e' : '#f59e0b';
+
+            // Toast informatif
             if (d.message) {
                 const toast = document.createElement('div');
                 toast.textContent = (d.ok ? '✓ ' : '⚠ ') + d.message;
@@ -1083,26 +1625,41 @@ function syncNas() {
                 toast.style.background = d.ok ? '#22c55e' : '#f59e0b';
                 toast.style.color = '#fff';
                 document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 4000);
+                setTimeout(() => toast.remove(), 5000);
             }
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.style.color = '';
-                btn.querySelector('svg').style.animation = '';
-                if (d.ok && d.stats && (d.stats.files_added > 0 || d.stats.files_removed > 0 || d.stats.albums_created > 0 || d.stats.albums_removed > 0)) {
+
+            if (d.ok && d.queued) {
+                // Sync asynchrone : recharger la page après 15 s pour afficher les nouveaux albums
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.color = '';
                     location.reload();
-                }
-            }, 1500);
+                }, 15000);
+            } else {
+                // Réponse synchrone (ancien comportement ou erreur)
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.style.color = '';
+                    if (d.ok && d.stats && (d.stats.files_added > 0 || d.stats.files_removed > 0 || d.stats.albums_created > 0 || d.stats.albums_removed > 0)) {
+                        location.reload();
+                    }
+                }, 1500);
+            }
         })
-        .catch(() => { btn.disabled = false; btn.style.color = ''; btn.querySelector('svg').style.animation = ''; });
+        .catch(() => {
+            btn.disabled = false;
+            btn.style.color = '';
+            btn.querySelector('svg').style.animation = '';
+        });
 }
 
 // Clavier
 document.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeLb(); closeImportModal(); closeZipModal(); }
     if (document.getElementById('ph-lb').classList.contains('open')) {
-        if (e.key === 'ArrowLeft') lbGo(-1);
-        if (e.key === 'ArrowRight') lbGo(1);
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); lbGo(-1); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); lbGo(1); }
+        if (e.key === ' ')          { e.preventDefault(); lbTogglePlay(); }
     }
 });
 
@@ -1157,7 +1714,7 @@ function scanZip(input) {
         <form method="POST" action="{{ route('media.items.import-zip', $album) }}" enctype="multipart/form-data">
             @csrf
             <div style="margin-bottom:1.25rem;">
-                <label style="display:block;font-size:0.78rem;font-weight:600;color:var(--pd-text);margin-bottom:0.4rem;">Fichier ZIP <span style="color:var(--pd-muted);font-weight:400;">(500 Mo max)</span></label>
+                <label style="display:block;font-size:0.78rem;font-weight:600;color:var(--pd-text);margin-bottom:0.4rem;">Fichier ZIP <span style="color:var(--pd-muted);font-weight:400;">(2 Go max)</span></label>
                 <input id="zip-input" type="file" name="zip_file" accept=".zip,application/zip" required
                     onchange="scanZip(this)"
                     style="width:100%;padding:0.6rem;border:1px solid var(--pd-border);border-radius:4px;font-size:0.85rem;color:var(--pd-text);background:var(--pd-bg);cursor:pointer;">
@@ -1180,4 +1737,191 @@ function scanZip(input) {
 #ph-zip-modal { display: none; }
 #ph-zip-modal.open { display: flex; }
 </style>
+
+@if($canAdmin)
+<div id="ph-move-modal"
+     x-data="moveModal('{{ route('media.items.move', $album) }}', '{{ route('media.albums.search') }}')"
+     :class="{ open: open }"
+     @keydown.escape.window="close()"
+     @click.self="close()">
+    <div class="ph-modal-box" style="max-width:440px;">
+        <div class="ph-modal-hd">
+            <span class="ph-modal-title">↗ Déplacer vers un album</span>
+            <button @click="close()" style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:14px;line-height:1;">✕</button>
+        </div>
+        <div class="ph-modal-body">
+            <p style="font-size:12px;color:var(--pd-muted);margin-bottom:10px;" x-text="countLabel"></p>
+            <input type="text" x-model="query"
+                   @input.debounce.300ms="search()"
+                   placeholder="Rechercher un album (min. 2 caractères)…"
+                   style="width:100%;padding:7px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);outline:none;box-sizing:border-box;"
+                   x-ref="searchInput">
+            <div style="margin-top:10px;max-height:260px;overflow-y:auto;">
+                <template x-if="query.length >= 2 && !searching && results.length === 0">
+                    <p style="font-size:12px;color:var(--pd-muted);text-align:center;padding:16px 0;">Aucun album trouvé.</p>
+                </template>
+                <template x-if="searching">
+                    <p style="font-size:12px;color:var(--pd-muted);text-align:center;padding:16px 0;">Recherche…</p>
+                </template>
+                <template x-for="a in results" :key="a.id">
+                    <button class="ph-move-result" @click="moveTo(a.id, a.name)" style="width:100%;text-align:left;">
+                        <div>
+                            <div style="font-size:12px;font-weight:600;color:var(--pd-text);" x-text="a.name"></div>
+                            <div style="font-size:10px;color:var(--pd-muted);" x-text="a.path ?? ''"></div>
+                        </div>
+                        <span style="font-size:11px;color:var(--pd-muted);white-space:nowrap;" x-text="a.items_count + ' fich.'"></span>
+                    </button>
+                </template>
+            </div>
+        </div>
+        <div class="ph-modal-ft">
+            <button @click="close()" class="ph-dz-btn">Annuler</button>
+        </div>
+    </div>
+</div>
+@endif
+
+<script>
+// ── Éditeur de légende (caption) ─────────────────────────────────────────────
+function captionEditor() {
+    return {
+        editing: false,
+        draft: '',
+        startEdit() {
+            this.draft = window._Alpine?.$data(this.$el)?.activeItem?.caption
+                ?? document.querySelector('[x-data="phototheque"]')?.__x?.$data?.activeItem?.caption
+                ?? '';
+            // Récupération via Alpine $store ou parentComponent
+            const ph = this.$root?.__x?.$data ?? Alpine.evaluate(document.querySelector('[x-data^="phototheque"]'), '$data');
+            this.draft = ph?.activeItem?.caption ?? '';
+            this.editing = true;
+            this.$nextTick(() => this.$refs.captionInput?.focus());
+        },
+        cancel() { this.editing = false; },
+        async save() {
+            const ph = Alpine.evaluate(document.querySelector('[x-data^="phototheque"]'), '$data');
+            if (!ph?.activeItem) return;
+            const url = ph.activeItem.caption_url;
+            const caption = this.draft.trim() || null;
+            try {
+                const resp = await fetch(url, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': PH_CSRF, 'Accept': 'application/json' },
+                    body: JSON.stringify({ caption }),
+                });
+                if (!resp.ok) throw new Error();
+                // Mettre à jour PH_ITEMS et activeItem
+                const idx = PH_ITEMS.findIndex(i => i.id === ph.activeItem.id);
+                if (idx >= 0) {
+                    PH_ITEMS[idx].caption = caption;
+                    PH_ITEMS[idx].name = caption || PH_ITEMS[idx].file_name;
+                    ph.activeItem = { ...ph.activeItem, caption, name: caption || ph.activeItem.file_name };
+                }
+                this.editing = false;
+            } catch {
+                alert('Erreur lors de la sauvegarde.');
+            }
+        },
+    };
+}
+
+// ── Modale partage par lien ───────────────────────────────────────────────────
+const SL_INDEX_URL  = '{{ route('media.albums.share-links.index',  $album) }}';
+const SL_STORE_URL  = '{{ route('media.albums.share-links.store',  $album) }}';
+const SL_DELETE_BASE = '{{ url('media/albums/'.$album->id.'/share-links') }}';
+
+function openShareModal() {
+    document.getElementById('ph-share-modal').style.display = 'flex';
+    loadShareLinks();
+}
+function closeShareModal() {
+    document.getElementById('ph-share-modal').style.display = 'none';
+}
+document.getElementById('ph-share-modal')?.addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeShareModal();
+});
+
+async function loadShareLinks() {
+    const list = document.getElementById('sl-list');
+    list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--pd-muted);">Chargement…</div>';
+    try {
+        const resp = await fetch(SL_INDEX_URL, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': PH_CSRF } });
+        const links = await resp.json();
+        renderShareLinks(links);
+    } catch {
+        list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:#e74c3c;">Erreur de chargement.</div>';
+    }
+}
+
+function renderShareLinks(links) {
+    const list = document.getElementById('sl-list');
+    if (!links.length) {
+        list.innerHTML = '<div style="text-align:center;padding:16px;font-size:12px;color:var(--pd-muted);">Aucun lien actif pour le moment.</div>';
+        return;
+    }
+    list.innerHTML = links.map(l => `
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--pd-bg);border-radius:8px;border:1px solid var(--pd-border)${l.is_expired ? ';opacity:.5' : ''};">
+            <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">
+                    <input type="text" value="${l.url}" readonly onclick="this.select()"
+                           style="flex:1;min-width:0;padding:4px 8px;border:1px solid var(--pd-border);border-radius:5px;font-size:11px;background:var(--pd-surface);color:var(--pd-text);font-family:monospace;">
+                    <button onclick="copyLink('${l.url}', this)" style="padding:4px 8px;background:var(--pd-navy);color:#fff;border:none;border-radius:5px;font-size:11px;cursor:pointer;white-space:nowrap;">Copier</button>
+                </div>
+                <div style="font-size:10px;color:var(--pd-muted);display:flex;gap:8px;flex-wrap:wrap;">
+                    ${l.expires_at ? `<span>⏱ ${l.is_expired ? '<span style="color:#e74c3c;">Expiré le</span>' : 'Expire le'} ${l.expires_at}</span>` : '<span>∞ Sans expiration</span>'}
+                    ${l.allow_download ? '<span>↓ Téléchargement</span>' : '<span>👁 Lecture seule</span>'}
+                    ${l.has_password ? '<span>🔒 Protégé</span>' : ''}
+                    <span>Par ${l.created_by} · ${l.created_at}</span>
+                </div>
+            </div>
+            <button onclick="revokeShareLink(${l.id}, this)" title="Révoquer"
+                    style="width:28px;height:28px;border:1px solid rgba(231,76,60,.3);border-radius:6px;background:none;color:#e74c3c;cursor:pointer;font-size:12px;flex-shrink:0;">✕</button>
+        </div>
+    `).join('');
+}
+
+async function createShareLink() {
+    const expires = document.getElementById('sl-expires').value;
+    const password = document.getElementById('sl-password').value.trim();
+    const allowDownload = document.getElementById('sl-download').checked;
+
+    const body = new FormData();
+    body.append('_token', PH_CSRF);
+    if (expires) body.append('expires_in_days', expires);
+    body.append('allow_download', allowDownload ? '1' : '0');
+    if (password) body.append('password', password);
+
+    try {
+        const resp = await fetch(SL_STORE_URL, { method: 'POST', body });
+        if (!resp.ok) throw new Error();
+        document.getElementById('sl-password').value = '';
+        await loadShareLinks();
+    } catch {
+        alert('Erreur lors de la création du lien.');
+    }
+}
+
+async function revokeShareLink(id, btn) {
+    if (!confirm('Révoquer ce lien ? Les personnes qui l\'ont reçu ne pourront plus y accéder.')) return;
+    btn.disabled = true;
+    try {
+        await fetch(`${SL_DELETE_BASE}/${id}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRF-TOKEN': PH_CSRF, 'Accept': 'application/json' }
+        });
+        await loadShareLinks();
+    } catch {
+        btn.disabled = false;
+    }
+}
+
+function copyLink(url, btn) {
+    navigator.clipboard.writeText(url).then(() => {
+        const orig = btn.textContent;
+        btn.textContent = '✓ Copié';
+        btn.style.background = '#22c55e';
+        setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 2000);
+    });
+}
+</script>
 @endpush

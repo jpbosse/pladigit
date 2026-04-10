@@ -119,6 +119,53 @@
             <div x-show="error" x-cloak class="text-xs text-red-500 mt-1" x-text="error"></div>
         </div>
 
+        {{-- ── Tags ── --}}
+        <div class="px-5 py-3 border-b border-gray-100"
+             x-data="tagEditor({{ json_encode($item->tags->pluck('name', 'id')) }})">
+
+            <div class="flex flex-wrap items-center gap-1.5 min-h-[28px]">
+                <template x-for="(name, id) in tags" :key="id">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                          style="background:#e0e7ff;color:#3730a3;">
+                        <span x-text="name"></span>
+                        @can('manage', $item)
+                        <button @click="removeTag(id)"
+                                class="hover:text-red-500 transition leading-none"
+                                title="Retirer le tag">×</button>
+                        @endcan
+                    </span>
+                </template>
+
+                @can('manage', $item)
+                <div class="relative" x-show="!Object.keys(tags).length || addingTag">
+                    <input type="text"
+                           x-ref="tagInput"
+                           x-model="newTag"
+                           @keydown.enter.prevent="addTag()"
+                           @keydown.escape="cancelAdd()"
+                           @input.debounce.250ms="fetchSuggestions()"
+                           @focus="fetchSuggestions()"
+                           placeholder="Ajouter un tag…"
+                           class="text-xs border border-gray-200 rounded-full px-2.5 py-0.5 focus:outline-none focus:border-blue-400 w-32">
+                </div>
+                <div x-show="suggestions.length" class="flex flex-wrap gap-1.5 mt-2">
+                    <span class="text-xs text-gray-400 w-full">Suggestions :</span>
+                    <template x-for="s in suggestions" :key="s">
+                        <button @click="selectSuggestion(s)"
+                                class="text-xs px-2 py-0.5 rounded-full bg-gray-100 hover:bg-indigo-100 hover:text-indigo-700 text-gray-600 border border-transparent transition">
+                            <span x-text="s"></span>
+                        </button>
+                    </template>
+                </div>
+                <button x-show="!addingTag && Object.keys(tags).length"
+                        @click="startAdd()"
+                        class="text-xs text-gray-400 hover:text-gray-600 px-1.5 py-0.5 rounded-full border border-dashed border-gray-300 hover:border-gray-400 transition">
+                    + tag
+                </button>
+                @endcan
+            </div>
+        </div>
+
         {{-- ── Infos + EXIF ── --}}
         <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -301,7 +348,97 @@
                     </div>
                     @endif
 
+                    @php
+                        $lens = null;
+                        if (!empty($exif['LensModel'])) {
+                            $lens = trim(($exif['LensMake'] ?? '') . ' ' . $exif['LensModel']);
+                        } elseif (!empty($exif['LensMake'])) {
+                            $lens = $exif['LensMake'];
+                        }
+                        $exposureBias = null;
+                        if (isset($exif['ExposureBiasValue']) && $exif['ExposureBiasValue'] != 0) {
+                            $ev = (float) $exif['ExposureBiasValue'];
+                            $exposureBias = ($ev > 0 ? '+' : '') . number_format($ev, 1) . ' EV';
+                        }
+                        $sceneLabels = [0=>'Standard',1=>'Portrait',2=>'Paysage',3=>'Scène de nuit',4=>'Paysage de nuit',5=>'Rétroéclairé',6=>'Crépuscule / Lever',7=>'Intérieur',8=>'Feu d\'artifice'];
+                        $sceneType = isset($exif['SceneCaptureType']) ? ($sceneLabels[$exif['SceneCaptureType']] ?? null) : null;
+                        $colorSpaceLabels = [1=>'sRGB',2=>'Adobe RGB',65535=>'Non calibré'];
+                        $colorSpace = isset($exif['ColorSpace']) ? ($colorSpaceLabels[$exif['ColorSpace']] ?? null) : null;
+                        $artist = !empty($exif['Artist']) ? $exif['Artist'] : null;
+                        $copyright = !empty($exif['Copyright']) ? $exif['Copyright'] : null;
+                    @endphp
+
+                    @if($lens)
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">🔭 Objectif</dt>
+                        <dd class="text-gray-700 truncate" title="{{ $lens }}">{{ $lens }}</dd>
+                    </div>
+                    @endif
+
+                    @if($exposureBias)
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">Compensation</dt>
+                        <dd class="text-gray-700">{{ $exposureBias }}</dd>
+                    </div>
+                    @endif
+
+                    @if($sceneType)
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">Scène</dt>
+                        <dd class="text-gray-700">{{ $sceneType }}</dd>
+                    </div>
+                    @endif
+
+                    @if($colorSpace)
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">Colorimétrie</dt>
+                        <dd class="text-gray-700">{{ $colorSpace }}</dd>
+                    </div>
+                    @endif
+
+                    @if($artist)
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">✍️ Auteur</dt>
+                        <dd class="text-gray-700">{{ $artist }}</dd>
+                    </div>
+                    @endif
+
+                    @if($copyright)
+                    <div class="flex gap-2">
+                        <dt class="text-gray-400 w-28 shrink-0">© Copyright</dt>
+                        <dd class="text-gray-700">{{ $copyright }}</dd>
+                    </div>
+                    @endif
+
                 </dl>
+                @endif
+
+                {{-- Dump brut EXIF --}}
+                @if(!empty($exif))
+                <div class="mt-4" x-data="{ open: false }">
+                    <button @click="open = !open"
+                            class="text-xs text-gray-400 hover:text-gray-600 flex items-center gap-1 transition">
+                        <span x-text="open ? '▾' : '▸'"></span>
+                        Toutes les métadonnées
+                    </button>
+                    <div x-show="open" x-cloak class="mt-2 bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-80 overflow-y-auto">
+                        <table class="text-xs w-full">
+                            @foreach($exif as $key => $value)
+                                @if(!is_array($value))
+                                <tr class="border-b border-gray-100 last:border-0">
+                                    <td class="py-0.5 pr-3 text-gray-400 font-mono align-top whitespace-nowrap w-40">{{ $key }}</td>
+                                    <td class="py-0.5 text-gray-700 break-all">{{ is_string($value) ? mb_substr($value, 0, 200) : $value }}</td>
+                                </tr>
+                                @else
+                                <tr class="border-b border-gray-100 last:border-0">
+                                    <td class="py-0.5 pr-3 text-gray-400 font-mono align-top whitespace-nowrap w-40">{{ $key }}</td>
+                                    <td class="py-0.5 text-gray-500 italic">{{ '[' . implode(', ', array_map('strval', $value)) . ']' }}</td>
+                                </tr>
+                                @endif
+                            @endforeach
+                        </table>
+                    </div>
+                </div>
                 @endif
             </div>
             @endif
@@ -359,6 +496,71 @@
 </div>
 
 <script>
+function tagEditor(initialTags) {
+    return {
+        tags: initialTags,   // {id: name, ...}
+        newTag: '',
+        addingTag: false,
+        suggestions: [],
+
+        startAdd() {
+            this.addingTag = true;
+            this.$nextTick(() => this.$refs.tagInput?.focus());
+        },
+
+        cancelAdd() {
+            this.addingTag = false;
+            this.newTag = '';
+            this.suggestions = [];
+        },
+
+        async addTag() {
+            const name = this.newTag.trim().toLowerCase();
+            if (!name) return;
+            if (Object.values(this.tags).includes(name)) { this.cancelAdd(); return; }
+            try {
+                const resp = await fetch('{{ route('media.items.tags.store', $item) }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ name }),
+                });
+                if (!resp.ok) return;
+                const tag = await resp.json();
+                this.tags[tag.id] = tag.name;
+            } catch {}
+            this.cancelAdd();
+        },
+
+        async removeTag(id) {
+            try {
+                await fetch('{{ url('media/items/'.$item->id.'/tags') }}/' + id, {
+                    method: 'DELETE',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const updated = { ...this.tags };
+                delete updated[id];
+                this.tags = updated;
+            } catch {}
+        },
+
+        async fetchSuggestions() {
+            try {
+                const resp = await fetch('{{ route('media.tags.suggest') }}?q=' + encodeURIComponent(this.newTag), {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const all = await resp.json();
+                this.suggestions = all.filter(s => !Object.values(this.tags).includes(s));
+            } catch {}
+        },
+
+        selectSuggestion(name) {
+            this.newTag = name;
+            this.suggestions = [];
+            this.addTag();
+        },
+    };
+}
+
 function mediaDetail() {
     return {
         editing: false,

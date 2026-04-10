@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\SyncGedJob;
+use App\Jobs\SyncNasJob;
 use App\Models\Tenant\TenantSettings;
-use App\Models\Tenant\User;
-use App\Services\MediaService;
 use App\Services\TenantManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Http;
 
 class SettingsController extends Controller
 {
@@ -204,7 +205,14 @@ class SettingsController extends Controller
     {
         $settings = TenantSettings::firstOrCreate([]);
 
-        return view('admin.settings.media', compact('settings'));
+        $org = app(\App\Services\TenantManager::class)->current();
+        $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
+        $usedBytes = (int) \App\Models\Tenant\MediaItem::whereNull('deleted_at')->sum('file_size_bytes');
+        $usedMb = round($usedBytes / 1048576, 1);
+        $freeMb = max(0, round(($quotaMb * 1048576 - $usedBytes) / 1048576, 1));
+        $usedPct = $quotaMb > 0 ? min(100, (int) round($usedMb / $quotaMb * 100)) : 0;
+
+        return view('admin.settings.media', compact('settings', 'quotaMb', 'usedMb', 'freeMb', 'usedPct'));
     }
 
     public function updateMedia(Request $request)
@@ -303,53 +311,26 @@ class SettingsController extends Controller
         return back()->with('success', 'Paramètres de sécurité enregistrés.');
     }
 
-    public function syncNas(Request $request, MediaService $mediaService, TenantManager $tenantManager): JsonResponse
+    public function syncNas(Request $request, TenantManager $tenantManager): JsonResponse
     {
         $deep = (bool) $request->input('deep', false);
 
-        try {
-            $owner = User::where('role', 'admin')->first();
+        $org = $tenantManager->current();
 
-            $result = $mediaService->syncAlbumTree(
-                nasRoot: '',
-                owner: $owner,
-                deep: $deep,
-            );
-
-            // Mise à jour de la dernière sync
-            TenantSettings::firstOrCreate([])->update(['nas_photo_last_sync_at' => now()]);
-
-            $parts = [];
-            if ($result['files_added'] > 0) {
-                $parts[] = $result['files_added'].' fichier(s) ajouté(s)';
-            }
-            if ($result['files_removed'] > 0) {
-                $parts[] = $result['files_removed'].' fichier(s) supprimé(s)';
-            }
-            if ($result['albums_created'] > 0) {
-                $parts[] = $result['albums_created'].' album(s) créé(s)';
-            }
-            if ($result['albums_removed'] > 0) {
-                $parts[] = $result['albums_removed'].' album(s) supprimé(s)';
-            }
-            if ($result['errors'] > 0) {
-                $parts[] = $result['errors'].' erreur(s)';
-            }
-
-            $message = empty($parts) ? 'Aucune modification détectée.' : implode(', ', $parts).'.';
-
-            return response()->json([
-                'ok' => $result['errors'] === 0,
-                'message' => $message,
-                'stats' => $result,
-            ]);
-
-        } catch (\Throwable $e) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'Erreur : '.$e->getMessage(),
-            ], 500);
+        if (! $org) {
+            return response()->json(['ok' => false, 'message' => 'Organisation introuvable.'], 500);
         }
+
+        // La sync est potentiellement très longue (plusieurs milliers de fichiers).
+        // On la dispatch en queue pour éviter le timeout HTTP/nginx.
+        // Le worker pladigit-queue.service exécute le Job en arrière-plan.
+        SyncNasJob::dispatch($org->slug, $deep);
+
+        return response()->json([
+            'ok' => true,
+            'queued' => true,
+            'message' => 'Synchronisation lancée en arrière-plan. Rechargez la page dans quelques instants.',
+        ]);
     }
 
     public function visio()
@@ -369,5 +350,152 @@ class SettingsController extends Controller
         $settings->update($validated);
 
         return back()->with('success', 'Paramètres visio enregistrés.');
+    }
+
+    // =========================================================================
+    // GED — Configuration du stockage + synchronisation
+    // =========================================================================
+
+    public function syncGed(TenantManager $tenantManager): JsonResponse
+    {
+        $org = $tenantManager->current();
+
+        if (! $org) {
+            return response()->json(['ok' => false, 'message' => 'Organisation introuvable.'], 500);
+        }
+
+        SyncGedJob::dispatch($org->slug);
+
+        return response()->json([
+            'ok' => true,
+            'queued' => true,
+            'message' => 'Synchronisation GED lancée en arrière-plan. Rechargez la page dans quelques instants.',
+        ]);
+    }
+
+    // ── Stockage GED ──
+
+    public function ged(): \Illuminate\View\View
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        return view('admin.settings.ged', compact('settings'));
+    }
+
+    public function updateGed(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $request->validate([
+            'nas_ged_driver' => ['required', 'in:local,sftp,smb'],
+            'nas_ged_local_path' => ['nullable', 'string', 'max:500'],
+            'nas_ged_host' => ['nullable', 'string', 'max:255'],
+            'nas_ged_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'nas_ged_username' => ['nullable', 'string', 'max:255'],
+            'nas_ged_password' => ['nullable', 'string', 'max:255'],
+            'nas_ged_root_path' => ['nullable', 'string', 'max:500'],
+            'nas_ged_share' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $settings = TenantSettings::firstOrCreate([]);
+        $data = collect($validated)->except('nas_ged_password')->toArray();
+
+        if (filled($request->nas_ged_password)) {
+            $data['nas_ged_password_enc'] = Crypt::encryptString($request->nas_ged_password);
+        }
+
+        $settings->update($data);
+
+        return back()->with('success', 'Configuration stockage GED sauvegardée.');
+    }
+
+    // =========================================================================
+    // Collabora Online — Configuration
+    // =========================================================================
+
+    public function collabora(): \Illuminate\View\View
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        return view('admin.settings.collabora', compact('settings'));
+    }
+
+    public function updateCollabora(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $request->validate([
+            'collabora_url' => ['nullable', 'url', 'max:500'],
+            'wopi_url' => ['nullable', 'url', 'max:500'],
+            'collabora_token_ttl_minutes' => ['nullable', 'integer', 'min:5', 'max:10080'],
+        ]);
+
+        TenantSettings::firstOrCreate([])->update($validated);
+
+        return back()->with('success', 'Configuration Collabora enregistrée.');
+    }
+
+    public function testCollabora(): JsonResponse
+    {
+        try {
+            $settings = TenantSettings::firstOrCreate([]);
+            $url = rtrim($settings->collabora_url ?: config('collabora.url', ''), '/');
+
+            if ($url === '') {
+                return response()->json(['ok' => false, 'message' => 'URL Collabora non configurée.']);
+            }
+
+            $response = Http::timeout(5)->get($url.'/hosting/capabilities');
+
+            if ($response->successful()) {
+                return response()->json(['ok' => true, 'message' => 'Connexion Collabora réussie ('.$url.').']);
+            }
+
+            return response()->json(['ok' => false, 'message' => 'Serveur Collabora inaccessible — HTTP '.$response->status().'.']);
+        } catch (\Throwable $e) {
+            return response()->json(['ok' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function testGed(\App\Services\Nas\NasManager $nasManager): JsonResponse
+    {
+        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $driver = $settings->nas_ged_driver ?? 'local';
+
+        // Pour le driver local : vérifier que le chemin existe et est accessible en écriture
+        if ($driver === 'local') {
+            $path = $settings->nas_ged_local_path
+                ?: storage_path('app/private');
+
+            if (! is_dir($path)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => "Le dossier n'existe pas : {$path}",
+                ]);
+            }
+
+            if (! is_writable($path)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => "Le dossier existe mais n'est pas accessible en écriture : {$path}",
+                ]);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'message' => "Dossier local accessible en écriture : {$path}",
+            ]);
+        }
+
+        // Pour SFTP / SMB : test de connexion réseau réel
+        try {
+            $ok = $nasManager->gedDriver($settings)->testConnection();
+
+            return response()->json([
+                'ok' => $ok,
+                'message' => $ok ? 'Connexion réussie.' : 'Connexion échouée — vérifiez la configuration.',
+            ]);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'ok' => false,
+                'message' => $e->getMessage(),
+            ], 500);
+        }
     }
 }

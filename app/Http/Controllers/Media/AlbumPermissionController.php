@@ -44,9 +44,13 @@ class AlbumPermissionController extends Controller
         $users = User::where('status', 'active')->orderBy('name')->get(['id', 'name', 'role']);
         $levels = AlbumPermissionLevel::options();
 
-        // Héritage parent
+        // Héritage parent — album direct + ses permissions pour affichage dans la vue
         $inheritedFrom = $album->parent_id
             ? MediaAlbum::find($album->parent_id)
+            : null;
+
+        $parentPermissions = $inheritedFrom
+            ? $this->permissionService->permissionsFor($inheritedFrom)
             : null;
 
         // Arborescence aplatie pour Alpine.js (filtre recherche)
@@ -69,6 +73,7 @@ class AlbumPermissionController extends Controller
             'users',
             'levels',
             'inheritedFrom',
+            'parentPermissions',
             'redundancies',
         ));
     }

@@ -82,6 +82,21 @@ class ProfileController extends Controller
     }
 
     /**
+     * Met à jour les préférences UI (vue par défaut des projets, etc.).
+     */
+    public function updatePreferences(Request $request)
+    {
+        $request->validate([
+            'preferred_project_view' => ['required', 'in:liste,kanban,gantt,agenda,workload'],
+        ]);
+
+        $user = Auth::user();
+        $user->update(['preferred_project_view' => $request->preferred_project_view]);
+
+        return back()->with('success_prefs', 'Préférences enregistrées.');
+    }
+
+    /**
      * Met à jour le mot de passe depuis le profil.
      */
     public function updatePassword(Request $request)

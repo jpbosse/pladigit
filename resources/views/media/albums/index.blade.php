@@ -2,61 +2,8 @@
 @section('title', 'Photothèque')
 
 @push('styles')
+@include('media._ph_base_styles')
 <style>
-#ph-wrap {
-    display: flex;
-    height: calc(100vh - var(--pd-topbar-h) - var(--pd-footer-h));
-    overflow: hidden;
-}
-#ph-sidebar {
-    width: 220px; flex-shrink: 0;
-    border-right: 1px solid var(--pd-border);
-    display: flex; flex-direction: column;
-    background: var(--pd-surface2); overflow: hidden;
-}
-.ph-sidebar-header { padding: 12px 14px 10px; border-bottom: 1px solid var(--pd-border); }
-.ph-upload-btn {
-    width: 100%; padding: 7px 12px;
-    background: var(--pd-navy); color: #fff;
-    border: none; border-radius: 8px; font-size: 12px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    text-decoration: none; transition: background .15s;
-}
-.ph-upload-btn:hover { background: var(--pd-navy-light); }
-.ph-nav { flex: 1; overflow-y: auto; padding: 6px 0; }
-.ph-nav-section { padding: 8px 14px 3px; font-size: 10px; font-weight: 600; color: var(--pd-muted); text-transform: uppercase; letter-spacing: .5px; }
-.ph-nav-item {
-    display: flex; align-items: center; gap: 7px;
-    padding: 5px 14px; cursor: pointer; color: var(--pd-muted);
-    font-size: 12px; text-decoration: none;
-    transition: background .1s, color .1s;
-    border-right: 2px solid transparent;
-}
-.ph-nav-item:hover { background: var(--pd-surface); color: var(--pd-text); }
-.ph-nav-item.active { background: var(--pd-surface); color: var(--pd-navy); font-weight: 600; border-right-color: var(--pd-accent); }
-.ph-nav-child { padding-left: 28px; }
-.ph-nav-count { margin-left: auto; font-size: 10px; background: var(--pd-border); padding: 1px 6px; border-radius: 10px; color: var(--pd-muted); }
-.ph-storage { padding: 10px 14px; border-top: 1px solid var(--pd-border); font-size: 11px; color: var(--pd-muted); }
-.ph-storage-bar { height: 4px; background: var(--pd-border); border-radius: 2px; margin: 5px 0 3px; overflow: hidden; }
-.ph-storage-fill { height: 100%; background: var(--pd-accent); border-radius: 2px; }
-#ph-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
-#ph-header {
-    height: 46px; flex-shrink: 0;
-    border-bottom: 1px solid var(--pd-border);
-    display: flex; align-items: center; padding: 0 16px; gap: 12px;
-    background: var(--pd-surface);
-}
-.ph-hbtn {
-    width: 28px; height: 28px;
-    border: 1px solid var(--pd-border); border-radius: 7px;
-    background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--pd-muted); font-size: 12px; transition: all .15s;
-    text-decoration: none;
-}
-.ph-hbtn:hover { background: var(--pd-bg); color: var(--pd-text); }
-@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-#ph-content { flex: 1; overflow-y: auto; padding: 20px; }
 .ph-albums-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -109,99 +56,35 @@
 @endpush
 
 @section('content')
-@php
-    $quotaMb  = app(\App\Services\TenantManager::class)->current()?->storage_quota_mb ?? 10240;
-    $usedBytes = \App\Models\Tenant\MediaItem::sum('file_size_bytes');
-    $usedMb   = round($usedBytes / 1024 / 1024, 1);
-    $usedPct  = $quotaMb > 0 ? min(100, round($usedMb / $quotaMb * 100)) : 0;
-@endphp
 
 <div id="ph-wrap">
 
     {{-- Sidebar --}}
-    <aside id="ph-sidebar">
-        <div class="ph-sidebar-header">
-            <a href="{{ route('media.albums.create') }}" class="ph-upload-btn">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                Nouvel album
-            </a>
-        </div>
-
-        <nav class="ph-nav">
-            <div class="ph-nav-section">Navigation</div>
-            <a href="{{ route('media.albums.index') }}" class="ph-nav-item active">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                Tous les albums
-                <span class="ph-nav-count">{{ $albums->total() }}</span>
-            </a>
-
-            <div class="ph-nav-section">Albums</div>
-
-            {{-- Recherche AJAX — compatible 12 000+ dossiers --}}
-            <div x-data="albumSearch()" style="padding:0 8px 6px;">
-                <div style="position:relative;">
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
-                         style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--pd-muted);pointer-events:none;">
-                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-                    </svg>
-                    <input type="text"
-                           x-model.debounce.300ms="query"
-                           @input="search()"
-                           placeholder="Rechercher un album…"
-                           style="width:100%;box-sizing:border-box;padding:5px 8px 5px 26px;font-size:11px;border:1px solid var(--pd-border);border-radius:6px;background:var(--pd-bg);color:var(--pd-text);outline:none;">
-                    <button x-show="query" @click="clear()"
-                            style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:12px;padding:0;line-height:1;">✕</button>
-                </div>
-
-                {{-- Résultats de recherche --}}
-                <div x-show="query && results !== null" style="margin-top:4px;">
-                    <template x-if="loading">
-                        <div style="font-size:11px;color:var(--pd-muted);padding:6px 4px;">Recherche…</div>
-                    </template>
-                    <template x-if="!loading && results !== null && results.length === 0">
-                        <div style="font-size:11px;color:var(--pd-muted);padding:6px 4px;">Aucun résultat</div>
-                    </template>
-                    <template x-for="album in results" :key="album.id">
-                        <a :href="album.url" class="ph-nav-item" style="flex-direction:column;align-items:flex-start;gap:1px;">
-                            <div style="display:flex;align-items:center;gap:5px;width:100%;">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                                <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" x-text="album.name"></span>
-                                <span class="ph-nav-count" x-text="album.items_count"></span>
-                            </div>
-                            <div x-show="album.path" style="font-size:10px;color:var(--pd-muted);padding-left:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%;" x-text="album.path"></div>
-                        </a>
-                    </template>
-                </div>
-
-                {{-- Albums racine (affichés quand pas de recherche) --}}
-                <div x-show="!query">
-                    @foreach($albumTree as $root)
-                    <a href="{{ route('media.albums.show', $root) }}" class="ph-nav-item">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-                        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $root->name }}</span>
-                        <span class="ph-nav-count">{{ $root->items_count }}</span>
-                    </a>
-                    @endforeach
-                </div>
-            </div>
-        </nav>
-
-        <div class="ph-storage">
-            {{ $usedMb }} Mo / {{ $quotaMb >= 1024 ? round($quotaMb/1024,1).' Go' : $quotaMb.' Mo' }}
-            <div class="ph-storage-bar">
-                <div class="ph-storage-fill" style="width:{{ $usedPct }}%"></div>
-            </div>
-            {{ $usedPct }}% utilisé
-        </div>
-    </aside>
+    @include('media._ph_sidebar', [
+        'albumTree'     => $albumTree,
+        'activeAlbumId' => null,
+        'ancestorIds'   => [],
+        'album'         => null,
+        'totalAlbums'   => $albums->total(),
+    ])
 
     {{-- Main --}}
     <div id="ph-main">
 
         <div id="ph-header">
-            <span style="font-size:13px;font-weight:600;color:var(--pd-text);">Photothèque</span>
-            <span style="font-size:12px;color:var(--pd-muted);">— {{ $albums->total() }} album(s)</span>
-            <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+            <div class="ph-breadcrumb">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span class="current">Photothèque</span>
+            </div>
+
+            <form method="GET" action="{{ route('media.search') }}" style="flex:1;max-width:300px;">
+                <div class="ph-search-wrap">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="color:var(--pd-muted);flex-shrink:0;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" name="q" placeholder="Rechercher dans la photothèque…" autocomplete="off">
+                </div>
+            </form>
+
+            <div class="ph-header-right">
                 <button class="ph-hbtn" id="btn-nas-sync" onclick="syncNas()" title="Synchroniser le NAS">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
                 </button>
@@ -332,41 +215,7 @@ function syncNas() {
     .catch(() => { btn.disabled = false; btn.style.color = ''; });
 }
 
-function albumSearch() {
-    return {
-        query: '',
-        results: null,
-        loading: false,
-        _timer: null,
 
-        search() {
-            clearTimeout(this._timer);
-            if (this.query.length < 2) {
-                this.results = null;
-                return;
-            }
-            this.loading = true;
-            this._timer = setTimeout(async () => {
-                try {
-                    const url = '{{ route('media.albums.search') }}?q=' + encodeURIComponent(this.query);
-                    const resp = await fetch(url, {
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                    });
-                    this.results = await resp.json();
-                } catch (e) {
-                    this.results = [];
-                } finally {
-                    this.loading = false;
-                }
-            }, 300);
-        },
-
-        clear() {
-            this.query = '';
-            this.results = null;
-        }
-    };
-}
 </script>
 @endpush
 @endsection

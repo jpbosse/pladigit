@@ -208,6 +208,59 @@ class SftpNasDriver implements NasConnectorInterface
         return (int) ($stat['size'] ?? 0);
     }
 
+    public function moveDir(string $from, string $to): bool
+    {
+        $sftp = $this->getSftp();
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        @ssh2_sftp_mkdir($sftp, dirname($dstPath), 0775, true);
+
+        return (bool) ssh2_sftp_rename($sftp, $srcPath, $dstPath);
+    }
+
+    public function moveFile(string $from, string $to): bool
+    {
+        $sftp = $this->getSftp();
+        $srcPath = $this->resolve($from);
+        $dstPath = $this->resolve($to);
+
+        // Créer le dossier destination si nécessaire
+        @ssh2_sftp_mkdir($sftp, dirname($dstPath), 0775, true);
+
+        return (bool) ssh2_sftp_rename($sftp, $srcPath, $dstPath);
+    }
+
+    public function deleteDirectory(string $path): bool
+    {
+        $sftp = $this->getSftp();
+        $fullPath = $this->resolve($path);
+
+        if (@ssh2_sftp_stat($sftp, $fullPath) === false) {
+            return true; // Déjà absent — pas d'erreur
+        }
+
+        $handle = @opendir("ssh2.sftp://{$sftp}/{$fullPath}");
+        if ($handle !== false) {
+            while (($file = readdir($handle)) !== false) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+                $child = rtrim($path, '/').'/'.$file;
+                $childFull = $this->resolve($child);
+                $stat = @ssh2_sftp_stat($sftp, $childFull);
+                if ($stat !== false && isset($stat['mode']) && ($stat['mode'] & 0040000)) {
+                    $this->deleteDirectory($child);
+                } else {
+                    @ssh2_sftp_unlink($sftp, $childFull);
+                }
+            }
+            closedir($handle);
+        }
+
+        return (bool) @ssh2_sftp_rmdir($sftp, $fullPath);
+    }
+
     public function listDirectories(string $directory): array
     {
         $fullPath = $this->resolve($directory);

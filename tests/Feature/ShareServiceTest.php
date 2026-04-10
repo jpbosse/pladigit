@@ -7,7 +7,6 @@ use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
 use App\Services\ShareService;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -23,8 +22,6 @@ use Tests\TestCase;
  */
 class ShareServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
     private ShareService $service;
 
     private MediaAlbum $album;

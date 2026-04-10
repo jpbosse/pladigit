@@ -82,7 +82,7 @@
         $isInProgress = $task->status === 'in_progress';
         $priorityWeight = match($task->priority) { 'urgent'=>4,'high'=>3,'medium'=>2,default=>1 };
     @endphp
-    <tr x-show="showAll || {{ $isInProgress ? 'true' : 'false' }} || (filter && '{{ addslashes(strtolower($task->title)) }}'.includes(filter.toLowerCase()))"
+    <tr x-show="showAll || {{ $task->status !== 'done' ? 'true' : 'false' }} || (filter && '{{ addslashes(strtolower($task->title)) }}'.includes(filter.toLowerCase()))"
         data-sort-title="{{ strtolower($task->title) }}"
         data-sort-due="{{ $task->due_date?->format('Y-m-d') ?? '9999-99-99' }}"
         data-sort-priority="{{ $priorityWeight }}"

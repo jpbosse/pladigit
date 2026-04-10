@@ -158,6 +158,28 @@ class ProjectPolicy
         return $project->isMember($user);
     }
 
+    /**
+     * Lier un document GED à ce projet (ou à une de ses tâches).
+     * Requiert : être membre avec un rôle owner|member ET avoir au moins View sur le doc GED.
+     * La vérification du niveau GED est faite dans le contrôleur.
+     */
+    public function linkGed(User $user, Project $project): bool
+    {
+        $role = $project->memberRole($user);
+
+        return $role !== null && $role->canEdit();
+    }
+
+    /**
+     * Délier un document GED. Même règle que linkGed.
+     */
+    public function unlinkGed(User $user, Project $project): bool
+    {
+        $role = $project->memberRole($user);
+
+        return $role !== null && $role->canEdit();
+    }
+
     private function hasProjectRole(User $user, Project $project, ProjectRole $required): bool
     {
         return $project->memberRole($user) === $required;

@@ -7,7 +7,6 @@ use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
 use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
@@ -16,8 +15,6 @@ use Tests\TestCase;
  */
 class DashboardTest extends TestCase
 {
-    use RefreshDatabase;
-
     private User $admin;
 
     private User $dgs;
