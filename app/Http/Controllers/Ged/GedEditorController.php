@@ -29,10 +29,10 @@ class GedEditorController extends Controller
     {
         $collaboraUrl = rtrim((string) config('collabora.url', ''), '/');
 
+        // URL vide = Collabora proxyfié sous le même vhost que l'app.
+        // L'hôte courant est valable pour tous les tenants sans modifier .env.
         if ($collaboraUrl === '') {
-            return redirect()
-                ->route('ged.folders.show', $document->folder_id)
-                ->with('error', 'Collabora Online n\'est pas configuré sur cette instance.');
+            $collaboraUrl = rtrim(request()->getSchemeAndHttpHost(), '/');
         }
 
         $supportedMimes = (array) config('collabora.supported_mimes', []);

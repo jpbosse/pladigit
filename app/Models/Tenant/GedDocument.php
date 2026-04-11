@@ -137,10 +137,8 @@ class GedDocument extends Model
      */
     public function isCollaboraSupported(): bool
     {
-        if (config('collabora.url', '') === '') {
-            return false;
-        }
+        $mimes = (array) config('collabora.supported_mimes', []);
 
-        return in_array($this->mime_type, (array) config('collabora.supported_mimes', []), true);
+        return ! empty($mimes) && in_array($this->mime_type, $mimes, true);
     }
 }
