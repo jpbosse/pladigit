@@ -9,24 +9,28 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Jalon (milestone) d'un projet — supporte deux niveaux :
+ * Nœud de la hiérarchie projet (phase, étape, jalon, livrable…).
  *
- *   Phase  : parent_id = null, peut avoir des jalons enfants.
- *   Jalon  : parent_id = id d'une phase.
- *
- * Un jalon sans enfants ET sans parent_id est un jalon autonome classique.
+ * La hiérarchie est auto-référentielle via parent_id, profondeur max 4 niveaux (0-3).
+ * Le label du type est libre (node_type) avec des suggestions : Phase, Étape, Jalon,
+ * Livrable, Sprint.
  *
  * Relations :
- *   $ms->parent()    → Phase parente (BelongsTo self)
- *   $ms->children()  → Jalons enfants (HasMany self)
- *   $ms->tasks()     → Tâches rattachées
+ *   $ms->parent()    → Nœud parent (BelongsTo self)
+ *   $ms->children()  → Nœuds enfants directs (HasMany self)
+ *   $ms->tasks()     → Tâches directement rattachées
  *   $ms->project()   → Projet
  *
  * Méthodes :
- *   isPhase()           → true si c'est une phase (parent_id null + a des enfants)
- *   isReached()         → reached_at non null
- *   isLate()            → due_date dépassée et pas atteint
- *   progressionPercent()→ % tâches done (récursif pour les phases)
+ *   isRoot()             → true si c'est un nœud racine (parent_id null)
+ *   isPhase()            → alias de isRoot() pour compatibilité
+ *   isChild()            → alias de !isRoot()
+ *   depth()              → profondeur dans l'arbre (0 = racine)
+ *   descendantIds()      → IDs de tous les descendants (récursif)
+ *   isReached()          → atteint (ou tous les enfants atteints)
+ *   isLate()             → due_date dépassée et pas atteint
+ *   progressionPercent() → % tâches done (récursif sur tous les descendants)
+ *   effectiveColor()     → couleur propre ou héritage du parent
  */
 class ProjectMilestone extends Model
 {
@@ -34,9 +38,11 @@ class ProjectMilestone extends Model
 
     protected $connection = 'tenant';
 
+    /** @var list<string> */
     protected $fillable = [
         'project_id',
         'parent_id',
+        'node_type',
         'title',
         'description',
         'start_date',
@@ -47,11 +53,18 @@ class ProjectMilestone extends Model
         'sort_order',
     ];
 
+    /** @var array<string, string> */
     protected $casts = [
         'start_date' => 'date',
         'due_date' => 'date',
         'reached_at' => 'datetime',
     ];
+
+    /** Labels de type suggérés dans l'UI. */
+    public const TYPE_SUGGESTIONS = ['Phase', 'Étape', 'Jalon', 'Livrable', 'Sprint'];
+
+    /** Profondeur maximale autorisée (4 niveaux = 0, 1, 2, 3). */
+    public const MAX_DEPTH = 3;
 
     // ── Relations ─────────────────────────────────────────────────────────
 
@@ -62,7 +75,7 @@ class ProjectMilestone extends Model
     }
 
     /**
-     * Phase parente (null si c'est déjà une phase ou un jalon autonome).
+     * Nœud parent.
      *
      * @return BelongsTo<self, $this>
      */
@@ -72,7 +85,7 @@ class ProjectMilestone extends Model
     }
 
     /**
-     * Jalons enfants (jalons appartenant à cette phase).
+     * Enfants directs, triés par sort_order puis due_date.
      *
      * @return HasMany<self>
      */
@@ -82,7 +95,7 @@ class ProjectMilestone extends Model
     }
 
     /**
-     * Tâches directement rattachées à ce jalon.
+     * Tâches directement rattachées à ce nœud.
      *
      * @return HasMany<Task>
      */
@@ -100,26 +113,72 @@ class ProjectMilestone extends Model
     // ── Méthodes métier ───────────────────────────────────────────────────
 
     /**
-     * Ce nœud est-il une phase ?
-     * Convention : parent_id null ET (a des enfants OU a été créé comme phase).
-     * On détecte via parent_id null — l'UI garantit la cohérence.
+     * Ce nœud est-il une racine (pas de parent) ?
      */
-    public function isPhase(): bool
+    public function isRoot(): bool
     {
         return $this->parent_id === null;
     }
 
     /**
-     * Ce nœud est-il un jalon enfant d'une phase ?
+     * Alias pour compatibilité ascendante.
      */
-    public function isChild(): bool
+    public function isPhase(): bool
     {
-        return $this->parent_id !== null;
+        return $this->isRoot();
     }
 
     /**
-     * Le jalon / la phase est-il atteint ?
-     * Pour une phase : atteinte quand tous ses jalons enfants sont atteints.
+     * Alias pour compatibilité ascendante.
+     */
+    public function isChild(): bool
+    {
+        return ! $this->isRoot();
+    }
+
+    /**
+     * Profondeur dans l'arbre (0 = racine).
+     * Remonte les parents jusqu'à la racine — max MAX_DEPTH itérations.
+     */
+    public function depth(): int
+    {
+        $depth = 0;
+        $parentId = $this->parent_id;
+
+        while ($parentId !== null && $depth <= self::MAX_DEPTH) {
+            $parent = self::on('tenant')->find($parentId);
+            if (! $parent) {
+                break;
+            }
+            $parentId = $parent->parent_id;
+            $depth++;
+        }
+
+        return $depth;
+    }
+
+    /**
+     * Retourne les IDs de ce nœud et de tous ses descendants (récursif).
+     * Nécessite que la relation children soit chargée pour éviter les N+1.
+     *
+     * @return list<int>
+     */
+    public function descendantIds(): array
+    {
+        $ids = [$this->id];
+
+        if ($this->relationLoaded('children')) {
+            foreach ($this->children as $child) {
+                $ids = array_merge($ids, $child->descendantIds());
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Le nœud est-il atteint ?
+     * Pour un nœud avec enfants : atteint si tous les enfants sont atteints.
      */
     public function isReached(): bool
     {
@@ -127,8 +186,7 @@ class ProjectMilestone extends Model
             return true;
         }
 
-        // Phase sans enfants chargés : non atteinte
-        if ($this->isPhase() && $this->relationLoaded('children') && $this->children->isNotEmpty()) {
+        if ($this->relationLoaded('children') && $this->children->isNotEmpty()) {
             return $this->children->every(fn (self $child) => $child->isReached());
         }
 
@@ -136,7 +194,7 @@ class ProjectMilestone extends Model
     }
 
     /**
-     * Le jalon est-il en retard (due_date dépassée et pas atteint) ?
+     * Le nœud est-il en retard (due_date dépassée et pas atteint) ?
      */
     public function isLate(): bool
     {
@@ -146,7 +204,7 @@ class ProjectMilestone extends Model
     }
 
     /**
-     * Marque le jalon comme atteint maintenant.
+     * Marque le nœud comme atteint maintenant.
      */
     public function markReached(): bool
     {
@@ -155,30 +213,25 @@ class ProjectMilestone extends Model
 
     /**
      * Progression des tâches (% done).
-     * Pour une phase : agrège les tâches de tous ses jalons enfants.
+     * Agrège récursivement toutes les tâches des descendants.
      */
     public function progressionPercent(): int
     {
-        if ($this->isPhase() && $this->relationLoaded('children') && $this->children->isNotEmpty()) {
-            $total = $this->children->sum(fn (self $child) => $child->tasks()->count());
-            if ($total === 0) {
-                return 0;
-            }
-            $done = $this->children->sum(fn (self $child) => $child->tasks()->where('status', 'done')->count());
+        $ids = $this->descendantIds();
 
-            return (int) round($done / $total * 100);
-        }
-
-        $total = $this->tasks()->count();
+        // Inclure ce nœud lui-même
+        $total = Task::on('tenant')->whereIn('milestone_id', $ids)->count();
         if ($total === 0) {
             return 0;
         }
 
-        return (int) round($this->tasks()->where('status', 'done')->count() / $total * 100);
+        $done = Task::on('tenant')->whereIn('milestone_id', $ids)->where('status', 'done')->count();
+
+        return (int) round($done / $total * 100);
     }
 
     /**
-     * Couleur effective : couleur propre ou héritage de la phase parente.
+     * Couleur effective : couleur propre ou héritage du parent (récursif).
      */
     public function effectiveColor(): string
     {
@@ -187,7 +240,7 @@ class ProjectMilestone extends Model
         }
 
         if ($this->relationLoaded('parent') && $this->parent) {
-            return $this->parent->color ?? '#EA580C';
+            return $this->parent->effectiveColor();
         }
 
         return '#EA580C';

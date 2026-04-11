@@ -110,7 +110,6 @@ Route::prefix('projects')
         Route::delete('/{project}/members/{user}', [ProjectMemberController::class, 'destroy'])->name('members.destroy');
 
         // ── Jalons & Phases ──────────────────────────────────────────────────
-        Route::post('/{project}/phases', [ProjectMilestoneController::class, 'storePhase'])->name('phases.store');
         Route::post('/{project}/milestones', [ProjectMilestoneController::class, 'store'])->name('milestones.store');
         Route::patch('/{project}/milestones/{milestone}', [ProjectMilestoneController::class, 'update'])->name('milestones.update');
         Route::patch('/{project}/milestones/{milestone}/move', [ProjectMilestoneController::class, 'move'])->name('milestones.move');

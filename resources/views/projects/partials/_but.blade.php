@@ -54,19 +54,19 @@
 </div>
 @endif
 
-{{-- Phases & Jalons --}}
+{{-- Hiérarchie projet (phases, étapes, jalons…) --}}
 <div class="pd-card" style="margin-bottom:14px;" x-data="{
-    showModalPhase: false,
-    showModalJalon: false,
+    showModalNew: false,
     showModalEdit: false,
-    selectedPhase: null,
-    editMs: { id: null, title: '', due_date: '', start_date: '', color: '#1E3A5F', description: '' },
-    openEdit(id, title, due_date, start_date, color, description) {
-        this.editMs = { id, title, due_date: due_date || '', start_date: start_date || '', color: color || '#1E3A5F', description: description || '' };
+    selectedParent: null,
+    selectedParentDepth: 0,
+    editMs: { id: null, node_type: '', title: '', due_date: '', start_date: '', color: '#1E3A5F', description: '', parent_id: '' },
+    openEdit(id, node_type, title, due_date, start_date, color, description, parent_id) {
+        this.editMs = { id, node_type: node_type || '', title, due_date: due_date || '', start_date: start_date || '', color: color || '#1E3A5F', description: description || '', parent_id: parent_id || '' };
         this.showModalEdit = true;
         this.$nextTick(() => {
             document.dispatchEvent(new CustomEvent('open-edit-ms', {
-                detail: { id, title, due_date, start_date, color, description }
+                detail: { id, node_type, title, due_date, start_date, color, description, parent_id }
             }));
         });
     },
@@ -80,376 +80,77 @@
     {{-- En-tête --}}
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--pd-muted);">
-            Phases &amp; Jalons
+            Planification
         </div>
         @if($canManage)
-        <div style="display:flex;gap:6px;">
-            <button @click="showModalPhase=true"
-                    style="padding:3px 10px;font-size:11px;font-weight:600;background:var(--pd-navy);color:#fff;border:none;border-radius:6px;cursor:pointer;">
-                + Phase
-            </button>
-            <button @click="selectedPhase=null;showModalJalon=true"
-                    style="padding:3px 10px;font-size:11px;font-weight:600;background:none;color:var(--pd-navy);border:0.5px solid var(--pd-navy);border-radius:6px;cursor:pointer;">
-                + Jalon
-            </button>
-        </div>
+        <button @click="selectedParent=null;selectedParentDepth=0;showModalNew=true"
+                style="padding:3px 10px;font-size:11px;font-weight:600;background:var(--pd-navy);color:#fff;border:none;border-radius:6px;cursor:pointer;">
+            + Nouveau
+        </button>
         @endif
     </div>
 
-    {{-- Liste phases + jalons --}}
-    @php $phaseCount = $project->milestones->whereNull('parent_id')->count(); @endphp
-    @forelse($project->milestones as $msIndex => $ms)
-    @php
-        $pct      = $ms->progressionPercent();
-        $msColor  = $ms->color ?? '#94A3B8';
-        $isPhase  = $ms->isPhase() && $ms->children->isNotEmpty();
-        $reached  = $ms->isReached();
-        $late     = $ms->isLate();
-        $msPos    = $project->milestones->whereNull('parent_id')->search(fn($m) => $m->id === $ms->id);
-    @endphp
-
-    @if($isPhase)
-    {{-- ── Phase avec jalons enfants (accordéon) ── --}}
-    @php
-        $pendingChildren  = $ms->children->filter(fn($c) => !$c->isReached())->count();
-        $phaseExplicitDone = $ms->reached_at !== null;
-    @endphp
-    <div x-data="{ open: true }" style="margin-bottom:14px;border:0.5px solid var(--pd-border);border-radius:8px;overflow:hidden;">
-        {{-- En-tête phase (cliquable pour ouvrir/fermer) --}}
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--pd-bg2);">
-            {{-- Chevron accordéon --}}
-            <button type="button" @click="open = !open"
-                    style="background:none;border:none;padding:0;cursor:pointer;color:var(--pd-muted);display:flex;align-items:center;flex-shrink:0;line-height:1;">
-                <svg :style="open ? 'transform:rotate(90deg)' : ''" style="width:12px;height:12px;transition:transform .15s;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-            <div style="width:12px;height:12px;border-radius:3px;background:{{ $msColor }};flex-shrink:0;"></div>
-            <div style="flex:1;min-width:0;">
-                <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
-                    <div style="min-width:0;cursor:pointer;" @click="open = !open">
-                        <span style="font-size:12px;font-weight:700;color:var(--pd-navy);{{ $phaseExplicitDone ? 'text-decoration:line-through;color:var(--pd-muted);' : '' }}">{{ $ms->title }}</span>
-                        @if($ms->description)
-                        <div style="font-size:11px;color:var(--pd-muted);font-weight:400;margin-top:1px;">{{ $ms->description }}</div>
-                        @endif
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-                        <span style="font-size:10px;color:{{ $late ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
-                            @if($ms->start_date){{ $ms->start_date->format('d/m') }} → @endif
-                            {{ $ms->due_date?->translatedFormat('d M Y') }}
-                            @if($phaseExplicitDone) ✓ @elseif($reached) ✓ @elseif($late) · En retard @endif
-                        </span>
-                        <span style="font-size:11px;font-weight:700;color:{{ $late ? 'var(--pd-danger)' : 'var(--pd-navy)' }};">{{ $pct }}%</span>
-                        @if($canManage)
-                        {{-- Boutons ↑↓ réordonnancement --}}
-                        @if($msPos > 0)
-                        <form method="POST" action="{{ route('projects.milestones.move', [$project, $ms]) }}" style="display:inline;">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="direction" value="up">
-                            <button type="submit"
-                                    title="Monter cette phase"
-                                    style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↑</button>
-                        </form>
-                        @endif
-                        @if($msPos < $phaseCount - 1)
-                        <form method="POST" action="{{ route('projects.milestones.move', [$project, $ms]) }}" style="display:inline;">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="direction" value="down">
-                            <button type="submit"
-                                    title="Descendre cette phase"
-                                    style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
-                        </form>
-                        @endif
-                        {{-- Bouton Terminée / Annuler — basé sur reached_at explicite --}}
-                        @if($phaseExplicitDone)
-                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Annuler la clôture de cette phase ?');">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="reached" value="0">
-                            <button type="submit"
-                                    style="padding:1px 7px;font-size:10px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D;border-radius:4px;cursor:pointer;"
-                                    title="Annuler la clôture">↩ Annuler</button>
-                        </form>
-                        @elseif($pendingChildren === 0)
-                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Marquer cette phase comme terminée ?');">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="reached" value="1">
-                            <button type="submit"
-                                    style="padding:1px 7px;font-size:10px;background:#F0FDF4;color:#065F46;border:0.5px solid #86EFAC;border-radius:4px;cursor:pointer;font-weight:600;"
-                                    title="Marquer la phase comme terminée">✓ Terminée</button>
-                        </form>
-                        @else
-                        <button type="button" disabled
-                                style="padding:1px 7px;font-size:10px;background:var(--pd-bg2);color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:not-allowed;"
-                                title="{{ $pendingChildren }} jalon{{ $pendingChildren > 1 ? 's' : '' }} non atteint{{ $pendingChildren > 1 ? 's' : '' }}">✓ Terminée</button>
-                        @endif
-                        <button @click="openEdit({{ $ms->id }}, '{{ addslashes($ms->title) }}', '{{ $ms->due_date?->format('Y-m-d') }}', '{{ $ms->start_date?->format('Y-m-d') }}', '{{ $ms->color }}', '{{ addslashes($ms->description ?? '') }}')"
-                                style="padding:1px 7px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
-                                title="Modifier cette phase">✏️</button>
-                        <button @click="selectedPhase={{ $ms->id }};showModalJalon=true"
-                                style="padding:1px 7px;font-size:10px;font-weight:600;background:none;color:var(--pd-navy);border:0.5px solid var(--pd-navy);border-radius:4px;cursor:pointer;">
-                            + Jalon
-                        </button>
-                        <form method="POST" action="{{ route('projects.milestones.destroy', [$project, $ms]) }}"
-                              onsubmit="return confirm('Supprimer cette phase et ses jalons ?');" style="display:inline;">
-                            @csrf @method('DELETE')
-                            <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:14px;padding:0 2px;">×</button>
-                        </form>
-                        @endif
-                    </div>
-                </div>
-                <div style="height:4px;background:var(--pd-border);border-radius:2px;margin-top:6px;overflow:hidden;">
-                    <div style="height:100%;width:{{ $pct }}%;background:{{ $msColor }};border-radius:2px;transition:width .3s;"></div>
-                </div>
-            </div>
-        </div>
-        {{-- Jalons enfants (repliables) --}}
-        @php $childCount = $ms->children->count(); @endphp
-        <div x-show="open" x-cloak>
-        @foreach($ms->children as $childIdx => $child)
-        @php
-            $cpct   = $child->progressionPercent();
-            $cc     = $child->color ?? $msColor;
-            $creach = $child->isReached();
-            $clate  = $child->isLate();
-        @endphp
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 12px 8px 32px;border-top:0.5px solid var(--pd-border);">
-            <div style="width:8px;height:8px;border-radius:50%;background:{{ $cc }};flex-shrink:0;
-                        {{ $creach ? 'opacity:.4;' : '' }}"></div>
-            <div style="flex:1;">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <span style="font-size:12px;font-weight:500;{{ $creach ? 'text-decoration:line-through;color:var(--pd-muted);' : '' }}">
-                            🏁 {{ $child->title }}
-                        </span>
-                        @if($child->description)
-                        <div style="font-size:11px;color:var(--pd-muted);margin-top:1px;">{{ $child->description }}</div>
-                        @endif
-                    </div>
-                    <div style="display:flex;align-items:center;gap:8px;">
-                        <span style="font-size:10px;color:{{ $clate ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
-                            {{ $child->due_date?->translatedFormat('d M Y') }}
-                            @if($creach) ✓
-                            @elseif($clate) · En retard
-                            @endif
-                        </span>
-                        <span style="font-size:11px;color:var(--pd-muted);">{{ $cpct }}%</span>
-                        @if($canManage)
-                        {{-- Boutons ↑↓ réordonnancement jalon enfant --}}
-                        @if($childIdx > 0)
-                        <form method="POST" action="{{ route('projects.milestones.move', [$project, $child]) }}" style="display:inline;">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="direction" value="up">
-                            <button type="submit" title="Monter ce jalon"
-                                    style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↑</button>
-                        </form>
-                        @endif
-                        @if($childIdx < $childCount - 1)
-                        <form method="POST" action="{{ route('projects.milestones.move', [$project, $child]) }}" style="display:inline;">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="direction" value="down">
-                            <button type="submit" title="Descendre ce jalon"
-                                    style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
-                        </form>
-                        @endif
-                        @if(!$creach)
-                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $child]) }}" style="display:inline;" onsubmit="return confirm('Marquer ce jalon comme atteint ?');">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="reached" value="1">
-                            <button type="submit"
-                                    style="padding:1px 7px;font-size:10px;background:#F0FDF4;color:#065F46;border:0.5px solid #86EFAC;border-radius:4px;cursor:pointer;font-weight:600;"
-                                    title="Marquer comme atteint">✓ Atteint</button>
-                        </form>
-                        @else
-                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $child]) }}" style="display:inline;" onsubmit="return confirm('Annuler l\'atteinte de ce jalon ?');">
-                            @csrf @method('PATCH')
-                            <input type="hidden" name="reached" value="0">
-                            <button type="submit"
-                                    style="padding:1px 7px;font-size:10px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D;border-radius:4px;cursor:pointer;"
-                                    title="Annuler l'atteinte">↩ Annuler</button>
-                        </form>
-                        @endif
-                        <button @click="openEdit({{ $child->id }}, '{{ addslashes($child->title) }}', '{{ $child->due_date?->format('Y-m-d') }}', '{{ $child->start_date?->format('Y-m-d') }}', '{{ $child->color }}', '{{ addslashes($child->description ?? '') }}')"
-                                style="padding:1px 6px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
-                                title="Modifier ce jalon">✏️</button>
-                        <form method="POST" action="{{ route('projects.milestones.destroy', [$project, $child]) }}"
-                              onsubmit="return confirm('Supprimer ce jalon ?');" style="display:inline;">
-                            @csrf @method('DELETE')
-                            <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:13px;padding:0 2px;">×</button>
-                        </form>
-                        @endif
-                    </div>
-                </div>
-                @if($cpct > 0)
-                <div style="height:3px;background:var(--pd-border);border-radius:2px;margin-top:4px;overflow:hidden;">
-                    <div style="height:100%;width:{{ $cpct }}%;background:{{ $cc }};border-radius:2px;"></div>
-                </div>
-                @endif
-                {{-- Commentaire jalon atteint ou en retard --}}
-                @if($creach || $clate)
-                <div style="margin-top:6px;" x-data="{ editing: false }">
-                    @if($child->comment && !$canManage)
-                    <div style="font-size:11px;color:var(--pd-muted);font-style:italic;padding:4px 0;">💬 {{ $child->comment }}</div>
-                    @elseif($canManage)
-                    <div x-show="!editing" style="display:flex;align-items:center;gap:6px;cursor:pointer;" @click="editing=true">
-                        @if($child->comment)
-                        <div style="font-size:11px;color:var(--pd-muted);font-style:italic;flex:1;">💬 {{ $child->comment }}</div>
-                        <span style="font-size:10px;color:var(--pd-muted);">✏️</span>
-                        @else
-                        <span style="font-size:10px;color:var(--pd-muted);border:0.5px dashed var(--pd-border);border-radius:4px;padding:2px 7px;">+ Ajouter un commentaire</span>
-                        @endif
-                    </div>
-                    <div x-show="editing" x-cloak>
-                        <form method="POST" action="{{ route('projects.milestones.update', [$project, $child]) }}" style="display:flex;gap:6px;align-items:flex-end;margin-top:2px;">
-                            @csrf @method('PATCH')
-                            <textarea name="comment" rows="2"
-                                      style="flex:1;font-size:11px;padding:5px 8px;border:0.5px solid var(--pd-border);border-radius:6px;background:var(--pd-surface);color:var(--pd-text);resize:none;font-family:inherit;"
-                                      placeholder="Note sur ce jalon…">{{ $child->comment }}</textarea>
-                            <div style="display:flex;flex-direction:column;gap:4px;">
-                                <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✓</button>
-                                <button type="button" @click="editing=false" class="pd-btn pd-btn-secondary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✕</button>
-                            </div>
-                        </form>
-                    </div>
-                    @endif
-                </div>
-                @endif
-            </div>
-        </div>
-        @endforeach
-        </div>{{-- /x-show="open" --}}
-    </div>
-
-    @else
-    {{-- ── Jalon autonome (phase sans enfants) ── --}}
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-        <div style="width:9px;height:9px;border-radius:50%;background:{{ $msColor }};flex-shrink:0;{{ $reached ? 'opacity:.4;' : '' }}"></div>
-        <div style="flex:1;">
-            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:500;">
-                <div>
-                    <span style="{{ $reached ? 'text-decoration:line-through;color:var(--pd-muted);' : '' }}">
-                        🏁 {{ $ms->title }}
-                    </span>
-                    @if($ms->description)
-                    <div style="font-size:11px;color:var(--pd-muted);font-weight:400;margin-top:1px;">{{ $ms->description }}</div>
-                    @endif
-                </div>
-                <div style="display:flex;align-items:center;gap:6px;">
-                    <span style="font-size:11px;color:{{ $late ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
-                        {{ $ms->due_date?->translatedFormat('d M Y') }}
-                        @if($reached) ✓ @elseif($late) · En retard @endif
-                    </span>
-                    @if($canManage)
-                    @if($msPos > 0)
-                    <form method="POST" action="{{ route('projects.milestones.move', [$project, $ms]) }}" style="display:inline;">
-                        @csrf @method('PATCH')
-                        <input type="hidden" name="direction" value="up">
-                        <button type="submit" title="Monter"
-                                style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↑</button>
-                    </form>
-                    @endif
-                    @if($msPos !== false && $msPos < $phaseCount - 1)
-                    <form method="POST" action="{{ route('projects.milestones.move', [$project, $ms]) }}" style="display:inline;">
-                        @csrf @method('PATCH')
-                        <input type="hidden" name="direction" value="down">
-                        <button type="submit" title="Descendre"
-                                style="background:none;border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;color:var(--pd-muted);font-size:11px;padding:1px 5px;line-height:1;">↓</button>
-                    </form>
-                    @endif
-                    @if(!$reached)
-                    <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Marquer ce jalon comme atteint ?');">
-                        @csrf @method('PATCH')
-                        <input type="hidden" name="reached" value="1">
-                        <button type="submit"
-                                style="padding:1px 7px;font-size:10px;background:#F0FDF4;color:#065F46;border:0.5px solid #86EFAC;border-radius:4px;cursor:pointer;font-weight:600;"
-                                title="Marquer comme atteint">✓ Atteint</button>
-                    </form>
-                    @else
-                    <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:inline;" onsubmit="return confirm('Annuler l\'atteinte de ce jalon ?');">
-                        @csrf @method('PATCH')
-                        <input type="hidden" name="reached" value="0">
-                        <button type="submit"
-                                style="padding:1px 7px;font-size:10px;background:#FEF3C7;color:#92400E;border:0.5px solid #FCD34D;border-radius:4px;cursor:pointer;"
-                                title="Annuler l'atteinte">↩ Annuler</button>
-                    </form>
-                    @endif
-                    <button @click="openEdit({{ $ms->id }}, '{{ addslashes($ms->title) }}', '{{ $ms->due_date?->format('Y-m-d') }}', '{{ $ms->start_date?->format('Y-m-d') }}', '{{ $ms->color }}', '{{ addslashes($ms->description ?? '') }}')"
-                            style="padding:1px 6px;font-size:10px;background:none;color:var(--pd-muted);border:0.5px solid var(--pd-border);border-radius:4px;cursor:pointer;"
-                            title="Modifier">✏️</button>
-                    <form method="POST" action="{{ route('projects.milestones.destroy', [$project, $ms]) }}"
-                          onsubmit="return confirm('Supprimer ce jalon ?');" style="display:inline;">
-                        @csrf @method('DELETE')
-                        <button type="submit" style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:13px;padding:0 2px;">×</button>
-                    </form>
-                    @endif
-                </div>
-            </div>
-            <div class="bbar-wrap" style="margin-top:4px;">
-                <div class="bbar-fill" style="width:{{ $pct }}%;background:{{ $msColor }};"></div>
-            </div>
-            {{-- Commentaire jalon atteint ou en retard --}}
-            @if($reached || $late)
-            <div style="margin-top:6px;" x-data="{ editing: false }">
-                @if($ms->comment && !$canManage)
-                <div style="font-size:11px;color:var(--pd-muted);font-style:italic;padding:4px 0;">💬 {{ $ms->comment }}</div>
-                @elseif($canManage)
-                <div x-show="!editing" style="display:flex;align-items:center;gap:6px;cursor:pointer;" @click="editing=true">
-                    @if($ms->comment)
-                    <div style="font-size:11px;color:var(--pd-muted);font-style:italic;flex:1;">💬 {{ $ms->comment }}</div>
-                    <span style="font-size:10px;color:var(--pd-muted);">✏️</span>
-                    @else
-                    <span style="font-size:10px;color:var(--pd-muted);border:0.5px dashed var(--pd-border);border-radius:4px;padding:2px 7px;">+ Ajouter un commentaire</span>
-                    @endif
-                </div>
-                <div x-show="editing" x-cloak>
-                    <form method="POST" action="{{ route('projects.milestones.update', [$project, $ms]) }}" style="display:flex;gap:6px;align-items:flex-end;margin-top:2px;">
-                        @csrf @method('PATCH')
-                        <textarea name="comment" rows="2"
-                                  style="flex:1;font-size:11px;padding:5px 8px;border:0.5px solid var(--pd-border);border-radius:6px;background:var(--pd-surface);color:var(--pd-text);resize:none;font-family:inherit;"
-                                  placeholder="Note sur ce jalon…">{{ $ms->comment }}</textarea>
-                        <div style="display:flex;flex-direction:column;gap:4px;">
-                            <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✓</button>
-                            <button type="button" @click="editing=false" class="pd-btn pd-btn-secondary pd-btn-sm" style="padding:4px 10px;font-size:11px;">✕</button>
-                        </div>
-                    </form>
-                </div>
-                @endif
-            </div>
-            @endif
-        </div>
-        <span style="font-size:11px;color:var(--pd-muted);min-width:28px;text-align:right;">{{ $pct }}%</span>
-    </div>
-    @endif
-
+    {{-- Arbre récursif des nœuds racines --}}
+    @php $roots = $project->milestones->whereNull('parent_id')->values(); @endphp
+    @forelse($roots as $rootIdx => $ms)
+        @include('projects.partials._milestone_node', [
+            'ms'        => $ms,
+            'project'   => $project,
+            'canManage' => $canManage,
+            'depth'     => 0,
+            'siblings'  => $roots,
+            'nodeIndex' => $rootIdx,
+        ])
     @empty
     @if($canManage)
     <div style="text-align:center;padding:20px;color:var(--pd-muted);font-size:12px;">
-        Aucune phase ni jalon — commencez par créer une phase.
+        Aucun nœud — commencez par créer une phase ou un jalon.
     </div>
     @endif
     @endforelse
 
-    {{-- ════════════════════════════════════════ --}}
-    {{-- ── Modal : Nouvelle phase ── --}}
+    {{-- ── Modal : Nouveau nœud ── --}}
     @if($canManage)
-    <div x-show="showModalPhase" x-cloak
+    <div x-show="showModalNew" x-cloak
          style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);"
-         @click.self="showModalPhase=false">
+         @click.self="showModalNew=false">
         <div class="pd-modal pd-modal-md" style="animation:pd-modal-in .18s ease-out;">
             <div class="pd-modal-header" style="background:#1E3A5F;border-radius:14px 14px 0 0;padding:20px 20px 16px;border-bottom:none;display:flex;align-items:flex-start;justify-content:space-between;">
                 <div>
-                    <div class="pd-modal-title" style="font-size:16px;font-weight:700;color:#fff;line-height:1.3;">Nouvelle phase</div>
-                    <div class="pd-modal-subtitle" style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;">Définissez une période avec ses jalons</div>
+                    <div class="pd-modal-title" style="font-size:16px;font-weight:700;color:#fff;line-height:1.3;"
+                         x-text="selectedParent ? 'Nouvel enfant' : 'Nouveau nœud racine'"></div>
+                    <div class="pd-modal-subtitle" style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;"
+                         x-text="selectedParent ? 'Niveau ' + (selectedParentDepth + 1) + ' / {{ \App\Models\Tenant\ProjectMilestone::MAX_DEPTH + 1 }}' : 'Niveau 1 / {{ \App\Models\Tenant\ProjectMilestone::MAX_DEPTH + 1 }}'"></div>
                 </div>
-                <button type="button" @click="showModalPhase=false" class="pd-modal-close" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:22px;line-height:1;padding:0 2px;margin-left:12px;flex-shrink:0;">×</button>
+                <button type="button" @click="showModalNew=false" class="pd-modal-close" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:22px;line-height:1;padding:0 2px;margin-left:12px;flex-shrink:0;">×</button>
             </div>
-            <form method="POST" action="{{ route('projects.phases.store', $project) }}">
+            <form method="POST" action="{{ route('projects.milestones.store', $project) }}">
                 @csrf
+                <input type="hidden" name="parent_id" :value="selectedParent">
                 <div class="pd-modal-body">
                     <div class="pd-form-group">
-                        <label class="pd-label pd-label-req">Nom de la phase</label>
-                        <input type="text" name="title" class="pd-input" placeholder="Phase 1 — Socle technique" required style="width:100%;">
+                        <label class="pd-label pd-label-req">Type</label>
+                        <input type="text" name="node_type" id="new-ms-node-type" class="pd-input"
+                               list="node-type-suggestions"
+                               placeholder="Phase, Étape, Jalon…"
+                               style="width:100%;">
+                        <datalist id="node-type-suggestions">
+                            @php
+                                $usedTypes = $project->milestones->pluck('node_type')->filter()->unique()->values();
+                                $allTypes  = collect(\App\Models\Tenant\ProjectMilestone::TYPE_SUGGESTIONS)->merge($usedTypes)->unique()->values();
+                            @endphp
+                            @foreach($allTypes as $suggestion)
+                            <option value="{{ $suggestion }}">
+                            @endforeach
+                        </datalist>
+                    </div>
+                    <div class="pd-form-group">
+                        <label class="pd-label pd-label-req">Titre</label>
+                        <input type="text" name="title" class="pd-input" placeholder="Ex : Livraison v1.0 — CI vert" required style="width:100%;">
                     </div>
                     <div class="pd-form-group">
                         <label class="pd-label">Description</label>
-                        <textarea name="description" class="pd-input" rows="2" style="width:100%;resize:vertical;" placeholder="Objectif, périmètre de la phase…"></textarea>
+                        <textarea name="description" class="pd-input" rows="2" style="width:100%;resize:vertical;" placeholder="Objectif, critère d'atteinte…"></textarea>
                     </div>
                     <div class="pd-form-row-2">
                         <div class="pd-form-group">
@@ -475,75 +176,15 @@
                     </div>
                 </div>
                 <div class="pd-modal-footer">
-                    <button type="button" @click="showModalPhase=false" class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
-                    <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm">Créer la phase</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    {{-- ── Modal : Nouveau jalon ── --}}
-    <div x-show="showModalJalon" x-cloak
-         style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);"
-         @click.self="showModalJalon=false">
-        <div class="pd-modal pd-modal-md" style="animation:pd-modal-in .18s ease-out;">
-            <div class="pd-modal-header" style="background:#EA580C;border-radius:14px 14px 0 0;padding:20px 20px 16px;border-bottom:none;display:flex;align-items:flex-start;justify-content:space-between;">
-                <div>
-                    <div class="pd-modal-title" style="font-size:16px;font-weight:700;color:#fff;line-height:1.3;">Nouveau jalon</div>
-                    <div class="pd-modal-subtitle" style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;">Point de contrôle rattaché à une phase</div>
-                </div>
-                <button type="button" @click="showModalJalon=false" class="pd-modal-close" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,.8);font-size:22px;line-height:1;padding:0 2px;margin-left:12px;flex-shrink:0;">×</button>
-            </div>
-            <form method="POST" action="{{ route('projects.milestones.store', $project) }}">
-                @csrf
-                <input type="hidden" name="parent_id" :value="selectedPhase">
-                <div class="pd-modal-body">
-                    <div class="pd-form-group">
-                        <label class="pd-label pd-label-req">Titre du jalon</label>
-                        <input type="text" name="title" class="pd-input" placeholder="Livraison v1.0 — CI vert" required style="width:100%;">
-                    </div>
-                    @if($project->milestones->where('parent_id', null)->isNotEmpty())
-                    <div class="pd-form-group">
-                        <label class="pd-label">Rattacher à une phase</label>
-                        <select name="parent_id" class="pd-input" style="width:100%;" x-model="selectedPhase">
-                            <option value="">— Jalon autonome —</option>
-                            @foreach($project->milestones->whereNull('parent_id') as $phase)
-                            <option value="{{ $phase->id }}">{{ $phase->title }}</option>
-                            @endforeach
-                        </select>
-                    </div>
-                    @endif
-                    <div class="pd-form-group">
-                        <label class="pd-label">Description</label>
-                        <textarea name="description" class="pd-input" rows="2" style="width:100%;resize:vertical;" placeholder="Objectif, critère d'atteinte…"></textarea>
-                    </div>
-                    <div class="pd-form-group">
-                        <label class="pd-label pd-label-req">Date cible</label>
-                        <input type="date" name="due_date" class="pd-input" required style="width:100%;">
-                    </div>
-                    <div class="pd-form-group">
-                        <label class="pd-label">Couleur</label>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
-                            @foreach(['#EA580C','#16A34A','#1E3A5F','#8B5CF6','#0891B2','#DC2626','#D97706'] as $c)
-                            <label style="cursor:pointer;">
-                                <input type="radio" name="color" value="{{ $c }}" style="display:none;" {{ $c === '#EA580C' ? 'checked' : '' }}>
-                                <div style="width:24px;height:24px;border-radius:50%;background:{{ $c }};border:2px solid transparent;transition:border .1s;"
-                                     onclick="this.style.border='2px solid #000';"></div>
-                            </label>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
-                <div class="pd-modal-footer">
-                    <button type="button" @click="showModalJalon=false" class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
-                    <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm">Créer le jalon</button>
+                    <button type="button" @click="showModalNew=false" class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
+                    <button type="submit" class="pd-btn pd-btn-primary pd-btn-sm">Créer</button>
                 </div>
             </form>
         </div>
     </div>
     @endif
 
-    {{-- ── Modal : Modifier phase/jalon ── --}}
+    {{-- ── Modal : Modifier un nœud ── --}}
     @if($canManage)
     <div x-show="showModalEdit" x-cloak
          style="position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(2px);"
@@ -565,6 +206,42 @@
                         ⚠ {{ $errors->first('due_date') }}
                     </div>
                     @endif
+                    @php
+                        // Liste à plat de tous les nœuds (DFS) avec profondeur pour indentation
+                        $flatForSelect = [];
+                        $buildSelect = function($nodes, $depth) use (&$buildSelect, &$flatForSelect) {
+                            foreach ($nodes as $n) {
+                                $flatForSelect[] = ['node' => $n, 'depth' => $depth];
+                                if ($n->relationLoaded('children') && $n->children->isNotEmpty()) {
+                                    $buildSelect($n->children, $depth + 1);
+                                }
+                            }
+                        };
+                        $buildSelect($project->milestones->whereNull('parent_id'), 0);
+                    @endphp
+                    <div class="pd-form-group">
+                        <label class="pd-label">Rattacher sous</label>
+                        <select name="parent_id" id="edit-ms-parent" class="pd-input" style="width:100%;">
+                            <option value="">— Nœud racine (aucun parent) —</option>
+                            @foreach($flatForSelect as $item)
+                            <option value="{{ $item['node']->id }}" data-self="{{ $item['node']->id }}">
+                                {{ str_repeat('·  ', $item['depth']) }}{{ $item['node']->node_type ? '['.$item['node']->node_type.'] ' : '' }}{{ $item['node']->title }}
+                            </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="pd-form-group">
+                        <label class="pd-label">Type</label>
+                        <input type="text" name="node_type" id="edit-ms-node-type" class="pd-input"
+                               list="node-type-suggestions-edit"
+                               placeholder="Phase, Étape, Jalon…"
+                               style="width:100%;">
+                        <datalist id="node-type-suggestions-edit">
+                            @foreach($allTypes as $suggestion)
+                            <option value="{{ $suggestion }}">
+                            @endforeach
+                        </datalist>
+                    </div>
                     <div class="pd-form-group">
                         <label class="pd-label pd-label-req">Titre</label>
                         <input type="text" name="title" id="edit-ms-title" class="pd-input" required style="width:100%;">
@@ -619,16 +296,24 @@ function selectMsColor(color) {
 }
 
 document.addEventListener('alpine:init', function () {
-    // Patch openEdit pour remplir les champs natifs
     document.addEventListener('open-edit-ms', function (e) {
         const d = e.detail;
         const base = '{{ url('projects/' . $project->id . '/milestones') }}/';
         document.getElementById('form-edit-milestone').action = base + d.id;
+        document.getElementById('edit-ms-node-type').value   = d.node_type  || '';
         document.getElementById('edit-ms-title').value       = d.title;
         document.getElementById('edit-ms-description').value = d.description || '';
         document.getElementById('edit-ms-start').value       = d.start_date || '';
         document.getElementById('edit-ms-due').value         = d.due_date   || '';
         selectMsColor(d.color || '#1E3A5F');
+        // Parent : sélectionner la bonne option, exclure le nœud lui-même
+        const parentSel = document.getElementById('edit-ms-parent');
+        if (parentSel) {
+            Array.from(parentSel.options).forEach(opt => {
+                opt.disabled = (opt.dataset.self == d.id);
+            });
+            parentSel.value = d.parent_id || '';
+        }
     });
 });
 </script>
