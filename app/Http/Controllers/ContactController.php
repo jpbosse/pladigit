@@ -2,28 +2,35 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\ContactRequestMail;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class ContactController extends Controller
 {
-    public function send(Request $request)
+    public function send(Request $request): RedirectResponse
     {
-        $request->validate([
+        $data = $request->validate([
             'first_name' => ['required', 'string', 'max:100'],
             'last_name' => ['required', 'string', 'max:100'],
             'organization' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email'],
-            'plan' => ['nullable', 'string'],
+            'plan' => ['nullable', 'string', 'in:communautaire,partenaire,'],
             'message' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        // Log la demande en attendant le SMTP production
-        \Log::info('Demande de démo', $request->only([
-            'first_name', 'last_name', 'organization', 'email', 'plan', 'message',
-        ]));
+        Mail::to('contact@pladigit.fr')->send(new ContactRequestMail(
+            firstName: $data['first_name'],
+            lastName: $data['last_name'],
+            organization: $data['organization'],
+            email: $data['email'],
+            plan: $data['plan'] ?? '',
+            message: $data['message'] ?? '',
+        ));
 
         return redirect('/')->with('contact_success',
-            "Merci {$request->first_name} ! Nous vous recontacterons dans les 48h."
+            "Merci {$data['first_name']} ! Nous vous recontacterons dans les 48h."
         );
     }
 }
