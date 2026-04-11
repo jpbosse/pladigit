@@ -9,10 +9,10 @@ use App\Services\AuditService;
 use Illuminate\Http\Request;
 
 /**
- * Gestion des jalons et phases d'un projet.
+ * Gestion des nœuds hiérarchiques d'un projet (phases, étapes, jalons…).
  *
- * Phase  : parent_id = null — créée via POST /projects/{project}/phases
- * Jalon  : parent_id = id phase — créé via POST /projects/{project}/milestones
+ * Un nœud est un ProjectMilestone avec un label libre (node_type) et un
+ * parent_id optionnel. La profondeur maximale est de 4 niveaux (0–3).
  */
 class ProjectMilestoneController extends Controller
 {
@@ -21,84 +21,63 @@ class ProjectMilestoneController extends Controller
     ) {}
 
     /**
-     * Crée une Phase (jalon de niveau supérieur, sans parent).
-     */
-    public function storePhase(Request $request, Project $project)
-    {
-        $this->authorize('manageMilestones', $project);
-
-        $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'start_date' => ['nullable', 'date'],
-            'due_date' => ['required', 'date', 'after_or_equal:start_date'],
-            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-        ]);
-
-        // sort_order = après la dernière phase existante
-        $maxOrder = $project->milestones()->whereNull('parent_id')->max('sort_order') ?? 0;
-
-        $phase = $project->milestones()->create([
-            ...$validated,
-            'parent_id' => null,
-            'color' => $validated['color'] ?? '#1E3A5F',
-            'sort_order' => $maxOrder + 10,
-        ]);
-
-        $this->audit->log('phase.created', auth()->user(), ['new' => ['project_id' => $project->id, 'phase_id' => $phase->id, 'phase_name' => $phase->title]]);
-
-        if ($request->wantsJson()) {
-            return response()->json(['success' => true, 'milestone_id' => $phase->id]);
-        }
-
-        return back()->with('success', 'Phase créée.');
-    }
-
-    /**
-     * Crée un Jalon (enfant d'une phase, ou autonome si parent_id absent).
+     * Crée un nœud (racine ou enfant selon parent_id).
      */
     public function store(Request $request, Project $project)
     {
         $this->authorize('manageMilestones', $project);
 
         $validated = $request->validate([
-            'title' => ['required', 'string', 'max:255'],
+            'title'       => ['required', 'string', 'max:255'],
+            'node_type'   => ['nullable', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'parent_id' => ['nullable', 'integer', 'exists:tenant.project_milestones,id'],
-            'start_date' => ['nullable', 'date'],
-            'due_date' => ['required', 'date'],
-            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'parent_id'   => ['nullable', 'integer', 'exists:tenant.project_milestones,id'],
+            'start_date'  => ['nullable', 'date'],
+            'due_date'    => ['required', 'date'],
+            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
         ]);
 
-        // Vérifier que le parent appartient bien à ce projet
         if (! empty($validated['parent_id'])) {
             $parent = ProjectMilestone::on('tenant')->findOrFail($validated['parent_id']);
-            abort_if($parent->project_id !== $project->id, 422, 'Phase invalide.');
-            abort_if($parent->parent_id !== null, 422, 'Impossible d\'imbriquer un jalon dans un autre jalon.');
+            abort_if($parent->project_id !== $project->id, 422, 'Parent invalide.');
+            abort_if(
+                $parent->depth() >= ProjectMilestone::MAX_DEPTH,
+                422,
+                'Profondeur maximale atteinte ('.( ProjectMilestone::MAX_DEPTH + 1).' niveaux).'
+            );
         }
 
         $maxOrder = $project->milestones()
             ->where('parent_id', $validated['parent_id'] ?? null)
             ->max('sort_order') ?? 0;
 
+        $defaultColor = empty($validated['parent_id']) ? '#1E3A5F' : '#EA580C';
+
         $milestone = $project->milestones()->create([
             ...$validated,
-            'color' => $validated['color'] ?? '#EA580C',
+            'color'      => $validated['color'] ?? $defaultColor,
             'sort_order' => $maxOrder + 10,
         ]);
 
-        $this->audit->log('milestone.created', auth()->user(), ['new' => ['project_id' => $project->id, 'milestone_id' => $milestone->id, 'milestone_name' => $milestone->title]]);
+        $this->audit->log('milestone.created', auth()->user(), [
+            'new' => [
+                'project_id'   => $project->id,
+                'milestone_id' => $milestone->id,
+                'title'        => $milestone->title,
+                'node_type'    => $milestone->node_type,
+                'parent_id'    => $milestone->parent_id,
+            ],
+        ]);
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'milestone_id' => $milestone->id]);
         }
 
-        return back()->with('success', 'Jalon créé.');
+        return back()->with('success', ($milestone->node_type ?? 'Nœud').' créé.');
     }
 
     /**
-     * Déplace une phase ou un jalon enfant vers le haut ou vers le bas.
-     * Renumérote tous les sort_order avant d'échanger pour garantir un ordre stable.
+     * Déplace un nœud vers le haut ou vers le bas parmi ses frères.
      */
     public function move(Request $request, Project $project, ProjectMilestone $milestone)
     {
@@ -108,66 +87,23 @@ class ProjectMilestoneController extends Controller
             'direction' => ['required', 'in:up,down'],
         ])['direction'];
 
-        // Jalon enfant : réordonner les frères dans la même phase parente
-        if ($milestone->parent_id !== null) {
-            $siblings = $project->milestones()
-                ->where('parent_id', $milestone->parent_id)
-                ->orderBy('sort_order')
-                ->orderBy('id')
-                ->get();
-
-            foreach ($siblings as $i => $sib) {
-                $sib->update(['sort_order' => ($i + 1) * 10]);
-            }
-
-            $siblings = $project->milestones()
-                ->where('parent_id', $milestone->parent_id)
-                ->orderBy('sort_order')
-                ->get();
-
-            $index = $siblings->search(fn ($s) => $s->id === $milestone->id);
-
-            if ($index === false) {
-                return back();
-            }
-
-            $swapIndex = $direction === 'up' ? $index - 1 : $index + 1;
-
-            if ($swapIndex < 0 || $swapIndex >= $siblings->count()) {
-                return back();
-            }
-
-            $current = $siblings[$index];
-            $neighbor = $siblings[$swapIndex];
-
-            $currentOrder = $current->sort_order;
-            $neighborOrder = $neighbor->sort_order;
-
-            $current->update(['sort_order' => $neighborOrder]);
-            $neighbor->update(['sort_order' => $currentOrder]);
-
-            return back()->with('success', 'Ordre mis à jour.');
-        }
-
-        // Phase (jalon racine)
-        $phases = $project->milestones()
-            ->whereNull('parent_id')
+        $siblings = $project->milestones()
+            ->where('parent_id', $milestone->parent_id)
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
 
-        // Renumérote d'abord 10, 20, 30... pour garantir des sort_order distincts
-        foreach ($phases as $i => $phase) {
-            $phase->update(['sort_order' => ($i + 1) * 10]);
+        // Renumérote pour garantir des sort_order distincts
+        foreach ($siblings as $i => $sib) {
+            $sib->update(['sort_order' => ($i + 1) * 10]);
         }
 
-        // Recharge après numérotation
-        $phases = $project->milestones()
-            ->whereNull('parent_id')
+        $siblings = $project->milestones()
+            ->where('parent_id', $milestone->parent_id)
             ->orderBy('sort_order')
             ->get();
 
-        $index = $phases->search(fn ($p) => $p->id === $milestone->id);
+        $index = $siblings->search(fn ($s) => $s->id === $milestone->id);
 
         if ($index === false) {
             return back();
@@ -175,15 +111,14 @@ class ProjectMilestoneController extends Controller
 
         $swapIndex = $direction === 'up' ? $index - 1 : $index + 1;
 
-        if ($swapIndex < 0 || $swapIndex >= $phases->count()) {
+        if ($swapIndex < 0 || $swapIndex >= $siblings->count()) {
             return back();
         }
 
-        // Échanger les sort_order des deux phases
-        $current = $phases[$index];
-        $neighbor = $phases[$swapIndex];
+        $current  = $siblings[$index];
+        $neighbor = $siblings[$swapIndex];
 
-        $currentOrder = $current->sort_order;
+        $currentOrder  = $current->sort_order;
         $neighborOrder = $neighbor->sort_order;
 
         $current->update(['sort_order' => $neighborOrder]);
@@ -197,30 +132,50 @@ class ProjectMilestoneController extends Controller
         $this->authorize('manageMilestones', $project);
 
         $validated = $request->validate([
-            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'title'       => ['sometimes', 'required', 'string', 'max:255'],
+            'node_type'   => ['sometimes', 'nullable', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'start_date' => ['nullable', 'date'],
-            'due_date' => ['sometimes', 'required', 'date'],
-            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'reached' => ['sometimes', 'boolean'],
-            'sort_order' => ['sometimes', 'integer', 'min:0'],
-            'comment' => ['nullable', 'string', 'max:2000'],
+            'parent_id'   => ['sometimes', 'nullable', 'integer', 'exists:tenant.project_milestones,id'],
+            'start_date'  => ['nullable', 'date'],
+            'due_date'    => ['sometimes', 'required', 'date'],
+            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'reached'     => ['sometimes', 'boolean'],
+            'sort_order'  => ['sometimes', 'integer', 'min:0'],
+            'comment'     => ['nullable', 'string', 'max:2000'],
         ]);
+
+        // Reparentage : valider le nouveau parent si fourni
+        if (array_key_exists('parent_id', $validated)) {
+            $newParentId = $validated['parent_id'] ?: null;
+            $validated['parent_id'] = $newParentId;
+
+            if ($newParentId !== null) {
+                $newParent = ProjectMilestone::on('tenant')->findOrFail($newParentId);
+                abort_if($newParent->project_id !== $project->id, 422, 'Parent invalide.');
+                abort_if($newParentId === $milestone->id, 422, 'Un nœud ne peut pas être son propre parent.');
+                // Vérifier que le nouveau parent n'est pas un descendant du nœud
+                $milestone->loadMissing(['children.children.children']);
+                abort_if(
+                    in_array($newParentId, array_slice($milestone->descendantIds(), 1), true),
+                    422,
+                    'Impossible de déplacer un nœud dans l\'un de ses descendants.'
+                );
+                abort_if(
+                    $newParent->depth() >= ProjectMilestone::MAX_DEPTH,
+                    422,
+                    'Profondeur maximale atteinte ('.( ProjectMilestone::MAX_DEPTH + 1).' niveaux).'
+                );
+            }
+        }
 
         // Vérifier que la nouvelle due_date ne coupe pas des tâches existantes
         if (isset($validated['due_date'])) {
             $newDueDate = \Carbon\Carbon::parse($validated['due_date']);
 
-            // Récupérer les jalons concernés (ce jalon + ses enfants si c'est une phase)
-            $milestoneIds = [$milestone->id];
-            if ($milestone->isPhase()) {
-                $milestoneIds = array_merge(
-                    $milestoneIds,
-                    $milestone->children()->pluck('id')->toArray()
-                );
-            }
+            // Charger tous les descendants pour agréger leurs tâches
+            $milestone->loadMissing(['children.children.children']);
+            $milestoneIds = $milestone->descendantIds();
 
-            // Trouver la tâche la plus tardive rattachée à ces jalons
             $latestTask = \App\Models\Tenant\Task::on('tenant')
                 ->whereIn('milestone_id', $milestoneIds)
                 ->whereNotNull('due_date')
@@ -247,28 +202,31 @@ class ProjectMilestoneController extends Controller
         // Marquer comme atteint
         if (isset($validated['reached'])) {
             if ($validated['reached'] && ! $milestone->isReached()) {
-                // Guard : une phase ne peut pas être marquée atteinte si des jalons enfants sont en cours
-                if ($milestone->isPhase()) {
-                    $pending = $milestone->children()->whereNull('reached_at')->count();
-                    if ($pending > 0) {
-                        $errorMsg = "Impossible de terminer cette phase : {$pending} jalon".($pending > 1 ? 's' : '').' non atteint'.($pending > 1 ? 's' : '').'.';
-                        if ($request->wantsJson()) {
-                            return response()->json(['success' => false, 'error' => $errorMsg], 422);
-                        }
-
-                        return back()->withErrors(['reached' => $errorMsg]);
+                // Guard : un nœud ne peut pas être marqué atteint si des enfants sont en cours
+                $pending = $milestone->children()->whereNull('reached_at')->count();
+                if ($pending > 0) {
+                    $errorMsg = "Impossible de terminer ce nœud : {$pending} enfant".($pending > 1 ? 's' : '').' non atteint'.($pending > 1 ? 's' : '').'.';
+                    if ($request->wantsJson()) {
+                        return response()->json(['success' => false, 'error' => $errorMsg], 422);
                     }
+
+                    return back()->withErrors(['reached' => $errorMsg]);
                 }
 
                 $milestone->markReached();
-                $this->audit->log('milestone.reached', auth()->user(), ['new' => ['project_id' => $project->id, 'milestone_id' => $milestone->id, 'milestone_name' => $milestone->title]]);
+                $this->audit->log('milestone.reached', auth()->user(), [
+                    'new' => [
+                        'project_id'   => $project->id,
+                        'milestone_id' => $milestone->id,
+                        'title'        => $milestone->title,
+                    ],
+                ]);
             } elseif (! $validated['reached'] && $milestone->isReached()) {
-                // Annuler l'atteinte
                 $milestone->update(['reached_at' => null]);
             }
         }
+
         if (isset($validated['reached']) && $validated['reached'] && $milestone->isReached()) {
-            // Notifier les membres du projet (seulement lors de l'atteinte initiale)
             /** @var \App\Models\Tenant\User $user */
             $user = auth()->user();
             app(\App\Services\NotificationService::class)->milestoneReached($milestone->title, $project, $user);
@@ -290,13 +248,20 @@ class ProjectMilestoneController extends Controller
     {
         $this->authorize('manageMilestones', $project);
 
-        // Supprimer les jalons enfants d'abord (soft delete cascade)
-        if ($milestone->isPhase()) {
-            $milestone->children()->each(fn ($child) => $child->delete());
+        $label = $milestone->node_type ?? 'Nœud';
+        $this->deleteRecursive($milestone);
+
+        return back()->with('success', $label.' supprimé.');
+    }
+
+    /**
+     * Supprime récursivement un nœud et tous ses descendants (soft delete).
+     */
+    private function deleteRecursive(ProjectMilestone $node): void
+    {
+        foreach ($node->children as $child) {
+            $this->deleteRecursive($child);
         }
-
-        $milestone->delete();
-
-        return back()->with('success', $milestone->isPhase() ? 'Phase supprimée.' : 'Jalon supprimé.');
+        $node->delete();
     }
 }

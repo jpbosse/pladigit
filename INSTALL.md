@@ -1,248 +1,280 @@
-# Installation — Pladigit
+# INSTALL.md — Pladigit
 
-Ce guide couvre l'installation complète de Pladigit sur un serveur Ubuntu 24 LTS.  
-Tous les logiciels utilisés sont 100 % open source. Coût total de licences : **0 €**.
-
----
-
-## Prérequis matériels recommandés
-
-| Composant | Minimum | Recommandé |
-|-----------|---------|------------|
-| CPU | 2 vCPU | 4 vCPU |
-| RAM | 4 Go | 8 Go (16 Go avec Collabora) |
-| Disque | 40 Go SSD | 200 Go SSD |
-| OS | Ubuntu 22.04 LTS | Ubuntu 24.04 LTS |
-
-> ⚠ **Collabora Online** est gourmand en ressources. Prévoir au minimum **4 Go de RAM dédiés** si vous l'activez. Sur un VPS 4 Go total, Collabora + Pladigit + MySQL + Redis seront à l'étroit.
+> Guide d'installation complet pour déployer Pladigit en production.  
+> Basé sur un déploiement réel sur VPS OVH Ubuntu 24.04 LTS — Avril 2026.
 
 ---
 
-## Partie 1 — Prérequis système
+## Prérequis
 
-### 1.1 Mise à jour Ubuntu
+### Serveur recommandé
+
+| Configuration | Usage |
+|---|---|
+| 2 vCPU / 4 Go RAM / 40 Go SSD | Sans Collabora |
+| 4 vCPU / 8 Go RAM / 75 Go SSD | Avec Collabora (démo) |
+| 8 vCPU / 16 Go RAM / 200 Go SSD | Production multi-organisations |
+
+**OS recommandé :** Ubuntu 24.04 LTS  
+**Hébergeur recommandé :** OVH, Scaleway, Infomaniak (hébergeurs français)
+
+### Nom de domaine
+
+Vous avez besoin d'un domaine avec :
+- Un enregistrement `A` pointant vers votre IP (`@` → IP)
+- Un enregistrement `A` wildcard (`*` → IP) pour les sous-domaines tenant
+- Un enregistrement `A` pour `www` (`www` → IP)
+
+---
+
+## 1. Connexion SSH
+
+Connectez-vous à votre serveur avec votre clé SSH :
+
+```bash
+ssh ubuntu@VOTRE_IP
+```
+
+> ⚠️ Sur OVH, Ubuntu 24.04 utilise l'authentification par clé SSH uniquement.  
+> Générez votre clé lors de la commande ou via `ssh-keygen -t ed25519`.
+
+---
+
+## 2. Mise à jour du système
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl wget git unzip zip gnupg2 \
-  software-properties-common ca-certificates apt-transport-https lsb-release
+sudo reboot
 ```
 
-### 1.2 PHP 8.4
+Reconnectez-vous après le reboot.
 
-Ubuntu 24.04 fournit PHP 8.3 par défaut. Utiliser le PPA d'Ondřej Surý pour PHP 8.4 :
+---
+
+## 3. PHP 8.4
 
 ```bash
-sudo add-apt-repository ppa:ondrej/php -y
-sudo apt update
+sudo add-apt-repository ppa:ondrej/php -y && sudo apt update
+
 sudo apt install -y php8.4 php8.4-cli php8.4-fpm php8.4-common \
   php8.4-mysql php8.4-xml php8.4-curl php8.4-gd php8.4-imagick \
-  php8.4-mbstring php8.4-opcache php8.4-zip php8.4-intl \
-  php8.4-redis php8.4-bcmath php8.4-ldap php8.4-exif
+  php8.4-imap php8.4-mbstring php8.4-opcache php8.4-soap \
+  php8.4-zip php8.4-intl php8.4-redis php8.4-bcmath php8.4-ldap
+```
+
+Vérification :
+
+```bash
 php8.4 --version
+php8.4 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath|gd'
 ```
 
-**Configuration `/etc/php/8.4/fpm/php.ini` :**
+---
 
-```ini
-memory_limit = 256M
-upload_max_filesize = 100M
-post_max_size = 105M
-max_execution_time = 120
-date.timezone = Europe/Paris
-opcache.enable = 1
-opcache.memory_consumption = 128
-opcache.max_accelerated_files = 10000
-```
-
-### 1.3 MySQL 8
+## 4. MySQL 8
 
 ```bash
 sudo apt install -y mysql-server
 sudo mysql_secure_installation
-
-# Créer les bases et l'utilisateur applicatif
-sudo mysql -u root -p <<EOF
-CREATE DATABASE pladigit_platform CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE DATABASE pladigit_tenant_template CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'pladigit'@'localhost' IDENTIFIED BY 'VOTRE_MOT_DE_PASSE_FORT';
-GRANT ALL PRIVILEGES ON pladigit_platform.* TO 'pladigit'@'localhost';
-GRANT ALL PRIVILEGES ON pladigit_tenant_template.* TO 'pladigit'@'localhost';
-GRANT ALL PRIVILEGES ON `pladigit\_%`.* TO 'pladigit'@'localhost';
-FLUSH PRIVILEGES;
-EOF
 ```
 
-### 1.4 Redis 7
+Répondez aux questions :
+- Validate password plugin → `n`
+- Remove anonymous users → `y`
+- Disallow root login remotely → `y`
+- Remove test database → `y`
+- Reload privilege tables → `y`
+
+Créez l'utilisateur et les bases :
+
+```bash
+sudo mysql -u root
+```
+
+```sql
+CREATE DATABASE pladigit_platform CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'pladigit'@'localhost' IDENTIFIED BY 'VOTRE_MOT_DE_PASSE_FORT';
+GRANT ALL PRIVILEGES ON *.* TO 'pladigit'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+EXIT;
+```
+
+> ⚠️ Le `GRANT ALL PRIVILEGES ON *.*` est nécessaire car Pladigit crée dynamiquement
+> une base de données par organisation lors du provisioning.
+
+---
+
+## 5. Redis
 
 ```bash
 sudo apt install -y redis-server
-# Activer l'authentification dans /etc/redis/redis.conf :
-# requirepass VOTRE_MOT_DE_PASSE_REDIS
-# bind 127.0.0.1
-sudo systemctl enable --now redis-server
-redis-cli ping  # doit retourner PONG
+sudo systemctl enable redis-server
+sudo systemctl status redis-server
 ```
 
-### 1.5 Node.js 20
+---
+
+## 6. Composer
+
+```bash
+curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
+sudo php8.4 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+composer --version
+```
+
+---
+
+## 7. Node.js 20
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
-node --version  # v20.x
-```
-
-### 1.6 Composer 2
-
-```bash
-curl -sS https://getcomposer.org/installer | php
-sudo mv composer.phar /usr/local/bin/composer
-composer --version
-```
-
-### 1.7 Nginx
-
-```bash
-sudo apt install -y nginx
-sudo systemctl enable --now nginx
+node --version && npm --version
 ```
 
 ---
 
-## Partie 2 — Installation de Pladigit
-
-### 2.1 Utilisateur de déploiement
+## 8. Nginx
 
 ```bash
-sudo adduser deploy
-sudo usermod -aG www-data deploy
+sudo apt install -y nginx
+sudo systemctl enable nginx
 ```
 
-### 2.2 Cloner le dépôt
+---
+
+## 9. Supervisor
 
 ```bash
-sudo mkdir -p /var/www/pladigit
-sudo chown deploy:www-data /var/www/pladigit
-sudo -u deploy git clone https://github.com/jpbosse/pladigit.git /var/www/pladigit
+sudo apt install -y supervisor
+sudo systemctl enable supervisor
+```
+
+---
+
+## 10. Déploiement de Pladigit
+
+### Cloner le dépôt
+
+```bash
+cd /var/www
+sudo git clone https://github.com/jpbosse/pladigit.git
+sudo chown -R ubuntu:www-data /var/www/pladigit
 cd /var/www/pladigit
 ```
 
-### 2.3 Dépendances
+### Installer les dépendances
 
 ```bash
-sudo -u deploy composer install --no-dev --optimize-autoloader
-sudo -u deploy npm install && sudo -u deploy npm run build
+composer install --no-dev --optimize-autoloader
+npm install && npm run build
 ```
 
-### 2.4 Configuration
+### Configurer l'environnement
 
 ```bash
-sudo -u deploy cp .env.example .env
-sudo -u deploy php artisan key:generate
+cp .env.example .env
+php8.4 artisan key:generate
+nano .env
 ```
 
-Éditer `.env` — variables essentielles :
+Variables essentielles à configurer :
 
 ```env
-APP_NAME="Pladigit"
 APP_ENV=production
 APP_DEBUG=false
-APP_URL=https://pladigit.fr
+APP_URL=https://votre-domaine.fr
 
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
 DB_DATABASE=pladigit_platform
 DB_USERNAME=pladigit
 DB_PASSWORD=VOTRE_MOT_DE_PASSE_FORT
 
-TENANT_DB_USERNAME=pladigit
-TENANT_DB_PASSWORD=VOTRE_MOT_DE_PASSE_FORT
+SESSION_DOMAIN=.votre-domaine.fr
 
-REDIS_HOST=127.0.0.1
-REDIS_PASSWORD=VOTRE_MOT_DE_PASSE_REDIS
-REDIS_PORT=6379
+SUPER_ADMIN_EMAIL=votre@email.fr
+SUPER_ADMIN_PASSWORD_HASH=           # voir section suivante
 
-QUEUE_CONNECTION=redis
-SESSION_DRIVER=redis
-CACHE_STORE=redis
-
-BCRYPT_ROUNDS=12
-
-# Super Admin (hors base de données)
-SUPER_ADMIN_EMAIL=superadmin@pladigit.fr
-SUPER_ADMIN_PASSWORD=MOT_DE_PASSE_TRES_FORT
-
-# Collabora Online (optionnel)
-COLLABORA_URL=https://collabora.pladigit.fr
-WOPI_URL=https://pladigit.fr
-COLLABORA_TOKEN_TTL=14400
+MAIL_HOST=smtp.votre-fournisseur.fr
+MAIL_PORT=465
+MAIL_SCHEME=ssl
+MAIL_USERNAME=contact@votre-domaine.fr
+MAIL_PASSWORD=VOTRE_MOT_DE_PASSE_MAIL
+MAIL_FROM_ADDRESS=contact@votre-domaine.fr
+MAIL_FROM_NAME="Pladigit"
 ```
 
-### 2.5 Migrations
+> ⚠️ Ne pas mettre de commentaire `#` sur la même ligne que les valeurs — Laravel
+> les interpréterait comme faisant partie de la valeur.
+
+### Générer le hash du mot de passe Super Admin
 
 ```bash
-sudo -u deploy php artisan migrate \
-  --database=mysql \
-  --path=database/migrations/platform
-
-sudo -u deploy php artisan migrate \
-  --database=tenant \
-  --path=database/migrations/tenant
+php8.4 artisan tinker
 ```
 
-### 2.6 Permissions
+```php
+echo bcrypt('VotreMotDePasseSuperAdmin');
+```
+
+Copiez le résultat dans `SUPER_ADMIN_PASSWORD_HASH=` sans espace ni commentaire.
+
+### Lancer les migrations
 
 ```bash
-sudo chown -R deploy:www-data /var/www/pladigit
-sudo chmod -R 755 /var/www/pladigit
+# Tables de base Laravel
+php8.4 artisan migrate --force
+
+# Tables de la plateforme Pladigit
+php8.4 artisan migrate --path=database/migrations/platform --force
+```
+
+> ⚠️ Les deux commandes sont nécessaires — ne pas oublier la seconde.
+
+### Permissions
+
+```bash
+sudo chown -R ubuntu:www-data /var/www/pladigit
 sudo chmod -R 775 /var/www/pladigit/storage
 sudo chmod -R 775 /var/www/pladigit/bootstrap/cache
 ```
 
-### 2.7 Optimisations production
+### Optimiser Laravel
 
 ```bash
-sudo -u deploy php artisan config:cache
-sudo -u deploy php artisan route:cache
-sudo -u deploy php artisan view:cache
-sudo -u deploy php artisan event:cache
+php8.4 artisan config:cache
+php8.4 artisan route:cache
+php8.4 artisan view:cache
 ```
 
 ---
 
-## Partie 3 — Nginx
+## 11. Configuration Nginx
 
-### 3.1 Virtual host wildcard
-
-Créer `/etc/nginx/sites-available/pladigit` :
+```bash
+sudo nano /etc/nginx/sites-available/pladigit
+```
 
 ```nginx
 server {
     listen 80;
-    server_name pladigit.fr *.pladigit.fr;
+    server_name votre-domaine.fr www.votre-domaine.fr *.votre-domaine.fr;
     return 301 https://$host$request_uri;
 }
 
 server {
-    listen 443 ssl http2;
-    server_name pladigit.fr *.pladigit.fr;
+    listen 443 ssl;
+    server_name votre-domaine.fr www.votre-domaine.fr *.votre-domaine.fr;
+
+    ssl_certificate /etc/letsencrypt/live/votre-domaine.fr-0001/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/votre-domaine.fr-0001/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
 
     root /var/www/pladigit/public;
     index index.php;
+    charset utf-8;
 
-    ssl_certificate /etc/letsencrypt/live/pladigit.fr/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/pladigit.fr/privkey.pem;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers HIGH:!aNULL:!MD5;
-
-    # Headers sécurité
-    add_header X-Frame-Options "SAMEORIGIN";
-    add_header X-Content-Type-Options "nosniff";
-    add_header Referrer-Policy "strict-origin-when-cross-origin";
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()";
-
-    client_max_body_size 110M;
+    client_max_body_size 100M;
 
     location / {
         try_files $uri $uri/ /index.php?$query_string;
@@ -252,50 +284,72 @@ server {
         fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
         include fastcgi_params;
-        fastcgi_read_timeout 120;
     }
 
-    location ~* \.(jpg|jpeg|png|gif|ico|css|js|woff2)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
+    location ~ /\.ht {
+        deny all;
     }
-
-    location ~ /\.ht { deny all; }
 }
 ```
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/pladigit /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-### 3.2 SSL Let's Encrypt (wildcard)
-
-```bash
-sudo apt install -y certbot python3-certbot-dns-ovh
-# Ou avec python3-certbot-nginx pour un domaine simple :
-sudo certbot --nginx -d pladigit.fr -d "*.pladigit.fr"
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t
+sudo systemctl restart nginx
 ```
 
 ---
 
-## Partie 4 — Queue worker (Supervisor)
+## 12. Certificat SSL wildcard (Let's Encrypt)
 
 ```bash
-sudo apt install -y supervisor
+sudo apt install -y certbot python3-certbot-nginx
+
+sudo certbot certonly --manual --preferred-challenges dns \
+  -d votre-domaine.fr -d "*.votre-domaine.fr"
 ```
 
-Créer `/etc/supervisor/conf.d/pladigit-worker.conf` :
+Certbot vous demande d'ajouter un enregistrement TXT dans votre zone DNS :
+- Sous-domaine : `_acme-challenge`
+- Type : `TXT`
+- Valeur : la valeur affichée par Certbot
+
+Attendez la propagation DNS (2-3 minutes), vérifiez :
+
+```bash
+dig TXT _acme-challenge.votre-domaine.fr
+```
+
+Quand la valeur apparaît, appuyez sur Entrée dans Certbot.
+
+> ⚠️ Le certificat wildcard expire dans 90 jours. Le renouvellement automatique
+> nécessite un plugin DNS (certbot-dns-ovh pour OVH). À configurer pour la production.
+
+Mettez à jour Nginx avec le chemin du nouveau certificat (noter le `-0001`) :
+
+```nginx
+ssl_certificate /etc/letsencrypt/live/votre-domaine.fr-0001/fullchain.pem;
+ssl_certificate_key /etc/letsencrypt/live/votre-domaine.fr-0001/privkey.pem;
+```
+
+---
+
+## 13. Configuration Supervisor (queues)
+
+```bash
+sudo nano /etc/supervisor/conf.d/pladigit.conf
+```
 
 ```ini
 [program:pladigit-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php /var/www/pladigit/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+command=php8.4 /var/www/pladigit/artisan queue:work --sleep=3 --tries=3 --max-time=3600
 autostart=true
 autorestart=true
 stopasgroup=true
 killasgroup=true
-user=deploy
+user=ubuntu
 numprocs=2
 redirect_stderr=true
 stdout_logfile=/var/www/pladigit/storage/logs/worker.log
@@ -306,71 +360,98 @@ stopwaitsecs=3600
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl start pladigit-worker:*
+sudo supervisorctl status
 ```
 
 ---
 
-## Partie 5 — Scheduler Laravel
+## 14. Accès Super Admin
 
-Ajouter au crontab de l'utilisateur `deploy` :
+Ajoutez votre IP dans le middleware :
 
 ```bash
-sudo -u deploy crontab -e
-# Ajouter :
-* * * * * cd /var/www/pladigit && php artisan schedule:run >> /dev/null 2>&1
+nano /var/www/pladigit/app/Http/Middleware/CheckSuperAdmin.php
 ```
+
+```php
+private array $allowedIps = [
+    '127.0.0.1',
+    '::1',
+    'VOTRE_IP_PUBLIQUE',
+];
+```
+
+> ⚠️ À terme, cette liste sera déplacée dans le `.env` via `SUPER_ADMIN_ALLOWED_IPS`.
+
+Accédez au Super Admin : `https://votre-domaine.fr/super-admin/login`
 
 ---
 
-## Partie 6 — Collabora Online (optionnel)
+## 15. Première organisation
 
-Collabora Online s'installe via Docker.
+Depuis le Super Admin :
+1. **Organisations** → **Nouvelle organisation**
+2. Renseignez le slug (ex: `mairie-soullans`)
+3. Choisissez le plan : `Communautaire`
+4. Validez
 
-> ⚠ **Ressources requises :** 4 Go RAM minimum dédié à Collabora. Sur un VPS 8 Go, Collabora + Pladigit coexistent correctement.
+L'organisation est accessible sur `https://mairie-soullans.votre-domaine.fr`
 
-```bash
-sudo apt install -y docker.io docker-compose-plugin
-sudo usermod -aG docker deploy
-```
+Les migrations tenant sont lancées automatiquement lors du provisioning.
 
-Utiliser le `docker-compose.yml` fourni :
+---
+
+## 16. OVH — Points d'attention spécifiques
+
+### SMTP sortant bloqué
+OVH bloque par défaut les connexions SMTP sortantes sur les VPS.
+Ouvrez un ticket support OVH pour demander le déblocage du port SMTP.
+
+### Clé SSH obligatoire
+Ubuntu 24.04 sur OVH n'autorise que l'authentification par clé SSH.
+Générez votre clé avant la commande du VPS.
+
+### Certificat wildcard
+Le certificat wildcard `*.votre-domaine.fr` nécessite une validation DNS manuelle.
+Planifiez le renouvellement 90 jours après l'installation.
+
+---
+
+## Mise à jour de Pladigit
 
 ```bash
 cd /var/www/pladigit
-docker compose up -d collabora
-docker ps | grep collabora  # vérifier que le conteneur tourne
+git pull origin main
+composer install --no-dev --optimize-autoloader
+npm install && npm run build
+php8.4 artisan migrate --path=database/migrations/platform --force
+php8.4 artisan config:cache
+php8.4 artisan route:cache
+php8.4 artisan view:cache
+sudo supervisorctl restart pladigit-worker:*
 ```
-
-Configurer ensuite dans Pladigit : **Admin > GED > Collabora** — renseigner l'URL de votre instance.
 
 ---
 
-## Partie 7 — Créer la première organisation
+## Environnement de développement local
 
-```bash
-sudo -u deploy php artisan tenant:create \
-  --name="Ma Mairie" \
-  --slug="mairie" \
-  --email="admin@mairie.pladigit.fr"
+Pour développer en local, utilisez un domaine `.local` distinct :
+
+Dans `/etc/hosts` :
+```
+127.0.0.1   votre-domaine.local
+127.0.0.1   demo.votre-domaine.local
+127.0.0.1   tenant1.votre-domaine.local
 ```
 
-Se connecter sur `https://mairie.pladigit.fr` avec les identifiants affichés.
+Dans `.env` local :
+```env
+APP_URL=http://votre-domaine.local
+SESSION_DOMAIN=.votre-domaine.local
+```
+
+Cela permet d'avoir local et production simultanément sans conflit DNS.
 
 ---
 
-## Partie 8 — Vérifications finales
-
-```bash
-# Health check
-curl https://pladigit.fr/health
-
-# Tests (hors LDAP et intégration)
-sudo -u deploy php artisan test --exclude-group ldap,integration
-
-# Vider les caches si nécessaire
-sudo -u deploy php artisan cache:clear
-sudo -u deploy php artisan config:cache
-sudo -u deploy php artisan route:cache
-```
-
-Voir aussi [docs/divers/checklist-mise-en-prod.md](docs/divers/checklist-mise-en-prod.md) pour la checklist complète avant ouverture aux utilisateurs.
+*Pladigit — AGPL-3.0 — contact@pladigit.fr — github.com/jpbosse/pladigit*

@@ -148,6 +148,8 @@ class ProjectController extends Controller
             'projectMembers.user',
             'milestones' => fn ($q) => $q->whereNull('parent_id')->orderBy('sort_order')->orderBy('due_date'),
             'milestones.children' => fn ($q) => $q->orderBy('sort_order')->orderBy('due_date'),
+            'milestones.children.children' => fn ($q) => $q->orderBy('sort_order')->orderBy('due_date'),
+            'milestones.children.children.children' => fn ($q) => $q->orderBy('sort_order')->orderBy('due_date'),
             'budgets',
             'stakeholders.user',
             'commActions.responsible',
@@ -187,36 +189,24 @@ class ProjectController extends Controller
         // Vue à plat par statut (Kanban classique — conservé pour compatibilité)
         $tasksByStatus = $allRootTasks->groupBy('status');
 
-        // Vue par jalon/phase : structure hiérarchique
-        // Chaque entrée phase : ['milestone' => Phase, 'tasks' => Collection, 'children' => [...jalons enfants]]
-        // Chaque entrée jalon autonome : ['milestone' => Jalon, 'tasks' => Collection, 'children' => []]
+        // Vue par jalon/nœud : liste à plat ordonnée en DFS avec profondeur.
+        // Chaque entrée : ['milestone' => ProjectMilestone|null, 'tasks' => Collection, 'depth' => int]
         $tasksByMilestone = collect();
 
-        // Collecter les IDs de tous les jalons enfants pour exclure les tâches orphelines
-        $allChildMilestoneIds = $project->milestones->flatMap(fn ($ms) => $ms->children->pluck('id'));
-
-        foreach ($project->milestones as $milestone) {
-            if ($milestone->isPhase() && $milestone->children->isNotEmpty()) {
-                // Phase avec jalons enfants
-                $phaseChildren = collect();
-                foreach ($milestone->children as $child) {
-                    $childTasks = $allRootTasks->where('milestone_id', $child->id)->values();
-                    $phaseChildren->push(['milestone' => $child, 'tasks' => $childTasks]);
-                }
-                $tasksByMilestone->push([
-                    'milestone' => $milestone,
-                    'tasks' => collect(), // les tâches sont dans les enfants
-                    'children' => $phaseChildren,
-                ]);
-            } else {
-                // Jalon autonome (sans enfants) ou phase sans jalons rattachés
-                $milestoneTasks = $allRootTasks->where('milestone_id', $milestone->id)->values();
-                $tasksByMilestone->push([
-                    'milestone' => $milestone,
-                    'tasks' => $milestoneTasks,
-                    'children' => collect(),
-                ]);
+        $buildFlat = function (\App\Models\Tenant\ProjectMilestone $ms, int $depth) use (&$buildFlat, $allRootTasks, $tasksByMilestone): void {
+            $directTasks = $allRootTasks->where('milestone_id', $ms->id)->values();
+            $tasksByMilestone->push([
+                'milestone' => $ms,
+                'tasks'     => $directTasks,
+                'depth'     => $depth,
+            ]);
+            foreach ($ms->children as $child) {
+                $buildFlat($child, $depth + 1);
             }
+        };
+
+        foreach ($project->milestones->whereNull('parent_id') as $root) {
+            $buildFlat($root, 0);
         }
 
         // Tâches sans jalon regroupées en dernier
@@ -224,8 +214,8 @@ class ProjectController extends Controller
         if ($unassignedTasks->isNotEmpty()) {
             $tasksByMilestone->push([
                 'milestone' => null,
-                'tasks' => $unassignedTasks,
-                'children' => collect(),
+                'tasks'     => $unassignedTasks,
+                'depth'     => 0,
             ]);
         }
 

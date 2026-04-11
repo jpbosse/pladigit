@@ -120,48 +120,43 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
     @endforeach
 </svg>
 
-{{-- ── Groupes ── --}}
+{{-- ── Groupes (liste à plat DFS, indentation par depth) ── --}}
 @foreach($tasksByMilestone as $group)
 @php
-    $milestone    = $group['milestone'];
-    $children     = $group['children'] ?? collect();
-    $isPhaseGroup = $milestone && $milestone->isPhase() && $children->isNotEmpty();
-    // Pour les phases : agréger toutes les tâches des enfants pour les compteurs
-    $allGroupTasks = $isPhaseGroup
-        ? $children->flatMap(fn($c) => $c['tasks'])
-        : $group['tasks'];
-    $allTasks   = $allGroupTasks->filter(fn($t) => $t->start_date && $t->due_date)->values();
-    $inProgress = $allTasks->where('status','in_progress')->values();
-    $isReached  = $milestone && $milestone->isReached();
-    $isLate     = $milestone && $milestone->isLate();
-    $isOpen     = $milestone && $milestone->id === $nextActiveMs;
-    $msColor    = $isReached ? '#16A34A' : ($isLate ? '#DC2626' : ($milestone->color ?? '#EA580C'));
-    $msPct      = $milestone?->due_date ? $xPct($milestone->due_date) : null;
-    $activeCount = $allGroupTasks->where('status','!=','done')->count();
-    $doneCount   = $allGroupTasks->where('status','done')->count();
+    $milestone   = $group['milestone'];
+    $depth       = $group['depth'] ?? 0;
+    $allTasks    = $group['tasks']->filter(fn($t) => $t->start_date && $t->due_date)->values();
+    $inProgress  = $allTasks->where('status','in_progress')->values();
+    $isReached   = $milestone && $milestone->isReached();
+    $isLate      = $milestone && $milestone->isLate();
+    $msColor     = $isReached ? '#16A34A' : ($isLate ? '#DC2626' : ($milestone?->effectiveColor() ?? '#EA580C'));
+    $msPct       = $milestone?->due_date ? $xPct($milestone->due_date) : null;
+    $activeCount = $allTasks->where('status','!=','done')->count();
+    $doneCount   = $allTasks->where('status','done')->count();
+    $indentPx    = $depth * 16;
     if ($isReached)  { $hdrBg='#F0FDF4'; $hdrBdr='#86EFAC'; }
     elseif ($isLate) { $hdrBg='#FFF5F5'; $hdrBdr='#FCA5A5'; }
     else             { $hdrBg='var(--pd-surface)'; $hdrBdr='var(--pd-border)'; }
+    $svgTaskCount = $allTasks->count() + ($milestone ? 1 : 0);
+    $svgHeight    = max(40, $svgTaskCount * $rowH);
 @endphp
 
-<div x-data="{ open: false }"
-     style="border:0.5px solid {{ $hdrBdr }};border-radius:8px;overflow:hidden;margin-bottom:6px;">
+<div x-data="{ open: {{ ($milestone && $milestone->id === $nextActiveMs) ? 'true' : 'false' }} }"
+     style="border:0.5px solid {{ $hdrBdr }};border-radius:8px;overflow:hidden;margin-bottom:6px;{{ $indentPx > 0 ? 'margin-left:'.$indentPx.'px;' : '' }}">
 
-    {{-- ── En-tête (avec mini timeline si replié) ── --}}
+    {{-- ── En-tête ── --}}
     <div @click="open=!open" style="cursor:pointer;user-select:none;background:{{ $hdrBg }};">
-
-        {{-- Ligne principale --}}
         <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;">
             @if($isReached)
             <div style="width:18px;height:18px;border-radius:50%;background:#16A34A;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">✓</div>
             @elseif($isLate)
             <div style="width:18px;height:18px;border-radius:50%;background:#FEE2E2;border:1.5px solid #E24B4A;color:#E24B4A;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;">!</div>
             @else
-            <div style="width:18px;height:18px;border-radius:50%;background:{{ $milestone->color ?? '#94A3B8' }};flex-shrink:0;"></div>
+            <div style="width:18px;height:18px;border-radius:50%;background:{{ $milestone?->color ?? '#94A3B8' }};flex-shrink:0;"></div>
             @endif
-            <div style="flex:1;font-size:13px;font-weight:700;color:{{ $isReached ? '#065F46' : 'var(--pd-text)' }};">
-                @if($isPhaseGroup)
-                <span style="font-size:9px;font-weight:700;background:var(--pd-navy);color:#fff;padding:1px 5px;border-radius:4px;margin-right:5px;letter-spacing:.04em;">PHASE</span>
+            <div style="flex:1;font-size:{{ $depth === 0 ? '13px' : '11px' }};font-weight:{{ $depth === 0 ? '700' : '600' }};color:{{ $isReached ? '#065F46' : 'var(--pd-text)' }};">
+                @if($milestone?->node_type)
+                <span style="font-size:9px;font-weight:700;background:{{ $msColor }};color:#fff;padding:1px 5px;border-radius:4px;margin-right:5px;letter-spacing:.04em;opacity:.9;">{{ strtoupper($milestone->node_type) }}</span>
                 @endif
                 {{ $milestone ? $milestone->title : 'Sans jalon' }}
             </div>
@@ -180,127 +175,40 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
                  style="transition:transform .2s;color:var(--pd-muted);font-size:13px;flex-shrink:0;">▾</div>
         </div>
 
-        {{-- ── Mini timeline (visible uniquement si replié) ── --}}
+        {{-- Mini timeline (replié) --}}
         <div x-show="!open" style="padding:0 12px 8px;">
             <div style="position:relative;height:20px;background:var(--pd-bg2);border-radius:4px;overflow:visible;">
-                {{-- Barre de progression globale du jalon --}}
                 @if($allTasks->isNotEmpty())
                 @php
-                    $msStart = $allTasks->min('start_date') ?? $viewStart;
-                    $msEnd   = $milestone?->due_date ?? $allTasks->max('due_date') ?? $viewEnd;
+                    $msStart  = $allTasks->min('start_date') ?? $viewStart;
+                    $msEnd    = $milestone?->due_date ?? $allTasks->max('due_date') ?? $viewEnd;
                     $startPct = $xPct($msStart);
-                    $endPct   = $xPct($msEnd);
-                    $width    = max(1, $endPct - $startPct);
+                    $width    = max(1, $xPct($msEnd) - $startPct);
                     $donePct  = $allTasks->count() > 0 ? ($allTasks->where('status','done')->count() / $allTasks->count() * $width) : 0;
                 @endphp
-                {{-- Fond de la durée --}}
-                <div style="position:absolute;top:4px;height:12px;left:{{ $startPct }}%;width:{{ $width }}%;background:{{ $isReached ? '#86EFAC' : 'color-mix(in srgb,'.($milestone->color??'#94A3B8').' 30%,#fff)' }};border-radius:3px;"></div>
-                {{-- Progression done --}}
-                <div style="position:absolute;top:4px;height:12px;left:{{ $startPct }}%;width:{{ $donePct }}%;background:{{ $isReached ? '#16A34A' : ($milestone->color??'#94A3B8') }};border-radius:3px;opacity:.7;"></div>
+                <div style="position:absolute;top:4px;height:12px;left:{{ $startPct }}%;width:{{ $width }}%;background:{{ $isReached ? '#86EFAC' : 'color-mix(in srgb,'.($milestone?->color??'#94A3B8').' 30%,#fff)' }};border-radius:3px;"></div>
+                <div style="position:absolute;top:4px;height:12px;left:{{ $startPct }}%;width:{{ $donePct }}%;background:{{ $isReached ? '#16A34A' : ($milestone?->color??'#94A3B8') }};border-radius:3px;opacity:.7;"></div>
                 @endif
-
-                {{-- Tâches en cours : petits points bleus --}}
                 @foreach($inProgress as $t)
                 @php $tPct = $xPct($t->due_date); @endphp
-                <div style="position:absolute;top:3px;left:calc({{ $tPct }}% - 7px);width:14px;height:14px;border-radius:50%;background:#3B82F6;border:2px solid #fff;z-index:2;"
-                     title="{{ $t->title }}"></div>
+                <div style="position:absolute;top:3px;left:calc({{ $tPct }}% - 7px);width:14px;height:14px;border-radius:50%;background:#3B82F6;border:2px solid #fff;z-index:2;" title="{{ $t->title }}"></div>
                 @endforeach
-
-                {{-- Aujourd'hui --}}
                 @if(now()->between($viewStart, $viewEnd))
                 <div style="position:absolute;top:0;left:{{ $todayPct }}%;width:2px;height:20px;background:#DC2626;border-radius:1px;z-index:3;"></div>
                 @endif
-
-                {{-- Losange jalon --}}
                 @if($msPct !== null)
-                <div style="position:absolute;top:50%;left:{{ $msPct }}%;transform:translate(-50%,-50%) rotate(45deg);width:12px;height:12px;background:{{ $msColor }};border:2px solid #fff;z-index:4;border-radius:1px;"
-                     title="{{ $milestone->title }}"></div>
+                <div style="position:absolute;top:50%;left:{{ $msPct }}%;transform:translate(-50%,-50%) rotate(45deg);width:12px;height:12px;background:{{ $msColor }};border:2px solid #fff;z-index:4;border-radius:1px;" title="{{ $milestone->title }}"></div>
                 @endif
             </div>
         </div>
-
     </div>
 
-    {{-- ── Corps SVG (visible si déplié) ── --}}
+    {{-- Corps SVG (déplié) --}}
     <div x-show="open"
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
          style="border-top:0.5px solid {{ $hdrBdr }};">
-
-    @if($isPhaseGroup)
-    {{-- Phase : jalons enfants chacun avec son SVG --}}
-    @foreach($children as $child)
-    @php
-        $childMs    = $child['milestone'];
-        $childTasks = $child['tasks']->filter(fn($t) => $t->start_date && $t->due_date)->values();
-        $childReach = $childMs->isReached();
-        $childLate  = $childMs->isLate();
-        $childColor = $childMs->color ?? ($milestone->color ?? '#EA580C');
-        $childMsClr = $childReach ? '#16A34A' : ($childLate ? '#DC2626' : $childColor);
-        $cSvgH      = max(40, ($childTasks->count()+1) * $rowH);
-        if ($childReach)  { $cHdrBg='#F0FDF4'; $cHdrBdr='#86EFAC'; }
-        elseif ($childLate) { $cHdrBg='#FFF5F5'; $cHdrBdr='#FCA5A5'; }
-        else              { $cHdrBg='var(--pd-surface2)'; $cHdrBdr='var(--pd-border)'; }
-    @endphp
-    <div style="margin:6px 10px;border:0.5px solid {{ $cHdrBdr }};border-radius:8px;overflow:hidden;"
-         x-data="{ childOpen: {{ !$childReach ? 'true' : 'false' }} }">
-        <div @click="childOpen=!childOpen"
-             style="display:flex;align-items:center;gap:8px;padding:7px 12px;cursor:pointer;background:{{ $cHdrBg }};">
-            <div style="width:8px;height:8px;border-radius:50%;background:{{ $childColor }};"></div>
-            <span style="font-size:11px;font-weight:600;flex:1;">🏁 {{ $childMs->title }}</span>
-            <span style="font-size:10px;color:{{ $childLate ? 'var(--pd-danger)' : 'var(--pd-muted)' }};">
-                {{ $childMs->due_date?->format('d/m/Y') }}
-                @if($childReach) ✓ @elseif($childLate) · Retard @endif
-            </span>
-            <span :style="childOpen?'':'transform:rotate(-90deg)'" style="transition:transform .15s;font-size:12px;">▾</span>
-        </div>
-        <div x-show="childOpen" style="border-top:0.5px solid {{ $cHdrBdr }};">
-        @if($childTasks->isEmpty())
-        <div style="padding:10px 14px;font-size:12px;color:var(--pd-muted);">Aucune tâche planifiée.</div>
-        @else
-        <svg width="{{ $svgWidth }}" height="{{ $cSvgH }}"
-             :style="'transform:scaleX('+zoom+');transform-origin:left top;width:'+Math.round({{ $svgWidth }}*zoom)+'px'"
-             style="display:block;" xmlns="http://www.w3.org/2000/svg">
-            @foreach($periods as $p)
-            <line x1="{{ $p['x'] }}" y1="0" x2="{{ $p['x'] }}" y2="{{ $cSvgH }}"
-                  stroke="var(--pd-border)" stroke-width="{{ ($p['major']??false)?'0.8':'0.4' }}"
-                  stroke-dasharray="{{ ($p['major']??false)?'':'4,4' }}"/>
-            @endforeach
-            @if($todayX)<line x1="{{ $todayX }}" y1="0" x2="{{ $todayX }}" y2="{{ $cSvgH }}" stroke="#DC2626" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>@endif
-            @foreach($childTasks as $ti => $task)
-            @php
-                $y=$ti*$rowH; $x1=$xPos($task->start_date); $x2=$xPos($task->due_date); $bw=max(8,$x2-$x1);
-                $bg=$task->status==='done'?'#D1FAE5':($prioBg[$task->priority]??'#93C5FD');
-                $str=$task->status==='done'?'#16A34A':($prioStroke[$task->priority]??'#2563EB');
-                $isLateTask=$task->due_date->isPast()&&$task->status!=='done';
-                $isInProgress=$task->status==='in_progress';
-            @endphp
-            <g :class="showAll||{{ $isInProgress?'true':'false' }}?'':'gantt-hidden'" style="transition:opacity .15s;">
-                <rect x="0" y="{{ $y }}" width="{{ $svgWidth }}" height="{{ $rowH }}" fill="{{ $ti%2===0?'var(--pd-surface)':'var(--pd-surface2)' }}" opacity="0.7"/>
-                <line x1="0" y1="{{ $y+$rowH }}" x2="{{ $svgWidth }}" y2="{{ $y+$rowH }}" stroke="var(--pd-border)" stroke-width="0.4"/>
-                @if($isInProgress)<rect x="0" y="{{ $y }}" width="3" height="{{ $rowH }}" fill="#3B82F6"/>@endif
-                <text x="10" y="{{ $y+$rowH/2+4 }}" font-size="11" fill="{{ $task->status==='done'?'var(--pd-muted)':'var(--pd-text)' }}" text-decoration="{{ $task->status==='done'?'line-through':'none' }}">{{ Str::limit($task->title,28) }}</text>
-                <rect x="{{ $x1 }}" y="{{ $y+$barY }}" width="{{ $bw }}" height="{{ $barH }}" rx="4" fill="{{ $bg }}" stroke="{{ $isLateTask?'#DC2626':$str }}" stroke-width="{{ $isLateTask?'2':'1' }}" style="cursor:grab;" class="gantt-bar" data-task-id="{{ $task->id }}" data-project-id="{{ $project->id }}" data-start="{{ $task->start_date->format('Y-m-d') }}" data-due="{{ $task->due_date->format('Y-m-d') }}" data-x1="{{ round($x1) }}" data-bw="{{ round($bw) }}" data-day-width="{{ round($dayWidth, 4) }}" data-view-start="{{ $viewStart->format('Y-m-d') }}" data-can-edit="{{ $canEdit ? '1' : '0' }}"/>
-                @if($bw>50)<text x="{{ $x1+$bw/2 }}" y="{{ $y+$barY+$barH/2+4 }}" text-anchor="middle" font-size="9" font-weight="600" fill="{{ $task->status==='done'?'#065F46':$str }}" style="pointer-events:none;">{{ \App\Models\Tenant\Task::statusLabels()[$task->status] }}</text>@endif
-            </g>
-            @endforeach
-            @if($childMs->due_date)
-            @php $yMs=$childTasks->count()*$rowH; $xMs=$xPos($childMs->due_date); @endphp
-            <rect x="0" y="{{ $yMs }}" width="{{ $svgWidth }}" height="{{ $rowH }}" fill="{{ $childReach?'#F0FDF4':'#FEF3C7' }}" opacity="0.6"/>
-            <text x="10" y="{{ $yMs+$rowH/2+4 }}" font-size="11" font-weight="700" fill="{{ $childReach?'#065F46':'#92400E' }}">{{ Str::limit($childMs->title,28) }}</text>
-            <line x1="{{ $xMs }}" y1="0" x2="{{ $xMs }}" y2="{{ $yMs }}" stroke="{{ $childMsClr }}" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
-            <polygon points="{{ $xMs }},{{ $yMs+4 }} {{ $xMs+10 }},{{ $yMs+$rowH/2 }} {{ $xMs }},{{ $yMs+$rowH-4 }} {{ $xMs-10 }},{{ $yMs+$rowH/2 }}" fill="{{ $childMsClr }}" stroke="#fff" stroke-width="1.5"/>
-            @endif
-        </svg>
-        @endif
-        </div>
-    </div>
-    @endforeach
-
-    @else
-    {{-- Jalon autonome : SVG classique --}}
-    @php $svgTaskCount=$allTasks->count()+($milestone?1:0); $svgHeight=max(40,$svgTaskCount*$rowH); @endphp
     @if($allTasks->isEmpty())
     <div style="padding:14px 16px;font-size:12px;color:var(--pd-muted);">Aucune tâche avec des dates de début et de fin.</div>
     @else
@@ -336,7 +244,6 @@ $todayX = now()->between($viewStart, $viewEnd) ? $xPos(now()) : null;
         <polygon points="{{ $xMs }},{{ $yMs+4 }} {{ $xMs+10 }},{{ $yMs+$rowH/2 }} {{ $xMs }},{{ $yMs+$rowH-4 }} {{ $xMs-10 }},{{ $yMs+$rowH/2 }}" fill="{{ $msClr }}" stroke="#fff" stroke-width="1.5"/>
         @endif
     </svg>
-    @endif
     @endif
     </div>
 

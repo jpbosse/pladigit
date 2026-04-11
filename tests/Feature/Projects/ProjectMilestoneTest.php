@@ -104,33 +104,35 @@ class ProjectMilestoneTest extends TestCase
     {
         $this->actingAs($this->owner);
 
-        $this->post(route('projects.phases.store', $this->project), [
-            'title' => 'Phase 1 — Socle technique',
+        $this->post(route('projects.milestones.store', $this->project), [
+            'title'      => 'Phase 1 — Socle technique',
+            'node_type'  => 'Phase',
             'start_date' => '2026-01-01',
-            'due_date' => '2026-03-31',
-            'color' => '#1E3A5F',
+            'due_date'   => '2026-03-31',
+            'color'      => '#1E3A5F',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('project_milestones', [
             'project_id' => $this->project->id,
-            'title' => 'Phase 1 — Socle technique',
-            'parent_id' => null,
+            'title'      => 'Phase 1 — Socle technique',
+            'node_type'  => 'Phase',
+            'parent_id'  => null,
         ], 'tenant');
     }
 
-    public function test_phase_sans_date_de_fin_est_refusee(): void
+    public function test_noeud_sans_date_de_fin_est_refuse(): void
     {
         $this->actingAs($this->owner);
-        $this->post(route('projects.phases.store', $this->project), [
-            'title' => 'Phase sans date',
+        $this->post(route('projects.milestones.store', $this->project), [
+            'title' => 'Nœud sans date',
         ])->assertSessionHasErrors('due_date');
     }
 
-    public function test_member_ne_peut_pas_creer_une_phase(): void
+    public function test_member_ne_peut_pas_creer_un_noeud(): void
     {
         $this->actingAs($this->member);
-        $this->post(route('projects.phases.store', $this->project), [
-            'title' => 'Phase interdite',
+        $this->post(route('projects.milestones.store', $this->project), [
+            'title'    => 'Nœud interdit',
             'due_date' => '2026-06-30',
         ])->assertForbidden();
     }
@@ -203,41 +205,68 @@ class ProjectMilestoneTest extends TestCase
         $this->assertSoftDeleted('project_milestones', ['id' => $child->id], 'tenant');
     }
 
-    public function test_is_phase_retourne_true_sans_parent_id(): void
+    public function test_is_root_retourne_true_sans_parent_id(): void
     {
-        $phase = ProjectMilestone::on('tenant')->create([
+        $root = ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title' => 'Phase',
-            'due_date' => '2026-12-31',
-            'parent_id' => null,
+            'title'      => 'Phase',
+            'node_type'  => 'Phase',
+            'due_date'   => '2026-12-31',
+            'parent_id'  => null,
         ]);
 
-        $this->assertTrue($phase->isPhase());
-        $this->assertFalse($phase->isChild());
+        $this->assertTrue($root->isRoot());
+        $this->assertTrue($root->isPhase()); // alias
+        $this->assertFalse($root->isChild());
+        $this->assertEquals(0, $root->depth());
     }
 
     public function test_is_child_retourne_true_avec_parent_id(): void
     {
-        $phase = ProjectMilestone::on('tenant')->create([
+        $root = ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title' => 'Phase parente',
-            'due_date' => '2026-12-31',
-            'parent_id' => null,
+            'title'      => 'Phase parente',
+            'due_date'   => '2026-12-31',
+            'parent_id'  => null,
         ]);
 
         $child = ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title' => 'Enfant',
-            'due_date' => '2026-11-30',
-            'parent_id' => $phase->id,
+            'title'      => 'Enfant',
+            'due_date'   => '2026-11-30',
+            'parent_id'  => $root->id,
         ]);
 
-        $this->assertFalse($child->isPhase());
+        $this->assertFalse($child->isRoot());
         $this->assertTrue($child->isChild());
-        $this->assertEquals($phase->id, $child->parent_id);
+        $this->assertEquals(1, $child->depth());
+        $this->assertEquals($root->id, $child->parent_id);
     }
 
-    // ── Guard phase terminée ──────────────────────────────────────────────────
+    public function test_profondeur_maximale_est_refusee(): void
+    {
+        $this->actingAs($this->owner);
+
+        // Créer une chaîne de MAX_DEPTH+1 nœuds (depth 0 à MAX_DEPTH)
+        $current = null;
+        for ($i = 0; $i <= ProjectMilestone::MAX_DEPTH; $i++) {
+            $current = ProjectMilestone::on('tenant')->create([
+                'project_id' => $this->project->id,
+                'title'      => "Niveau $i",
+                'due_date'   => '2026-12-31',
+                'parent_id'  => $current?->id,
+            ]);
+        }
+
+        // Le nœud à MAX_DEPTH est à profondeur MAX_DEPTH, donc refusé
+        $this->post(route('projects.milestones.store', $this->project), [
+            'title'     => 'Trop profond',
+            'due_date'  => '2026-12-31',
+            'parent_id' => $current->id,
+        ])->assertStatus(422);
+    }
+
+    // ── Guard nœud terminé ───────────────────────────────────────────────────
 
     public function test_phase_avec_jalons_non_atteints_ne_peut_pas_être_terminée(): void
     {
