@@ -47,9 +47,8 @@
                     <td class="px-4 py-3 font-mono text-sm text-gray-500">{{ $org->slug }}</td>
                     <td class="px-4 py-3 text-sm">
                         <span class="px-2 py-1 rounded-full text-xs font-medium
-                            {{ $org->plan === 'enterprise' ? 'bg-purple-100 text-purple-700' :
-                               ($org->plan === 'assistance' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600') }}">
-                            {{ ['communautaire'=>'Communautaire','assistance'=>'Assistance','enterprise'=>'Enterprise'][$org->plan] ?? ucfirst($org->plan) }}
+                            {{ $org->plan === 'partenaire' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600' }}">
+                            {{ ['communautaire'=>'Communautaire','partenaire'=>'Partenaire'][$org->plan] ?? ucfirst($org->plan) }}
                         </span>
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-600">— / {{ $org->max_users }}</td>

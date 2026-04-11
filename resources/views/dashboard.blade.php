@@ -148,7 +148,7 @@
         {{-- Modules --}}
         <div class="pd-section-header">
             <h2 class="pd-section-title">Modules</h2>
-            <span class="pd-section-sub">{{ $org->plan === 'community' ? 'Offre Communautaire' : ucfirst($org->plan) }}</span>
+            <span class="pd-section-sub">{{ ['communautaire'=>'Communautaire','partenaire'=>'Partenaire'][$org->plan] ?? ucfirst($org->plan) }}</span>
         </div>
         @php
         $org = app(\App\Services\TenantManager::class)->current();

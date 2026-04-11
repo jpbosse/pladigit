@@ -130,18 +130,18 @@ class OrganizationTest extends TestCase
         ]);
     }
 
-    public function test_plan_assistance_donne_max_users_200(): void
+    public function test_plan_partenaire_donne_max_users_9999(): void
     {
         $this->actingAsSuperAdmin()
             ->post(route('super-admin.organizations.store'), [
-                'name' => 'Commune Assistance',
-                'slug' => 'commune-assistance',
-                'plan' => 'assistance',
+                'name' => 'Commune Partenaire',
+                'slug' => 'commune-partenaire',
+                'plan' => 'partenaire',
             ]);
 
         $this->assertDatabaseHas('organizations', [
-            'slug' => 'commune-assistance',
-            'max_users' => 200,
+            'slug' => 'commune-partenaire',
+            'max_users' => 9999,
         ]);
     }
 
@@ -154,7 +154,7 @@ class OrganizationTest extends TestCase
         $this->actingAsSuperAdmin()
             ->put(route('super-admin.organizations.update', $org), [
                 'name' => 'Nouveau nom',
-                'plan' => 'assistance',
+                'plan' => 'partenaire',
                 'status' => 'active',
             ])
             ->assertRedirect()
@@ -163,7 +163,7 @@ class OrganizationTest extends TestCase
         $this->assertDatabaseHas('organizations', [
             'id' => $org->id,
             'name' => 'Nouveau nom',
-            'plan' => 'assistance',
+            'plan' => 'partenaire',
         ]);
     }
 
