@@ -67,7 +67,7 @@
         .pricing .section-title{color:white}
         .pricing .section-subtitle{color:rgba(255,255,255,0.6)}
         .pricing .section-label{color:var(--gold2)}
-        .plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-top:3rem}
+        .plans-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-top:3rem;max-width:760px;margin-left:auto;margin-right:auto}
         .plan-card{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:2rem;transition:all 0.2s}
         .plan-card.featured{background:white;border-color:white}
         .plan-name{font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.5);margin-bottom:0.75rem}
@@ -115,7 +115,7 @@
         .alert-success{background:#D1FAE5;border:1px solid #6EE7B7;color:#065F46;padding:1rem 2rem;text-align:center;font-weight:500}
         .fade-up{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
         .fade-up.visible{opacity:1;transform:translateY(0)}
-        @media(max-width:900px){.hero-inner{grid-template-columns:1fr}.hero-card{display:none}.values-grid,.modules-grid,.plans-grid{grid-template-columns:repeat(2,1fr)}.contact-grid{grid-template-columns:1fr}.footer-links{gap:1.5rem}}
+        @media(max-width:900px){.hero-inner{grid-template-columns:1fr}.hero-card{display:none}.values-grid,.modules-grid{grid-template-columns:repeat(2,1fr)}.plans-grid{grid-template-columns:1fr}.contact-grid{grid-template-columns:1fr}.footer-links{gap:1.5rem}}
         @media(max-width:600px){.values-grid,.modules-grid,.plans-grid{grid-template-columns:1fr}.footer-top{flex-direction:column;gap:2rem}}
     </style>
 </head>
@@ -234,10 +234,10 @@
         'featured' => false,
     ],
     [
-        'name'     => 'Assistance',
-        'price'    => '150 €',
-        'period'   => '/ mois',
-        'users'    => '200 utilisateurs',
+        'name'     => 'Partenaire',
+        'price'    => 'Sur devis',
+        'period'   => '',
+        'users'    => 'Utilisateurs illimités',
         'features' => [
             'Tout Communautaire inclus',
             'Personnalisation visuelle et fonctionnelle',
@@ -246,20 +246,6 @@
             'Maintenance et mises à jour incluses',
         ],
         'featured' => true,
-    ],
-    [
-        'name'     => 'Enterprise',
-        'price'    => 'Sur devis',
-        'period'   => '',
-        'users'    => 'Illimité',
-        'features' => [
-            'Tout Assistance inclus',
-            'Hébergement dédié',
-            'SLA garanti',
-            'Support téléphonique prioritaire',
-            'Développements sur mesure',
-        ],
-        'featured' => false,
     ],
 ]; @endphp
             @foreach($plans as $plan)
@@ -298,11 +284,9 @@
                     <div class="form-group"><label class="form-label">Organisation *</label><input type="text" name="organization" class="form-input" required placeholder="Communauté de Communes de l'île de Noirmoutier"></div>
                     <div class="form-group"><label class="form-label">Email professionnel *</label><input type="email" name="email" class="form-input" required placeholder="m.dupont@collectivite.fr"></div>
                     <div class="form-group"><label class="form-label">Plan souhaité</label><select name="plan" class="form-select">
-<option value="">-- Choisir --
 <option value="">-- Choisir --</option>
-<option>Communautaire — Gratuit</option>
-<option>Assistance — 150 € / mois</option>
-<option>Enterprise — Sur devis</option>
+<option value="communautaire">Communautaire — Gratuit</option>
+<option value="partenaire">Partenaire — Sur devis</option>
 </select></div>
                     <div class="form-group"><label class="form-label">Message</label><textarea name="message" class="form-textarea" placeholder="Décrivez votre besoin..."></textarea></div>
                     <button type="submit" class="btn-submit">Envoyer la demande</button>
