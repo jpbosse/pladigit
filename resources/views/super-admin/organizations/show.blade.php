@@ -30,7 +30,7 @@
                 @endphp
                 <span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:{{ $sbg }};color:{{ $sfg }};">{{ $slabel }}</span>
                 <span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:999px;background:#f3f4f6;color:#374151;">
-                    {{ ['communautaire'=>'Communautaire','assistance'=>'Assistance','enterprise'=>'Enterprise'][$organization->plan] ?? ucfirst($organization->plan) }}
+                    {{ ['communautaire'=>'Communautaire','partenaire'=>'Partenaire'][$organization->plan] ?? ucfirst($organization->plan) }}
                 </span>
             </div>
         </div>

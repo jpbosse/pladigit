@@ -118,7 +118,7 @@
                     </td>
                     <td style="padding:14px 16px;">
                         @php
-                            $planColors = ['communautaire'=>['bg'=>'rgba(107,114,128,0.12)','color'=>'#6b7280'],'assistance'=>['bg'=>'rgba(59,130,246,0.12)','color'=>'#3b82f6'],'enterprise'=>['bg'=>'rgba(139,92,246,0.12)','color'=>'#8b5cf6']];
+                            $planColors = ['communautaire'=>['bg'=>'rgba(107,114,128,0.12)','color'=>'#6b7280'],'partenaire'=>['bg'=>'rgba(59,130,246,0.12)','color'=>'#3b82f6']];
                             $pc = $planColors[$row['plan']] ?? $planColors['communautaire'];
                         @endphp
                         <span style="font-size:11px;padding:3px 9px;border-radius:12px;font-weight:600;

@@ -30,9 +30,8 @@
                     <label class="block text-sm font-medium text-gray-700 mb-1">Plan</label>
                     <select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
                         @foreach([
-                            'communautaire' => 'Communautaire — 0 €/mois (auto-hébergé)',
-                            'assistance'    => 'Assistance — 150 €/mois (200 utilisateurs)',
-                            'enterprise'    => 'Enterprise — Sur devis (illimité)',
+                            'communautaire' => 'Communautaire — Auto-hébergé (illimité)',
+                            'partenaire'    => 'Partenaire — Avec accompagnement (illimité)',
                         ] as $value => $label)
                         <option value="{{ $value }}" {{ $organization->plan === $value ? 'selected' : '' }}>
                             {{ $label }}
