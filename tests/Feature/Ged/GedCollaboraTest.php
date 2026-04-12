@@ -241,8 +241,10 @@ class GedCollaboraTest extends TestCase
 
     // ── GedEditorController ───────────────────────────────────
 
-    public function test_editor_redirige_si_collabora_non_configure(): void
+    public function test_editor_fonctionne_si_collabora_url_vide_proxy_mode(): void
     {
+        // URL vide = Collabora proxifié sous le même vhost que l'app.
+        // Le contrôleur utilise alors request()->getSchemeAndHttpHost() comme base.
         config(['collabora.url' => '']);
 
         $user = $this->admin();
@@ -253,8 +255,8 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->get(route('ged.documents.editor', $doc));
 
-        $response->assertRedirect(route('ged.folders.show', $doc->folder_id));
-        $response->assertSessionHas('error');
+        $response->assertOk();
+        $response->assertViewIs('ged.editor');
     }
 
     public function test_editor_redirige_si_mime_non_supporte(): void
