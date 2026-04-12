@@ -275,8 +275,10 @@ class ModuleAccessTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_accès_éditeur_collabora_redirige_si_url_collabora_vide(): void
+    public function test_accès_éditeur_collabora_ok_si_url_collabora_vide_proxy_mode(): void
     {
+        // URL vide = mode proxy : Collabora servi sous le même vhost que l'app.
+        // Le contrôleur utilise request()->getSchemeAndHttpHost() — l'éditeur s'ouvre.
         $this->persistCurrentOrg(['enabled_modules' => ['ged']]);
         config(['collabora.url' => '']);
 
@@ -284,7 +286,7 @@ class ModuleAccessTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->get(route('ged.documents.editor', $doc))
-            ->assertRedirect();
+            ->assertOk();
     }
 
     public function test_accès_éditeur_collabora_ok_si_ged_activé_et_url_configurée(): void
