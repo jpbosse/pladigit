@@ -12,6 +12,7 @@ use App\Http\Controllers\Projects\ProjectMilestoneController;
 use App\Http\Controllers\Projects\ProjectObservationController;
 use App\Http\Controllers\Projects\ProjectStakeholderController;
 use App\Http\Controllers\Projects\ProjectTemplateController;
+use App\Http\Controllers\Projects\ProjectTransferController;
 use App\Http\Controllers\Projects\TaskCommentController;
 use App\Http\Controllers\Projects\TaskController;
 use App\Http\Controllers\Projects\TaskDependencyController;
@@ -51,6 +52,10 @@ Route::prefix('projects')
             Route::post('/{template}/apply', [ProjectTemplateController::class, 'apply'])->name('apply');
         });
 
+        // ── Import JSON projet (doit être avant /{project} pour éviter le conflit) ──
+        Route::get('/import', [ProjectTransferController::class, 'importForm'])->name('import.form');
+        Route::post('/import', [ProjectTransferController::class, 'importStore'])->name('import.store');
+
         // ── Projets ───────────────────────────────────────────────────────
         Route::get('/', [ProjectController::class, 'index'])->name('index');
         Route::get('/create', [ProjectController::class, 'create'])->name('create');
@@ -83,6 +88,10 @@ Route::prefix('projects')
         Route::get('/{project}/export/zip', [ProjectController::class, 'exportZip'])
             ->name('export.zip');
 
+        // Export JSON complet (transfert machine→machine)
+        Route::get('/{project}/export/data', [ProjectTransferController::class, 'export'])
+            ->name('export.data');
+
         // Historique d'activité
         Route::get('/{project}/history', [ProjectHistoryController::class, 'index'])
             ->name('history');
@@ -108,6 +117,7 @@ Route::prefix('projects')
         // ── Membres ───────────────────────────────────────────────────────
         Route::post('/{project}/members', [ProjectMemberController::class, 'store'])->name('members.store');
         Route::delete('/{project}/members/{user}', [ProjectMemberController::class, 'destroy'])->name('members.destroy');
+        Route::post('/{project}/members/reassign', [ProjectMemberController::class, 'reassign'])->name('members.reassign');
 
         // ── Jalons & Phases ──────────────────────────────────────────────────
         Route::post('/{project}/milestones', [ProjectMilestoneController::class, 'store'])->name('milestones.store');

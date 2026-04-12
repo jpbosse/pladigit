@@ -105,18 +105,18 @@ class ProjectMilestoneTest extends TestCase
         $this->actingAs($this->owner);
 
         $this->post(route('projects.milestones.store', $this->project), [
-            'title'      => 'Phase 1 — Socle technique',
-            'node_type'  => 'Phase',
+            'title' => 'Phase 1 — Socle technique',
+            'node_type' => 'Phase',
             'start_date' => '2026-01-01',
-            'due_date'   => '2026-03-31',
-            'color'      => '#1E3A5F',
+            'due_date' => '2026-03-31',
+            'color' => '#1E3A5F',
         ])->assertRedirect();
 
         $this->assertDatabaseHas('project_milestones', [
             'project_id' => $this->project->id,
-            'title'      => 'Phase 1 — Socle technique',
-            'node_type'  => 'Phase',
-            'parent_id'  => null,
+            'title' => 'Phase 1 — Socle technique',
+            'node_type' => 'Phase',
+            'parent_id' => null,
         ], 'tenant');
     }
 
@@ -132,7 +132,7 @@ class ProjectMilestoneTest extends TestCase
     {
         $this->actingAs($this->member);
         $this->post(route('projects.milestones.store', $this->project), [
-            'title'    => 'Nœud interdit',
+            'title' => 'Nœud interdit',
             'due_date' => '2026-06-30',
         ])->assertForbidden();
     }
@@ -209,10 +209,10 @@ class ProjectMilestoneTest extends TestCase
     {
         $root = ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title'      => 'Phase',
-            'node_type'  => 'Phase',
-            'due_date'   => '2026-12-31',
-            'parent_id'  => null,
+            'title' => 'Phase',
+            'node_type' => 'Phase',
+            'due_date' => '2026-12-31',
+            'parent_id' => null,
         ]);
 
         $this->assertTrue($root->isRoot());
@@ -225,16 +225,16 @@ class ProjectMilestoneTest extends TestCase
     {
         $root = ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title'      => 'Phase parente',
-            'due_date'   => '2026-12-31',
-            'parent_id'  => null,
+            'title' => 'Phase parente',
+            'due_date' => '2026-12-31',
+            'parent_id' => null,
         ]);
 
         $child = ProjectMilestone::on('tenant')->create([
             'project_id' => $this->project->id,
-            'title'      => 'Enfant',
-            'due_date'   => '2026-11-30',
-            'parent_id'  => $root->id,
+            'title' => 'Enfant',
+            'due_date' => '2026-11-30',
+            'parent_id' => $root->id,
         ]);
 
         $this->assertFalse($child->isRoot());
@@ -252,16 +252,16 @@ class ProjectMilestoneTest extends TestCase
         for ($i = 0; $i <= ProjectMilestone::MAX_DEPTH; $i++) {
             $current = ProjectMilestone::on('tenant')->create([
                 'project_id' => $this->project->id,
-                'title'      => "Niveau $i",
-                'due_date'   => '2026-12-31',
-                'parent_id'  => $current?->id,
+                'title' => "Niveau $i",
+                'due_date' => '2026-12-31',
+                'parent_id' => $current?->id,
             ]);
         }
 
         // Le nœud à MAX_DEPTH est à profondeur MAX_DEPTH, donc refusé
         $this->post(route('projects.milestones.store', $this->project), [
-            'title'     => 'Trop profond',
-            'due_date'  => '2026-12-31',
+            'title' => 'Trop profond',
+            'due_date' => '2026-12-31',
             'parent_id' => $current->id,
         ])->assertStatus(422);
     }

@@ -13,6 +13,7 @@
     <div style="display:flex;gap:8px;">
         <a href="{{ route('projects.templates.index') }}" class="pd-btn pd-btn-secondary pd-btn-sm">📋 Modèles</a>
         @can('create', \App\Models\Tenant\Project::class)
+        <a href="{{ route('projects.import.form') }}" class="pd-btn pd-btn-secondary pd-btn-sm" title="Importer un projet depuis un fichier JSON">⬆ Importer</a>
         <a href="{{ route('projects.create') }}" class="pd-btn pd-btn-primary pd-btn-sm">+ Nouveau projet</a>
         @endcan
     </div>

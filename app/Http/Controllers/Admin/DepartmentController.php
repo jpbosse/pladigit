@@ -25,7 +25,7 @@ class DepartmentController extends Controller
         // Tous les nœuds racines (sans parent), triés par sort_order puis name
         $roots = Department::on('tenant')
             ->whereNull('parent_id')
-            ->with(['allChildren.members', 'allChildren.managers', 'members', 'managers'])
+            ->with(['allChildren.members', 'allChildren.managers', 'allChildren.head', 'members', 'managers', 'head'])
             ->withCount('members')
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -55,7 +55,12 @@ class DepartmentController extends Controller
         $labelSuggestions = array_unique(array_merge($defaultLabels, $usedLabels));
         sort($labelSuggestions);
 
-        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions'));
+        $allUsers = \App\Models\Tenant\User::on('tenant')
+            ->where('status', 'active')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions', 'allUsers'));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -93,6 +98,7 @@ class DepartmentController extends Controller
             'parent_id' => ['nullable', 'integer'],
             'is_transversal' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'head_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
         ]);
 
         // Vérification souple : si parent_id fourni, il doit exister
@@ -145,6 +151,7 @@ class DepartmentController extends Controller
             'parent_id' => ['nullable', 'integer'],
             'is_transversal' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
+            'head_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
         ]);
 
         // Vérifie que le parent existe si fourni

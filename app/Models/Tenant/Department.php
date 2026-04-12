@@ -39,6 +39,7 @@ class Department extends Model
         'sort_order',
         'parent_id',
         'created_by',
+        'head_id',
     ];
 
     protected $casts = [
@@ -47,6 +48,16 @@ class Department extends Model
     ];
 
     // ── Relations ────────────────────────────────────────────
+
+    /**
+     * Responsable désigné de l'entité (directeur, chef de service…).
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function head(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'head_id');
+    }
 
     /**
      * Tous les utilisateurs membres de ce département (via pivot).

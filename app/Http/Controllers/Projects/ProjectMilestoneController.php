@@ -28,13 +28,15 @@ class ProjectMilestoneController extends Controller
         $this->authorize('manageMilestones', $project);
 
         $validated = $request->validate([
-            'title'       => ['required', 'string', 'max:255'],
-            'node_type'   => ['nullable', 'string', 'max:50'],
+            'title' => ['required', 'string', 'max:255'],
+            'node_type' => ['nullable', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'parent_id'   => ['nullable', 'integer', 'exists:tenant.project_milestones,id'],
-            'start_date'  => ['nullable', 'date'],
-            'due_date'    => ['required', 'date'],
-            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'parent_id' => ['nullable', 'integer', 'exists:tenant.project_milestones,id'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['required', 'date'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'responsible_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
+            'department_id' => ['nullable', 'integer', 'exists:tenant.departments,id'],
         ]);
 
         if (! empty($validated['parent_id'])) {
@@ -43,7 +45,7 @@ class ProjectMilestoneController extends Controller
             abort_if(
                 $parent->depth() >= ProjectMilestone::MAX_DEPTH,
                 422,
-                'Profondeur maximale atteinte ('.( ProjectMilestone::MAX_DEPTH + 1).' niveaux).'
+                'Profondeur maximale atteinte ('.(ProjectMilestone::MAX_DEPTH + 1).' niveaux).'
             );
         }
 
@@ -55,17 +57,17 @@ class ProjectMilestoneController extends Controller
 
         $milestone = $project->milestones()->create([
             ...$validated,
-            'color'      => $validated['color'] ?? $defaultColor,
+            'color' => $validated['color'] ?? $defaultColor,
             'sort_order' => $maxOrder + 10,
         ]);
 
         $this->audit->log('milestone.created', auth()->user(), [
             'new' => [
-                'project_id'   => $project->id,
+                'project_id' => $project->id,
                 'milestone_id' => $milestone->id,
-                'title'        => $milestone->title,
-                'node_type'    => $milestone->node_type,
-                'parent_id'    => $milestone->parent_id,
+                'title' => $milestone->title,
+                'node_type' => $milestone->node_type,
+                'parent_id' => $milestone->parent_id,
             ],
         ]);
 
@@ -115,10 +117,10 @@ class ProjectMilestoneController extends Controller
             return back();
         }
 
-        $current  = $siblings[$index];
+        $current = $siblings[$index];
         $neighbor = $siblings[$swapIndex];
 
-        $currentOrder  = $current->sort_order;
+        $currentOrder = $current->sort_order;
         $neighborOrder = $neighbor->sort_order;
 
         $current->update(['sort_order' => $neighborOrder]);
@@ -132,16 +134,19 @@ class ProjectMilestoneController extends Controller
         $this->authorize('manageMilestones', $project);
 
         $validated = $request->validate([
-            'title'       => ['sometimes', 'required', 'string', 'max:255'],
-            'node_type'   => ['sometimes', 'nullable', 'string', 'max:50'],
+            'title' => ['sometimes', 'required', 'string', 'max:255'],
+            'node_type' => ['sometimes', 'nullable', 'string', 'max:50'],
             'description' => ['nullable', 'string', 'max:1000'],
-            'parent_id'   => ['sometimes', 'nullable', 'integer', 'exists:tenant.project_milestones,id'],
-            'start_date'  => ['nullable', 'date'],
-            'due_date'    => ['sometimes', 'required', 'date'],
-            'color'       => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'reached'     => ['sometimes', 'boolean'],
-            'sort_order'  => ['sometimes', 'integer', 'min:0'],
-            'comment'     => ['nullable', 'string', 'max:2000'],
+            'parent_id' => ['sometimes', 'nullable', 'integer', 'exists:tenant.project_milestones,id'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['sometimes', 'required', 'date'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'reached' => ['sometimes', 'boolean'],
+            'sort_order' => ['sometimes', 'integer', 'min:0'],
+            'comment' => ['nullable', 'string', 'max:2000'],
+            'manual_progress' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:100'],
+            'responsible_id' => ['sometimes', 'nullable', 'integer', 'exists:tenant.users,id'],
+            'department_id' => ['sometimes', 'nullable', 'integer', 'exists:tenant.departments,id'],
         ]);
 
         // Reparentage : valider le nouveau parent si fourni
@@ -163,7 +168,7 @@ class ProjectMilestoneController extends Controller
                 abort_if(
                     $newParent->depth() >= ProjectMilestone::MAX_DEPTH,
                     422,
-                    'Profondeur maximale atteinte ('.( ProjectMilestone::MAX_DEPTH + 1).' niveaux).'
+                    'Profondeur maximale atteinte ('.(ProjectMilestone::MAX_DEPTH + 1).' niveaux).'
                 );
             }
         }
@@ -216,9 +221,9 @@ class ProjectMilestoneController extends Controller
                 $milestone->markReached();
                 $this->audit->log('milestone.reached', auth()->user(), [
                     'new' => [
-                        'project_id'   => $project->id,
+                        'project_id' => $project->id,
                         'milestone_id' => $milestone->id,
-                        'title'        => $milestone->title,
+                        'title' => $milestone->title,
                     ],
                 ]);
             } elseif (! $validated['reached'] && $milestone->isReached()) {

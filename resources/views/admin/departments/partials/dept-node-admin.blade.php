@@ -44,6 +44,12 @@
                     @endif
                 </div>
                 <p style="font-size:13px;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $node->name }}</p>
+                @if($node->head)
+                <p style="font-size:11px;font-weight:400;margin:2px 0 0;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    <svg style="width:9px;height:9px;fill:none;stroke:currentColor;stroke-width:2;vertical-align:middle;" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {{ $node->head->name }}
+                </p>
+                @endif
             </div>
         </div>
 
@@ -51,7 +57,7 @@
             <span style="font-size:11px;opacity:0.55;">
                 👥{{ $node->members->count() }}@if($hasChildren) · {{ $node->allChildren->count() }}↓@endif
             </span>
-            <button onclick="openEditModal({{ $node->id }},'{{ addslashes($node->name) }}','{{ addslashes($node->label ?? '') }}','{{ $node->color ?? '' }}',{{ $node->parent_id ?: 'null' }},{{ $node->is_transversal ? 'true' : 'false' }},{{ $node->sort_order ?? 0 }})"
+            <button onclick="openEditModal({{ $node->id }},'{{ addslashes($node->name) }}','{{ addslashes($node->label ?? '') }}','{{ $node->color ?? '' }}',{{ $node->parent_id ?: 'null' }},{{ $node->is_transversal ? 'true' : 'false' }},{{ $node->sort_order ?? 0 }},{{ $node->head_id ?? 'null' }})"
                     style="font-size:12px;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;
                            background:rgba(255,255,255,0.15);color:#fff;transition:background 0.15s;"
                     onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">

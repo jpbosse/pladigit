@@ -32,14 +32,13 @@ class LoginController extends Controller
 
     public function login(Request $request)
     {
-        
 
-\Log::info('LOGIN ATTEMPT', [
-    'email' => $request->email,
-    'ldap_reason' => app(LdapAuthService::class)->getLastFailureReason(),
-]);
+        \Log::info('LOGIN ATTEMPT', [
+            'email' => $request->email,
+            'ldap_reason' => app(LdapAuthService::class)->getLastFailureReason(),
+        ]);
 
-$request->validate([
+        $request->validate([
             'email' => ['required', 'email'],
             'password' => ['required', 'string'],
         ]);
@@ -106,23 +105,15 @@ $request->validate([
             ]);
         }
 
+        \Log::info('LOGIN DEBUG', [
+            'email' => $request->email,
+            'password' => $request->password,
+            'hash' => $user->password_hash,
+            'check' => Hash::check($request->password, $user->password_hash),
+            'user_status' => $user->status,
+        ]);
 
-
-
-       
-\Log::info('LOGIN DEBUG', [
-    'email' => $request->email,
-    'password' => $request->password,
-    'hash' => $user->password_hash,
-    'check' => Hash::check($request->password, $user->password_hash),
-    'user_status' => $user->status,
-]);
-
-
-
-
-
- if (! Hash::check($request->password, $user->password_hash)) {
+        if (! Hash::check($request->password, $user->password_hash)) {
             $this->handleFailedAttempt($user);
             throw ValidationException::withMessages([
                 'email' => ['Identifiants incorrects.'],

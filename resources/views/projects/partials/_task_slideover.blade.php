@@ -632,8 +632,17 @@ function taskSlideover() {
                     milestone_id: this.taskData.milestone_id || null,
                 }),
             })
-            .then(r => r.json())
-            .then(d => { if (d.success) { this.editMode = false; window.location.reload(); } else if (d.error) { alert(d.error); } });
+            .then(function(r) {
+                if (r.status === 403) throw new Error('Accès refusé — vous n\'avez pas la permission de modifier cette tâche.');
+                if (r.status === 422) return r.json().then(function(d) { throw new Error(d.message || Object.values(d.errors || {})[0]?.[0] || 'Données invalides.'); });
+                if (!r.ok) throw new Error('Erreur serveur (' + r.status + ').');
+                return r.json();
+            })
+            .then(function(d) {
+                if (d.success) { window.location.reload(); }
+                else { alert(d.error || 'Erreur inconnue lors de la sauvegarde.'); }
+            })
+            .catch(function(err) { alert(err.message || 'Erreur de connexion.'); });
         },
 
         deleteTask() {

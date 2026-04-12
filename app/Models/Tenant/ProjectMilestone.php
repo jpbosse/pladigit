@@ -51,6 +51,9 @@ class ProjectMilestone extends Model
         'comment',
         'color',
         'sort_order',
+        'manual_progress',
+        'responsible_id',
+        'department_id',
     ];
 
     /** @var array<string, string> */
@@ -58,6 +61,7 @@ class ProjectMilestone extends Model
         'start_date' => 'date',
         'due_date' => 'date',
         'reached_at' => 'datetime',
+        'manual_progress' => 'integer',
     ];
 
     /** Labels de type suggérés dans l'UI. */
@@ -67,6 +71,18 @@ class ProjectMilestone extends Model
     public const MAX_DEPTH = 3;
 
     // ── Relations ─────────────────────────────────────────────────────────
+
+    /** @return BelongsTo<User, $this> */
+    public function responsible(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'responsible_id');
+    }
+
+    /** @return BelongsTo<Department, $this> */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
 
     /** @return BelongsTo<Project, $this> */
     public function project(): BelongsTo
@@ -212,22 +228,33 @@ class ProjectMilestone extends Model
     }
 
     /**
-     * Progression des tâches (% done).
-     * Agrège récursivement toutes les tâches des descendants.
+     * Progression (%) du nœud.
+     *
+     * Règle de priorité :
+     *  1. Si manual_progress est défini et > 0 → valeur manuelle (override, même si des tâches existent).
+     *     Mettre à 0 pour revenir au calcul automatique.
+     *  2. Sinon, si des tâches existent → calcul automatique (% tâches done).
+     *  3. Sinon → 0.
      */
     public function progressionPercent(): int
     {
-        $ids = $this->descendantIds();
-
-        // Inclure ce nœud lui-même
-        $total = Task::on('tenant')->whereIn('milestone_id', $ids)->count();
-        if ($total === 0) {
-            return 0;
+        if ($this->manual_progress !== null && $this->manual_progress > 0) {
+            return $this->manual_progress;
         }
 
-        $done = Task::on('tenant')->whereIn('milestone_id', $ids)->where('status', 'done')->count();
+        $ids = $this->descendantIds();
+        $total = Task::on('tenant')->whereIn('milestone_id', $ids)->count();
 
-        return (int) round($done / $total * 100);
+        if ($total > 0) {
+            $done = Task::on('tenant')
+                ->whereIn('milestone_id', $ids)
+                ->where('status', 'done')
+                ->count();
+
+            return (int) round($done / $total * 100);
+        }
+
+        return 0;
     }
 
     /**

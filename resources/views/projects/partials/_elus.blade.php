@@ -34,6 +34,12 @@ $obsTypes    = \App\Models\Tenant\ProjectObservation::typeConfig();
         <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 1v3M11 1v3M2 7h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M6 10l1.5 1.5L10 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Jalons .ics
     </a>
+    <a href="{{ route('projects.export.data', $project) }}"
+       class="btn-sm" title="Exporter toutes les données du projet (JSON) pour transfert vers un autre poste"
+       style="display:flex;align-items:center;gap:5px;text-decoration:none;background:#F0FDF4;border-color:#86EFAC;color:#065F46;">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+        Export JSON
+    </a>
 </div>
 
 {{-- ── 4 métriques clés ── --}}

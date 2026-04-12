@@ -62,11 +62,16 @@
 
 @section('content')
 @php
-$canManage = $userRole?->canManage() || in_array(auth()->user()?->role, ['admin','president','dgs']);
-$canEdit   = $userRole?->canEdit() || $canManage;
+$canManage      = $userRole?->canManage() || in_array(auth()->user()?->role, ['admin','president','dgs']);
+$canEdit        = $userRole?->canEdit() || $canManage;
+$currentSection = request('section', 'but');
+// Sections valides uniquement
+$validSections  = ['but','finances','historique','documents','planif','parties','comcom','risques','observations','elus'];
+if (!in_array($currentSection, $validSections)) { $currentSection = 'but'; }
 @endphp
 
-<div class="proj-shell" x-data="{ section: '{{ request('section','but') }}', histHtml: '', histLoading: false, histLoaded: false, init(){ if(this.section==='historique') this.loadHistory(); window.addEventListener('load-history', e => { this.histLoaded=false; this.loadHistory(e.detail.action); }); }, go(s){ this.section=s; const u=new URL(location); u.searchParams.set('section',s); history.replaceState(null,'',u); if(s==='historique' && !this.histLoaded) this.loadHistory(); }, loadHistory(action){ this.histLoading=true; var url='/projects/{{ $project->id }}/history'+(action?'?action='+action:''); fetch(url,{headers:{'X-Requested-With':'XMLHttpRequest','Accept':'text/html'}}).then(r=>r.text()).then(h=>{this.histHtml=h;this.histLoading=false;this.histLoaded=true;}).catch(()=>{this.histLoading=false;}); } }">
+{{-- Navigation entièrement en JS vanilla (aucune dépendance Alpine) --}}
+<div class="proj-shell">
 
 {{-- ── SIDEBAR ─────────────────────────────────────────────────── --}}
 <nav class="proj-sidenav">
@@ -90,20 +95,20 @@ $canEdit   = $userRole?->canEdit() || $canManage;
 
     <div class="sn-section">
         <span class="sn-lbl">Projet</span>
-        <button class="sn-item" :class="{active:section==='but'}" @click="go('but')">
+        <button id="nav-but" class="sn-item {{ $currentSection==='but'?'active':'' }}" onclick="pdGoSection('but')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2.5" fill="currentColor"/></svg>
             <span class="sn-label">But &amp; description</span>
         </button>
-        <button class="sn-item" :class="{active:section==='finances'}" @click="go('finances')">
+        <button id="nav-finances" class="sn-item {{ $currentSection==='finances'?'active':'' }}" onclick="pdGoSection('finances')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="5" width="12" height="9" rx="2" stroke="currentColor" stroke-width="1.2"/><path d="M5 5V4a3 3 0 016 0v1" stroke="currentColor" stroke-width="1.2"/><path d="M8 9v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <span class="sn-label">Finances</span>
             @if($budgetAlerts->count())<span class="sn-badge warn">{{ $budgetAlerts->count() }} alerte{{ $budgetAlerts->count()>1?'s':'' }}</span>@endif
         </button>
-        <button class="sn-item" :class="{active:section==='historique'}" @click="go('historique')">
+        <button id="nav-historique" class="sn-item {{ $currentSection==='historique'?'active':'' }}" onclick="pdGoSection('historique')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3.5l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
             <span class="sn-label">Historique</span>
         </button>
-        <button class="sn-item" :class="{active:section==='documents'}" @click="go('documents')">
+        <button id="nav-documents" class="sn-item {{ $currentSection==='documents'?'active':'' }}" onclick="pdGoSection('documents')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M4 2h6l4 4v8a1 1 0 01-1 1H4a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M10 2v4h4" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 9h4M6 12h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
             <span class="sn-label">Documents</span>
             @php try { $docCount = $project->documents()->count(); } catch (\Throwable) { $docCount = 0; } @endphp
@@ -113,7 +118,7 @@ $canEdit   = $userRole?->canEdit() || $canManage;
 
     <div class="sn-section">
         <span class="sn-lbl">Planification</span>
-        <button class="sn-item" :class="{active:section==='planif'}" @click="go('planif')">
+        <button id="nav-planif" class="sn-item {{ $currentSection==='planif'?'active':'' }}" onclick="pdGoSection('planif')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><rect x="1" y="3" width="4" height="10" rx="1.5" stroke="currentColor" stroke-width="1.2"/><rect x="6" y="3" width="4" height="7" rx="1.5" stroke="currentColor" stroke-width="1.2"/><rect x="11" y="3" width="4" height="5" rx="1.5" stroke="currentColor" stroke-width="1.2"/></svg>
             <span class="sn-label">Tâches &amp; planning</span>
             @php $activeTasks = $taskStats['todo']+$taskStats['in_progress']+$taskStats['in_review']; @endphp
@@ -123,24 +128,24 @@ $canEdit   = $userRole?->canEdit() || $canManage;
 
     <div class="sn-section">
         <span class="sn-lbl">Conduite du changement</span>
-        <button class="sn-item" :class="{active:section==='parties'}" @click="go('parties')">
+        <button id="nav-parties" class="sn-item {{ $currentSection==='parties'?'active':'' }}" onclick="pdGoSection('parties')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><circle cx="6" cy="5" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="11" cy="6" r="2" stroke="currentColor" stroke-width="1.2"/><path d="M1 13c0-2.2 2.2-4 5-4s5 1.8 5 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M11 10c1.7.3 3 1.4 3 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
             <span class="sn-label">Parties prenantes</span>
             @php $resistant=$project->stakeholders->where('adhesion','resistant')->count(); @endphp
             @if($resistant)<span class="sn-badge danger">{{ $resistant }} résistant{{ $resistant>1?'s':'' }}</span>@endif
         </button>
-        <button class="sn-item" :class="{active:section==='comcom'}" @click="go('comcom')">
+        <button id="nav-comcom" class="sn-item {{ $currentSection==='comcom'?'active':'' }}" onclick="pdGoSection('comcom')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M2 3h12v8H9l-3 2V11H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
             <span class="sn-label">Plan de communication</span>
             @php $lateComm=$project->commActions->filter(fn($a)=>$a->isLate())->count(); @endphp
             @if($lateComm)<span class="sn-badge warn">{{ $lateComm }} en retard</span>@endif
         </button>
-        <button class="sn-item" :class="{active:section==='risques'}" @click="go('risques')">
+        <button id="nav-risques" class="sn-item {{ $currentSection==='risques'?'active':'' }}" onclick="pdGoSection('risques')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M8 2L14 13H2L8 2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 6v3M8 11v.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
             <span class="sn-label">Freins &amp; risques</span>
             @if($criticalRisksCount)<span class="sn-badge danger">{{ $criticalRisksCount }} critique{{ $criticalRisksCount>1?'s':'' }}</span>@endif
         </button>
-        <button class="sn-item" :class="{active:section==='observations'}" @click="go('observations')">
+        <button id="nav-observations" class="sn-item {{ $currentSection==='observations'?'active':'' }}" onclick="pdGoSection('observations')">
             <svg class="sn-icon" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v9H9.5L8 13l-1.5-2H2z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M5 6h6M5 8.5h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
             <span class="sn-label">Observations &amp; décisions</span>
             @php $obsCount = $project->observations->count(); @endphp
@@ -149,32 +154,92 @@ $canEdit   = $userRole?->canEdit() || $canManage;
     </div>
 
     <div class="sn-elus">
-        <button class="sn-item" :class="{active:section==='elus'}" @click="go('elus')" style="background:var(--pd-bg2);border-radius:8px;">
+        <button id="nav-elus" class="sn-item {{ $currentSection==='elus'?'active':'' }}" onclick="pdGoSection('elus')" style="background:var(--pd-bg2);border-radius:8px;">
             <svg class="sn-icon" style="opacity:1;" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>
             <span class="sn-label" style="font-weight:700;color:var(--pd-navy);">Tableau de bord élus</span>
         </button>
     </div>
 </nav>
 
-{{-- ── CONTENU ──────────────────────────────────────────────────── --}}
+{{-- ── CONTENU — sections affichées/masquées en JS pur ─────────── --}}
 <div class="proj-main">
-    <div x-show="section==='but'"      x-cloak>@include('projects.partials._but')</div>
-    <div x-show="section==='finances'" x-cloak>@include('projects.partials._finances')</div>
-    <div x-show="section==='planif'"   x-cloak>@include('projects.partials._planif')</div>
-    <div x-show="section==='parties'"  x-cloak>@include('projects.partials._stakeholders')</div>
-    <div x-show="section==='comcom'"   x-cloak>@include('projects.partials._comcom')</div>
-    <div x-show="section==='risques'"  x-cloak>@include('projects.partials._risques')</div>
-    <div x-show="section==='elus'"     x-cloak>@include('projects.partials._elus')</div>
-    <div x-show="section==='observations'" x-cloak>@include('projects.partials._observations')</div>
-    <div x-show="section==='documents'" x-cloak>@include('projects.partials._documents')</div>
-    <div x-show="section==='historique'" x-cloak
-         x-init="$watch('section', v => { if(v==='historique' && !histLoaded) loadHistory(); }); $el.addEventListener('load-history', e => { histLoaded=false; loadHistory(e.detail.action); })">
-        <div x-show="histLoading" style="padding:48px;text-align:center;color:var(--pd-muted);font-size:13px;">Chargement…</div>
-        <div x-show="!histLoading" x-html="histHtml"></div>
+    <div id="section-but"          class="pd-section" style="{{ $currentSection!=='but'          ? 'display:none' : '' }}">@include('projects.partials._but')</div>
+    <div id="section-finances"     class="pd-section" style="{{ $currentSection!=='finances'     ? 'display:none' : '' }}">@include('projects.partials._finances')</div>
+    <div id="section-planif"       class="pd-section" style="{{ $currentSection!=='planif'       ? 'display:none' : '' }}">@include('projects.partials._planif')</div>
+    <div id="section-parties"      class="pd-section" style="{{ $currentSection!=='parties'      ? 'display:none' : '' }}">@include('projects.partials._stakeholders')</div>
+    <div id="section-comcom"       class="pd-section" style="{{ $currentSection!=='comcom'       ? 'display:none' : '' }}">@include('projects.partials._comcom')</div>
+    <div id="section-risques"      class="pd-section" style="{{ $currentSection!=='risques'      ? 'display:none' : '' }}">@include('projects.partials._risques')</div>
+    <div id="section-elus"         class="pd-section" style="{{ $currentSection!=='elus'         ? 'display:none' : '' }}">@include('projects.partials._elus')</div>
+    <div id="section-observations" class="pd-section" style="{{ $currentSection!=='observations' ? 'display:none' : '' }}">@include('projects.partials._observations')</div>
+    <div id="section-documents"    class="pd-section" style="{{ $currentSection!=='documents'    ? 'display:none' : '' }}">@include('projects.partials._documents')</div>
+    <div id="section-historique"   class="pd-section" style="{{ $currentSection!=='historique'   ? 'display:none' : '' }}">
+        <div id="hist-loading" style="padding:48px;text-align:center;color:var(--pd-muted);font-size:13px;display:none;">Chargement…</div>
+        <div id="hist-content"></div>
     </div>
     @include('projects.partials._task_slideover')
     @include('projects.partials._event_slideover')
 </div>
+
+{{-- Navigation JS — aucune dépendance Alpine --}}
+<script>
+(function() {
+    var _histLoaded  = false;
+    var _histLoading = false;
+    var _projectId   = {{ $project->id }};
+
+    window.pdGoSection = function(name) {
+        // Masquer toutes les sections
+        document.querySelectorAll('.pd-section').forEach(function(el) { el.style.display = 'none'; });
+        // Afficher la section cible
+        var target = document.getElementById('section-' + name);
+        if (target) target.style.display = '';
+        // Mettre à jour l'état actif dans la nav
+        document.querySelectorAll('.proj-sidenav .sn-item').forEach(function(b) { b.classList.remove('active'); });
+        var navBtn = document.getElementById('nav-' + name);
+        if (navBtn) navBtn.classList.add('active');
+        // Mettre à jour l'URL sans rechargement
+        try {
+            var u = new URL(location.href);
+            u.searchParams.set('section', name);
+            history.replaceState(null, '', u.toString());
+        } catch(e) {}
+        // Charger l'historique AJAX si nécessaire
+        if (name === 'historique' && !_histLoaded) pdLoadHistory();
+    };
+
+    window.pdLoadHistory = function(action) {
+        if (_histLoading) return;
+        _histLoading = true;
+        var loadingEl = document.getElementById('hist-loading');
+        var contentEl = document.getElementById('hist-content');
+        if (loadingEl) loadingEl.style.display = '';
+        var url = '/projects/' + _projectId + '/history' + (action ? '?action=' + action : '');
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'text/html' } })
+            .then(function(r) { return r.text(); })
+            .then(function(html) {
+                if (contentEl) { contentEl.innerHTML = html; }
+                if (loadingEl) loadingEl.style.display = 'none';
+                _histLoaded  = true;
+                _histLoading = false;
+            })
+            .catch(function() {
+                if (loadingEl) loadingEl.style.display = 'none';
+                _histLoading = false;
+            });
+    };
+
+    // Charger l'historique au chargement si c'est la section active
+    @if($currentSection === 'historique')
+    document.addEventListener('DOMContentLoaded', function() { pdLoadHistory(); });
+    @endif
+
+    // Écouter les demandes de rechargement de l'historique depuis les partials
+    window.addEventListener('load-history', function(e) {
+        _histLoaded = false;
+        pdLoadHistory(e && e.detail ? e.detail.action : null);
+    });
+}());
+</script>
 
 </div>
 
