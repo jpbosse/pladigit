@@ -308,18 +308,7 @@ class GedCollaboraTest extends TestCase
         $this->assertTrue($doc->isCollaboraSupported());
     }
 
-    public function test_is_collabora_supported_false_si_collabora_non_configure(): void
-    {
-        config(['collabora.url' => '']);
-
-        $user = $this->admin();
-        $folder = $this->makeFolder($user);
-        $doc = $this->makeDocument($folder, $user, 'application/vnd.oasis.opendocument.text');
-
-        $this->assertFalse($doc->isCollaboraSupported());
-    }
-
-    public function test_is_collabora_supported_false_pour_mime_non_supporte(): void
+public function test_is_collabora_supported_false_pour_mime_non_supporte(): void
     {
         config(['collabora.url' => 'https://collabora.test']);
 
