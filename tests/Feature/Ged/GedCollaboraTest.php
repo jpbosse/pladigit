@@ -308,7 +308,7 @@ class GedCollaboraTest extends TestCase
         $this->assertTrue($doc->isCollaboraSupported());
     }
 
-public function test_is_collabora_supported_false_pour_mime_non_supporte(): void
+    public function test_is_collabora_supported_false_pour_mime_non_supporte(): void
     {
         config(['collabora.url' => 'https://collabora.test']);
 
