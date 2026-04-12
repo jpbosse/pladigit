@@ -411,7 +411,11 @@ window.openEditComm = function(data) {
     document.getElementById('ce-resources').value   = data.resources_needed;
     document.getElementById('modal-comm-edit').classList.add('open');
 };
+</script>
+@endif
 
+{{-- comcomCtrl doit être défini pour TOUS les utilisateurs (utilisé par x-data="comcomCtrl()" hors @if) --}}
+<script>
 function comcomCtrl() {
     return {
         zoom: 1,
@@ -427,4 +431,3 @@ function comcomCtrl() {
     };
 }
 </script>
-@endif

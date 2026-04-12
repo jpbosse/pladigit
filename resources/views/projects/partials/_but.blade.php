@@ -12,9 +12,17 @@
         </div>
         <div class="section-sub">Informations générales du projet</div>
     </div>
-    @if($canManage)
-    <a href="{{ route('projects.edit', $project) }}" class="btn-sm">Modifier</a>
-    @endif
+    <div style="display:flex;align-items:center;gap:6px;">
+        <a href="{{ route('projects.export.data', $project) }}"
+           class="btn-sm" title="Exporter le projet en JSON (transfert vers un autre poste)"
+           style="display:flex;align-items:center;gap:4px;text-decoration:none;background:#F0FDF4;border-color:#86EFAC;color:#065F46;">
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none"><path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M3 12h10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Export JSON
+        </a>
+        @if($canManage)
+        <a href="{{ route('projects.edit', $project) }}" class="btn-sm">Modifier</a>
+        @endif
+    </div>
 </div>
 
 <div class="stat-grid">
@@ -61,18 +69,46 @@
     selectedParent: null,
     selectedParentDepth: 0,
     editMs: { id: null, node_type: '', title: '', due_date: '', start_date: '', color: '#1E3A5F', description: '', parent_id: '' },
-    openEdit(id, node_type, title, due_date, start_date, color, description, parent_id) {
-        this.editMs = { id, node_type: node_type || '', title, due_date: due_date || '', start_date: start_date || '', color: color || '#1E3A5F', description: description || '', parent_id: parent_id || '' };
-        this.showModalEdit = true;
-        this.$nextTick(() => {
-            document.dispatchEvent(new CustomEvent('open-edit-ms', {
-                detail: { id, node_type, title, due_date, start_date, color, description, parent_id }
-            }));
-        });
-    },
     init() {
+        const self = this;
+        document.addEventListener('open-edit-ms-trigger', function(e) {
+            const d = e.detail;
+            self.editMs = {
+                id:          d.id,
+                node_type:   d.node_type   || '',
+                title:       d.title,
+                due_date:    d.due_date    || '',
+                start_date:  d.start_date  || '',
+                color:       d.color       || '#1E3A5F',
+                description: d.description || '',
+                parent_id:   d.parent_id   || '',
+            };
+            self.showModalEdit = true;
+            self.$nextTick(function() {
+                const base = '{{ url('projects/' . $project->id . '/milestones') }}/';
+                const form = document.getElementById('form-edit-milestone');
+                if (form) form.action = base + d.id;
+                const f = function(id, val) { const el = document.getElementById(id); if (el) el.value = val; };
+                f('edit-ms-node-type',       d.node_type        || '');
+                f('edit-ms-title',           d.title);
+                f('edit-ms-description',     d.description      || '');
+                f('edit-ms-start',           d.start_date       || '');
+                f('edit-ms-due',             d.due_date         || '');
+                f('edit-ms-manual-progress', d.manual_progress  != null ? d.manual_progress : 0);
+                f('edit-ms-responsible',     d.responsible_id   || '');
+                f('edit-ms-department',      d.department_id    || '');
+                if (typeof window.selectMsColor === 'function') window.selectMsColor(d.color || '#1E3A5F');
+                const parentSel = document.getElementById('edit-ms-parent');
+                if (parentSel) {
+                    Array.from(parentSel.options).forEach(function(opt) {
+                        opt.disabled = (String(opt.dataset.self) === String(d.id));
+                    });
+                    parentSel.value = d.parent_id || '';
+                }
+            });
+        });
         @if($errors->has('due_date'))
-        this.showModalEdit = true;
+        self.showModalEdit = true;
         @endif
     }
 }">
@@ -160,6 +196,29 @@
                         <div class="pd-form-group">
                             <label class="pd-label pd-label-req">Fin prévue</label>
                             <input type="date" name="due_date" class="pd-input" required style="width:100%;">
+                        </div>
+                    </div>
+                    <div class="pd-form-row-2">
+                        <div class="pd-form-group">
+                            <label class="pd-label">Direction / Service</label>
+                            <select name="department_id" class="pd-input" style="width:100%;">
+                                <option value="">— Aucune —</option>
+                                @foreach($tenantDepartments as $dir)
+                                <option value="{{ $dir->id }}" style="font-weight:600;">{{ $dir->name }}</option>
+                                @foreach($dir->children as $svc)
+                                <option value="{{ $svc->id }}">&nbsp;&nbsp;↳ {{ $svc->name }}</option>
+                                @endforeach
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="pd-form-group">
+                            <label class="pd-label">Responsable</label>
+                            <select name="responsible_id" class="pd-input" style="width:100%;">
+                                <option value="">— Aucun —</option>
+                                @foreach($tenantUsers as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                @endforeach
+                            </select>
                         </div>
                     </div>
                     <div class="pd-form-group">
@@ -272,6 +331,46 @@
                             @endforeach
                         </div>
                     </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;">
+                        <div class="pd-form-group" style="margin-bottom:0;">
+                            <label class="pd-label">Direction / Service</label>
+                            <select name="department_id" id="edit-ms-department" class="pd-input" style="width:100%;">
+                                <option value="">— Aucune —</option>
+                                @foreach($tenantDepartments as $dir)
+                                <option value="{{ $dir->id }}" style="font-weight:600;">{{ $dir->name }}</option>
+                                @foreach($dir->children as $svc)
+                                <option value="{{ $svc->id }}">&nbsp;&nbsp;↳ {{ $svc->name }}</option>
+                                @endforeach
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="pd-form-group" style="margin-bottom:0;">
+                            <label class="pd-label">Responsable</label>
+                            <select name="responsible_id" id="edit-ms-responsible" class="pd-input" style="width:100%;">
+                                <option value="">— Aucun —</option>
+                                @foreach($tenantUsers as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                    {{-- Avancement manuel — prioritaire sur le calcul automatique si > 0 --}}
+                    <div class="pd-form-group" style="margin-top:14px;margin-bottom:0;" x-data="{ manualPct: 0 }">
+                        <label class="pd-label" style="display:flex;align-items:center;justify-content:space-between;">
+                            <span>Avancement manuel</span>
+                            <span style="font-size:11px;color:{{ 'var(--pd-navy)' }};" x-text="manualPct > 0 ? 'Actif — remplace le calcul auto' : 'Inactif — calcul auto'"></span>
+                        </label>
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;">
+                            <input type="range" name="manual_progress" id="edit-ms-manual-progress"
+                                   min="0" max="100" step="5"
+                                   x-model="manualPct"
+                                   style="flex:1;accent-color:var(--pd-navy);">
+                            <span style="font-size:13px;font-weight:700;color:var(--pd-navy);width:36px;text-align:right;" x-text="manualPct + '%'"></span>
+                        </div>
+                        <div style="font-size:10px;color:var(--pd-muted);margin-top:3px;">
+                            Si &gt; 0 : s'affiche à la place du calcul par les tâches. Remettre à 0 pour revenir au calcul automatique.
+                        </div>
+                    </div>
                 </div>
                 <div class="pd-modal-footer">
                     <button type="button" @click="showModalEdit=false" class="pd-btn pd-btn-secondary pd-btn-sm">Annuler</button>
@@ -295,27 +394,16 @@ function selectMsColor(color) {
     });
 }
 
-document.addEventListener('alpine:init', function () {
-    document.addEventListener('open-edit-ms', function (e) {
-        const d = e.detail;
-        const base = '{{ url('projects/' . $project->id . '/milestones') }}/';
-        document.getElementById('form-edit-milestone').action = base + d.id;
-        document.getElementById('edit-ms-node-type').value   = d.node_type  || '';
-        document.getElementById('edit-ms-title').value       = d.title;
-        document.getElementById('edit-ms-description').value = d.description || '';
-        document.getElementById('edit-ms-start').value       = d.start_date || '';
-        document.getElementById('edit-ms-due').value         = d.due_date   || '';
-        selectMsColor(d.color || '#1E3A5F');
-        // Parent : sélectionner la bonne option, exclure le nœud lui-même
-        const parentSel = document.getElementById('edit-ms-parent');
-        if (parentSel) {
-            Array.from(parentSel.options).forEach(opt => {
-                opt.disabled = (opt.dataset.self == d.id);
-            });
-            parentSel.value = d.parent_id || '';
-        }
-    });
-});
+// Fonction globale appelée depuis _milestone_node (onclick = pas de problème de portée Alpine)
+window.openMilestoneEdit = function(id, node_type, title, due_date, start_date, color, description, parent_id, manual_progress, responsible_id, department_id) {
+    document.dispatchEvent(new CustomEvent('open-edit-ms-trigger', {
+        detail: { id: id, node_type: node_type, title: title, due_date: due_date,
+                  start_date: start_date, color: color, description: description,
+                  parent_id: parent_id, manual_progress: manual_progress != null ? manual_progress : 0,
+                  responsible_id: responsible_id != null ? responsible_id : '',
+                  department_id: department_id != null ? department_id : '' }
+    }));
+};
 </script>
 
 {{-- Membres --}}
@@ -328,3 +416,18 @@ document.addEventListener('alpine:init', function () {
     </div>
     @endforeach
 </div>
+
+{{-- Lien vers la réaffectation dans le panel admin (admin / chef de projet uniquement) --}}
+@if($canManage && \App\Enums\UserRole::tryFrom(auth()->user()->role ?? '')?->atLeast(\App\Enums\UserRole::ADMIN))
+<div class="pd-card" style="border-left:3px solid #D97706;background:#FFFBEB;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#92400E;margin-bottom:8px;">Réaffectation</div>
+    <div style="font-size:12px;color:#78350F;line-height:1.5;margin-bottom:10px;">
+        Pour transférer les tâches, rôles et responsabilités d'un ancien compte vers un nouveau, utilisez l'outil d'administration.
+    </div>
+    <a href="{{ route('admin.projects.reassign.index') }}"
+       style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:12px;font-weight:600;background:#D97706;color:#fff;border-radius:6px;text-decoration:none;">
+        <svg style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+        Réaffectation inter-projets
+    </a>
+</div>
+@endif

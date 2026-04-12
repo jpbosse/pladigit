@@ -147,9 +147,17 @@ class ProjectController extends Controller
         $project->load([
             'projectMembers.user',
             'milestones' => fn ($q) => $q->whereNull('parent_id')->orderBy('sort_order')->orderBy('due_date'),
+            'milestones.responsible',
+            'milestones.department',
             'milestones.children' => fn ($q) => $q->orderBy('sort_order')->orderBy('due_date'),
+            'milestones.children.responsible',
+            'milestones.children.department',
             'milestones.children.children' => fn ($q) => $q->orderBy('sort_order')->orderBy('due_date'),
+            'milestones.children.children.responsible',
+            'milestones.children.children.department',
             'milestones.children.children.children' => fn ($q) => $q->orderBy('sort_order')->orderBy('due_date'),
+            'milestones.children.children.children.responsible',
+            'milestones.children.children.children.department',
             'budgets',
             'stakeholders.user',
             'commActions.responsible',
@@ -179,6 +187,13 @@ class ProjectController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
 
+        // Hiérarchie organisationnelle pour les selects jalons
+        $tenantDepartments = \App\Models\Tenant\Department::on('tenant')
+            ->with('children')
+            ->whereNull('parent_id')
+            ->orderBy('name')
+            ->get();
+
         // Tâches pour le Kanban : racine uniquement, ordonnées par priorité puis sort_order
         $allRootTasks = $project->rootTasks()
             ->with(['assignee', 'milestone', 'children' => fn ($q) => $q->select('id', 'parent_task_id', 'status')])
@@ -197,8 +212,8 @@ class ProjectController extends Controller
             $directTasks = $allRootTasks->where('milestone_id', $ms->id)->values();
             $tasksByMilestone->push([
                 'milestone' => $ms,
-                'tasks'     => $directTasks,
-                'depth'     => $depth,
+                'tasks' => $directTasks,
+                'depth' => $depth,
             ]);
             foreach ($ms->children as $child) {
                 $buildFlat($child, $depth + 1);
@@ -214,8 +229,8 @@ class ProjectController extends Controller
         if ($unassignedTasks->isNotEmpty()) {
             $tasksByMilestone->push([
                 'milestone' => null,
-                'tasks'     => $unassignedTasks,
-                'depth'     => 0,
+                'tasks' => $unassignedTasks,
+                'depth' => 0,
             ]);
         }
 
@@ -229,7 +244,7 @@ class ProjectController extends Controller
             'project', 'taskStats', 'progression',
             'userRole', 'tasksByStatus', 'tasksByMilestone', 'ganttTasks',
             'budgetSummary', 'activeRisks', 'criticalRisksCount',
-            'budgetAlerts', 'tenantUsers'
+            'budgetAlerts', 'tenantUsers', 'tenantDepartments'
         ));
     }
 

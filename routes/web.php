@@ -188,6 +188,13 @@ Route::middleware('tenant')->group(function () {
                 Route::post('purge/run', [\App\Http\Controllers\Admin\AdminPurgeController::class, 'run'])->name('purge.run');
             });
 
+            // Réaffectation projets
+            Route::middleware('module:projects')->group(function () {
+                Route::get('projects/reassign', [\App\Http\Controllers\Admin\ProjectReassignController::class, 'index'])->name('projects.reassign.index');
+                Route::post('projects/reassign', [\App\Http\Controllers\Admin\ProjectReassignController::class, 'store'])->name('projects.reassign.store');
+                Route::post('projects/reassign/unowned', [\App\Http\Controllers\Admin\ProjectReassignController::class, 'storeUnowned'])->name('projects.reassign.unowned');
+            });
+
             // Journal d'audit
             Route::get('audit', [App\Http\Controllers\Admin\AuditController::class, 'index'])->name('audit.index');
             Route::get('audit/stats', [App\Http\Controllers\Admin\AuditController::class, 'stats'])->name('audit.stats');
