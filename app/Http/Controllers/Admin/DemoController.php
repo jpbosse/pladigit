@@ -7,6 +7,7 @@ use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
 /**
@@ -151,7 +152,8 @@ class DemoController extends Controller
 
         // Exécuter la commande dans un processus PHP séparé (comme le terminal)
         // pour éviter les problèmes de contexte liés à Artisan::call() depuis le web.
-        $process = new Process([PHP_BINARY, base_path('artisan'), 'demo:reset', '--slug=demo']);
+        $phpBin  = (new PhpExecutableFinder())->find() ?: 'php';
+        $process = new Process([$phpBin, base_path('artisan'), 'demo:reset', '--slug=demo']);
         $process->setTimeout(270);
         $process->run();
 
