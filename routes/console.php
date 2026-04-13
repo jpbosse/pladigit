@@ -73,6 +73,16 @@ Schedule::command('ged:purge')
         \Log::error('Purge GED échouée');
     });
 
+// Remise à zéro de la démo — chaque nuit à minuit
+Schedule::command('demo:reset --slug=demo')
+    ->dailyAt('00:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->environments(['production'])
+    ->onFailure(function () {
+        \Log::error('Remise à zéro démo échouée');
+    });
+
 // Purge des données expirées — chaque nuit à 03h00
 // Couvre : liens de partage, invitations non utilisées, sessions DB obsolètes
 Schedule::command('pladigit:purge-expired')
