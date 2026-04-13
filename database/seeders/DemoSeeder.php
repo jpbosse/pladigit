@@ -96,23 +96,42 @@ class DemoSeeder extends Seeder
 
     private function createDepartments(array $users): array
     {
-        $adminId = $users[UserRole::ADMIN->value]->id;
+        $adminId  = $users[UserRole::ADMIN->value]->id;
+        $maire    = $users[UserRole::PRESIDENT->value];
+        $dgs      = $users[UserRole::DGS->value];
+        $respDir  = $users[UserRole::RESP_DIRECTION->value];
+        $respSvc  = $users[UserRole::RESP_SERVICE->value];
+        $agent    = $users[UserRole::USER->value];
 
+        // ── Niveau 1 : Cabinet du Maire ───────────────────────────
+        $cabinet = Department::updateOrCreate(
+            ['name' => 'Cabinet du Maire'],
+            ['type' => 'direction', 'label' => 'direction', 'color' => '#92400e', 'sort_order' => 0, 'created_by' => $adminId]
+        );
+
+        // ── Niveau 1 : Direction Générale des Services (DGS) ──────
+        $dg = Department::updateOrCreate(
+            ['name' => 'Direction Générale des Services'],
+            ['type' => 'direction', 'label' => 'direction', 'color' => '#1f2937', 'sort_order' => 1, 'created_by' => $adminId]
+        );
+
+        // ── Niveau 2 : Directions rattachées au DGS ───────────────
         $dst = Department::updateOrCreate(
             ['name' => 'Direction des Services Techniques'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#1e40af', 'sort_order' => 1, 'created_by' => $adminId]
+            ['type' => 'direction', 'label' => 'direction', 'color' => '#1e40af', 'sort_order' => 2, 'parent_id' => $dg->id, 'created_by' => $adminId]
         );
 
         $rh = Department::updateOrCreate(
             ['name' => 'Direction des Ressources Humaines'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#7c3aed', 'sort_order' => 2, 'created_by' => $adminId]
+            ['type' => 'direction', 'label' => 'direction', 'color' => '#7c3aed', 'sort_order' => 3, 'parent_id' => $dg->id, 'created_by' => $adminId]
         );
 
         $sg = Department::updateOrCreate(
             ['name' => 'Secrétariat Général'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#065f46', 'sort_order' => 3, 'created_by' => $adminId]
+            ['type' => 'direction', 'label' => 'direction', 'color' => '#065f46', 'sort_order' => 4, 'parent_id' => $dg->id, 'created_by' => $adminId]
         );
 
+        // ── Niveau 3 : Services ───────────────────────────────────
         $voirie = Department::updateOrCreate(
             ['name' => 'Service Voirie'],
             ['type' => 'service', 'label' => 'service', 'color' => '#0369a1', 'sort_order' => 1, 'parent_id' => $dst->id, 'created_by' => $adminId]
@@ -123,20 +142,40 @@ class DemoSeeder extends Seeder
             ['type' => 'service', 'label' => 'service', 'color' => '#6d28d9', 'sort_order' => 1, 'parent_id' => $rh->id, 'created_by' => $adminId]
         );
 
-        $dst->members()->syncWithoutDetaching([
-            $users[UserRole::RESP_DIRECTION->value]->id => ['is_manager' => true],
-            $users[UserRole::RESP_SERVICE->value]->id   => ['is_manager' => false],
-            $users[UserRole::USER->value]->id            => ['is_manager' => false],
-        ]);
-        $voirie->members()->syncWithoutDetaching([
-            $users[UserRole::RESP_SERVICE->value]->id => ['is_manager' => true],
-            $users[UserRole::USER->value]->id          => ['is_manager' => false],
-        ]);
-        $rh->members()->syncWithoutDetaching([
-            $users[UserRole::RESP_DIRECTION->value]->id => ['is_manager' => true],
+        // ── Affectations ──────────────────────────────────────────
+
+        // Maire → Cabinet du Maire
+        $cabinet->members()->syncWithoutDetaching([
+            $maire->id => ['is_manager' => true],
         ]);
 
-        return compact('dst', 'rh', 'sg', 'voirie', 'paie');
+        // DGS → Direction Générale (manager) + toutes les directions sous lui
+        $dg->members()->syncWithoutDetaching([
+            $dgs->id     => ['is_manager' => true],
+            $respDir->id => ['is_manager' => false],
+            $respSvc->id => ['is_manager' => false],
+            $agent->id   => ['is_manager' => false],
+        ]);
+
+        // DST
+        $dst->members()->syncWithoutDetaching([
+            $respDir->id => ['is_manager' => true],
+            $respSvc->id => ['is_manager' => false],
+            $agent->id   => ['is_manager' => false],
+        ]);
+
+        // Service Voirie
+        $voirie->members()->syncWithoutDetaching([
+            $respSvc->id => ['is_manager' => true],
+            $agent->id   => ['is_manager' => false],
+        ]);
+
+        // DRH
+        $rh->members()->syncWithoutDetaching([
+            $respDir->id => ['is_manager' => true],
+        ]);
+
+        return compact('cabinet', 'dg', 'dst', 'rh', 'sg', 'voirie', 'paie');
     }
 
     // ─────────────────────────────────────────────────────────────
