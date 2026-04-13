@@ -144,6 +144,7 @@ Route::middleware('tenant')->group(function () {
             Route::put('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
             Route::delete('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('users.destroy');
             Route::post('users/{user}/reset-password', [App\Http\Controllers\Admin\UserController::class, 'resetPassword'])->name('users.reset-password');
+            Route::post('users/{user}/reset-2fa', [App\Http\Controllers\Admin\UserController::class, 'reset2fa'])->name('users.reset-2fa');
 
             Route::get('departments/organigramme', [App\Http\Controllers\Admin\DepartmentController::class, 'organigramme'])->name('departments.organigramme');
             Route::resource('departments', App\Http\Controllers\Admin\DepartmentController::class)

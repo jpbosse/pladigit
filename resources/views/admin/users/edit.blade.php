@@ -140,6 +140,35 @@
             </div>
             @endif
 
+            {{-- Section : Sécurité --}}
+            <p style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--pd-muted);margin:0 0 14px;">Sécurité</p>
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border:1.5px solid var(--pd-border);border-radius:12px;background:var(--pd-bg);margin-bottom:24px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <svg style="width:16px;height:16px;flex-shrink:0;fill:none;stroke:var(--pd-muted);stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                    <div>
+                        <div style="font-size:13px;font-weight:500;color:var(--pd-text);">Authentification à deux facteurs</div>
+                        @if($user->totp_enabled)
+                        <div style="font-size:12px;color:#1a8a4a;font-weight:500;">Activée</div>
+                        @else
+                        <div style="font-size:12px;color:var(--pd-muted);">Désactivée</div>
+                        @endif
+                    </div>
+                </div>
+                @if($user->totp_enabled)
+                <form method="POST" action="{{ route('admin.users.reset-2fa', $user) }}"
+                      onsubmit="return confirm('Désactiver le 2FA de {{ addslashes($user->name) }} ?')">
+                    @csrf
+                    <button type="submit"
+                            style="padding:8px 16px;border-radius:9px;border:1.5px solid rgba(231,76,60,0.35);cursor:pointer;
+                                   background:rgba(231,76,60,0.06);color:#c0392b;font-family:'DM Sans',sans-serif;
+                                   font-size:13px;font-weight:500;transition:all 0.15s;"
+                            onmouseover="this.style.background='rgba(231,76,60,0.12)'" onmouseout="this.style.background='rgba(231,76,60,0.06)'">
+                        Réinitialiser le 2FA
+                    </button>
+                </form>
+                @endif
+            </div>
+
             {{-- Boutons --}}
             <div style="display:flex;gap:10px;padding-top:4px;border-top:1px solid var(--pd-border);margin-top:4px;">
                 <button type="submit"

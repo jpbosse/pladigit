@@ -248,4 +248,19 @@ class UserController extends Controller
 
         return back()->with('success', "Un email de réinitialisation a été envoyé à {$user->email}.");
     }
+
+    public function reset2fa(User $user)
+    {
+        $user->update([
+            'totp_enabled' => false,
+            'totp_secret'  => null,
+        ]);
+
+        $this->audit->log('user.2fa_reset', auth()->user(), [
+            'model_type' => User::class,
+            'model_id'   => $user->id,
+        ]);
+
+        return back()->with('success', "Authentification à deux facteurs désactivée pour {$user->name}.");
+    }
 }
