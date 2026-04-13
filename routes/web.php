@@ -205,6 +205,13 @@ Route::middleware('tenant')->group(function () {
             Route::get('audit/export', [App\Http\Controllers\Admin\AuditController::class, 'export'])->name('audit.export');
             Route::get('audit/export/form', fn () => view('admin.audit.export'))->name('audit.export.form');
 
+            // Gestion démo — uniquement pour l'organisation "demo"
+            Route::get('demo', [App\Http\Controllers\Admin\DemoController::class, 'index'])->name('demo.index');
+            Route::post('demo/photos', [App\Http\Controllers\Admin\DemoController::class, 'uploadPhotos'])->name('demo.photos.upload');
+            Route::post('demo/ged', [App\Http\Controllers\Admin\DemoController::class, 'uploadGed'])->name('demo.ged.upload');
+            Route::delete('demo/file', [App\Http\Controllers\Admin\DemoController::class, 'deleteFile'])->name('demo.file.delete');
+            Route::post('demo/reset', [App\Http\Controllers\Admin\DemoController::class, 'reset'])->name('demo.reset');
+
         });
 
         // ── Photothèque — module activable par organisation ──

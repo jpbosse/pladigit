@@ -145,6 +145,22 @@
         ],
     ];
 
+    // Entrée Démo — uniquement pour l'organisation "demo"
+    if (app(\App\Services\TenantManager::class)->current()?->slug === 'demo') {
+        $adminNav[] = [
+            'group' => 'Démo',
+            'icon'  => '<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+            'items' => [
+                [
+                    'label' => 'Données démo',
+                    'route' => 'admin.demo.index',
+                    'match' => 'admin.demo.*',
+                    'icon'  => '<svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+                ],
+            ],
+        ];
+    }
+
     // Déterminer le groupe actif et le label de la page active
     $activeLabel = null;
     $activeGroup = null;
