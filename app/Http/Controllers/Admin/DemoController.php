@@ -62,9 +62,13 @@ class DemoController extends Controller
         }
 
         $count = 0;
-        foreach ($request->file('photos') as $file) {
-            $file->move($dir, $file->getClientOriginalName());
-            $count++;
+        try {
+            foreach ($request->file('photos') as $file) {
+                $file->move($dir, $file->getClientOriginalName());
+                $count++;
+            }
+        } catch (\Throwable $e) {
+            return back()->withErrors(['photos' => 'Erreur lors de l\'upload : ' . $e->getMessage()]);
         }
 
         return back()->with('success', "{$count} photo(s) ajoutée(s) dans les sources de démo.");
