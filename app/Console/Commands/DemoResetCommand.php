@@ -119,13 +119,17 @@ class DemoResetCommand extends Command
 
     private function wipePhysicalFiles(): void
     {
-        // GED — driver local : storage/app/ged/
-        Storage::disk('local')->deleteDirectory('ged');
+        // GED — driver local : storage/app/private/ged/
+        try {
+            Storage::disk('local')->deleteDirectory('ged');
+        } catch (\Throwable $e) {
+            $this->warn('  ⚠  Impossible de supprimer le dossier GED : ' . $e->getMessage());
+        }
 
         // Médias NAS simulation
         $nasPath = config('nas.local_path', storage_path('app/nas_simulation'));
         if (is_dir($nasPath)) {
-            foreach (glob("{$nasPath}/*") as $file) {
+            foreach (glob("{$nasPath}/*") ?: [] as $file) {
                 if (is_file($file)) {
                     @unlink($file);
                 }
