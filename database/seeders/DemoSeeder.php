@@ -144,33 +144,28 @@ class DemoSeeder extends Seeder
 
         // ── Affectations ──────────────────────────────────────────
 
-        // Maire → Cabinet du Maire
+        // Cabinet du Maire — Maire uniquement
         $cabinet->members()->syncWithoutDetaching([
             $maire->id => ['is_manager' => true],
         ]);
 
-        // DGS → Direction Générale (manager) + toutes les directions sous lui
+        // Direction Générale — DGS uniquement
         $dg->members()->syncWithoutDetaching([
-            $dgs->id     => ['is_manager' => true],
-            $respDir->id => ['is_manager' => false],
-            $respSvc->id => ['is_manager' => false],
-            $agent->id   => ['is_manager' => false],
+            $dgs->id => ['is_manager' => true],
         ]);
 
-        // DST
+        // DST — Resp. Direction uniquement
         $dst->members()->syncWithoutDetaching([
             $respDir->id => ['is_manager' => true],
-            $respSvc->id => ['is_manager' => false],
-            $agent->id   => ['is_manager' => false],
         ]);
 
-        // Service Voirie
+        // Service Voirie — Resp. Service + Agent
         $voirie->members()->syncWithoutDetaching([
             $respSvc->id => ['is_manager' => true],
             $agent->id   => ['is_manager' => false],
         ]);
 
-        // DRH
+        // DRH — Resp. Direction uniquement
         $rh->members()->syncWithoutDetaching([
             $respDir->id => ['is_manager' => true],
         ]);
