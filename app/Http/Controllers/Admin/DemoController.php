@@ -156,7 +156,8 @@ class DemoController extends Controller
         $process->run();
 
         if (! $process->isSuccessful()) {
-            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $process->getErrorOutput()]);
+            $detail = trim($process->getErrorOutput() . "\n" . $process->getOutput());
+            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $detail]);
         }
 
         // Reconnecter automatiquement avec le nouveau compte admin créé par le seeder
