@@ -278,6 +278,28 @@ class OrganizationController extends Controller
             ->with('success', 'Modules mis à jour.');
     }
 
+    public function destroy(Organization $organization)
+    {
+        $dbName = $organization->db_name;
+        $orgName = $organization->name;
+
+        // Supprimer la base de données tenant
+        try {
+            \DB::statement('DROP DATABASE IF EXISTS `'.str_replace('`', '', $dbName).'`');
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('super-admin.organizations.show', $organization)
+                ->with('error', 'Impossible de supprimer la base de données : '.$e->getMessage());
+        }
+
+        // Supprimer l'organisation (soft delete)
+        $organization->delete();
+
+        return redirect()
+            ->route('super-admin.organizations.index')
+            ->with('success', "Organisation « {$orgName} » et sa base de données supprimées définitivement.");
+    }
+
     private function maxUsersFromPlan(string $plan): int
     {
         return 9999;

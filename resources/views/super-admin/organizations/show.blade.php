@@ -220,6 +220,41 @@
         </div>
     </div>
 
+    {{-- Zone danger --}}
+    <div style="margin-top:40px;border:2px solid #fca5a5;border-radius:14px;padding:24px;background:#fff5f5;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+            <svg style="width:20px;height:20px;flex-shrink:0;fill:none;stroke:#dc2626;stroke-width:2;stroke-linecap:round;" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <h2 style="font-size:16px;font-weight:700;color:#dc2626;margin:0;">Zone de danger</h2>
+        </div>
+        <p style="font-size:13px;color:#7f1d1d;margin:0 0 6px;font-weight:600;">Suppression définitive de l'organisation</p>
+        <p style="font-size:13px;color:#991b1b;margin:0 0 16px;line-height:1.6;">
+            Cette action est <strong>irréversible</strong>. Elle supprimera :<br>
+            — l'organisation <strong>{{ $organization->name }}</strong> de la plateforme<br>
+            — la base de données <code style="background:#fee2e2;padding:1px 5px;border-radius:4px;">{{ $organization->db_name }}</code> et <strong>toutes ses données</strong> (utilisateurs, projets, médias, documents)<br>
+            — toutes les configurations associées (SMTP, LDAP, modules)
+        </p>
+        <p style="font-size:13px;color:#991b1b;margin:0 0 16px;">
+            Pour confirmer, saisissez le slug de l'organisation : <code style="background:#fee2e2;padding:1px 5px;border-radius:4px;font-weight:700;">{{ $organization->slug }}</code>
+        </p>
+        <div style="display:flex;align-items:center;gap:10px;">
+            <input type="text" id="delete-confirm-input" placeholder="Saisissez « {{ $organization->slug }} »"
+                   oninput="document.getElementById('btn-delete-org').disabled = this.value !== '{{ $organization->slug }}';"
+                   style="padding:9px 13px;border:1.5px solid #fca5a5;border-radius:9px;font-size:13px;width:260px;outline:none;background:#fff;"
+                   onfocus="this.style.borderColor='#dc2626'" onblur="this.style.borderColor='#fca5a5'">
+            <form method="POST" action="{{ route('super-admin.organizations.destroy', $organization) }}"
+                  id="form-delete-org"
+                  onsubmit="return confirmDelete()">
+                @csrf @method('DELETE')
+                <button type="submit" id="btn-delete-org" disabled
+                        style="padding:9px 20px;border:none;border-radius:9px;font-size:13px;font-weight:600;
+                               background:#dc2626;color:#fff;cursor:pointer;opacity:0.4;transition:opacity 0.2s;"
+                        onmouseover="if(!this.disabled) this.style.opacity='0.85'" onmouseout="if(!this.disabled) this.style.opacity='1'">
+                    Supprimer définitivement
+                </button>
+            </form>
+        </div>
+    </div>
+
     {{-- Onglet LDAP --}}
     <div id="tab-ldap" class="sa-tab-panel" style="display:none;">
         <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
@@ -321,6 +356,28 @@ function saShowTab(id) {
 
 const urlTab = new URLSearchParams(window.location.search).get('tab');
 saShowTab(urlTab && document.getElementById(urlTab) ? urlTab : 'tab-admin');
+
+document.getElementById('btn-delete-org')?.addEventListener('mouseenter', function() {
+    if (!this.disabled) this.style.opacity = '0.85';
+});
+document.getElementById('btn-delete-org')?.addEventListener('mouseleave', function() {
+    if (!this.disabled) this.style.opacity = '1';
+});
+document.getElementById('delete-confirm-input')?.addEventListener('input', function() {
+    const btn = document.getElementById('btn-delete-org');
+    btn.disabled = this.value !== '{{ $organization->slug }}';
+    btn.style.opacity = btn.disabled ? '0.4' : '1';
+    btn.style.cursor = btn.disabled ? 'not-allowed' : 'pointer';
+});
+
+function confirmDelete() {
+    return confirm(
+        'DERNIÈRE CONFIRMATION\n\n' +
+        'Supprimer « {{ addslashes($organization->name) }} » ?\n\n' +
+        'La base de données {{ $organization->db_name }} sera détruite.\n' +
+        'Cette action est IRRÉVERSIBLE.'
+    );
+}
 
 document.getElementById('btn-test-smtp-sa')?.addEventListener('click', async function () {
     const btn = this, result = document.getElementById('smtp-test-result-sa');

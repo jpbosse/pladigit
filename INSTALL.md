@@ -367,7 +367,15 @@ sudo supervisorctl status
 
 ## 14. Accès Super Admin
 
-Ajoutez votre IP dans le middleware :
+> ⛔ **OBLIGATOIRE — sans cette étape vous obtiendrez un 403 sur `/super-admin/login`**
+
+Ajoutez votre IP publique dans le middleware. Pour la connaître :
+
+```bash
+curl ifconfig.me
+```
+
+Puis éditez le fichier :
 
 ```bash
 nano /var/www/pladigit/app/Http/Middleware/CheckSuperAdmin.php
@@ -377,11 +385,14 @@ nano /var/www/pladigit/app/Http/Middleware/CheckSuperAdmin.php
 private array $allowedIps = [
     '127.0.0.1',
     '::1',
-    'VOTRE_IP_PUBLIQUE',
+    'VOTRE_IP_PUBLIQUE',  // ex: 82.67.203.161
 ];
 ```
 
-> ⚠️ À terme, cette liste sera déplacée dans le `.env` via `SUPER_ADMIN_ALLOWED_IPS`.
+> ⚠️ **Après chaque `git pull` ou `git reset --hard`**, ce fichier est écrasé et votre IP disparaît.
+> Vous devrez la rajouter manuellement — sinon vous obtiendrez un 403.
+>
+> À terme, cette liste sera déplacée dans le `.env` via `SUPER_ADMIN_ALLOWED_IPS`.
 
 Accédez au Super Admin : `https://votre-domaine.fr/super-admin/login`
 
@@ -418,6 +429,8 @@ Planifiez le renouvellement 90 jours après l'installation.
 ---
 
 ## Mise à jour de Pladigit
+
+> ⚠️ Après le `git pull`, vérifiez que votre IP est toujours dans `CheckSuperAdmin.php` (voir section 14).
 
 ```bash
 cd /var/www/pladigit
