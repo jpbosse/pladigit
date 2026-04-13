@@ -164,7 +164,7 @@ class DemoSeeder extends Seeder
         ]);
 
         ProjectMember::insert([
-            ['project_id' => $plu->id, 'user_id' => $dgs->id,     'role' => 'manager'],
+            ['project_id' => $plu->id, 'user_id' => $dgs->id,     'role' => 'owner'],
             ['project_id' => $plu->id, 'user_id' => $respDir->id,  'role' => 'member'],
             ['project_id' => $plu->id, 'user_id' => $agent->id,    'role' => 'viewer'],
         ]);
@@ -199,7 +199,7 @@ class DemoSeeder extends Seeder
         ]);
 
         ProjectMember::insert([
-            ['project_id' => $sdf->id, 'user_id' => $respDir->id, 'role' => 'manager'],
+            ['project_id' => $sdf->id, 'user_id' => $respDir->id, 'role' => 'owner'],
             ['project_id' => $sdf->id, 'user_id' => $respSvc->id, 'role' => 'member'],
             ['project_id' => $sdf->id, 'user_id' => $agent->id,   'role' => 'member'],
         ]);
@@ -234,7 +234,7 @@ class DemoSeeder extends Seeder
         ]);
 
         ProjectMember::insert([
-            ['project_id' => $rgpd->id, 'user_id' => $admin->id,   'role' => 'manager'],
+            ['project_id' => $rgpd->id, 'user_id' => $admin->id,   'role' => 'owner'],
             ['project_id' => $rgpd->id, 'user_id' => $dgs->id,     'role' => 'member'],
             ['project_id' => $rgpd->id, 'user_id' => $respDir->id,  'role' => 'viewer'],
         ]);
