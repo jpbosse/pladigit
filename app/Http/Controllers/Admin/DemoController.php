@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
 
 /**
  * Gestion des données de démonstration.
@@ -149,12 +151,17 @@ class DemoController extends Controller
 
         try {
             Artisan::call('demo:reset', ['--slug' => 'demo']);
-            $output = Artisan::output();
         } catch (\Throwable $e) {
             return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $e->getMessage()]);
         }
 
-        return back()->with('success', 'Remise à zéro effectuée.' . (app()->isLocal() ? ' ' . $output : ''));
+        // Reconnecter automatiquement avec le nouveau compte admin créé par le seeder
+        $newAdmin = User::on('tenant')->where('role', 'admin')->first();
+        if ($newAdmin) {
+            Auth::guard('tenant')->login($newAdmin);
+        }
+
+        return redirect()->route('admin.demo.index')->with('success', 'Remise à zéro effectuée.');
     }
 
     // ─────────────────────────────────────────────────────────────

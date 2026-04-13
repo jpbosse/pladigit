@@ -96,7 +96,6 @@ class DemoResetCommand extends Command
             'departments',
             'notifications',
             'audit_logs',
-            'sessions',
             'personal_access_tokens',
             'password_reset_tokens',
             'users',
