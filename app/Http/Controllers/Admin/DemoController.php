@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Symfony\Component\Process\Process;
 
 /**
  * Gestion des données de démonstration.
@@ -149,10 +149,14 @@ class DemoController extends Controller
 
         set_time_limit(300);
 
-        try {
-            Artisan::call('demo:reset', ['--slug' => 'demo']);
-        } catch (\Throwable $e) {
-            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $e->getMessage()]);
+        // Exécuter la commande dans un processus PHP séparé (comme le terminal)
+        // pour éviter les problèmes de contexte liés à Artisan::call() depuis le web.
+        $process = new Process([PHP_BINARY, base_path('artisan'), 'demo:reset', '--slug=demo']);
+        $process->setTimeout(270);
+        $process->run();
+
+        if (! $process->isSuccessful()) {
+            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $process->getErrorOutput()]);
         }
 
         // Reconnecter automatiquement avec le nouveau compte admin créé par le seeder
