@@ -58,9 +58,28 @@ class DepartmentController extends Controller
         $allUsers = \App\Models\Tenant\User::on('tenant')
             ->where('status', 'active')
             ->orderBy('name')
+            ->with(['departments:id,name'])
             ->get(['id', 'name']);
 
-        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions', 'allUsers'));
+        // Map dept_id → membres pour le modal JS
+        $deptMembersMap = Department::on('tenant')
+            ->with('members:id,name')
+            ->get()
+            ->mapWithKeys(function ($d) {
+                return [
+                    $d->id => $d->members->map(function ($m) {
+                        /** @var \App\Models\Tenant\User $m */
+                        $pivot = $m->getRelation('pivot');
+                        return [
+                            'id'         => $m->id,
+                            'name'       => $m->name,
+                            'is_manager' => (bool) ($pivot->is_manager ?? false),
+                        ];
+                    }),
+                ];
+            });
+
+        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions', 'allUsers', 'deptMembersMap'));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -145,13 +164,16 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'label' => ['nullable', 'string', 'max:100'],
-            'color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'parent_id' => ['nullable', 'integer'],
+            'name'           => ['required', 'string', 'max:255'],
+            'label'          => ['nullable', 'string', 'max:100'],
+            'color'          => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'parent_id'      => ['nullable', 'integer'],
             'is_transversal' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-            'head_id' => ['nullable', 'integer', 'exists:tenant.users,id'],
+            'sort_order'     => ['nullable', 'integer', 'min:0'],
+            'member_ids'     => ['nullable', 'array'],
+            'member_ids.*'   => ['integer', 'exists:tenant.users,id'],
+            'manager_ids'    => ['nullable', 'array'],
+            'manager_ids.*'  => ['integer'],
         ]);
 
         // Vérifie que le parent existe si fourni
@@ -185,7 +207,17 @@ class DepartmentController extends Controller
 
         $old = $department->only(['name', 'label', 'color', 'parent_id', 'is_transversal', 'sort_order']);
 
-        $department->update($data);
+        $memberIds  = array_map('intval', $data['member_ids']  ?? []);
+        $managerIds = array_map('intval', $data['manager_ids'] ?? []);
+
+        $department->update(\Illuminate\Support\Arr::except($data, ['member_ids', 'manager_ids']));
+
+        // Synchroniser les membres avec le flag is_manager
+        $sync = [];
+        foreach ($memberIds as $uid) {
+            $sync[$uid] = ['is_manager' => in_array($uid, $managerIds, true)];
+        }
+        $department->members()->sync($sync);
 
         $this->audit->log('department.updated', auth()->user(), [
             'department_id' => $department->id,

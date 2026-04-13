@@ -130,18 +130,6 @@
                     </select>
                 </div>
 
-                <div>
-                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Nom de l'utilisateur</label>
-                    <select name="head_id"
-                            style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;"
-                            onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
-                        <option value="">— Aucun —</option>
-                        @foreach($allUsers as $u)
-                        <option value="{{ $u->id }}" {{ old('head_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="hidden" name="is_transversal" value="0">
                     <input type="checkbox" name="is_transversal" id="isTransversal" value="1"
@@ -228,16 +216,32 @@
                 </select>
             </div>
 
+            {{-- Membres --}}
             <div>
-                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Nom de l'utilisateur</label>
-                <select name="head_id" id="editHeadId"
+                <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:8px;">Membres</label>
+
+                {{-- Liste des membres sélectionnés --}}
+                <div id="memberChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;min-height:28px;"></div>
+
+                {{-- Sélecteur ajout --}}
+                <select id="memberPicker"
                         style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;"
-                        onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
-                    <option value="">— Aucun —</option>
+                        onchange="addMember(this)" onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
+                    <option value="">+ Ajouter un membre…</option>
                     @foreach($allUsers as $u)
-                    <option value="{{ $u->id }}">{{ $u->name }}</option>
+                    <option value="{{ $u->id }}"
+                            data-name="{{ $u->name }}"
+                            data-depts="{{ $u->departments->pluck('name')->join(', ') }}">
+                        {{ $u->name }}@if($u->departments->isNotEmpty()) — {{ $u->departments->pluck('name')->join(', ') }}@endif
+                    </option>
                     @endforeach
                 </select>
+                <p style="font-size:11px;color:var(--pd-muted);margin:5px 0 0;">
+                    Cliquez ★ pour désigner comme responsable. Les affectations existantes sont indiquées.
+                </p>
+
+                {{-- Inputs cachés gérés par JS --}}
+                <div id="memberInputs"></div>
             </div>
 
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -274,7 +278,12 @@
 </div>
 
 <script>
-function openEditModal(id, name, label, color, parentId, isTransversal, sortOrder, headId) {
+const deptMembersMap = @json($deptMembersMap);
+
+// État courant du modal
+let currentMembers = {}; // {userId: {name, isManager}}
+
+function openEditModal(id, name, label, color, parentId, isTransversal, sortOrder) {
     document.getElementById('editForm').action = '/admin/departments/' + id;
     document.getElementById('editName').value       = name || '';
     document.getElementById('editLabel').value      = label || '';
@@ -282,10 +291,80 @@ function openEditModal(id, name, label, color, parentId, isTransversal, sortOrde
     document.getElementById('editSortOrder').value  = sortOrder || 0;
     document.getElementById('editTransversal').checked = !!isTransversal;
     document.getElementById('editParentId').value   = parentId || '';
-    document.getElementById('editHeadId').value     = headId || '';
+
+    // Charger les membres actuels de ce département
+    currentMembers = {};
+    const members = deptMembersMap[id] || [];
+    members.forEach(m => { currentMembers[m.id] = {name: m.name, isManager: m.is_manager}; });
+    renderMemberChips();
+
     const modal = document.getElementById('editModal');
     modal.style.display = 'flex';
     setTimeout(() => document.getElementById('editName').focus(), 50);
+}
+
+function addMember(select) {
+    const id = select.value;
+    if (!id || currentMembers[id]) { select.value = ''; return; }
+    const opt = select.options[select.selectedIndex];
+    currentMembers[id] = {name: opt.dataset.name, isManager: false};
+    select.value = '';
+    renderMemberChips();
+}
+
+function removeMember(id) {
+    delete currentMembers[id];
+    renderMemberChips();
+}
+
+function toggleManager(id) {
+    if (currentMembers[id]) {
+        currentMembers[id].isManager = !currentMembers[id].isManager;
+        renderMemberChips();
+    }
+}
+
+function renderMemberChips() {
+    const chips = document.getElementById('memberChips');
+    const inputs = document.getElementById('memberInputs');
+    chips.innerHTML = '';
+    inputs.innerHTML = '';
+
+    Object.entries(currentMembers).forEach(([id, m]) => {
+        // Chip visuel
+        const chip = document.createElement('span');
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;cursor:default;' +
+            (m.isManager
+                ? 'background:rgba(59,154,225,0.15);color:var(--pd-accent);border:1px solid rgba(59,154,225,0.3);'
+                : 'background:var(--pd-bg);color:var(--pd-text);border:1px solid var(--pd-border);');
+        chip.innerHTML =
+            '<span style="font-size:11px;opacity:0.7;">' + (m.isManager ? '★' : '○') + '</span>' +
+            '<span>' + m.name + '</span>' +
+            '<button type="button" onclick="toggleManager(' + id + ')" title="' + (m.isManager ? 'Retirer responsable' : 'Désigner responsable') + '" ' +
+                'style="background:none;border:none;cursor:pointer;font-size:11px;padding:0;color:inherit;opacity:0.6;" ' +
+                'onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.6\'">★</button>' +
+            '<button type="button" onclick="removeMember(' + id + ')" title="Retirer" ' +
+                'style="background:none;border:none;cursor:pointer;font-size:13px;padding:0;color:var(--pd-muted);line-height:1;" ' +
+                'onmouseover="this.style.color=\'#dc2626\'" onmouseout="this.style.color=\'var(--pd-muted)\'">×</button>';
+        chips.appendChild(chip);
+
+        // Inputs cachés
+        const inp = document.createElement('input');
+        inp.type = 'hidden'; inp.name = 'member_ids[]'; inp.value = id;
+        inputs.appendChild(inp);
+
+        if (m.isManager) {
+            const mgr = document.createElement('input');
+            mgr.type = 'hidden'; mgr.name = 'manager_ids[]'; mgr.value = id;
+            inputs.appendChild(mgr);
+        }
+    });
+
+    // Mettre à jour le sélecteur : griser les déjà présents
+    document.querySelectorAll('#memberPicker option[value]').forEach(opt => {
+        if (!opt.value) return;
+        opt.disabled = !!currentMembers[opt.value];
+    });
 }
 function closeEditModal() {
     document.getElementById('editModal').style.display = 'none';
