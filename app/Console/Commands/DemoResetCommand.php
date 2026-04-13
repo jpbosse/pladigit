@@ -54,7 +54,9 @@ class DemoResetCommand extends Command
         $this->wipePhysicalFiles();
         $this->info('✓ Fichiers physiques supprimés');
 
-        $this->call('db:seed', ['--class' => 'DemoSeeder', '--force' => true]);
+        $seeder = new \Database\Seeders\DemoSeeder();
+        $seeder->setContainer(app())->setCommand($this);
+        $seeder->run();
         $this->info('✓ Données de base re-seedées');
 
         $this->seedGedFiles();
