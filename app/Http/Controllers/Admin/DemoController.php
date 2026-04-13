@@ -157,18 +157,24 @@ class DemoController extends Controller
         $process->setTimeout(270);
         $process->run();
 
+        $output   = trim($process->getOutput());
+        $errOutput = trim($process->getErrorOutput());
+        $exitCode  = $process->getExitCode();
+
         if (! $process->isSuccessful()) {
-            $detail = trim($process->getErrorOutput() . "\n" . $process->getOutput());
-            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $detail]);
+            return back()->withErrors(['reset' => "[exit:{$exitCode}] " . $errOutput . "\n" . $output]);
         }
 
         // Reconnecter automatiquement avec le nouveau compte admin créé par le seeder
         $newAdmin = User::on('tenant')->where('role', 'admin')->first();
         if ($newAdmin) {
             Auth::guard('tenant')->login($newAdmin);
+            return redirect()->route('admin.demo.index')
+                ->with('success', "Remise à zéro OK. [exit:{$exitCode}] " . $output);
         }
 
-        return redirect()->route('admin.demo.index')->with('success', 'Remise à zéro effectuée.');
+        // Le processus a réussi mais aucun admin trouvé — affiche la sortie pour diagnostic
+        return back()->withErrors(['reset' => "Reset OK (exit 0) mais aucun admin créé. Sortie : " . $output]);
     }
 
     // ─────────────────────────────────────────────────────────────
