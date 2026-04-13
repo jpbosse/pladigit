@@ -18,9 +18,6 @@
                 <div class="node-label">{{ $node->label ?? $node->type ?? 'Service' }}</div>
                 <div class="node-name">{{ $node->name }}</div>
                 <div class="node-meta">
-                    @if($node->managers && $node->managers->count())
-                        {{ $node->managers->pluck('name')->join(', ') }} ·
-                    @endif
                     {{ $node->members ? $node->members->count() : 0 }}p.
                     @if($hasChildren) · {{ $node->children->count() }} entité(s)@endif
                     @if($node->is_transversal)
