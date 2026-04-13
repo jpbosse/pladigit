@@ -21,6 +21,21 @@
         .btn-source{background:transparent;color:var(--navy)!important;padding:0.5rem 1.25rem;border-radius:4px;font-weight:600;border:1px solid rgba(30,58,95,0.3);font-size:0.85rem;text-decoration:none;transition:all 0.2s;display:flex;align-items:center;gap:0.4rem}
         .btn-source::before{content:"⌥"}
         .btn-source:hover{background:var(--light);border-color:var(--navy)}
+        .nav-burger{display:none;background:none;border:none;cursor:pointer;padding:6px;color:var(--navy)}
+        .nav-burger-bar{display:block;width:22px;height:2px;background:currentColor;border-radius:2px;transition:all 0.25s}
+        .nav-burger-bar+.nav-burger-bar{margin-top:5px}
+        .nav-open .nav-burger-bar:nth-child(1){transform:translateY(7px) rotate(45deg)}
+        .nav-open .nav-burger-bar:nth-child(2){opacity:0;transform:scaleX(0)}
+        .nav-open .nav-burger-bar:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+        @media(max-width:700px){
+            .nav-burger{display:block}
+            .nav-links{display:none;position:absolute;top:64px;left:0;right:0;background:rgba(255,255,255,0.98);border-bottom:1px solid rgba(30,58,95,0.12);flex-direction:column;padding:1rem 2rem 1.5rem;gap:0;box-shadow:0 8px 24px rgba(30,58,95,0.10);backdrop-filter:blur(8px)}
+            .nav-links.open{display:flex}
+            .nav-links a{padding:0.7rem 0;border-bottom:1px solid rgba(30,58,95,0.06);font-size:0.95rem}
+            .nav-links a:last-child{border-bottom:none;padding-bottom:0}
+            .btn-nav{margin-top:0.5rem;text-align:center;width:100%;border-radius:6px!important}
+            .btn-source{justify-content:center}
+        }
         .hero{min-height:100vh;background:var(--navy);display:flex;align-items:center;position:relative;overflow:hidden;padding-top:64px}
         .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 70% 50%,rgba(196,151,42,0.08) 0%,transparent 70%)}
         .hero-grid{position:absolute;inset:0;opacity:0.04;background-image:linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px);background-size:60px 60px}
@@ -125,20 +140,21 @@
 <div class="alert-success">{{ session('contact_success') }}</div>
 @endif
 
-<nav>
+<nav id="main-nav">
     <div class="nav-inner">
         <a href="/" class="nav-logo">Pladi<span>git</span></a>
-        <div class="nav-links">
+        <div class="nav-links" id="nav-links">
             <a href="#fonctionnalites">Fonctionnalités</a>
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
             <a href="https://github.com/jpbosse/pladigit" target="_blank" class="btn-source">Source</a>
-
-
-<button onclick="openLoginModal()" class="btn-nav" style="cursor:pointer;border:none">Connexion</button>
-
-            </div>
+            <button onclick="openLoginModal()" class="btn-nav" style="cursor:pointer;border:none">Connexion</button>
         </div>
+        <button class="nav-burger" id="nav-burger" aria-label="Menu" aria-expanded="false">
+            <span class="nav-burger-bar"></span>
+            <span class="nav-burger-bar"></span>
+            <span class="nav-burger-bar"></span>
+        </button>
     </div>
 </nav>
 
@@ -378,6 +394,27 @@
 </div>
 
 <script>
+// ── Burger menu mobile ───────────────────────────────────────
+(function(){
+    var burger = document.getElementById('nav-burger');
+    var links  = document.getElementById('nav-links');
+    var nav    = document.getElementById('main-nav');
+    if (!burger || !links) return;
+    burger.addEventListener('click', function(){
+        var open = links.classList.toggle('open');
+        nav.classList.toggle('nav-open', open);
+        burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    // Fermer si clic sur un lien
+    links.querySelectorAll('a, button').forEach(function(el){
+        el.addEventListener('click', function(){
+            links.classList.remove('open');
+            nav.classList.remove('nav-open');
+            burger.setAttribute('aria-expanded', 'false');
+        });
+    });
+})();
+
 // ── Helpers cookie ───────────────────────────────────────────
 function setCookie(name, value, days) {
     var expires = '';

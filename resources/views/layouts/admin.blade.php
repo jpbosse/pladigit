@@ -275,6 +275,12 @@
     {{-- ── Contenu principal ───────────────────────────────── --}}
     <main style="flex:1;min-width:0;padding:28px 32px;overflow-x:hidden;">
 
+        {{-- Bandeau mobile uniquement --}}
+        <div class="pd-admin-mobile-warning" style="display:none;align-items:center;gap:10px;background:rgba(243,156,18,0.12);border:1.5px solid rgba(243,156,18,0.4);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--pd-text);">
+            <span style="font-size:1.2rem;">📱</span>
+            <span>L'interface d'administration est optimisée pour tablette et ordinateur. Certaines fonctionnalités peuvent être difficiles à utiliser sur un téléphone.</span>
+        </div>
+
         {{-- Breadcrumb --}}
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px;">
             <span style="font-size:12px;color:var(--pd-muted);">Administration</span>

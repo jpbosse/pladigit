@@ -56,6 +56,15 @@
     </div>
 
     @auth
+    {{-- Hamburger visible uniquement sur mobile --}}
+    <button class="pd-mobile-menu-btn" id="pd-mobile-menu-btn" type="button" aria-label="Menu">
+        <span class="pd-hamburger-bar"></span>
+        <span class="pd-hamburger-bar"></span>
+        <span class="pd-hamburger-bar"></span>
+    </button>
+    @endauth
+
+    @auth
     <div class="pd-topbar-center">
         <button class="pd-search-trigger" id="pd-cmd-open" type="button">
             <svg class="pd-icon pd-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -245,6 +254,9 @@
     </div>
 
 </aside>
+
+{{-- Backdrop mobile pour fermer la sidebar --}}
+<div class="pd-mobile-backdrop" id="pd-mobile-backdrop"></div>
 @endauth
 
 {{-- ══════════ MAIN ══════════ --}}
@@ -511,13 +523,46 @@
 
     // Sidebar
     var sidebarOpen = localStorage.getItem('pd_sidebar') === '1';
-    function applySidebar(){ document.body.classList.toggle('pd-sidebar-open', sidebarOpen); }
+    var backdrop = document.getElementById('pd-mobile-backdrop');
+
+    function isMobile(){ return window.innerWidth < 768; }
+
+    function applySidebar(){
+        if (isMobile()) {
+            // Sur mobile : overlay (jamais push)
+            document.body.classList.remove('pd-sidebar-open');
+            document.body.classList.toggle('pd-sidebar-mobile-open', sidebarOpen);
+            if (backdrop) backdrop.classList.toggle('active', sidebarOpen);
+        } else {
+            document.body.classList.remove('pd-sidebar-mobile-open');
+            document.body.classList.toggle('pd-sidebar-open', sidebarOpen);
+            if (backdrop) backdrop.classList.remove('active');
+        }
+    }
     applySidebar();
+
+    function closeMobileSidebar(){
+        sidebarOpen = false;
+        applySidebar();
+    }
+
     document.getElementById('pd-sidebar-toggle')?.addEventListener('click', function(){
         sidebarOpen = !sidebarOpen;
-        localStorage.setItem('pd_sidebar', sidebarOpen ? '1' : '0');
+        if (!isMobile()) localStorage.setItem('pd_sidebar', sidebarOpen ? '1' : '0');
         applySidebar();
     });
+
+    // Hamburger mobile
+    document.getElementById('pd-mobile-menu-btn')?.addEventListener('click', function(){
+        sidebarOpen = !sidebarOpen;
+        applySidebar();
+    });
+
+    // Backdrop ferme la sidebar
+    backdrop?.addEventListener('click', closeMobileSidebar);
+
+    // Redimensionnement : recalculer
+    window.addEventListener('resize', function(){ applySidebar(); });
 
     // Avatar menu
     var avatarBtn = document.getElementById('pd-avatar-btn');
