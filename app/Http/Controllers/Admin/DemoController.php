@@ -145,8 +145,14 @@ class DemoController extends Controller
             abort(403);
         }
 
-        Artisan::call('demo:reset', ['--slug' => 'demo']);
-        $output = Artisan::output();
+        set_time_limit(300);
+
+        try {
+            Artisan::call('demo:reset', ['--slug' => 'demo']);
+            $output = Artisan::output();
+        } catch (\Throwable $e) {
+            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $e->getMessage()]);
+        }
 
         return back()->with('success', 'Remise à zéro effectuée.' . (app()->isLocal() ? ' ' . $output : ''));
     }
