@@ -73,9 +73,9 @@ Schedule::command('ged:purge')
         \Log::error('Purge GED échouée');
     });
 
-// Remise à zéro de la démo — chaque nuit à minuit
+// Remise à zéro de la démo — toutes les 2 heures
 Schedule::command('demo:reset --slug=demo')
-    ->dailyAt('00:00')
+    ->everyTwoHours()
     ->withoutOverlapping()
     ->runInBackground()
     ->environments(['production'])
