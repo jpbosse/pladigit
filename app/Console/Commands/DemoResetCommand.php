@@ -98,7 +98,8 @@ class DemoResetCommand extends Command
             'audit_logs',
             'personal_access_tokens',
             'password_reset_tokens',
-            'users',
+            // 'users' intentionnellement absent : updateOrCreate dans le seeder préserve les IDs
+            // et évite l'invalidation de session lors d'un reset depuis l'interface web.
         ];
 
         foreach ($tables as $table) {

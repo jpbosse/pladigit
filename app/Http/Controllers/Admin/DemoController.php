@@ -3,10 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Symfony\Component\Process\PhpExecutableFinder;
 use Symfony\Component\Process\Process;
 
@@ -157,24 +155,12 @@ class DemoController extends Controller
         $process->setTimeout(270);
         $process->run();
 
-        $output   = trim($process->getOutput());
-        $errOutput = trim($process->getErrorOutput());
-        $exitCode  = $process->getExitCode();
-
         if (! $process->isSuccessful()) {
-            return back()->withErrors(['reset' => "[exit:{$exitCode}] " . $errOutput . "\n" . $output]);
+            $detail = trim($process->getErrorOutput() . "\n" . $process->getOutput());
+            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $detail]);
         }
 
-        // Reconnecter automatiquement avec le nouveau compte admin créé par le seeder
-        $newAdmin = User::on('tenant')->where('role', 'admin')->first();
-        if ($newAdmin) {
-            Auth::guard('tenant')->login($newAdmin);
-            return redirect()->route('admin.demo.index')
-                ->with('success', "Remise à zéro OK. [exit:{$exitCode}] " . $output);
-        }
-
-        // Le processus a réussi mais aucun admin trouvé — affiche la sortie pour diagnostic
-        return back()->withErrors(['reset' => "Reset OK (exit 0) mais aucun admin créé. Sortie : " . $output]);
+        return back()->with('success', 'Remise à zéro effectuée.');
     }
 
     // ─────────────────────────────────────────────────────────────
