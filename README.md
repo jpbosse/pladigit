@@ -108,9 +108,10 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 git clone https://github.com/jpbosse/pladigit.git && cd pladigit
 composer install --no-dev --optimize-autoloader
 npm install && npm run build
-cp .env.example .env && php artisan key:generate
-php artisan migrate --database=mysql --path=database/migrations/platform
-php artisan tenant:create --name="Demo" --slug="demo" --email="admin@demo.pladigit.fr"
+cp .env.example .env && php8.4 artisan key:generate
+php8.4 artisan migrate --force
+php8.4 artisan migrate --path=database/migrations/platform --force
+php8.4 artisan tenant:create --name="Demo" --slug="demo" --email="admin@demo.pladigit.fr"
 ```
 
 Pour l'installation complète : [INSTALL.md](INSTALL.md)
@@ -120,7 +121,7 @@ Pour l'installation complète : [INSTALL.md](INSTALL.md)
 ## Tests & qualité
 
 ```bash
-php artisan test --exclude-group ldap,integration   # 759 tests
+php8.4 artisan test --exclude-group ldap,integration   # 759 tests
 ./vendor/bin/pint                                    # PSR-12
 ./vendor/bin/phpstan analyse --memory-limit=512M     # PHPStan niveau 5
 composer audit                                       # 0 vulnérabilité
@@ -152,12 +153,12 @@ composer audit                                       # 0 vulnérabilité
 ## Roadmap
 
 ```
-Oct 2025          Avr 2026               2027
+Oct 2025          Avr 2026               2027+
 │                 │                      │
-├─ Ph.1 Socle ✅  ├─ Ph.6 GED ✅        ├─ Chat
-├─ Ph.2 Users ✅  ├─ Ph.7 Collabora ✅  ├─ Agenda global
+├─ Ph.1 Socle ✅  ├─ Ph.6 GED ✅        ├─ Chat (remplace Teams)
+├─ Ph.2 Users ✅  ├─ Ph.7 Collabora ✅  ├─ Agenda global + CalDAV
 ├─ Ph.3 Projets ✅│                      ├─ Sondages
-├─ Ph.4-5 Photo ✅│                      └─ Publication open source
+├─ Ph.4-5 Photo ✅│                      └─ Notifications push
 ```
 
 Voir [ROADMAP.md](ROADMAP.md) pour le détail.
@@ -166,10 +167,20 @@ Voir [ROADMAP.md](ROADMAP.md) pour le détail.
 
 ## Instance de démonstration
 
-Une instance est disponible sur **[pladigit.fr](https://pladigit.fr)** à titre de démonstration.
+Une instance est disponible sur **[demo.pladigit.fr](https://demo.pladigit.fr)** à titre de démonstration.
 
-> ⚠ Cette instance tourne sur infrastructure personnelle. La disponibilité n'est pas garantie.  
-> Elle est réinitialisée périodiquement. Ne pas y déposer de données sensibles.
+**Mot de passe commun à tous les comptes : `demo1234`**
+
+| Rôle | Nom | Email |
+|------|-----|-------|
+| Administrateur | Admin Démo | `admin@demo.pladigit.fr` |
+| Président | Marie Dupont | `president@demo.pladigit.fr` |
+| DGS | Jean-Pierre Martin | `dgs@demo.pladigit.fr` |
+| Resp. Direction | Sophie Lambert | `resp.direction@demo.pladigit.fr` |
+| Resp. Service | Thomas Bernard | `resp.service@demo.pladigit.fr` |
+| Agent | Lucie Moreau | `user@demo.pladigit.fr` |
+
+> ℹ️ Instance réinitialisée automatiquement toutes les 2 heures. Ne pas y déposer de données sensibles.
 
 ---
 
@@ -179,7 +190,6 @@ Les contributions sont les bienvenues — code, documentation, traductions, reto
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour démarrer.
 
-L'infrastructure de démonstration (VPS, domaine) est financée personnellement.  
 Si ce projet vous est utile, vous pouvez soutenir son développement via [GitHub Sponsors](https://github.com/sponsors/jpbosse).
 
 ---
