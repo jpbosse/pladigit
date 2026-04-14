@@ -76,12 +76,12 @@ class DemoSeeder extends Seeder
             $users[$def['role']] = User::updateOrCreate(
                 ['email' => $def['email']],
                 [
-                    'name'               => $def['name'],
-                    'password_hash'      => $password,
-                    'role'               => $def['role'],
-                    'status'             => 'active',
-                    'force_pwd_change'   => false,
-                    'totp_enabled'       => false,
+                    'name' => $def['name'],
+                    'password_hash' => $password,
+                    'role' => $def['role'],
+                    'status' => 'active',
+                    'force_pwd_change' => false,
+                    'totp_enabled' => false,
                     'password_changed_at' => now(),
                 ]
             );
@@ -96,12 +96,12 @@ class DemoSeeder extends Seeder
 
     private function createDepartments(array $users): array
     {
-        $adminId  = $users[UserRole::ADMIN->value]->id;
-        $maire    = $users[UserRole::PRESIDENT->value];
-        $dgs      = $users[UserRole::DGS->value];
-        $respDir  = $users[UserRole::RESP_DIRECTION->value];
-        $respSvc  = $users[UserRole::RESP_SERVICE->value];
-        $agent    = $users[UserRole::USER->value];
+        $adminId = $users[UserRole::ADMIN->value]->id;
+        $maire = $users[UserRole::PRESIDENT->value];
+        $dgs = $users[UserRole::DGS->value];
+        $respDir = $users[UserRole::RESP_DIRECTION->value];
+        $respSvc = $users[UserRole::RESP_SERVICE->value];
+        $agent = $users[UserRole::USER->value];
 
         // ── Niveau 1 : Cabinet du Maire ───────────────────────────
         $cabinet = Department::updateOrCreate(
@@ -162,7 +162,7 @@ class DemoSeeder extends Seeder
         // Service Voirie — Resp. Service + Agent
         $voirie->members()->syncWithoutDetaching([
             $respSvc->id => ['is_manager' => true],
-            $agent->id   => ['is_manager' => false],
+            $agent->id => ['is_manager' => false],
         ]);
 
         // DRH — Resp. Direction uniquement
@@ -179,22 +179,22 @@ class DemoSeeder extends Seeder
 
     private function createProjects(array $users, array $depts): void
     {
-        $admin   = $users[UserRole::ADMIN->value];
-        $dgs     = $users[UserRole::DGS->value];
+        $admin = $users[UserRole::ADMIN->value];
+        $dgs = $users[UserRole::DGS->value];
         $respDir = $users[UserRole::RESP_DIRECTION->value];
         $respSvc = $users[UserRole::RESP_SERVICE->value];
-        $agent   = $users[UserRole::USER->value];
+        $agent = $users[UserRole::USER->value];
 
         // ── Projet 1 : PLU ───────────────────────────────────────
         $plu = Project::create([
-            'name'        => 'Révision du Plan Local d\'Urbanisme (PLU)',
+            'name' => 'Révision du Plan Local d\'Urbanisme (PLU)',
             'description' => 'Mise à jour du PLU communal — prise en compte des évolutions réglementaires et du projet de territoire 2025-2030.',
-            'status'      => 'active',
-            'start_date'  => now()->subMonths(3),
-            'due_date'    => now()->addMonths(9),
-            'color'       => '#1e40af',
-            'is_private'  => false,
-            'created_by'  => $dgs->id,
+            'status' => 'active',
+            'start_date' => now()->subMonths(3),
+            'due_date' => now()->addMonths(9),
+            'color' => '#1e40af',
+            'is_private' => false,
+            'created_by' => $dgs->id,
         ]);
 
         ProjectMember::insert([
@@ -214,22 +214,22 @@ class DemoSeeder extends Seeder
 
         foreach ($pluTasks as $i => $t) {
             Task::create(array_merge($t, [
-                'project_id'  => $plu->id,
-                'created_by'  => $dgs->id,
-                'sort_order'  => $i + 1,
+                'project_id' => $plu->id,
+                'created_by' => $dgs->id,
+                'sort_order' => $i + 1,
             ]));
         }
 
         // ── Projet 2 : Rénovation salle des fêtes ────────────────
         $sdf = Project::create([
-            'name'        => 'Rénovation salle des fêtes — Tranche 2',
+            'name' => 'Rénovation salle des fêtes — Tranche 2',
             'description' => 'Mise aux normes accessibilité, remplacement du système électrique et réfection de la toiture.',
-            'status'      => 'active',
-            'start_date'  => now()->subMonth(),
-            'due_date'    => now()->addMonths(5),
-            'color'       => '#b45309',
-            'is_private'  => false,
-            'created_by'  => $respDir->id,
+            'status' => 'active',
+            'start_date' => now()->subMonth(),
+            'due_date' => now()->addMonths(5),
+            'color' => '#b45309',
+            'is_private' => false,
+            'created_by' => $respDir->id,
         ]);
 
         ProjectMember::insert([
@@ -257,14 +257,14 @@ class DemoSeeder extends Seeder
 
         // ── Projet 3 : RGPD ──────────────────────────────────────
         $rgpd = Project::create([
-            'name'        => 'Mise en conformité RGPD 2025',
+            'name' => 'Mise en conformité RGPD 2025',
             'description' => 'Actualisation du registre des traitements, mise à jour des mentions légales et formation des agents.',
-            'status'      => 'completed',
-            'start_date'  => now()->subMonths(6),
-            'due_date'    => now()->subMonth(),
-            'color'       => '#065f46',
-            'is_private'  => false,
-            'created_by'  => $admin->id,
+            'status' => 'completed',
+            'start_date' => now()->subMonths(6),
+            'due_date' => now()->subMonth(),
+            'color' => '#065f46',
+            'is_private' => false,
+            'created_by' => $admin->id,
         ]);
 
         ProjectMember::insert([
@@ -296,15 +296,15 @@ class DemoSeeder extends Seeder
 
     private function createAlbums(array $users, array $depts): void
     {
-        $admin   = $users[UserRole::ADMIN->value];
+        $admin = $users[UserRole::ADMIN->value];
         $respDir = $users[UserRole::RESP_DIRECTION->value];
 
         $albumPublic = MediaAlbum::updateOrCreate(
             ['name' => 'Fête de la commune 2025'],
             [
                 'description' => 'Photos de la fête annuelle de la commune — juin 2025.',
-                'visibility'  => 'public',
-                'created_by'  => $admin->id,
+                'visibility' => 'public',
+                'created_by' => $admin->id,
             ]
         );
 
@@ -312,25 +312,25 @@ class DemoSeeder extends Seeder
             ['name' => 'Travaux voirie 2025'],
             [
                 'description' => 'Suivi photographique des chantiers de voirie en cours.',
-                'visibility'  => 'restricted',
-                'created_by'  => $respDir->id,
+                'visibility' => 'restricted',
+                'created_by' => $respDir->id,
             ]
         );
 
         foreach ([UserRole::RESP_SERVICE->value, UserRole::USER->value] as $role) {
             Share::updateOrCreate(
                 [
-                    'shareable_type'   => 'media_album',
-                    'shareable_id'     => $albumVoirie->id,
+                    'shareable_type' => 'media_album',
+                    'shareable_id' => $albumVoirie->id,
                     'shared_with_type' => 'role',
                     'shared_with_role' => $role,
                 ],
                 [
-                    'can_view'     => true,
+                    'can_view' => true,
                     'can_download' => $role === UserRole::RESP_SERVICE->value,
-                    'can_edit'     => false,
-                    'can_manage'   => false,
-                    'shared_by'    => $admin->id,
+                    'can_edit' => false,
+                    'can_manage' => false,
+                    'shared_by' => $admin->id,
                 ]
             );
         }
@@ -339,8 +339,8 @@ class DemoSeeder extends Seeder
             ['name' => 'Conseil municipal — Archives'],
             [
                 'description' => 'Photos des séances du conseil municipal.',
-                'visibility'  => 'private',
-                'created_by'  => $users[UserRole::PRESIDENT->value]->id,
+                'visibility' => 'private',
+                'created_by' => $users[UserRole::PRESIDENT->value]->id,
             ]
         );
     }

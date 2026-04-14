@@ -60,14 +60,13 @@ class DepartmentController extends Controller
             ->with('departments')
             ->orderBy('name')
             ->get();
-            
 
         $deptMembersMap = \App\Models\Tenant\Department::on('tenant')
             ->with('members')
             ->get()
-            ->mapWithKeys(fn($d) => [
-                $d->id => $d->members->map(fn($u) => [
-                    'id'   => $u->id,
+            ->mapWithKeys(fn ($d) => [
+                $d->id => $d->members->map(fn ($u) => [
+                    'id' => $u->id,
                     'name' => $u->name,
                 ])->values(),
             ]);
@@ -157,10 +156,10 @@ class DepartmentController extends Controller
     public function update(Request $request, Department $department)
     {
         $data = $request->validate([
-            'name'           => ['required', 'string', 'max:255'],
-            'label'          => ['nullable', 'string', 'max:100'],
-            'color'          => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
-            'parent_id'      => ['nullable', 'integer'],
+            'name' => ['required', 'string', 'max:255'],
+            'label' => ['nullable', 'string', 'max:100'],
+            'color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'parent_id' => ['nullable', 'integer'],
             'is_transversal' => ['nullable', 'boolean'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -196,7 +195,7 @@ class DepartmentController extends Controller
 
         $old = $department->only(['name', 'label', 'color', 'parent_id', 'is_transversal', 'sort_order']);
 
-        $memberIds  = array_map('intval', $data['member_ids']  ?? []);
+        $memberIds = array_map('intval', $data['member_ids'] ?? []);
         $managerIds = array_map('intval', $data['manager_ids'] ?? []);
 
         $department->update(\Illuminate\Support\Arr::except($data, ['member_ids', 'manager_ids']));

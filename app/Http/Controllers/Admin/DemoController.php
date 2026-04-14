@@ -52,7 +52,7 @@ class DemoController extends Controller
         }
 
         $request->validate([
-            'photos'   => ['required', 'array', 'max:20'],
+            'photos' => ['required', 'array', 'max:20'],
             'photos.*' => ['file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
@@ -68,7 +68,7 @@ class DemoController extends Controller
                 $count++;
             }
         } catch (\Throwable $e) {
-            return back()->withErrors(['photos' => 'Erreur lors de l\'upload : ' . $e->getMessage()]);
+            return back()->withErrors(['photos' => 'Erreur lors de l\'upload : '.$e->getMessage()]);
         }
 
         return back()->with('success', "{$count} photo(s) ajoutée(s) dans les sources de démo.");
@@ -85,14 +85,14 @@ class DemoController extends Controller
         }
 
         $request->validate([
-            'docs'      => ['required', 'array', 'max:20'],
-            'docs.*'    => ['file', 'mimes:pdf,doc,docx,odt,xls,xlsx,ods,txt', 'max:20480'],
+            'docs' => ['required', 'array', 'max:20'],
+            'docs.*' => ['file', 'mimes:pdf,doc,docx,odt,xls,xlsx,ods,txt', 'max:20480'],
             'subfolder' => ['nullable', 'string', 'max:100', 'regex:/^[^\/\\\\.]+$/'],
         ]);
 
         $base = storage_path('demo_ged');
-        $dir  = $request->filled('subfolder')
-            ? $base . '/' . $request->subfolder
+        $dir = $request->filled('subfolder')
+            ? $base.'/'.$request->subfolder
             : $base;
 
         if (! is_dir($dir)) {
@@ -128,7 +128,7 @@ class DemoController extends Controller
             : storage_path('demo_ged');
 
         // Sécurité : s'assurer que le chemin reste dans le dossier autorisé
-        $full = realpath($base . '/' . $request->path);
+        $full = realpath($base.'/'.$request->path);
         if (! $full || ! str_starts_with($full, realpath($base))) {
             abort(403, 'Chemin non autorisé.');
         }
@@ -154,14 +154,15 @@ class DemoController extends Controller
 
         // Exécuter la commande dans un processus PHP séparé (comme le terminal)
         // pour éviter les problèmes de contexte liés à Artisan::call() depuis le web.
-        $phpBin  = (new PhpExecutableFinder())->find() ?: 'php';
+        $phpBin = (new PhpExecutableFinder)->find() ?: 'php';
         $process = new Process([$phpBin, base_path('artisan'), 'demo:reset', '--slug=demo']);
         $process->setTimeout(270);
         $process->run();
 
         if (! $process->isSuccessful()) {
-            $detail = trim($process->getErrorOutput() . "\n" . $process->getOutput());
-            return back()->withErrors(['reset' => 'Erreur lors du reset : ' . $detail]);
+            $detail = trim($process->getErrorOutput()."\n".$process->getOutput());
+
+            return back()->withErrors(['reset' => 'Erreur lors du reset : '.$detail]);
         }
 
         return back()->with('success', 'Remise à zéro effectuée.');
@@ -178,7 +179,7 @@ class DemoController extends Controller
         }
 
         $files = [];
-        foreach (glob($dir . '/*') as $path) {
+        foreach (glob($dir.'/*') as $path) {
             $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
             if (is_file($path) && in_array($ext, $exts)) {
                 $files[] = [
@@ -204,14 +205,14 @@ class DemoController extends Controller
                 continue;
             }
 
-            $full = $dir . '/' . $item;
-            $rel  = $relative ? $relative . '/' . $item : $item;
+            $full = $dir.'/'.$item;
+            $rel = $relative ? $relative.'/'.$item : $item;
 
             if (is_dir($full)) {
                 $tree[] = [
-                    'type'     => 'folder',
-                    'name'     => $item,
-                    'path'     => $rel,
+                    'type' => 'folder',
+                    'name' => $item,
+                    'path' => $rel,
                     'children' => $this->buildGedTree($full, $rel),
                 ];
             } elseif (is_file($full)) {
@@ -230,12 +231,12 @@ class DemoController extends Controller
     private function humanSize(int $bytes): string
     {
         if ($bytes < 1024) {
-            return $bytes . ' o';
+            return $bytes.' o';
         }
         if ($bytes < 1048576) {
-            return round($bytes / 1024, 1) . ' Ko';
+            return round($bytes / 1024, 1).' Ko';
         }
 
-        return round($bytes / 1048576, 1) . ' Mo';
+        return round($bytes / 1048576, 1).' Mo';
     }
 }

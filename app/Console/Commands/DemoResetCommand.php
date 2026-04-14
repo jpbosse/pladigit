@@ -27,7 +27,8 @@ use Illuminate\Support\Str;
  */
 class DemoResetCommand extends Command
 {
-    protected $signature   = 'demo:reset {--slug=demo : Slug de l\'organisation démo}';
+    protected $signature = 'demo:reset {--slug=demo : Slug de l\'organisation démo}';
+
     protected $description = 'Remet l\'organisation démo dans son état initial (données + fichiers)';
 
     public function __construct(private TenantManager $tenantManager)
@@ -42,6 +43,7 @@ class DemoResetCommand extends Command
         $org = Organization::where('slug', $slug)->first();
         if (! $org) {
             $this->error("Organisation « {$slug} » introuvable en base platform.");
+
             return self::FAILURE;
         }
 
@@ -54,7 +56,7 @@ class DemoResetCommand extends Command
         $this->wipePhysicalFiles();
         $this->info('✓ Fichiers physiques supprimés');
 
-        $seeder = new \Database\Seeders\DemoSeeder();
+        $seeder = new \Database\Seeders\DemoSeeder;
         $seeder->setContainer(app())->setCommand($this);
         $seeder->run();
         $this->info('✓ Données de base re-seedées');
@@ -123,7 +125,7 @@ class DemoResetCommand extends Command
         try {
             Storage::disk('local')->deleteDirectory('ged');
         } catch (\Throwable $e) {
-            $this->warn('  ⚠  Impossible de supprimer le dossier GED : ' . $e->getMessage());
+            $this->warn('  ⚠  Impossible de supprimer le dossier GED : '.$e->getMessage());
         }
 
         // Médias NAS simulation
@@ -147,6 +149,7 @@ class DemoResetCommand extends Command
 
         if (! is_dir($sourcePath)) {
             $this->warn('  ⚠  storage/demo_ged/ absent — documents GED ignorés.');
+
             return;
         }
 
@@ -166,14 +169,14 @@ class DemoResetCommand extends Command
         // Si ce n'est pas la racine demo_ged, créer un dossier GED
         $folderId = $parentId;
         if (basename($dirPath) !== 'demo_ged') {
-            $name   = basename($dirPath);
-            $slug   = Str::slug($name);
+            $name = basename($dirPath);
+            $slug = Str::slug($name);
             $folder = GedFolder::create([
-                'name'       => $name,
-                'slug'       => $slug,
-                'path'       => '/' . $slug,
-                'nas_path'   => '',
-                'parent_id'  => $parentId,
+                'name' => $name,
+                'slug' => $slug,
+                'path' => '/'.$slug,
+                'nas_path' => '',
+                'parent_id' => $parentId,
                 'is_private' => false,
                 'created_by' => $adminId,
             ]);
@@ -181,7 +184,7 @@ class DemoResetCommand extends Command
         }
 
         foreach ($items as $item) {
-            $fullPath = $dirPath . '/' . $item;
+            $fullPath = $dirPath.'/'.$item;
 
             if (is_dir($fullPath)) {
                 $this->processGedDir($fullPath, $folderId, $adminId);
@@ -197,31 +200,31 @@ class DemoResetCommand extends Command
         int $folderId,
         int $adminId
     ): void {
-        $ext      = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-        $mime     = $this->guessMime($ext);
-        $uuid     = Str::uuid()->toString();
+        $ext = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+        $mime = $this->guessMime($ext);
+        $uuid = Str::uuid()->toString();
         $diskPath = "ged/{$uuid}.{$ext}";
-        $size     = filesize($sourcePath);
+        $size = filesize($sourcePath);
 
         Storage::disk('local')->put($diskPath, file_get_contents($sourcePath));
 
         $doc = GedDocument::create([
-            'folder_id'       => $folderId,
-            'name'            => $fileName,
-            'disk_path'       => $diskPath,
-            'mime_type'       => $mime,
-            'size_bytes'      => $size,
+            'folder_id' => $folderId,
+            'name' => $fileName,
+            'disk_path' => $diskPath,
+            'mime_type' => $mime,
+            'size_bytes' => $size,
             'current_version' => 1,
-            'created_by'      => $adminId,
+            'created_by' => $adminId,
         ]);
 
         GedDocumentVersion::create([
-            'document_id'    => $doc->id,
+            'document_id' => $doc->id,
             'version_number' => 1,
-            'disk_path'      => $diskPath,
-            'mime_type'      => $mime,
-            'size_bytes'     => $size,
-            'uploaded_by'    => $adminId,
+            'disk_path' => $diskPath,
+            'mime_type' => $mime,
+            'size_bytes' => $size,
+            'uploaded_by' => $adminId,
         ]);
     }
 
@@ -235,6 +238,7 @@ class DemoResetCommand extends Command
 
         if (! is_dir($sourcePath)) {
             $this->warn('  ⚠  storage/demo_photos/ absent — photos ignorées.');
+
             return;
         }
 
@@ -242,6 +246,7 @@ class DemoResetCommand extends Command
 
         if (empty($photos)) {
             $this->warn('  ⚠  Aucune photo dans storage/demo_photos/ — photos ignorées.');
+
             return;
         }
 
@@ -264,8 +269,8 @@ class DemoResetCommand extends Command
 
         $count = 0;
         foreach ($photos as $photoPath) {
-            $ext      = strtolower(pathinfo($photoPath, PATHINFO_EXTENSION));
-            $sha256   = hash_file('sha256', $photoPath);
+            $ext = strtolower(pathinfo($photoPath, PATHINFO_EXTENSION));
+            $sha256 = hash_file('sha256', $photoPath);
             $destName = "{$sha256}.{$ext}";
             $destFull = "{$nasPath}/{$destName}";
 
@@ -274,17 +279,17 @@ class DemoResetCommand extends Command
             [$width, $height] = @getimagesize($photoPath) ?: [null, null];
 
             MediaItem::create([
-                'album_id'          => $album->id,
-                'uploaded_by'       => $admin->id,
-                'file_name'         => basename($photoPath),
-                'file_path'         => $destName,
-                'thumb_path'        => null,
-                'mime_type'         => mime_content_type($photoPath) ?: 'image/jpeg',
-                'file_size_bytes'   => filesize($photoPath),
-                'width_px'          => $width,
-                'height_px'         => $height,
-                'sha256_hash'       => $sha256,
-                'is_duplicate'      => false,
+                'album_id' => $album->id,
+                'uploaded_by' => $admin->id,
+                'file_name' => basename($photoPath),
+                'file_path' => $destName,
+                'thumb_path' => null,
+                'mime_type' => mime_content_type($photoPath) ?: 'image/jpeg',
+                'file_size_bytes' => filesize($photoPath),
+                'width_px' => $width,
+                'height_px' => $height,
+                'sha256_hash' => $sha256,
+                'is_duplicate' => false,
                 'processing_status' => 'done',
             ]);
 
@@ -301,14 +306,14 @@ class DemoResetCommand extends Command
     private function guessMime(string $ext): string
     {
         return match ($ext) {
-            'pdf'  => 'application/pdf',
+            'pdf' => 'application/pdf',
             'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-            'odt'  => 'application/vnd.oasis.opendocument.text',
-            'ods'  => 'application/vnd.oasis.opendocument.spreadsheet',
-            'txt'  => 'text/plain',
+            'odt' => 'application/vnd.oasis.opendocument.text',
+            'ods' => 'application/vnd.oasis.opendocument.spreadsheet',
+            'txt' => 'text/plain',
             'jpg', 'jpeg' => 'image/jpeg',
-            'png'  => 'image/png',
+            'png' => 'image/png',
             default => 'application/octet-stream',
         };
     }

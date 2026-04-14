@@ -253,12 +253,12 @@ class UserController extends Controller
     {
         $user->update([
             'totp_enabled' => false,
-            'totp_secret'  => null,
+            'totp_secret' => null,
         ]);
 
         $this->audit->log('user.2fa_reset', auth()->user(), [
             'model_type' => User::class,
-            'model_id'   => $user->id,
+            'model_id' => $user->id,
         ]);
 
         return back()->with('success', "Authentification à deux facteurs désactivée pour {$user->name}.");
