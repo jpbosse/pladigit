@@ -57,7 +57,7 @@
             <span style="font-size:11px;opacity:0.55;">
                 👥{{ $node->members->count() }}@if($hasChildren) · {{ $node->allChildren->count() }}↓@endif
             </span>
-            <button onclick="openEditModal({{ $node->id }},'{{ addslashes($node->name) }}','{{ addslashes($node->label ?? '') }}','{{ $node->color ?? '' }}',{{ $node->parent_id ?: 'null' }},{{ $node->is_transversal ? 'true' : 'false' }},{{ $node->sort_order ?? 0 }})"
+            <button onclick="openEditModal({{ $node->id }},'{{ addslashes($node->name) }}','{{ addslashes($node->label ?? '') }}','{{ $node->color ?? '' }}',{{ $node->parent_id ?: 'null' }},{{ $node->is_transversal ? 'true' : 'false' }},{{ $node->sort_order ?? 0 }},{{ $node->head_id ?? 'null' }})"
                     style="font-size:12px;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;
                            background:rgba(255,255,255,0.15);color:#fff;transition:background 0.15s;"
                     onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">

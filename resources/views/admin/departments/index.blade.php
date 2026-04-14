@@ -130,6 +130,18 @@
                     </select>
                 </div>
 
+                <div>
+                    <label style="display:block;font-size:12px;font-weight:500;color:var(--pd-text);margin-bottom:5px;">Nom de l'utilisateur</label>
+                    <select name="head_id"
+                            style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid var(--pd-border);background:var(--pd-bg);color:var(--pd-text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;cursor:pointer;"
+                            onfocus="this.style.borderColor='var(--pd-accent)'" onblur="this.style.borderColor='var(--pd-border)'">
+                        <option value="">— Aucun —</option>
+                        @foreach($allUsers as $u)
+                        <option value="{{ $u->id }}" {{ old('head_id') == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
                     <input type="hidden" name="is_transversal" value="0">
                     <input type="checkbox" name="is_transversal" id="isTransversal" value="1"

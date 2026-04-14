@@ -26,6 +26,7 @@ class DepartmentController extends Controller
         $roots = Department::on('tenant')
             ->whereNull('parent_id')
             ->with(['allChildren.members', 'allChildren.managers', 'allChildren.head', 'members', 'managers', 'head'])
+            ->with(['allChildren.members', 'allChildren.managers', 'allChildren.head', 'members', 'managers', 'head'])
             ->withCount('members')
             ->orderBy('sort_order')
             ->orderBy('name')
@@ -55,31 +56,7 @@ class DepartmentController extends Controller
         $labelSuggestions = array_unique(array_merge($defaultLabels, $usedLabels));
         sort($labelSuggestions);
 
-        $allUsers = \App\Models\Tenant\User::on('tenant')
-            ->where('status', 'active')
-            ->orderBy('name')
-            ->with(['departments:id,name'])
-            ->get(['id', 'name']);
-
-        // Map dept_id → membres pour le modal JS
-        $deptMembersMap = Department::on('tenant')
-            ->with('members:id,name')
-            ->get()
-            ->mapWithKeys(function ($d) {
-                return [
-                    $d->id => $d->members->map(function ($m) {
-                        /** @var \App\Models\Tenant\User $m */
-                        $pivot = $m->getRelation('pivot');
-                        return [
-                            'id'         => $m->id,
-                            'name'       => $m->name,
-                            'is_manager' => (bool) ($pivot->is_manager ?? false),
-                        ];
-                    }),
-                ];
-            });
-
-        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions', 'allUsers', 'deptMembersMap'));
+        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions'));
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -169,11 +146,7 @@ class DepartmentController extends Controller
             'color'          => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'parent_id'      => ['nullable', 'integer'],
             'is_transversal' => ['nullable', 'boolean'],
-            'sort_order'     => ['nullable', 'integer', 'min:0'],
-            'member_ids'     => ['nullable', 'array'],
-            'member_ids.*'   => ['integer', 'exists:tenant.users,id'],
-            'manager_ids'    => ['nullable', 'array'],
-            'manager_ids.*'  => ['integer'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
         ]);
 
         // Vérifie que le parent existe si fourni

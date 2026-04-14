@@ -145,6 +145,7 @@
         <a href="/" class="nav-logo">Pladi<span>git</span></a>
         <div class="nav-links" id="nav-links">
             <a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#demo">Démo</a>
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
             <a href="https://github.com/jpbosse/pladigit" target="_blank" class="btn-source">Source</a>
@@ -166,7 +167,7 @@
             <h1 class="hero-title">La plateforme <em>digitale</em><br>de votre collectivité</h1>
             <p class="hero-subtitle">Pladigit centralise la gestion documentaire, les médias, les projets et la communication interne dans un espace sécurisé et souverain.</p>
             <div class="hero-actions">
-                <a href="#contact" class="btn-primary">Demander une démo</a>
+                <a href="#demo" class="btn-primary">🚀 Tester en ligne</a>
                 <a href="#fonctionnalites" class="btn-secondary">Découvrir les modules</a>
             </div>
         </div>
@@ -222,6 +223,67 @@
                 <p class="module-card-desc">{{ $m['desc'] }}</p>
             </div>
             @endforeach
+        </div>
+    </div>
+</section>
+
+<section class="section" id="demo" style="background:var(--light)">
+    <div class="section-inner">
+        <div class="fade-up" style="text-align:center;margin-bottom:3rem">
+            <div class="section-label">Instance publique</div>
+            <h2 class="section-title">Testez Pladigit maintenant</h2>
+            <p class="section-subtitle" style="margin:0 auto 2rem">Une instance de démonstration est disponible 24h/24, 7j/7. Elle est réinitialisée toutes les 2 heures.</p>
+            <a href="https://demo.pladigit.fr/login" target="_blank"
+               style="display:inline-flex;align-items:center;gap:0.5rem;background:var(--gold);color:var(--navy);padding:0.85rem 2.5rem;border-radius:4px;font-weight:700;font-size:1rem;text-decoration:none;transition:all 0.2s;border:2px solid var(--gold)"
+               onmouseover="this.style.background='var(--gold2)';this.style.borderColor='var(--gold2)'"
+               onmouseout="this.style.background='var(--gold)';this.style.borderColor='var(--gold)'">
+                🚀 Accéder à la démo
+            </a>
+        </div>
+
+        <div class="fade-up" style="max-width:760px;margin:0 auto">
+            <div style="background:white;border-radius:8px;border:1px solid rgba(30,58,95,0.1);overflow:hidden">
+                <div style="background:var(--navy);padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between">
+                    <span style="font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--gold2)">Comptes disponibles — mot de passe : <code style="background:rgba(255,255,255,0.1);padding:0.15rem 0.4rem;border-radius:3px;font-size:0.8rem;text-transform:none;letter-spacing:0">demo1234</code></span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;font-size:0.875rem">
+                    <thead>
+                        <tr style="border-bottom:1px solid rgba(30,58,95,0.08)">
+                            <th style="padding:0.75rem 1.25rem;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--grey)">Rôle</th>
+                            <th style="padding:0.75rem 1.25rem;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--grey)">Nom</th>
+                            <th style="padding:0.75rem 1.25rem;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--grey)">Email</th>
+                            <th style="padding:0.75rem 1.25rem;text-align:center;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--grey)">Accès direct</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @php
+                        $demoAccounts = [
+                            ['role' => 'Administrateur',   'name' => 'Admin Démo',         'email' => 'admin@demo.pladigit.fr'],
+                            ['role' => 'Président',        'name' => 'Marie Dupont',        'email' => 'president@demo.pladigit.fr'],
+                            ['role' => 'DGS',              'name' => 'Jean-Pierre Martin',  'email' => 'dgs@demo.pladigit.fr'],
+                            ['role' => 'Resp. Direction',  'name' => 'Sophie Lambert',      'email' => 'resp.direction@demo.pladigit.fr'],
+                            ['role' => 'Resp. Service',    'name' => 'Thomas Bernard',      'email' => 'resp.service@demo.pladigit.fr'],
+                            ['role' => 'Agent',            'name' => 'Lucie Moreau',        'email' => 'user@demo.pladigit.fr'],
+                        ];
+                        @endphp
+                        @foreach($demoAccounts as $i => $account)
+                        <tr style="border-bottom:1px solid rgba(30,58,95,0.06);{{ $i % 2 === 1 ? 'background:rgba(30,58,95,0.02)' : '' }}">
+                            <td style="padding:0.75rem 1.25rem;font-weight:600;color:var(--navy)">{{ $account['role'] }}</td>
+                            <td style="padding:0.75rem 1.25rem;color:var(--text)">{{ $account['name'] }}</td>
+                            <td style="padding:0.75rem 1.25rem"><code style="font-size:0.8rem;color:var(--grey);background:var(--light);padding:0.15rem 0.4rem;border-radius:3px">{{ $account['email'] }}</code></td>
+                            <td style="padding:0.75rem 1.25rem;text-align:center">
+                                <a href="https://demo.pladigit.fr/login?email={{ urlencode($account['email']) }}" target="_blank"
+                                   style="font-size:0.75rem;font-weight:600;color:var(--navy);text-decoration:none;border:1px solid rgba(30,58,95,0.2);padding:0.25rem 0.6rem;border-radius:3px;transition:all 0.2s"
+                                   onmouseover="this.style.background='var(--navy)';this.style.color='white'"
+                                   onmouseout="this.style.background='transparent';this.style.color='var(--navy)'">
+                                    Connexion →
+                                </a>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </section>
@@ -320,7 +382,7 @@
                 <div class="footer-tagline">Plateforme de Digitalisation Interne<br>pour les Collectivités Publiques</div>
             </div>
             <div class="footer-links">
-                <div class="footer-col"><div class="footer-col-title">Plateforme</div><a href="#fonctionnalites">Fonctionnalités</a><a href="#tarifs">Tarifs</a><a href="#contact">Démo</a></div>
+                <div class="footer-col"><div class="footer-col-title">Plateforme</div><a href="#fonctionnalites">Fonctionnalités</a><a href="#tarifs">Tarifs</a><a href="#demo">Démo</a></div>
                 <div class="footer-col"><div class="footer-col-title">Ressources</div><a href="#">Documentation</a><a href="#">GitHub</a><a href="#">Changelog</a></div>
                 <div class="footer-col"><div class="footer-col-title">Les Bézots</div><a href="#">À propos</a><a href="#contact">Contact</a><a href="#">Mentions légales</a></div>
             </div>
@@ -343,34 +405,16 @@
         {{-- En-tête --}}
         <div style="margin-bottom:1.75rem">
             <div style="font-family:'Libre Baskerville',serif;font-size:1.3rem;font-weight:700;color:#1E3A5F;margin-bottom:0.25rem">Connexion à Pladigit</div>
-            <div style="font-size:0.82rem;color:#6B7A8D">Accédez à l'espace de votre organisation.</div>
+            <div style="font-size:0.82rem;color:#6B7A8D">Saisissez l'identifiant de votre organisation pour accéder à votre espace.</div>
         </div>
 
         {{-- Champ Organisation --}}
-        <div style="margin-bottom:1rem">
+        <div style="margin-bottom:1.5rem">
             <label style="display:block;font-size:0.78rem;font-weight:600;color:#1E3A5F;margin-bottom:0.35rem">
                 Identifiant de l'organisation
                 <span style="font-weight:400;color:#9ca3af;font-size:0.72rem;margin-left:0.4rem">fourni par votre administrateur</span>
             </label>
             <input id="modal-org" type="text" placeholder="ex: mairie-soullans" autocomplete="organization"
-                style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.9rem;font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color 0.2s"
-                onfocus="this.style.borderColor='#1E3A5F'" onblur="this.style.borderColor='#d1d5db'"
-                onkeydown="if(event.key==='Enter')document.getElementById('modal-email').focus()">
-        </div>
-
-        {{-- Champ Email --}}
-        <div style="margin-bottom:1rem">
-            <label style="display:block;font-size:0.78rem;font-weight:600;color:#1E3A5F;margin-bottom:0.35rem">Adresse email</label>
-            <input id="modal-email" type="email" placeholder="vous@organisation.fr" autocomplete="email"
-                style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.9rem;font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color 0.2s"
-                onfocus="this.style.borderColor='#1E3A5F'" onblur="this.style.borderColor='#d1d5db'"
-                onkeydown="if(event.key==='Enter')document.getElementById('modal-pwd').focus()">
-        </div>
-
-        {{-- Champ Mot de passe --}}
-        <div style="margin-bottom:1.5rem">
-            <label style="display:block;font-size:0.78rem;font-weight:600;color:#1E3A5F;margin-bottom:0.35rem">Mot de passe</label>
-            <input id="modal-pwd" type="password" placeholder="••••••••" autocomplete="current-password"
                 style="width:100%;padding:0.65rem 0.875rem;border:1px solid #d1d5db;border-radius:4px;font-size:0.9rem;font-family:'Source Sans 3',sans-serif;outline:none;transition:border-color 0.2s"
                 onfocus="this.style.borderColor='#1E3A5F'" onblur="this.style.borderColor='#d1d5db'"
                 onkeydown="if(event.key==='Enter')submitLogin()">
@@ -383,7 +427,7 @@
         <button id="modal-btn" onclick="submitLogin()"
             style="width:100%;padding:0.85rem;background:#1E3A5F;color:white;border:none;border-radius:4px;font-family:'Source Sans 3',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s"
             onmouseover="this.style.background='#162D4A'" onmouseout="this.style.background='#1E3A5F'">
-            Se connecter
+            Accéder à mon espace →
         </button>
 
         {{-- Aide --}}
@@ -417,13 +461,9 @@
 
 // ── Helpers cookie ───────────────────────────────────────────
 function setCookie(name, value, days) {
-    var expires = '';
-    if (days) {
-        var d = new Date();
-        d.setTime(d.getTime() + days * 864e5);
-        expires = ';expires=' + d.toUTCString();
-    }
-    document.cookie = name + '=' + encodeURIComponent(value) + expires + ';path=/;SameSite=Lax';
+    var d = new Date();
+    d.setTime(d.getTime() + days * 864e5);
+    document.cookie = name + '=' + encodeURIComponent(value) + ';expires=' + d.toUTCString() + ';path=/;SameSite=Lax';
 }
 function getCookie(name) {
     var match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'));
@@ -432,99 +472,66 @@ function getCookie(name) {
 
 // ── Modal ────────────────────────────────────────────────────
 function openLoginModal() {
-    // Pré-remplir l'org depuis le cookie si disponible
     var savedOrg = getCookie('pladigit_org');
     if (savedOrg) {
         document.getElementById('modal-org').value = savedOrg;
-        // Focus sur email si org déjà connue
-        setTimeout(function() { document.getElementById('modal-email').focus(); }, 100);
-    } else {
-        setTimeout(function() { document.getElementById('modal-org').focus(); }, 100);
     }
     document.getElementById('modal-error').style.display = 'none';
     document.getElementById('login-modal').style.display = 'flex';
     document.body.style.overflow = 'hidden';
+    setTimeout(function() { document.getElementById('modal-org').focus(); }, 100);
 }
 function closeLoginModal() {
     document.getElementById('login-modal').style.display = 'none';
     document.body.style.overflow = '';
 }
-// Fermeture en cliquant sur le fond
 document.getElementById('login-modal').addEventListener('click', function(e) {
     if (e.target === this) closeLoginModal();
 });
-// Fermeture avec Escape
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeLoginModal();
 });
 
-// ── Soumission ───────────────────────────────────────────────
+// ── Soumission : vérifier org puis rediriger vers slug.pladigit.fr/login ──
 function submitLogin() {
-    var slug  = document.getElementById('modal-org').value.trim().toLowerCase();
-    var email = document.getElementById('modal-email').value.trim();
-    var pwd   = document.getElementById('modal-pwd').value;
-    var btn   = document.getElementById('modal-btn');
-    var err   = document.getElementById('modal-error');
+    var slug = document.getElementById('modal-org').value.trim().toLowerCase();
+    var btn  = document.getElementById('modal-btn');
+    var err  = document.getElementById('modal-error');
 
     err.style.display = 'none';
-
-    if (!slug) { showModalError('Veuillez saisir l\'identifiant de votre organisation.'); return; }
-    if (!email) { showModalError('Veuillez saisir votre adresse email.'); return; }
-    if (!pwd)   { showModalError('Veuillez saisir votre mot de passe.'); return; }
+    if (!slug) {
+        err.textContent = 'Veuillez saisir l\'identifiant de votre organisation.';
+        err.style.display = 'block';
+        return;
+    }
 
     btn.disabled = true;
     btn.textContent = '⏳ Vérification...';
 
-    // 1. Vérifier que l'org existe
     fetch('/check-org-ajax/' + encodeURIComponent(slug))
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (!data.exists) {
-                showModalError('❌ Organisation « ' + slug + ' » introuvable. Vérifiez l\'identifiant.');
-                resetBtn();
+                err.textContent = '❌ Organisation « ' + slug + ' » introuvable. Vérifiez l\'identifiant.';
+                err.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Accéder à mon espace →';
                 return;
             }
-            // 2. Org valide → sauvegarder dans le cookie (1 an)
+            // Mémoriser l'org pour la prochaine visite
             setCookie('pladigit_org', slug, 365);
-
-            // 3. Construire et soumettre le formulaire vers {slug}.pladigit.fr/login
-            var form = document.createElement('form');
-            form.method = 'POST';
-            form.action = 'http://' + slug + '.pladigit.fr/login';
-            form.style.display = 'none';
-
-            // Le token CSRF sera rejeté car on vient d'un autre domaine —
-            // on envoie sans token, le LoginController doit être exempté du CSRF
-            // pour les requêtes cross-origin (voir routes/web.php côté tenant).
-            [['email', email], ['password', pwd]].forEach(function(pair) {
-                var input = document.createElement('input');
-                input.type  = 'hidden';
-                input.name  = pair[0];
-                input.value = pair[1];
-                form.appendChild(input);
-            });
-
-            document.body.appendChild(form);
-            form.submit();
+            // Rediriger vers la page de login du tenant
+            // L'email sera saisi directement sur la page du tenant, avec son propre token CSRF
+            window.location.href = 'https://' + slug + '.pladigit.fr/login';
         })
         .catch(function() {
-            showModalError('Erreur réseau. Vérifiez votre connexion et réessayez.');
-            resetBtn();
+            err.textContent = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
+            err.style.display = 'block';
+            btn.disabled = false;
+            btn.textContent = 'Accéder à mon espace →';
         });
 }
-function showModalError(msg) {
-    var err = document.getElementById('modal-error');
-    err.textContent = msg;
-    err.style.display = 'block';
-}
-function resetBtn() {
-    var btn = document.getElementById('modal-btn');
-    btn.disabled = false;
-    btn.textContent = 'Se connecter';
-}
 </script>
-
-
 
 <script>
 const observer = new IntersectionObserver((entries) => {
@@ -537,9 +544,6 @@ const observer = new IntersectionObserver((entries) => {
 }, { threshold: 0.1 });
 document.querySelectorAll('.fade-up').forEach(el => observer.observe(el));
 </script>
-
-
-
 
 </body>
 </html>

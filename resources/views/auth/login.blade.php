@@ -46,7 +46,7 @@
         </label>
         <input id="email" name="email" type="email" required
                autocomplete="email"
-               value="{{ old('email') }}"
+               value="{{ old('email', request('email')) }}"
                placeholder="votre@email.fr"
                style="width:100%;box-sizing:border-box;
                       padding:10px 13px;border-radius:9px;

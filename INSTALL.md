@@ -385,7 +385,7 @@ nano /var/www/pladigit/app/Http/Middleware/CheckSuperAdmin.php
 private array $allowedIps = [
     '127.0.0.1',
     '::1',
-    'VOTRE_IP_PUBLIQUE',  // ex: 82.67.203.161
+    'VOTRE_IP_PUBLIQUE',  // ex: 82.67.213.178
 ];
 ```
 
