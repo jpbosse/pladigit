@@ -56,7 +56,23 @@ class DepartmentController extends Controller
         $labelSuggestions = array_unique(array_merge($defaultLabels, $usedLabels));
         sort($labelSuggestions);
 
-        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions'));
+        $allUsers = \App\Models\Tenant\User::on('tenant')
+            ->with('departments')
+            ->orderBy('name')
+            ->get();
+            
+
+        $deptMembersMap = \App\Models\Tenant\Department::on('tenant')
+            ->with('members')
+            ->get()
+            ->mapWithKeys(fn($d) => [
+                $d->id => $d->members->map(fn($u) => [
+                    'id'   => $u->id,
+                    'name' => $u->name,
+                ])->values(),
+            ]);
+
+        return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions', 'allUsers', 'deptMembersMap'));
     }
 
     // ─────────────────────────────────────────────────────────────
