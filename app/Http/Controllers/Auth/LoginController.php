@@ -186,6 +186,6 @@ class LoginController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->away('http://pladigit.fr');
+        return redirect()->away(config('app.url'));
     }
 }

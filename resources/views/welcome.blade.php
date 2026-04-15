@@ -1,3 +1,7 @@
+@php
+    $appHost    = parse_url(config('app.url'), PHP_URL_HOST); // pladigit.fr ou pladigit.local
+    $demoUrl    = 'https://demo.' . $appHost;
+@endphp
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -233,7 +237,7 @@
             <div class="section-label">Instance publique</div>
             <h2 class="section-title">Testez Pladigit maintenant</h2>
             <p class="section-subtitle" style="margin:0 auto 2rem">Une instance de démonstration est disponible 24h/24, 7j/7. Elle est réinitialisée toutes les 2 heures.</p>
-            <a href="https://demo.pladigit.fr/login" target="_blank"
+            <a href="{{ $demoUrl }}/login" target="_blank"
                style="display:inline-flex;align-items:center;gap:0.5rem;background:var(--gold);color:var(--navy);padding:0.85rem 2.5rem;border-radius:4px;font-weight:700;font-size:1rem;text-decoration:none;transition:all 0.2s;border:2px solid var(--gold)"
                onmouseover="this.style.background='var(--gold2)';this.style.borderColor='var(--gold2)'"
                onmouseout="this.style.background='var(--gold)';this.style.borderColor='var(--gold)'">
@@ -272,7 +276,7 @@
                             <td style="padding:0.75rem 1.25rem;color:var(--text)">{{ $account['name'] }}</td>
                             <td style="padding:0.75rem 1.25rem"><code style="font-size:0.8rem;color:var(--grey);background:var(--light);padding:0.15rem 0.4rem;border-radius:3px">{{ $account['email'] }}</code></td>
                             <td style="padding:0.75rem 1.25rem;text-align:center">
-                                <a href="https://demo.pladigit.fr/login?email={{ urlencode($account['email']) }}" target="_blank"
+                                <a href="{{ $demoUrl }}/login?email={{ urlencode($account['email']) }}" target="_blank"
                                    style="font-size:0.75rem;font-weight:600;color:var(--navy);text-decoration:none;border:1px solid rgba(30,58,95,0.2);padding:0.25rem 0.6rem;border-radius:3px;transition:all 0.2s"
                                    onmouseover="this.style.background='var(--navy)';this.style.color='white'"
                                    onmouseout="this.style.background='transparent';this.style.color='var(--navy)'">
@@ -522,7 +526,7 @@ function submitLogin() {
             setCookie('pladigit_org', slug, 365);
             // Rediriger vers la page de login du tenant
             // L'email sera saisi directement sur la page du tenant, avec son propre token CSRF
-            window.location.href = 'https://' + slug + '.pladigit.fr/login';
+            window.location.href = 'https://' + slug + '.{{ $appHost }}/login';
         })
         .catch(function() {
             err.textContent = 'Erreur réseau. Vérifiez votre connexion et réessayez.';
