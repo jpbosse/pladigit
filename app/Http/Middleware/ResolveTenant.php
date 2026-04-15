@@ -19,7 +19,7 @@ class ResolveTenant
     public function handle(Request $request, Closure $next): mixed
     {
         // Routes publiques sans tenant — priorité absolue, même en test
-	if ($request->is('health', 'health/*')) {
+        if ($request->is('health', 'health/*')) {
             return $next($request);
         }
 
