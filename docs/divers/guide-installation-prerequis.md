@@ -423,6 +423,37 @@ $ sudo systemctl status snap.certbot.renew.timer
 
 ✓  Le certificat Let's Encrypt est valable 90 jours. Le renouvellement automatique se fait 30 jours avant expiration.
 
+## Étape 11b — Docker (requis pour Collabora Online)
+
+
+# Installer Docker Engine (méthode officielle)
+$ sudo apt-get install -y ca-certificates curl
+$ sudo install -m 0755 -d /etc/apt/keyrings
+$ sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    -o /etc/apt/keyrings/docker.asc
+$ echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] \
+    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+$ sudo apt-get update
+$ sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# Autoriser l'utilisateur deploy à utiliser Docker sans sudo
+$ sudo usermod -aG docker deploy
+# (Déconnecter/reconnecter pour que le groupe soit pris en compte)
+
+# Démarrer et activer au boot
+$ sudo systemctl start docker
+$ sudo systemctl enable docker
+
+# Vérification
+$ docker --version
+$ docker run --rm hello-world
+
+✓  Résultat attendu : 'Hello from Docker!'
+
+ℹ  Docker est utilisé pour Collabora Online (éditeur WOPI).
+   Voir docs/deploy/collabora.md pour la configuration complète.
+
 ## Étape 12 — Structure de déploiement
 
 
@@ -482,6 +513,12 @@ SUPER_ADMIN_PASSWORD=MotDePasseSuperAdminTresLong!
 $ sudo chown -R deploy:www-data /var/www/pladigit/storage
 $ sudo chown -R deploy:www-data /var/www/pladigit/bootstrap/cache
 $ sudo chmod -R 775 /var/www/pladigit/storage
+
+# ⚠ Répertoire GED — doit être accessible par www-data (PHP-FPM)
+# Le disk 'local' de Laravel 11 utilise storage/app/private/ (pas storage/app/)
+$ sudo mkdir -p /var/www/pladigit/storage/app/private/ged
+$ sudo chmod 775 /var/www/pladigit/storage/app/private/ged
+$ sudo chown deploy:www-data /var/www/pladigit/storage/app/private/ged
 $ sudo chmod -R 775 /var/www/pladigit/bootstrap/cache
 $
 # Lancer les migrations
