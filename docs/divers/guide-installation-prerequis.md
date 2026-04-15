@@ -519,6 +519,12 @@ $ sudo chmod -R 775 /var/www/pladigit/storage
 $ sudo mkdir -p /var/www/pladigit/storage/app/private/ged
 $ sudo chmod 775 /var/www/pladigit/storage/app/private/ged
 $ sudo chown deploy:www-data /var/www/pladigit/storage/app/private/ged
+
+# ℹ Sur l'environnement démo : ne PAS copier les fichiers ODT manuellement ici.
+# php artisan demo:reset peuple ce répertoire automatiquement à partir de
+# storage/demo_ged/ (source versionnée dans git, jamais modifiée par le reset).
+# Le reset efface storage/app/private/ged/, génère un UUID par fichier et
+# recopie le tout — les droits 775 ci-dessus suffisent.
 $ sudo chmod -R 775 /var/www/pladigit/bootstrap/cache
 $
 # Lancer les migrations

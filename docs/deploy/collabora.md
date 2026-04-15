@@ -179,6 +179,12 @@ chown deploy:www-data /var/www/pladigit/storage/app/private/ged
 > (et non `storage/app/`). Sans `chmod 775`, PHP-FPM (www-data) ne peut pas
 > lire les fichiers → GetFile retourne 404.
 
+> **Sur une installation démo** : ne pas copier les fichiers manuellement.
+> `php artisan demo:reset` s'en charge automatiquement — il lit `storage/demo_ged/`
+> (source immuable, versionnée dans git), génère un UUID par fichier et écrit dans
+> `storage/app/private/ged/`. À chaque reset, ce répertoire est effacé et
+> recréé proprement. `storage/demo_ged/` n'est jamais modifié.
+
 ---
 
 ## Développement local
