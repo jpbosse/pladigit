@@ -35,6 +35,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | URL interne de Collabora (serveur → Collabora)
+    |--------------------------------------------------------------------------
+    | Utilisé uniquement côté serveur pour appeler /hosting/discovery et
+    | récupérer l'URL d'éditeur avec son hash de version.
+    | N'est jamais exposé au navigateur.
+    */
+    'internal_url' => env('COLLABORA_INTERNAL_URL', 'http://127.0.0.1:9980'),
+
+    /*
+    |--------------------------------------------------------------------------
     | TTL des tokens WOPI (en secondes)
     |--------------------------------------------------------------------------
     */

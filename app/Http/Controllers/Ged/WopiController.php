@@ -75,6 +75,10 @@ class WopiController extends Controller
             'UserCanWrite' => $canWrite,
             'ReadOnly' => ! $canWrite,
             'SupportsLocks' => true,
+	    'SupportsUpdate'     => true,
+	    'UserCanNotWriteRelative' => true,
+	    'PostMessageOrigin'  => config('app.url'),
+	    'HostEditingUrl'     => config('app.url'),
         ]);
     }
 

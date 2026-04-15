@@ -19,10 +19,14 @@ class ResolveTenant
     public function handle(Request $request, Closure $next): mixed
     {
         // Routes publiques sans tenant — priorité absolue, même en test
-        if ($request->is('health', 'health/*')) {
+	if ($request->is('health', 'health/*')) {
             return $next($request);
         }
 
+        // Routes WOPI publiques — le tenant est résolu depuis le token, pas le hostname
+        if ($request->is('wopi/*')) {
+            return $next($request);
+        }
         // En test, le tenant est pré-résolu par TestCase::setUp()
         if (app()->environment('testing') && $this->tenantManager->hasTenant()) {
             return $next($request);
