@@ -283,6 +283,8 @@ class DemoResetCommand extends Command
             mkdir($nasPath, 0775, true);
         }
 
+        $mediaService = app(\App\Services\MediaService::class);
+
         $count = 0;
         foreach ($photos as $photoPath) {
             $ext = strtolower(pathinfo($photoPath, PATHINFO_EXTENSION));
@@ -293,6 +295,11 @@ class DemoResetCommand extends Command
             copy($photoPath, $destFull);
 
             [$width, $height] = @getimagesize($photoPath) ?: [null, null];
+            $mimeType = mime_content_type($photoPath) ?: 'image/jpeg';
+
+            // Extraire les EXIF depuis le fichier source (JPEG/TIFF uniquement).
+            $exifData = $mediaService->extractExif($photoPath, $mimeType) ?: null;
+            $takenAt = $exifData ? $mediaService->extractTakenAt($exifData)?->format('Y-m-d H:i:s') : null;
 
             MediaItem::create([
                 'album_id' => $album->id,
@@ -300,10 +307,12 @@ class DemoResetCommand extends Command
                 'file_name' => basename($photoPath),
                 'file_path' => $destName,
                 'thumb_path' => null,
-                'mime_type' => mime_content_type($photoPath) ?: 'image/jpeg',
+                'mime_type' => $mimeType,
                 'file_size_bytes' => filesize($photoPath),
                 'width_px' => $width,
                 'height_px' => $height,
+                'exif_data' => $exifData,
+                'exif_taken_at' => $takenAt,
                 'sha256_hash' => $sha256,
                 'is_duplicate' => false,
                 'processing_status' => 'done',
