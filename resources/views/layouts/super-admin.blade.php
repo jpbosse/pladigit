@@ -51,6 +51,12 @@
             'route' => 'super-admin.stats',
             'match' => 'super-admin.stats',
         ],
+        [
+            'label' => 'Sauvegarde',
+            'icon'  => '<svg style="width:15px;height:15px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
+            'route' => 'super-admin.backup',
+            'match' => 'super-admin.backup*',
+        ],
     ];
 @endphp
 

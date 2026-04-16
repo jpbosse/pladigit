@@ -68,6 +68,12 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
         Route::post('organizations/{organization}/ldap/test', [OrganizationController::class, 'testLdap'])->name('organizations.test-ldap');
         Route::post('organizations/{organization}/modules', [OrganizationController::class, 'updateModules'])->name('organizations.update-modules');
+
+        Route::get('backup', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'index'])->name('backup');
+        Route::put('backup', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'update'])->name('backup.update');
+        Route::post('backup/run', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'run'])->name('backup.run');
+        Route::get('backup/status', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'status'])->name('backup.status');
+        Route::get('backup/test-sftp', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'testSftp'])->name('backup.test-sftp');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────

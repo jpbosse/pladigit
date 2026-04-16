@@ -137,12 +137,20 @@ class DemoResetCommand extends Command
             return;
         }
 
-        // Médias NAS simulation
-        $nasPath = config('nas.local_path', storage_path('app/nas_simulation'));
+        // Médias NAS simulation — suppression récursive de tout le contenu
+        // (ne pas supprimer le répertoire lui-même pour conserver ses permissions)
+        $nasPath = config('nas.local_path') ?: storage_path('app/nas_simulation');
         if (is_dir($nasPath)) {
-            foreach (glob("{$nasPath}/*") ?: [] as $file) {
-                if (is_file($file)) {
-                    @unlink($file);
+            $entries = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($nasPath, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($entries as $entry) {
+                /** @var \SplFileInfo $entry */
+                if ($entry->isFile()) {
+                    @unlink($entry->getPathname());
+                } elseif ($entry->isDir()) {
+                    @rmdir($entry->getPathname());
                 }
             }
         }

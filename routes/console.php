@@ -93,11 +93,8 @@ Schedule::command('pladigit:purge-expired')
         \Log::error('Purge des données expirées échouée');
     });
 
-// Sauvegarde automatique — fréquence pilotée par backup_schedule dans TenantSettings.
-// La commande vérifie elle-même si backup_enabled = true avant de lancer.
-// On lance la commande toutes les heures ; pour "daily" et "weekly", la commande
-// ne dispatch le job que si l'heure correspond (logique dans BackupScheduleFilter).
-// Approche simplifiée : on exécute toutes les heures et le filtre est dans la commande.
+// Sauvegarde plateforme (toutes orgs) — pilotée par PlatformSettings.
+// La commande vérifie backup_enabled + filtre de fréquence en interne.
 Schedule::command('pladigit:backup')
     ->hourly()
     ->withoutOverlapping()
