@@ -34,15 +34,18 @@ class BackupCommand extends Command
             $platformSettings = \App\Models\Platform\PlatformSettings::firstOrCreate([]);
             if (! $platformSettings->backup_enabled) {
                 $this->line('Sauvegarde plateforme désactivée dans PlatformSettings.');
+
                 return self::SUCCESS;
             }
             if (! $this->isDue($platformSettings->backup_schedule ?? 'daily')) {
                 $this->line("Pas encore l'heure (fréquence: {$platformSettings->backup_schedule}).");
+
                 return self::SUCCESS;
             }
             // Dispatcher le job plateforme qui gère toutes les orgs en un coup
             \App\Jobs\PlatformBackupJob::dispatch();
             $this->info('Sauvegarde plateforme (toutes orgs) lancée en arrière-plan.');
+
             return self::SUCCESS;
         }
 

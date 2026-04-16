@@ -355,7 +355,7 @@ class BackupService
         if (! function_exists('ssh2_connect')) {
             return [
                 'ok' => false,
-                'message' => "Extension php-ssh2 manquante. Installez-la : sudo apt install php8.4-ssh2",
+                'message' => 'Extension php-ssh2 manquante. Installez-la : sudo apt install php8.4-ssh2',
             ];
         }
 

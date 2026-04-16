@@ -37,6 +37,7 @@ class PlatformBackupJob implements ShouldQueue
 
         if ($orgs->isEmpty()) {
             $this->updateStatus($platformSettings, 'failed', 'Aucune organisation active.');
+
             return;
         }
 

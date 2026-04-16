@@ -3,7 +3,6 @@
 namespace App\Models\Platform;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Crypt;
 
 /**
  * Paramètres de configuration de la plateforme (niveau super-admin).
