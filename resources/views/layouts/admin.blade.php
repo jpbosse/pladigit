@@ -323,26 +323,12 @@
 @push('scripts')
 <script>
 function adminNav() {
-    // Groupes ouverts par défaut : celui contenant la page active + tous si aucun actif
     const activeGroup = @json($activeGroup);
-    const allGroups = @json(array_column($adminNav, 'group'));
+    const allGroups   = @json(array_column($adminNav, 'group'));
 
-    // On stocke l'état ouvert/fermé dans sessionStorage pour persistance pendant la session
-    const storageKey = 'pd_admin_nav_open';
-    let saved = {};
-    try { saved = JSON.parse(sessionStorage.getItem(storageKey) || '{}'); } catch {}
-
-    // État initial : si rien de sauvegardé, ouvrir le groupe actif (ou tous si aucun actif)
+    // Par défaut : tout replié sauf le groupe de la page courante.
     const initial = {};
-    allGroups.forEach(g => {
-        if (g in saved) {
-            initial[g] = saved[g];
-        } else {
-            initial[g] = activeGroup ? (g === activeGroup) : true;
-        }
-    });
-    // Toujours garder le groupe actif ouvert
-    if (activeGroup) initial[activeGroup] = true;
+    allGroups.forEach(g => { initial[g] = (g === activeGroup); });
 
     return {
         open: initial,
@@ -352,10 +338,13 @@ function adminNav() {
         },
 
         toggle(group) {
-            // Le groupe actif ne peut pas être fermé
-            if (group === activeGroup && this.open[group]) return;
-            this.open[group] = !this.open[group];
-            try { sessionStorage.setItem(storageKey, JSON.stringify(this.open)); } catch {}
+            const wasOpen = this.open[group];
+            // Fermer tous les groupes
+            allGroups.forEach(g => { this.open[g] = false; });
+            // Ouvrir le groupe cliqué, sauf s'il était déjà ouvert (et que ce n'est pas l'actif)
+            if (!wasOpen || group === activeGroup) {
+                this.open[group] = true;
+            }
         },
     };
 }
