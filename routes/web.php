@@ -49,6 +49,11 @@ Route::get('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController:
 Route::post('super-admin/login', [App\Http\Controllers\SuperAdmin\AuthController::class, 'login'])
     ->middleware('throttle:super-admin-login')
     ->name('super-admin.login.post');
+Route::get('super-admin/login/totp', [App\Http\Controllers\SuperAdmin\AuthController::class, 'showTotpForm'])
+    ->name('super-admin.login.totp');
+Route::post('super-admin/login/totp', [App\Http\Controllers\SuperAdmin\AuthController::class, 'verifyTotp'])
+    ->middleware('throttle:super-admin-login')
+    ->name('super-admin.login.totp.verify');
 Route::post('super-admin/logout', [App\Http\Controllers\SuperAdmin\AuthController::class, 'logout'])
     ->name('super-admin.logout');
 
