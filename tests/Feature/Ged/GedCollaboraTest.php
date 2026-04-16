@@ -43,9 +43,9 @@ class GedCollaboraTest extends TestCase
         return app(TenantManager::class)->currentOrFail()->slug;
     }
 
-    private function accessToken(GedWopiToken $token): string
+    private function wopiUrl(string $routeName, int $docId): string
     {
-        return app(WopiTokenService::class)->buildAccessToken($token, $this->orgSlug());
+        return route($routeName, ['tenant' => $this->orgSlug(), 'id' => $docId]);
     }
 
     private function admin(): User
@@ -150,7 +150,7 @@ class GedCollaboraTest extends TestCase
         $service = app(WopiTokenService::class);
         $token = $service->generate($doc, $user);
 
-        $response = $this->getJson(route('wopi.files.info', $doc->id).'?access_token='.$this->accessToken($token));
+        $response = $this->getJson($this->wopiUrl('wopi.files.info', $doc->id).'?access_token='.$token->token);
 
         $response->assertOk()
             ->assertJsonFragment([
@@ -167,7 +167,7 @@ class GedCollaboraTest extends TestCase
         $folder = $this->makeFolder($user);
         $doc = $this->makeDocument($folder, $user);
 
-        $response = $this->getJson(route('wopi.files.info', $doc->id).'?access_token=mauvais');
+        $response = $this->getJson($this->wopiUrl('wopi.files.info', $doc->id).'?access_token=mauvais');
 
         $response->assertStatus(401);
     }
@@ -183,7 +183,7 @@ class GedCollaboraTest extends TestCase
         $token = $service->generate($doc1, $user);
 
         // Token généré pour doc1, utilisé sur doc2
-        $response = $this->getJson(route('wopi.files.info', $doc2->id).'?access_token='.$this->accessToken($token));
+        $response = $this->getJson($this->wopiUrl('wopi.files.info', $doc2->id).'?access_token='.$token->token);
 
         $response->assertStatus(401);
     }
@@ -199,7 +199,7 @@ class GedCollaboraTest extends TestCase
         $service = app(WopiTokenService::class);
         $token = $service->generate($doc, $user);
 
-        $response = $this->get(route('wopi.files.contents', $doc->id).'?access_token='.$this->accessToken($token));
+        $response = $this->get($this->wopiUrl('wopi.files.contents', $doc->id).'?access_token='.$token->token);
 
         $response->assertOk();
         $this->assertEquals('fake odt content', $response->streamedContent());
@@ -211,7 +211,7 @@ class GedCollaboraTest extends TestCase
         $folder = $this->makeFolder($user);
         $doc = $this->makeDocument($folder, $user);
 
-        $response = $this->get(route('wopi.files.contents', $doc->id).'?access_token=mauvais');
+        $response = $this->get($this->wopiUrl('wopi.files.contents', $doc->id).'?access_token=mauvais');
 
         $response->assertStatus(401);
     }
@@ -234,7 +234,7 @@ class GedCollaboraTest extends TestCase
         $service = app(WopiTokenService::class);
         $token = $service->generate($doc, $user);
 
-        $response = $this->get(route('wopi.files.contents', $doc->id).'?access_token='.$this->accessToken($token));
+        $response = $this->get($this->wopiUrl('wopi.files.contents', $doc->id).'?access_token='.$token->token);
 
         $response->assertNotFound();
     }
@@ -327,18 +327,7 @@ class GedCollaboraTest extends TestCase
         $folder = $this->makeFolder($user);
         $doc = $this->makeDocument($folder, $user);
 
-        $response = $this->getJson(route('wopi.files.info', $doc->id));
-
-        $response->assertStatus(401);
-    }
-
-    public function test_middleware_wopi_401_si_access_token_sans_slug(): void
-    {
-        $user = $this->admin();
-        $folder = $this->makeFolder($user);
-        $doc = $this->makeDocument($folder, $user);
-
-        $response = $this->getJson(route('wopi.files.info', $doc->id).'?access_token=:tokenonly');
+        $response = $this->getJson($this->wopiUrl('wopi.files.info', $doc->id));
 
         $response->assertStatus(401);
     }
@@ -358,7 +347,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.put', $doc->id).'?access_token='.$token->token,
             [],
             [],
             [],
@@ -386,7 +375,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.put', $doc->id).'?access_token='.$this->orgSlug().':mauvais',
+            $this->wopiUrl('wopi.files.put', $doc->id).'?access_token=mauvais',
             [],
             [],
             [],
@@ -410,7 +399,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.put', $doc->id).'?access_token='.$token->token,
             [],
             [],
             [],
@@ -432,7 +421,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
         );
@@ -460,7 +449,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
         );
@@ -485,7 +474,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-nouveau'],
         );
@@ -510,7 +499,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'UNLOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
         );
@@ -535,7 +524,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'UNLOCK', 'HTTP_X-WOPI-Lock' => 'lock-mauvais'],
         );
@@ -553,7 +542,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'UNLOCK', 'HTTP_X-WOPI-Lock' => 'lock-inexistant'],
         );
@@ -578,7 +567,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'REFRESH_LOCK', 'HTTP_X-WOPI-Lock' => 'lock-abc-123'],
         );
@@ -606,7 +595,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'REFRESH_LOCK', 'HTTP_X-WOPI-Lock' => 'lock-mauvais'],
         );
@@ -631,7 +620,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'GET_LOCK'],
         );
@@ -649,7 +638,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'GET_LOCK'],
         );
@@ -676,7 +665,7 @@ class GedCollaboraTest extends TestCase
         // Un nouveau lock avec un lock_id différent doit réussir
         $response = $this->call(
             'POST',
-            route('wopi.files.lock', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.lock', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Override' => 'LOCK', 'HTTP_X-WOPI-Lock' => 'lock-nouveau'],
         );
@@ -705,7 +694,7 @@ class GedCollaboraTest extends TestCase
         // PutFile sans X-WOPI-Lock (ou mauvais lock_id)
         $response = $this->call(
             'POST',
-            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.put', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Lock' => 'lock-different'],
             'nouveau contenu'
@@ -735,7 +724,7 @@ class GedCollaboraTest extends TestCase
 
         $response = $this->call(
             'POST',
-            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.put', $doc->id).'?access_token='.$token->token,
             [], [], [],
             ['HTTP_X-WOPI-Lock' => 'lock-collabora'],
             'contenu sauvegardé'
@@ -754,7 +743,7 @@ class GedCollaboraTest extends TestCase
         $token = app(WopiTokenService::class)->generate($doc, $user);
 
         $response = $this->getJson(
-            route('wopi.files.info', $doc->id).'?access_token='.$this->accessToken($token)
+            $this->wopiUrl('wopi.files.info', $doc->id).'?access_token='.$token->token
         );
 
         $response->assertOk()->assertJsonFragment(['SupportsLocks' => true]);
@@ -772,7 +761,7 @@ class GedCollaboraTest extends TestCase
 
         $this->call(
             'POST',
-            route('wopi.files.put', $doc->id).'?access_token='.$this->accessToken($token),
+            $this->wopiUrl('wopi.files.put', $doc->id).'?access_token='.$token->token,
             [],
             [],
             [],

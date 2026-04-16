@@ -49,9 +49,9 @@ class WopiController extends Controller
     /**
      * CheckFileInfo — retourne les métadonnées du document.
      *
-     * GET /wopi/files/{id}?access_token={org_slug}:{raw_token}
+     * GET /wopi/{tenant}/files/{id}?access_token={raw_token}
      */
-    public function checkFileInfo(int $fileId, Request $request): JsonResponse
+    public function checkFileInfo(string $tenant, int $fileId, Request $request): JsonResponse
     {
         $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
 
@@ -89,9 +89,9 @@ class WopiController extends Controller
     /**
      * GetFile — retourne le contenu binaire du document.
      *
-     * GET /wopi/files/{id}/contents?access_token={org_slug}:{raw_token}
+     * GET /wopi/{tenant}/files/{id}/contents?access_token={raw_token}
      */
-    public function getFile(int $fileId, Request $request): StreamedResponse
+    public function getFile(string $tenant, int $fileId, Request $request): StreamedResponse
     {
         $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
 
@@ -121,11 +121,11 @@ class WopiController extends Controller
     /**
      * PutFile — reçoit le contenu binaire de Collabora, crée une nouvelle version.
      *
-     * POST /wopi/files/{id}/contents?access_token={org_slug}:{raw_token}
+     * POST /wopi/{tenant}/files/{id}/contents?access_token={raw_token}
      *
      * Si SupportsLocks=true, vérifie que X-WOPI-Lock correspond au verrou actif.
      */
-    public function putFile(int $fileId, Request $request): Response|JsonResponse
+    public function putFile(string $tenant, int $fileId, Request $request): Response|JsonResponse
     {
         $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
 
@@ -198,14 +198,14 @@ class WopiController extends Controller
     /**
      * Dispatch WOPI selon X-WOPI-Override.
      *
-     * POST /wopi/files/{id}?access_token={org_slug}:{raw_token}
+     * POST /wopi/{tenant}/files/{id}?access_token={raw_token}
      *
      * Override LOCK          → lock()
      * Override UNLOCK        → unlock()
      * Override REFRESH_LOCK  → refreshLock()
      * Override GET_LOCK      → getLock()
      */
-    public function lockFile(int $fileId, Request $request): Response
+    public function lockFile(string $tenant, int $fileId, Request $request): Response
     {
         $wopiToken = $this->resolveToken((string) $request->query('access_token', ''));
 
@@ -296,11 +296,38 @@ class WopiController extends Controller
     // =========================================================================
 
     /**
-     * Parse l'access_token, résout le tenant, valide le token WOPI.
+     * Résout le tenant et valide le token WOPI.
+     *
+     * Deux formats supportés :
+     *  - Nouveau (préféré) : tenant dans le paramètre de route {tenant},
+     *    access_token = token brut 64 chars (sans colon).
+     *    WOPISrc : /wopi/{tenant}/files/{id} — aucune query string dans le WOPISrc,
+     *    ce qui évite que Collabora ajoute "?access_token=..." avec un double "?"
+     *    (Collabora utilise toujours "?" même si le WOPISrc a déjà une query string).
+     *  - Legacy : access_token au format "{slug}:{raw_token}" (rétrocompatibilité).
+     *
      * Retourne null si le token est invalide, expiré ou le tenant introuvable.
      */
     private function resolveToken(string $accessToken): ?\App\Models\Tenant\GedWopiToken
     {
+        // Format nouveau : tenant dans le paramètre de route {tenant}
+        $slug = (string) request()->route('tenant', '');
+
+        if ($slug !== '') {
+            $org = Organization::where('slug', $slug)
+                ->where('status', 'active')
+                ->first();
+
+            if ($org === null) {
+                return null;
+            }
+
+            $this->tenantManager->connectTo($org);
+
+            return $this->tokens->validate($accessToken);
+        }
+
+        // Format legacy : "{slug}:{raw_token}"
         $parsed = $this->tokens->parseAccessToken($accessToken);
 
         if ($parsed === null) {

@@ -7,9 +7,11 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Valide que la requête WOPI porte un access_token au format attendu.
+ * Valide que la requête WOPI porte un access_token non vide.
  *
- * Format : "{org_slug}:{raw_token}" — rejeté en 401 si absent ou malformé.
+ * Le tenant est maintenant dans le chemin de la route ({tenant}), et
+ * l'access_token est un token brut. La validation du format complet
+ * (organisation + token) est déléguée à WopiController::resolveToken().
  * Appliqué sur toutes les routes du groupe wopi.*.
  */
 class ValidateWopiRequest
@@ -17,9 +19,8 @@ class ValidateWopiRequest
     public function handle(Request $request, Closure $next): Response
     {
         $token = (string) $request->query('access_token', '');
-        $pos = strpos($token, ':');
 
-        if ($pos === false || $pos === 0 || $pos === strlen($token) - 1) {
+        if ($token === '') {
             return response()->json(['error' => 'Invalid access_token'], 401);
         }
 

@@ -49,13 +49,15 @@ class GedEditorController extends Controller
         $user = auth()->user();
         $wopiToken = $this->tokens->generate($document, $user);
 
-        // URL fixe pour WOPISrc : ne dépend plus du sous-domaine tenant.
-        // Collabora résout le tenant depuis le préfixe du token ({slug}:{raw}).
+        // Le tenant est encodé dans le chemin du WOPISrc : /wopi/{tenant}/files/{id}.
+        // Collabora ajoute toujours "?access_token=TOKEN" avec "?" même si le WOPISrc
+        // contient déjà une query string (ex. "?tenant=slug"), ce qui crée une URL
+        // invalide avec deux "?". En mettant le tenant dans le chemin, le WOPISrc
+        // n'a aucun "?" et Collabora peut ajouter son access_token sans corruption.
         $wopiBase = rtrim((string) config('collabora.wopi_url', config('app.url', '')), '/');
-        $wopiSrc = $wopiBase.route('wopi.files.info', $document->id, false);
-
         $orgSlug = app(TenantManager::class)->currentOrFail()->slug;
-        $accessToken = $this->tokens->buildAccessToken($wopiToken, $orgSlug);
+        $wopiSrc = $wopiBase.'/wopi/'.$orgSlug.'/files/'.$document->id;
+        $accessToken = $wopiToken->token;
 
         // Récupère le chemin depuis /hosting/discovery pour avoir le hash de version
         // correct (ex: /browser/4610258811/cool.html). Sans ce hash, Collabora

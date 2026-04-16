@@ -32,9 +32,11 @@ Route::get('check-org-ajax/{slug}', function ($slug) {
 });
 
 // ── WOPI — endpoints Collabora Online (URL fixe, hors middleware tenant) ──
-// Le tenant est résolu depuis le préfixe du token : {org_slug}:{raw_token}.
+// Le tenant est transmis dans le chemin : /wopi/{tenant}/files/{id}.
+// Collabora ajoute toujours "?access_token=TOKEN" avec "?" même si le WOPISrc
+// a déjà une query string — mettre le tenant dans le chemin évite ce double-"?".
 // Collabora n'a besoin que d'un seul aliasgroup fixe (ex : https://pladigit.fr).
-Route::prefix('wopi/files')->name('wopi.')->middleware('wopi')->group(function () {
+Route::prefix('wopi/{tenant}/files')->name('wopi.')->middleware('wopi')->group(function () {
     Route::get('{id}', [\App\Http\Controllers\Ged\WopiController::class, 'checkFileInfo'])->name('files.info');
     Route::get('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'getFile'])->name('files.contents');
     Route::post('{id}/contents', [\App\Http\Controllers\Ged\WopiController::class, 'putFile'])->name('files.put');

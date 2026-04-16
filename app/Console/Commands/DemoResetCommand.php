@@ -121,11 +121,20 @@ class DemoResetCommand extends Command
 
     private function wipePhysicalFiles(): void
     {
-        // GED — driver local : storage/app/private/ged/
+        // GED — on supprime les fichiers à l'intérieur du dossier, pas le dossier lui-même.
+        // Supprimer le dossier recrée un répertoire avec les permissions du processus courant
+        // (deploy en CLI, www-data en web), ce qui bloque l'autre utilisateur au prochain reset.
+        // En ne supprimant que les fichiers, les permissions du dossier sont préservées.
         try {
-            Storage::disk('local')->deleteDirectory('ged');
-        } catch (\Throwable $e) {
-            $this->warn('  ⚠  Impossible de supprimer le dossier GED : '.$e->getMessage());
+            foreach (Storage::disk('local')->allFiles('ged') as $file) {
+                Storage::disk('local')->delete($file);
+            }
+        } catch (\Throwable) {
+            $this->warn('  ⚠  Impossible de vider le dossier GED (permissions). Corrigez avec :');
+            $this->warn('       sudo chown deploy:www-data storage/app/private/ged');
+            $this->warn('       sudo chmod 0775 storage/app/private/ged');
+
+            return;
         }
 
         // Médias NAS simulation
@@ -206,7 +215,13 @@ class DemoResetCommand extends Command
         $diskPath = "ged/{$uuid}.{$ext}";
         $size = filesize($sourcePath);
 
-        Storage::disk('local')->put($diskPath, file_get_contents($sourcePath));
+        $written = Storage::disk('local')->put($diskPath, file_get_contents($sourcePath));
+
+        if (! $written) {
+            $this->warn("  ⚠  Échec écriture {$diskPath} — vérifiez les permissions de storage/app/private/ged/");
+
+            return;
+        }
 
         $doc = GedDocument::create([
             'folder_id' => $folderId,
@@ -262,7 +277,8 @@ class DemoResetCommand extends Command
             return;
         }
 
-        $nasPath = config('nas.local_path', storage_path('app/nas_simulation'));
+        // config() retourne '' si NAS_LOCAL_PATH est défini mais vide dans .env
+        $nasPath = config('nas.local_path') ?: storage_path('app/nas_simulation');
         if (! is_dir($nasPath)) {
             mkdir($nasPath, 0775, true);
         }
