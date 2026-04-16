@@ -453,6 +453,96 @@ class SettingsController extends Controller
         }
     }
 
+    // =========================================================================
+    // Sauvegarde — Configuration + déclenchement manuel
+    // =========================================================================
+
+    public function backup(): \Illuminate\View\View
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        return view('admin.settings.backup', compact('settings'));
+    }
+
+    public function updateBackup(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $validated = $request->validate([
+            'backup_enabled' => ['boolean'],
+            'backup_schedule' => ['required', 'in:hourly,daily,weekly'],
+            'backup_driver' => ['required', 'in:local,sftp'],
+            'backup_local_path' => ['nullable', 'string', 'max:500'],
+            'backup_sftp_host' => ['nullable', 'string', 'max:255'],
+            'backup_sftp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
+            'backup_sftp_user' => ['nullable', 'string', 'max:255'],
+            'backup_sftp_password' => ['nullable', 'string', 'max:255'],
+            'backup_sftp_path' => ['nullable', 'string', 'max:500'],
+            'backup_retention_count' => ['required', 'integer', 'min:1', 'max:90'],
+        ]);
+
+        $settings = TenantSettings::firstOrCreate([]);
+        $data = collect($validated)->except('backup_sftp_password')->toArray();
+        $data['backup_enabled'] = $request->boolean('backup_enabled');
+
+        if (filled($request->backup_sftp_password)) {
+            $data['backup_sftp_password_enc'] = Crypt::encryptString($request->backup_sftp_password);
+        }
+
+        $settings->update($data);
+
+        return back()->with('success', 'Configuration sauvegarde enregistrée.');
+    }
+
+    /**
+     * Démarre une sauvegarde manuelle (AJAX POST).
+     * Retourne JSON immédiatement, le job s'exécute en arrière-plan.
+     */
+    public function runBackup(\App\Services\TenantManager $tenantManager): JsonResponse
+    {
+        $org = $tenantManager->currentOrFail();
+        $settings = TenantSettings::firstOrCreate([]);
+
+        if (! $settings->backupIsConfigured()) {
+            return response()->json([
+                'ok' => false,
+                'message' => 'La destination de sauvegarde n\'est pas configurée.',
+            ]);
+        }
+
+        \App\Jobs\BackupJob::dispatch($org->slug);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Sauvegarde lancée en arrière-plan. Revenez dans quelques instants.',
+        ]);
+    }
+
+    /**
+     * Retourne le statut de la dernière sauvegarde (polling AJAX).
+     */
+    public function backupStatus(): JsonResponse
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        return response()->json([
+            'status' => $settings->backup_last_status,
+            'message' => $settings->backup_last_message,
+            'last_run' => $settings->backup_last_run_at?->format('d/m/Y à H:i:s'),
+            'size' => $settings->backupHumanSize(),
+        ]);
+    }
+
+    /**
+     * Teste la connexion SFTP de sauvegarde (AJAX GET).
+     */
+    public function testBackupSftp(\App\Services\BackupService $backupService): JsonResponse
+    {
+        $settings = TenantSettings::firstOrCreate([]);
+
+        $result = $backupService->testSftp($settings);
+
+        return response()->json($result);
+    }
+
     public function testGed(\App\Services\Nas\NasManager $nasManager): JsonResponse
     {
         $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);

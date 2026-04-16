@@ -182,6 +182,11 @@ Route::middleware('tenant')->group(function () {
             Route::put('settings/visio', [App\Http\Controllers\Admin\SettingsController::class, 'updateVisio'])->name('settings.visio.update');
             Route::get('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [\App\Http\Controllers\Admin\SettingsController::class, 'updateSecurity'])->name('settings.security.update');
+            Route::get('settings/backup', [\App\Http\Controllers\Admin\SettingsController::class, 'backup'])->name('settings.backup');
+            Route::put('settings/backup', [\App\Http\Controllers\Admin\SettingsController::class, 'updateBackup'])->name('settings.backup.update');
+            Route::post('settings/backup/run', [\App\Http\Controllers\Admin\SettingsController::class, 'runBackup'])->name('settings.backup.run');
+            Route::get('settings/backup/status', [\App\Http\Controllers\Admin\SettingsController::class, 'backupStatus'])->name('settings.backup.status');
+            Route::get('settings/backup/test-sftp', [\App\Http\Controllers\Admin\SettingsController::class, 'testBackupSftp'])->name('settings.backup.test-sftp');
 
             // Purge GED — réservé au module GED
             Route::middleware('module:ged')->group(function () {

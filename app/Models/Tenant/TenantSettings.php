@@ -91,6 +91,21 @@ class TenantSettings extends Model
         'collabora_url',
         'wopi_url',
         'collabora_token_ttl_minutes',
+        // Sauvegarde
+        'backup_enabled',
+        'backup_schedule',
+        'backup_driver',
+        'backup_local_path',
+        'backup_sftp_host',
+        'backup_sftp_port',
+        'backup_sftp_user',
+        'backup_sftp_password_enc',
+        'backup_sftp_path',
+        'backup_retention_count',
+        'backup_last_run_at',
+        'backup_last_status',
+        'backup_last_message',
+        'backup_last_size_bytes',
         // Timestamp
         'updated_at',
     ];
@@ -121,6 +136,12 @@ class TenantSettings extends Model
         'wm_opacity' => 'integer',
         // Collabora Online
         'collabora_token_ttl_minutes' => 'integer',
+        // Sauvegarde
+        'backup_enabled' => 'boolean',
+        'backup_sftp_port' => 'integer',
+        'backup_retention_count' => 'integer',
+        'backup_last_run_at' => 'datetime',
+        'backup_last_size_bytes' => 'integer',
         'updated_at' => 'datetime',
     ];
 
@@ -170,6 +191,56 @@ class TenantSettings extends Model
         }
 
         return ! empty($this->nas_ged_host) && ! empty($this->nas_ged_username);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Helpers Sauvegarde
+    // ─────────────────────────────────────────────────────────────
+
+    public function backupDriverLabel(): string
+    {
+        return match ($this->backup_driver ?? 'local') {
+            'local' => 'Chemin local',
+            'sftp' => 'SFTP (NAS distant)',
+            default => $this->backup_driver ?? 'local',
+        };
+    }
+
+    public function backupIsConfigured(): bool
+    {
+        $driver = $this->backup_driver ?? 'local';
+
+        if ($driver === 'local') {
+            return ! empty($this->backup_local_path);
+        }
+
+        if ($driver === 'sftp') {
+            return ! empty($this->backup_sftp_host) && ! empty($this->backup_sftp_user);
+        }
+
+        return false;
+    }
+
+    /**
+     * Taille lisible de la dernière sauvegarde (ex: "1,4 Go").
+     */
+    public function backupHumanSize(): ?string
+    {
+        $bytes = $this->backup_last_size_bytes;
+
+        if ($bytes === null || $bytes === 0) {
+            return null;
+        }
+
+        $units = ['o', 'Ko', 'Mo', 'Go', 'To'];
+        $i = 0;
+
+        while ($bytes >= 1024 && $i < count($units) - 1) {
+            $bytes /= 1024;
+            $i++;
+        }
+
+        return number_format($bytes, $i > 0 ? 1 : 0, ',', ' ').' '.$units[$i];
     }
 
     // ─────────────────────────────────────────────────────────────
