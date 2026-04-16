@@ -79,6 +79,9 @@ Route::prefix('super-admin')
         Route::post('backup/run', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'run'])->name('backup.run');
         Route::get('backup/status', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'status'])->name('backup.status');
         Route::get('backup/test-sftp', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'testSftp'])->name('backup.test-sftp');
+
+        Route::get('security/totp', [\App\Http\Controllers\SuperAdmin\SecurityController::class, 'totpSetup'])->name('security.totp');
+        Route::post('security/totp', [\App\Http\Controllers\SuperAdmin\SecurityController::class, 'totpConfirm'])->name('security.totp.confirm');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────
