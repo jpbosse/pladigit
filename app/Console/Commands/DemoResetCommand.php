@@ -137,8 +137,9 @@ class DemoResetCommand extends Command
             return;
         }
 
-        // Médias NAS simulation — suppression récursive de tout le contenu
-        // (ne pas supprimer le répertoire lui-même pour conserver ses permissions)
+        // Médias NAS simulation — suppression récursive de tout le contenu.
+        // Dossiers système gérés par www-data (thumbs/) : on supprime les fichiers
+        // qu'on peut, les autres sont ignorés silencieusement.
         $nasPath = config('nas.local_path') ?: storage_path('app/nas_simulation');
         if (is_dir($nasPath)) {
             $entries = new \RecursiveIteratorIterator(
@@ -150,6 +151,7 @@ class DemoResetCommand extends Command
                 if ($entry->isFile()) {
                     @unlink($entry->getPathname());
                 } elseif ($entry->isDir()) {
+                    // rmdir échoue si www-data est propriétaire — on continue sans bloquer
                     @rmdir($entry->getPathname());
                 }
             }

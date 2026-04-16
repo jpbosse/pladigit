@@ -304,10 +304,11 @@ class MediaService
             return $stats;
         }
 
+        // Dossiers système à exclure du sync — jamais des albums utilisateurs.
+        $systemDirs = ['albums', 'thumbs', '.thumbs', '@eaDir', '#recycle', '.git'];
+
         foreach ($topDirs as $dir) {
-            // Ignorer le dossier albums/ — c'est la racine des uploads via l'interface,
-            // pas un dossier créé par les utilisateurs sur le NAS.
-            if ($dir['name'] === 'albums') {
+            if (in_array($dir['name'], $systemDirs, true) || str_starts_with($dir['name'], '.')) {
                 continue;
             }
             $this->syncDirectory($nas, $dir['path'], null, $owner, $deep, $stats);
