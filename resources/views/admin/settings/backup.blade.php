@@ -54,18 +54,12 @@
         <div class="mt-4 flex items-center gap-3">
             <button type="button" onclick="runBackup()"
                     id="runBtn"
-                    @if(! $settings->backupIsConfigured()) disabled @endif
-                    class="px-5 py-2.5 rounded-lg text-white text-sm font-medium transition
-                           @if($settings->backupIsConfigured()) hover:opacity-90 @else opacity-40 cursor-not-allowed @endif"
+                    class="px-5 py-2.5 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
                     style="background-color: var(--color-primary, #1E3A5F);">
                 ▶ Lancer la sauvegarde
             </button>
             <span id="runResult" class="text-sm hidden"></span>
         </div>
-
-        @if(! $settings->backupIsConfigured())
-            <p class="text-xs text-amber-600 mt-2">⚠ Configurez d'abord une destination ci-dessous pour activer la sauvegarde manuelle.</p>
-        @endif
     </div>
 
     <form method="POST" action="{{ route('admin.settings.backup.update') }}" class="space-y-5">
