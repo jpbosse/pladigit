@@ -1,7 +1,0 @@
-Déposez vos photos de démonstration dans ce dossier.
-Formats acceptés : jpg, jpeg, png, webp
-
-Ces photos seront copiées dans l'album "Fête de la commune 2025"
-à chaque remise à zéro de la démo (php artisan demo:reset).
-
-Les fichiers présents ici ne sont JAMAIS supprimés par la commande demo:reset.
