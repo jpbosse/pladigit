@@ -7,50 +7,55 @@ use App\Models\Tenant\Department;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
-use App\Models\Tenant\Share;
+use App\Models\Tenant\ProjectMilestone;
 use App\Models\Tenant\Task;
+use App\Models\Tenant\TaskComment;
 use App\Models\Tenant\User;
+use Carbon\Carbon;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
 /**
- * Seeder de démonstration — base tenant demo.
+ * DemoSeeder — Données de démonstration pour le tenant "demo".
  *
- * Crée :
- *   - 6 utilisateurs (un par rôle) — mot de passe : demo1234
- *   - 3 directions + 2 services
- *   - 3 projets avec tâches et membres
- *   - 3 albums photo avec visibilités variées
+ * Commune fictive : Saint-Aubin-les-Communes (2 800 hab.)
  *
- * Les documents GED et photos sont injectés par DemoResetCommand
- * depuis storage/demo_ged/ et storage/demo_photos/.
+ * CE QUI EST CRÉÉ ICI :
+ *   - 8 utilisateurs couvrant tous les rôles (mot de passe : demo1234)
+ *   - Structure organisationnelle : 3 directions, 6 services
+ *   - 3 projets municipaux avec jalons, tâches et commentaires
+ *   - 4 albums photo (structure uniquement, sans MediaItem)
  *
- * Usage direct : php artisan db:seed --class=DemoSeeder --database=tenant
+ * CE QUI N'EST PAS CRÉÉ ICI (géré par DemoResetCommand) :
+ *   - Documents GED  → seedGedFiles()  lit storage/demo_ged/
+ *   - Photos         → seedPhotos()    lit storage/demo_photos/
+ *
+ * Usage direct : php artisan db:seed --class=DemoSeeder
  * Usage recommandé : php artisan demo:reset
  */
 class DemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->command->info('  Seeding demo tenant...');
+        $this->command->info('  Seeding demo tenant — Saint-Aubin-les-Communes...');
 
         $users = $this->createUsers();
-        $this->command->info('  ✓ Utilisateurs');
+        $this->command->info('  ✓ Utilisateurs (' . count($users) . ')');
 
         $depts = $this->createDepartments($users);
         $this->command->info('  ✓ Départements');
 
         $this->createProjects($users, $depts);
-        $this->command->info('  ✓ Projets & tâches');
+        $this->command->info('  ✓ Projets, jalons & tâches');
 
-        $this->createAlbums($users, $depts);
-        $this->command->info('  ✓ Albums photo');
+        $this->createAlbums($users);
+        $this->command->info('  ✓ Albums photo (structure)');
 
         $this->command->info('');
         $this->command->info('  Comptes de démo (mot de passe : demo1234)');
-        $this->command->info('  ─────────────────────────────────────────');
+        $this->command->info('  ──────────────────────────────────────────────────');
         foreach ($users as $user) {
-            $this->command->info(sprintf('  %-35s %s', $user->email, $user->role));
+            $this->command->info(sprintf('  %-42s %s', $user->email, $user->role));
         }
     }
 
@@ -63,28 +68,32 @@ class DemoSeeder extends Seeder
         $password = Hash::make('demo1234');
 
         $definitions = [
-            ['role' => UserRole::ADMIN->value,          'name' => 'Admin Démo',         'email' => 'admin@demo.pladigit.fr'],
-            ['role' => UserRole::PRESIDENT->value,      'name' => 'Marie Dupont',        'email' => 'president@demo.pladigit.fr'],
-            ['role' => UserRole::DGS->value,            'name' => 'Jean-Pierre Martin',  'email' => 'dgs@demo.pladigit.fr'],
-            ['role' => UserRole::RESP_DIRECTION->value, 'name' => 'Sophie Lambert',      'email' => 'resp.direction@demo.pladigit.fr'],
-            ['role' => UserRole::RESP_SERVICE->value,   'name' => 'Thomas Bernard',      'email' => 'resp.service@demo.pladigit.fr'],
-            ['role' => UserRole::USER->value,           'name' => 'Lucie Moreau',        'email' => 'user@demo.pladigit.fr'],
+            ['role' => UserRole::ADMIN->value,          'name' => 'Isabelle Fontaine',   'email' => 'admin@demo.pladigit.fr'],
+            ['role' => UserRole::PRESIDENT->value,      'name' => 'Jean-Marie Lebreton', 'email' => 'maire@demo.pladigit.fr'],
+            ['role' => UserRole::DGS->value,            'name' => 'Sophie Marchand',     'email' => 'dgs@demo.pladigit.fr'],
+            ['role' => UserRole::RESP_DIRECTION->value, 'name' => 'Thomas Girard',       'email' => 'technique@demo.pladigit.fr'],
+            ['role' => UserRole::RESP_SERVICE->value,   'name' => 'Laurent Dubois',      'email' => 'urbanisme@demo.pladigit.fr'],
+            ['role' => UserRole::RESP_SERVICE->value,   'name' => 'Nathalie Petit',      'email' => 'communication@demo.pladigit.fr'],
+            ['role' => UserRole::USER->value,           'name' => 'Éric Moreau',         'email' => 'agent1@demo.pladigit.fr'],
+            ['role' => UserRole::USER->value,           'name' => 'Marie-Claire Aubert', 'email' => 'agent2@demo.pladigit.fr'],
         ];
 
         $users = [];
         foreach ($definitions as $def) {
-            $users[$def['role']] = User::updateOrCreate(
+            $user = User::on('tenant')->updateOrCreate(
                 ['email' => $def['email']],
                 [
-                    'name' => $def['name'],
-                    'password_hash' => $password,
-                    'role' => $def['role'],
-                    'status' => 'active',
-                    'force_pwd_change' => false,
-                    'totp_enabled' => false,
+                    'name'                => $def['name'],
+                    'password_hash'       => $password,
+                    'role'                => $def['role'],
+                    'status'              => 'active',
+                    'force_pwd_change'    => false,
+                    'totp_enabled'        => false,
                     'password_changed_at' => now(),
                 ]
             );
+            // Clé = email (deux utilisateurs ont le même rôle resp_service)
+            $users[$def['email']] = $user;
         }
 
         return $users;
@@ -96,251 +105,328 @@ class DemoSeeder extends Seeder
 
     private function createDepartments(array $users): array
     {
-        $adminId = $users[UserRole::ADMIN->value]->id;
-        $maire = $users[UserRole::PRESIDENT->value];
-        $dgs = $users[UserRole::DGS->value];
-        $respDir = $users[UserRole::RESP_DIRECTION->value];
-        $respSvc = $users[UserRole::RESP_SERVICE->value];
-        $agent = $users[UserRole::USER->value];
+        $admin    = $users['admin@demo.pladigit.fr'];
+        $dgs      = $users['dgs@demo.pladigit.fr'];
+        $thomas   = $users['technique@demo.pladigit.fr'];
+        $laurent  = $users['urbanisme@demo.pladigit.fr'];
+        $nathalie = $users['communication@demo.pladigit.fr'];
+        $eric     = $users['agent1@demo.pladigit.fr'];
+        $marie    = $users['agent2@demo.pladigit.fr'];
 
-        // ── Niveau 1 : Cabinet du Maire ───────────────────────────
-        $cabinet = Department::updateOrCreate(
-            ['name' => 'Cabinet du Maire'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#92400e', 'sort_order' => 0, 'created_by' => $adminId]
-        );
-
-        // ── Niveau 1 : Direction Générale des Services (DGS) ──────
-        $dg = Department::updateOrCreate(
-            ['name' => 'Direction Générale des Services'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#1f2937', 'sort_order' => 1, 'created_by' => $adminId]
-        );
-
-        // ── Niveau 2 : Directions rattachées au DGS ───────────────
-        $dst = Department::updateOrCreate(
+        // ── Directions ────────────────────────────────────────────
+        $dst = Department::on('tenant')->updateOrCreate(
             ['name' => 'Direction des Services Techniques'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#1e40af', 'sort_order' => 2, 'parent_id' => $dg->id, 'created_by' => $adminId]
+            ['type' => 'direction', 'label' => 'DST', 'color' => '#1E3A5F',
+             'sort_order' => 1, 'created_by' => $admin->id]
         );
 
-        $rh = Department::updateOrCreate(
-            ['name' => 'Direction des Ressources Humaines'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#7c3aed', 'sort_order' => 3, 'parent_id' => $dg->id, 'created_by' => $adminId]
+        $dgsDir = Department::on('tenant')->updateOrCreate(
+            ['name' => 'Direction Générale des Services'],
+            ['type' => 'direction', 'label' => 'DGS', 'color' => '#0F766E',
+             'sort_order' => 2, 'created_by' => $admin->id]
         );
 
-        $sg = Department::updateOrCreate(
-            ['name' => 'Secrétariat Général'],
-            ['type' => 'direction', 'label' => 'direction', 'color' => '#065f46', 'sort_order' => 4, 'parent_id' => $dg->id, 'created_by' => $adminId]
+        $dac = Department::on('tenant')->updateOrCreate(
+            ['name' => "Direction de l'Animation et de la Culture"],
+            ['type' => 'direction', 'label' => 'DAC', 'color' => '#7C3AED',
+             'sort_order' => 3, 'created_by' => $admin->id]
         );
 
-        // ── Niveau 3 : Services ───────────────────────────────────
-        $voirie = Department::updateOrCreate(
-            ['name' => 'Service Voirie'],
-            ['type' => 'service', 'label' => 'service', 'color' => '#0369a1', 'sort_order' => 1, 'parent_id' => $dst->id, 'created_by' => $adminId]
+        // ── Services ──────────────────────────────────────────────
+        $voirie = Department::on('tenant')->updateOrCreate(
+            ['name' => 'Service Voirie et Espaces Verts'],
+            ['type' => 'service', 'label' => null, 'color' => null,
+             'sort_order' => 1, 'parent_id' => $dst->id, 'created_by' => $admin->id]
         );
 
-        $paie = Department::updateOrCreate(
-            ['name' => 'Service Paie'],
-            ['type' => 'service', 'label' => 'service', 'color' => '#6d28d9', 'sort_order' => 1, 'parent_id' => $rh->id, 'created_by' => $adminId]
+        $urbanisme = Department::on('tenant')->updateOrCreate(
+            ['name' => 'Service Urbanisme'],
+            ['type' => 'service', 'label' => null, 'color' => null,
+             'sort_order' => 2, 'parent_id' => $dst->id, 'created_by' => $admin->id]
+        );
+
+        $rh = Department::on('tenant')->updateOrCreate(
+            ['name' => 'Service Ressources Humaines'],
+            ['type' => 'service', 'label' => null, 'color' => null,
+             'sort_order' => 1, 'parent_id' => $dgsDir->id, 'created_by' => $admin->id]
+        );
+
+        $communication = Department::on('tenant')->updateOrCreate(
+            ['name' => 'Service Communication'],
+            ['type' => 'service', 'label' => null, 'color' => null,
+             'sort_order' => 2, 'parent_id' => $dgsDir->id, 'created_by' => $admin->id]
+        );
+
+        $evenementiel = Department::on('tenant')->updateOrCreate(
+            ['name' => 'Service Événementiel'],
+            ['type' => 'service', 'label' => null, 'color' => null,
+             'sort_order' => 1, 'parent_id' => $dac->id, 'created_by' => $admin->id]
         );
 
         // ── Affectations ──────────────────────────────────────────
-
-        // Cabinet du Maire — Maire uniquement
-        $cabinet->members()->syncWithoutDetaching([
-            $maire->id => ['is_manager' => true],
+        $dst->members()->syncWithoutDetaching([
+            $thomas->id => ['is_manager' => true],
         ]);
-
-        // Direction Générale — DGS uniquement
-        $dg->members()->syncWithoutDetaching([
+        $voirie->members()->syncWithoutDetaching([
+            $eric->id => ['is_manager' => false],
+        ]);
+        $urbanisme->members()->syncWithoutDetaching([
+            $laurent->id => ['is_manager' => true],
+        ]);
+        $dgsDir->members()->syncWithoutDetaching([
             $dgs->id => ['is_manager' => true],
         ]);
-
-        // DST — Resp. Direction uniquement
-        $dst->members()->syncWithoutDetaching([
-            $respDir->id => ['is_manager' => true],
-        ]);
-
-        // Service Voirie — Resp. Service + Agent
-        $voirie->members()->syncWithoutDetaching([
-            $respSvc->id => ['is_manager' => true],
-            $agent->id => ['is_manager' => false],
-        ]);
-
-        // DRH — Resp. Direction uniquement
         $rh->members()->syncWithoutDetaching([
-            $respDir->id => ['is_manager' => true],
+            $marie->id => ['is_manager' => false],
+        ]);
+        $communication->members()->syncWithoutDetaching([
+            $nathalie->id => ['is_manager' => true],
         ]);
 
-        return compact('cabinet', 'dg', 'dst', 'rh', 'sg', 'voirie', 'paie');
+        return compact('dst', 'dgsDir', 'dac', 'voirie', 'urbanisme', 'rh', 'communication', 'evenementiel');
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  Projets & tâches
+    //  Projets, jalons & tâches
     // ─────────────────────────────────────────────────────────────
 
     private function createProjects(array $users, array $depts): void
     {
-        $admin = $users[UserRole::ADMIN->value];
-        $dgs = $users[UserRole::DGS->value];
-        $respDir = $users[UserRole::RESP_DIRECTION->value];
-        $respSvc = $users[UserRole::RESP_SERVICE->value];
-        $agent = $users[UserRole::USER->value];
+        $thomas   = $users['technique@demo.pladigit.fr'];
+        $laurent  = $users['urbanisme@demo.pladigit.fr'];
+        $nathalie = $users['communication@demo.pladigit.fr'];
+        $dgs      = $users['dgs@demo.pladigit.fr'];
+        $maire    = $users['maire@demo.pladigit.fr'];
+        $eric     = $users['agent1@demo.pladigit.fr'];
+        $marie    = $users['agent2@demo.pladigit.fr'];
 
-        // ── Projet 1 : PLU ───────────────────────────────────────
-        $plu = Project::create([
-            'name' => 'Révision du Plan Local d\'Urbanisme (PLU)',
-            'description' => 'Mise à jour du PLU communal — prise en compte des évolutions réglementaires et du projet de territoire 2025-2030.',
-            'status' => 'active',
-            'start_date' => now()->subMonths(3),
-            'due_date' => now()->addMonths(9),
-            'color' => '#1e40af',
-            'is_private' => false,
-            'created_by' => $dgs->id,
+        // ── Projet 1 : Réfection Rue des Acacias ─────────────────
+        $voirie = Project::on('tenant')->create([
+            'created_by'  => $thomas->id,
+            'name'        => 'Réfection Rue des Acacias',
+            'description' => "Travaux de réfection complète de la chaussée et des trottoirs de la rue des Acacias (450 ml). Remplacement des réseaux d'eau pluviale en sous-œuvre.",
+            'status'      => 'active',
+            'start_date'  => Carbon::parse('2025-03-01'),
+            'due_date'    => Carbon::parse('2025-09-30'),
+            'color'       => '#EA580C',
+            'is_private'  => false,
         ]);
 
-        ProjectMember::insert([
-            ['project_id' => $plu->id, 'user_id' => $dgs->id,     'role' => 'owner'],
-            ['project_id' => $plu->id, 'user_id' => $respDir->id,  'role' => 'member'],
-            ['project_id' => $plu->id, 'user_id' => $agent->id,    'role' => 'viewer'],
+        ProjectMember::on('tenant')->insert([
+            ['project_id' => $voirie->id, 'user_id' => $thomas->id, 'role' => 'owner',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $voirie->id, 'user_id' => $eric->id,   'role' => 'member', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $voirie->id, 'user_id' => $dgs->id,    'role' => 'viewer', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $mPrep = ProjectMilestone::on('tenant')->create([
+            'project_id' => $voirie->id, 'title' => 'Phase préparatoire',
+            'due_date' => '2025-03-31',
+            'color' => '#EA580C', 'sort_order' => 1,
+        ]);
+        $mAO = ProjectMilestone::on('tenant')->create([
+            'project_id' => $voirie->id, 'title' => "Appel d'offres lancé",
+            'due_date' => '2025-04-15',
+            'color' => '#EA580C', 'sort_order' => 2, 'parent_id' => $mPrep->id,
+        ]);
+        $mTravaux = ProjectMilestone::on('tenant')->create([
+            'project_id' => $voirie->id, 'title' => 'Travaux — Tranche 1',
+            'due_date' => '2025-06-30',
+            'color' => '#EA580C', 'sort_order' => 3,
+        ]);
+
+        $voirieTasks = [
+            ['title' => 'Rédiger le cahier des charges',         'status' => 'done',        'priority' => 'high',   'milestone_id' => $mPrep->id,    'assigned_to' => $thomas->id, 'due_date' => '2025-03-20', 'sort_order' => 1],
+            ['title' => 'Lever topographique de la rue',          'status' => 'done',        'priority' => 'high',   'milestone_id' => $mPrep->id,    'assigned_to' => $eric->id,   'due_date' => '2025-03-25', 'sort_order' => 2],
+            ['title' => "Publication appel d'offres BOAMP",       'status' => 'done',        'priority' => 'urgent', 'milestone_id' => $mAO->id,      'assigned_to' => $thomas->id, 'due_date' => '2025-04-01', 'sort_order' => 1],
+            ['title' => 'Analyse des offres reçues',              'status' => 'in_progress', 'priority' => 'high',   'milestone_id' => $mAO->id,      'assigned_to' => $thomas->id, 'due_date' => '2025-04-30', 'sort_order' => 2],
+            ['title' => 'Déviation de circulation mise en place', 'status' => 'todo',        'priority' => 'high',   'milestone_id' => $mTravaux->id, 'assigned_to' => $eric->id,   'due_date' => '2025-05-10', 'sort_order' => 1],
+            ['title' => 'Décaissement et pose réseaux EP',        'status' => 'todo',        'priority' => 'medium', 'milestone_id' => $mTravaux->id, 'assigned_to' => $eric->id,   'due_date' => '2025-05-31', 'sort_order' => 2],
+            ['title' => 'Enrobés — couche de base',               'status' => 'todo',        'priority' => 'medium', 'milestone_id' => $mTravaux->id, 'assigned_to' => $eric->id,   'due_date' => '2025-06-20', 'sort_order' => 3],
+        ];
+
+        foreach ($voirieTasks as $i => $t) {
+            $task = Task::on('tenant')->create(array_merge($t, [
+                'project_id' => $voirie->id,
+                'created_by' => $thomas->id,
+            ]));
+            if ($i === 2) {
+                TaskComment::on('tenant')->create([
+                    'task_id' => $task->id, 'user_id' => $thomas->id,
+                    'body'    => 'Publié sur le BOAMP ce matin. Délai de réception des offres fixé au 30 mars.',
+                ]);
+            }
+            if ($i === 3) {
+                TaskComment::on('tenant')->create([
+                    'task_id' => $task->id, 'user_id' => $eric->id,
+                    'body'    => "Reçu 4 offres. L'entreprise Bonneau TP est la mieux-disante. Je transmets le dossier à Thomas.",
+                ]);
+            }
+        }
+
+        // ── Projet 2 : Révision du PLU ───────────────────────────
+        $plu = Project::on('tenant')->create([
+            'created_by'  => $laurent->id,
+            'name'        => "Révision du Plan Local d'Urbanisme",
+            'description' => "Révision générale du PLU conformément aux prescriptions du SCoT du Pays de Loire. Concertation publique, diagnostic territorial et définition des orientations d'aménagement.",
+            'status'      => 'active',
+            'start_date'  => Carbon::parse('2025-01-15'),
+            'due_date'    => Carbon::parse('2026-06-30'),
+            'color'       => '#0F766E',
+            'is_private'  => false,
+        ]);
+
+        ProjectMember::on('tenant')->insert([
+            ['project_id' => $plu->id, 'user_id' => $laurent->id, 'role' => 'owner',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $plu->id, 'user_id' => $dgs->id,     'role' => 'member', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $plu->id, 'user_id' => $maire->id,   'role' => 'viewer', 'created_at' => now(), 'updated_at' => now()],
+        ]);
+
+        $mDiag = ProjectMilestone::on('tenant')->create([
+            'project_id' => $plu->id, 'title' => 'Diagnostic territorial',
+            'due_date' => '2025-06-30',
+            'color' => '#0F766E', 'sort_order' => 1,
+        ]);
+        $mConc = ProjectMilestone::on('tenant')->create([
+            'project_id' => $plu->id, 'title' => 'Concertation publique ouverte',
+            'due_date' => '2025-04-01',
+            'color' => '#0F766E', 'sort_order' => 2, 'parent_id' => $mDiag->id,
+        ]);
+        $mArret = ProjectMilestone::on('tenant')->create([
+            'project_id' => $plu->id, 'title' => "Arrêt du projet de PLU",
+            'due_date' => '2026-01-31',
+            'color' => '#0F766E', 'sort_order' => 3,
         ]);
 
         $pluTasks = [
-            ['title' => 'Diagnostic territorial', 'status' => 'done',        'priority' => 'high',   'assigned_to' => $respDir->id, 'due_date' => now()->subMonths(2)],
-            ['title' => 'Concertation publique — Phase 1', 'status' => 'done', 'priority' => 'high', 'assigned_to' => $dgs->id,     'due_date' => now()->subMonth()],
-            ['title' => 'Rédaction du PADD', 'status' => 'in_progress',      'priority' => 'high',   'assigned_to' => $respDir->id, 'due_date' => now()->addMonths(2)],
-            ['title' => 'OAP — Secteurs à enjeux', 'status' => 'todo',       'priority' => 'medium', 'assigned_to' => $respDir->id, 'due_date' => now()->addMonths(4)],
-            ['title' => 'Rapport de présentation', 'status' => 'todo',       'priority' => 'medium', 'assigned_to' => $agent->id,   'due_date' => now()->addMonths(6)],
-            ['title' => 'Enquête publique', 'status' => 'todo',              'priority' => 'high',   'assigned_to' => $dgs->id,     'due_date' => now()->addMonths(8)],
+            ['title' => 'Recenser les études existantes',      'status' => 'done',        'priority' => 'medium', 'milestone_id' => $mDiag->id,  'assigned_to' => $laurent->id, 'due_date' => '2025-02-28', 'sort_order' => 1],
+            ['title' => 'Analyse démographique 2015-2024',     'status' => 'done',        'priority' => 'medium', 'milestone_id' => $mDiag->id,  'assigned_to' => $laurent->id, 'due_date' => '2025-03-31', 'sort_order' => 2],
+            ['title' => 'Organiser les réunions publiques',    'status' => 'in_progress', 'priority' => 'high',   'milestone_id' => $mConc->id,  'assigned_to' => $laurent->id, 'due_date' => '2025-04-15', 'sort_order' => 1],
+            ['title' => 'Créer le registre de concertation',   'status' => 'in_progress', 'priority' => 'medium', 'milestone_id' => $mConc->id,  'assigned_to' => $marie->id,   'due_date' => '2025-04-20', 'sort_order' => 2],
+            ['title' => 'Rédiger le rapport de présentation',  'status' => 'todo',        'priority' => 'high',   'milestone_id' => $mArret->id, 'assigned_to' => $laurent->id, 'due_date' => '2025-11-30', 'sort_order' => 1],
         ];
 
         foreach ($pluTasks as $i => $t) {
-            Task::create(array_merge($t, [
+            $task = Task::on('tenant')->create(array_merge($t, [
                 'project_id' => $plu->id,
-                'created_by' => $dgs->id,
-                'sort_order' => $i + 1,
+                'created_by' => $laurent->id,
             ]));
+            if ($i === 2) {
+                TaskComment::on('tenant')->create([
+                    'task_id' => $task->id, 'user_id' => $laurent->id,
+                    'body'    => 'Salle de la mairie retenue pour le 22 avril. Ordre du jour envoyé aux personnes publiques associées.',
+                ]);
+            }
         }
 
-        // ── Projet 2 : Rénovation salle des fêtes ────────────────
-        $sdf = Project::create([
-            'name' => 'Rénovation salle des fêtes — Tranche 2',
-            'description' => 'Mise aux normes accessibilité, remplacement du système électrique et réfection de la toiture.',
-            'status' => 'active',
-            'start_date' => now()->subMonth(),
-            'due_date' => now()->addMonths(5),
-            'color' => '#b45309',
-            'is_private' => false,
-            'created_by' => $respDir->id,
+        // ── Projet 3 : Fête de la Saint-Aubin 2025 ───────────────
+        $fete = Project::on('tenant')->create([
+            'created_by'  => $nathalie->id,
+            'name'        => 'Fête de la Saint-Aubin 2025',
+            'description' => "Organisation de la fête annuelle de la commune : concerts, animations pour enfants, marché artisanal, feu d'artifice. Budget prévisionnel : 18 500 €.",
+            'status'      => 'active',
+            'start_date'  => Carbon::parse('2025-05-01'),
+            'due_date'    => Carbon::parse('2025-07-15'),
+            'color'       => '#7C3AED',
+            'is_private'  => false,
         ]);
 
-        ProjectMember::insert([
-            ['project_id' => $sdf->id, 'user_id' => $respDir->id, 'role' => 'owner'],
-            ['project_id' => $sdf->id, 'user_id' => $respSvc->id, 'role' => 'member'],
-            ['project_id' => $sdf->id, 'user_id' => $agent->id,   'role' => 'member'],
+        ProjectMember::on('tenant')->insert([
+            ['project_id' => $fete->id, 'user_id' => $nathalie->id, 'role' => 'owner',  'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $fete->id, 'user_id' => $marie->id,    'role' => 'member', 'created_at' => now(), 'updated_at' => now()],
+            ['project_id' => $fete->id, 'user_id' => $maire->id,    'role' => 'viewer', 'created_at' => now(), 'updated_at' => now()],
         ]);
 
-        $sdfTasks = [
-            ['title' => 'Appel d\'offres — Électricité', 'status' => 'done',        'priority' => 'high',   'assigned_to' => $respSvc->id, 'due_date' => now()->subWeeks(3)],
-            ['title' => 'Travaux électriques', 'status' => 'in_progress',           'priority' => 'high',   'assigned_to' => $respSvc->id, 'due_date' => now()->addWeeks(3)],
-            ['title' => 'Mise en accessibilité PMR', 'status' => 'in_progress',     'priority' => 'high',   'assigned_to' => $agent->id,   'due_date' => now()->addMonth()],
-            ['title' => 'Appel d\'offres — Toiture', 'status' => 'todo',            'priority' => 'medium', 'assigned_to' => $respSvc->id, 'due_date' => now()->addMonths(2)],
-            ['title' => 'Réfection de la toiture', 'status' => 'todo',              'priority' => 'medium', 'assigned_to' => null,          'due_date' => now()->addMonths(4)],
-            ['title' => 'Réception des travaux', 'status' => 'todo',                'priority' => 'low',    'assigned_to' => $respDir->id,  'due_date' => now()->addMonths(5)],
+        $mLogistique = ProjectMilestone::on('tenant')->create([
+            'project_id' => $fete->id, 'title' => 'Préparation logistique',
+            'due_date' => '2025-06-01',
+            'color' => '#7C3AED', 'sort_order' => 1,
+        ]);
+        $mJourJ = ProjectMilestone::on('tenant')->create([
+            'project_id' => $fete->id, 'title' => 'Jour J — Fête de la commune',
+            'due_date' => '2025-07-12',
+            'color' => '#DC2626', 'sort_order' => 2,
+        ]);
+
+        $feteTasks = [
+            ['title' => 'Réserver la salle des fêtes',             'status' => 'done',        'priority' => 'urgent', 'milestone_id' => $mLogistique->id, 'assigned_to' => $nathalie->id, 'due_date' => '2025-05-05', 'sort_order' => 1],
+            ['title' => 'Contacter les prestataires son/lumière',   'status' => 'done',        'priority' => 'high',   'milestone_id' => $mLogistique->id, 'assigned_to' => $marie->id,    'due_date' => '2025-05-10', 'sort_order' => 2],
+            ['title' => 'Lancer la communication (affichage)',      'status' => 'in_progress', 'priority' => 'medium', 'milestone_id' => $mLogistique->id, 'assigned_to' => $nathalie->id, 'due_date' => '2025-06-01', 'sort_order' => 3],
+            ['title' => 'Organiser le marché artisanal',            'status' => 'in_progress', 'priority' => 'medium', 'milestone_id' => $mLogistique->id, 'assigned_to' => $marie->id,    'due_date' => '2025-06-15', 'sort_order' => 4],
+            ['title' => 'Bilan financier post-événement',           'status' => 'todo',        'priority' => 'low',    'milestone_id' => $mJourJ->id,      'assigned_to' => $nathalie->id, 'due_date' => '2025-07-25', 'sort_order' => 1],
         ];
 
-        foreach ($sdfTasks as $i => $t) {
-            Task::create(array_merge($t, [
-                'project_id' => $sdf->id,
-                'created_by' => $respDir->id,
-                'sort_order' => $i + 1,
+        foreach ($feteTasks as $i => $t) {
+            $task = Task::on('tenant')->create(array_merge($t, [
+                'project_id' => $fete->id,
+                'created_by' => $nathalie->id,
             ]));
-        }
-
-        // ── Projet 3 : RGPD ──────────────────────────────────────
-        $rgpd = Project::create([
-            'name' => 'Mise en conformité RGPD 2025',
-            'description' => 'Actualisation du registre des traitements, mise à jour des mentions légales et formation des agents.',
-            'status' => 'completed',
-            'start_date' => now()->subMonths(6),
-            'due_date' => now()->subMonth(),
-            'color' => '#065f46',
-            'is_private' => false,
-            'created_by' => $admin->id,
-        ]);
-
-        ProjectMember::insert([
-            ['project_id' => $rgpd->id, 'user_id' => $admin->id,   'role' => 'owner'],
-            ['project_id' => $rgpd->id, 'user_id' => $dgs->id,     'role' => 'member'],
-            ['project_id' => $rgpd->id, 'user_id' => $respDir->id,  'role' => 'viewer'],
-        ]);
-
-        $rgpdTasks = [
-            ['title' => 'Inventaire des traitements de données', 'status' => 'done', 'priority' => 'high',   'assigned_to' => $admin->id,   'due_date' => now()->subMonths(5)],
-            ['title' => 'Mise à jour du registre RGPD', 'status' => 'done',          'priority' => 'high',   'assigned_to' => $admin->id,   'due_date' => now()->subMonths(4)],
-            ['title' => 'Rédaction des mentions légales', 'status' => 'done',        'priority' => 'medium', 'assigned_to' => $respDir->id,  'due_date' => now()->subMonths(3)],
-            ['title' => 'Formation agents — Sensibilisation', 'status' => 'done',    'priority' => 'medium', 'assigned_to' => $dgs->id,     'due_date' => now()->subMonths(2)],
-            ['title' => 'Audit interne final', 'status' => 'done',                   'priority' => 'high',   'assigned_to' => $admin->id,   'due_date' => now()->subMonth()],
-        ];
-
-        foreach ($rgpdTasks as $i => $t) {
-            Task::create(array_merge($t, [
-                'project_id' => $rgpd->id,
-                'created_by' => $admin->id,
-                'sort_order' => $i + 1,
-            ]));
+            if ($i === 2) {
+                TaskComment::on('tenant')->create([
+                    'task_id' => $task->id, 'user_id' => $nathalie->id,
+                    'body'    => 'Bon de commande affiches validé. Tirage 200 exemplaires format A2.',
+                ]);
+            }
         }
     }
 
     // ─────────────────────────────────────────────────────────────
-    //  Albums photo
+    //  Albums photo — structure uniquement, sans MediaItem
+    //  Les photos sont injectées par DemoResetCommand::seedPhotos()
+    //  qui cherche l'album par nom dans la table.
     // ─────────────────────────────────────────────────────────────
 
-    private function createAlbums(array $users, array $depts): void
+    private function createAlbums(array $users): void
     {
-        $admin = $users[UserRole::ADMIN->value];
-        $respDir = $users[UserRole::RESP_DIRECTION->value];
+        $thomas   = $users['technique@demo.pladigit.fr'];
+        $nathalie = $users['communication@demo.pladigit.fr'];
+        $eric     = $users['agent1@demo.pladigit.fr'];
 
-        $albumPublic = MediaAlbum::updateOrCreate(
+        // Cet album doit s'appeler exactement 'Fête de la commune 2025'
+        // car DemoResetCommand::seedPhotos() le cherche par ce nom.
+        MediaAlbum::on('tenant')->updateOrCreate(
             ['name' => 'Fête de la commune 2025'],
             [
-                'description' => 'Photos de la fête annuelle de la commune — juin 2025.',
-                'visibility' => 'public',
-                'created_by' => $admin->id,
+                'description' => 'Photos de la fête annuelle de la commune — été 2025.',
+                'visibility'  => 'public',
+                'created_by'  => $nathalie->id,
             ]
         );
 
-        $albumVoirie = MediaAlbum::updateOrCreate(
-            ['name' => 'Travaux voirie 2025'],
+        $vieMunicipale = MediaAlbum::on('tenant')->updateOrCreate(
+            ['name' => 'Vie municipale 2025'],
             [
-                'description' => 'Suivi photographique des chantiers de voirie en cours.',
-                'visibility' => 'restricted',
-                'created_by' => $respDir->id,
+                'description' => 'Photos officielles des événements et réunions de la commune.',
+                'visibility'  => 'restricted',
+                'created_by'  => $nathalie->id,
             ]
         );
 
-        foreach ([UserRole::RESP_SERVICE->value, UserRole::USER->value] as $role) {
-            Share::updateOrCreate(
-                [
-                    'shareable_type' => 'media_album',
-                    'shareable_id' => $albumVoirie->id,
-                    'shared_with_type' => 'role',
-                    'shared_with_role' => $role,
-                ],
-                [
-                    'can_view' => true,
-                    'can_download' => $role === UserRole::RESP_SERVICE->value,
-                    'can_edit' => false,
-                    'can_manage' => false,
-                    'shared_by' => $admin->id,
-                ]
-            );
-        }
-
-        MediaAlbum::updateOrCreate(
-            ['name' => 'Conseil municipal — Archives'],
+        MediaAlbum::on('tenant')->updateOrCreate(
+            ['name' => 'Conseil municipal — Janvier 2025'],
             [
-                'description' => 'Photos des séances du conseil municipal.',
-                'visibility' => 'private',
-                'created_by' => $users[UserRole::PRESIDENT->value]->id,
+                'description' => 'Photos de la séance du conseil municipal du 14 janvier 2025.',
+                'visibility'  => 'restricted',
+                'created_by'  => $nathalie->id,
+                'parent_id'   => $vieMunicipale->id,
+            ]
+        );
+
+        $chantiers = MediaAlbum::on('tenant')->updateOrCreate(
+            ['name' => 'Chantiers et travaux'],
+            [
+                'description' => 'Suivi photographique des chantiers en cours sur la commune.',
+                'visibility'  => 'restricted',
+                'created_by'  => $thomas->id,
+            ]
+        );
+
+        MediaAlbum::on('tenant')->updateOrCreate(
+            ['name' => 'Rue des Acacias — Avancement'],
+            [
+                'description' => 'Photos hebdomadaires du chantier de réfection.',
+                'visibility'  => 'restricted',
+                'created_by'  => $eric->id,
+                'parent_id'   => $chantiers->id,
             ]
         );
     }
