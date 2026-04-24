@@ -26,7 +26,7 @@ class ContactController extends Controller
             organization: $data['organization'],
             email: $data['email'],
             plan: $data['plan'] ?? '',
-            message: $data['message'] ?? '',
+            messageText: $data['message'] ?? '',
         ));
 
         return redirect('/')->with('contact_success',

@@ -22,7 +22,7 @@ class ContactRequestMail extends Mailable
         public readonly string $organization,
         public readonly string $email,
         public readonly string $plan,
-        public readonly string $message,
+        public readonly string $messageText,
     ) {}
 
     public function envelope(): Envelope

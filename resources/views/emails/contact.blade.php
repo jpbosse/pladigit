@@ -13,9 +13,9 @@
         .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 4px; }
         .value { font-size: 15px; color: #111827; }
         .message-box { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 16px; font-size: 14px; color: #374151; line-height: 1.6; white-space: pre-wrap; }
-        .plan-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
-            background: {{ $plan === 'partenaire' ? 'rgba(59,130,246,.12)' : 'rgba(107,114,128,.12)' }};
-            color: {{ $plan === 'partenaire' ? '#3b82f6' : '#6b7280' }}; }
+        .plan-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .plan-partenaire { background: rgba(59,130,246,.12); color: #3b82f6; }
+        .plan-autre { background: rgba(107,114,128,.12); color: #6b7280; }
         .footer { padding: 20px 32px; border-top: 1px solid #f3f4f6; font-size: 12px; color: #9ca3af; }
         .reply-hint { background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #92400e; margin-top: 24px; }
     </style>
@@ -46,14 +46,18 @@
         <div class="field">
             <div class="label">Plan souhaité</div>
             <div class="value">
-                <span class="plan-badge">{{ ucfirst($plan ?: 'Non précisé') }}</span>
+                @if($plan === 'partenaire')
+                    <span class="plan-badge plan-partenaire">{{ ucfirst($plan) }}</span>
+                @else
+                    <span class="plan-badge plan-autre">{{ ucfirst($plan ?: 'Non précisé') }}</span>
+                @endif
             </div>
         </div>
 
-        @if($message)
+        @if($messageText)
         <div class="field">
             <div class="label">Message</div>
-            <div class="message-box">{{ $message }}</div>
+            <div class="message-box">{{ $messageText }}</div>
         </div>
         @endif
 
