@@ -76,7 +76,7 @@ check_prerequisites() {
     if [[ "$ID" != "ubuntu" ]]; then
         die "Pladigit nécessite Ubuntu 22.04 ou 24.04. Système détecté : $ID $VERSION_ID"
     fi
-    if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]]; then
+    if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" && "$VERSION_ID" != "26.04" ]]; then
         warn "Version Ubuntu non testée : $VERSION_ID. L'installation peut échouer."
     else
         log "Système : Ubuntu $VERSION_ID — OK"
