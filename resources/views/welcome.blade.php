@@ -149,6 +149,7 @@
         <a href="/" class="nav-logo">Pladi<span>git</span></a>
         <div class="nav-links" id="nav-links">
             <a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#installation">Installation</a>
             <a href="#demo">Démo</a>
             <a href="#tarifs">Tarifs</a>
             <a href="#contact">Contact</a>
@@ -231,6 +232,111 @@
     </div>
 </section>
 
+{{-- ── Section Installation ─────────────────────────────────── --}}
+<section class="section" id="installation" style="background:var(--navy)">
+    <div class="section-inner">
+        <div class="fade-up" style="text-align:center;margin-bottom:3rem">
+            <div class="section-label" style="color:var(--gold2)">Mise en œuvre</div>
+            <h2 class="section-title" style="color:white">Installer Pladigit<br>sur votre serveur</h2>
+            <p class="section-subtitle" style="color:rgba(255,255,255,.6);margin:0 auto">
+                Pladigit s'installe sur votre propre serveur Linux — vos données restent chez vous, en France.
+            </p>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;max-width:900px;margin:0 auto" class="fade-up">
+
+            {{-- Colonne 1 : Installation automatique --}}
+            <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:2rem">
+                <div style="font-size:1.5rem;margin-bottom:.875rem">🚀</div>
+                <div style="font-weight:700;font-size:1.05rem;color:white;margin-bottom:.5rem">Installation automatique</div>
+                <p style="font-size:.875rem;color:rgba(255,255,255,.6);line-height:1.6;margin-bottom:1.5rem">
+                    Deux étapes suffisent. Aucune connaissance technique requise.
+                </p>
+
+                <div style="display:flex;flex-direction:column;gap:.875rem;margin-bottom:1.75rem">
+                    <div style="display:flex;gap:.875rem;align-items:flex-start">
+                        <div style="width:28px;height:28px;border-radius:50%;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">1</div>
+                        <div>
+                            <div style="font-size:.875rem;font-weight:600;color:white;margin-bottom:.2rem">Installez Ubuntu Server</div>
+                            <div style="font-size:.8rem;color:rgba(255,255,255,.5)">Ubuntu 22.04 ou 24.04 LTS — téléchargeable gratuitement sur ubuntu.com</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:.875rem;align-items:flex-start">
+                        <div style="width:28px;height:28px;border-radius:50%;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">2</div>
+                        <div>
+                            <div style="font-size:.875rem;font-weight:600;color:white;margin-bottom:.2rem">Copiez cette commande dans le terminal</div>
+                            <div style="font-size:.8rem;color:rgba(255,255,255,.5)">Le script installe tout automatiquement et ouvre l'assistant de configuration dans votre navigateur.</div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Commande à copier --}}
+                <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1.25rem">
+                    <code id="install-cmd" style="font-size:.78rem;color:#86efac;background:transparent;padding:0;word-break:break-all">curl -fsSL https://pladigit.fr/install.sh | sudo bash</code>
+                    <button onclick="copyCmd()" id="copy-btn"
+                        style="flex-shrink:0;background:var(--gold);color:var(--navy);border:none;border-radius:4px;padding:.35rem .75rem;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">
+                        📋 Copier
+                    </button>
+                </div>
+
+                <div style="font-size:.75rem;color:rgba(255,255,255,.35);line-height:1.5">
+                    ⚠️ Ne lancez pas cette commande si Pladigit est déjà installé sur ce serveur.
+                </div>
+            </div>
+
+            {{-- Colonne 2 : Téléchargement manuel --}}
+            <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:2rem">
+                <div style="font-size:1.5rem;margin-bottom:.875rem">📥</div>
+                <div style="font-weight:700;font-size:1.05rem;color:white;margin-bottom:.5rem">Téléchargement manuel</div>
+                <p style="font-size:.875rem;color:rgba(255,255,255,.6);line-height:1.6;margin-bottom:1.75rem">
+                    Pour les administrateurs expérimentés qui souhaitent contrôler chaque étape de l'installation.
+                </p>
+
+                <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.75rem">
+                    <a href="/install.sh" download
+                        style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
+                        onmouseover="this.style.background='rgba(255,255,255,.1)'"
+                        onmouseout="this.style.background='rgba(255,255,255,.06)'">
+                        <span style="font-size:1.25rem">📄</span>
+                        <div>
+                            <div style="font-size:.875rem;font-weight:600;color:white">install.sh</div>
+                            <div style="font-size:.75rem;color:rgba(255,255,255,.4)">Script d'installation bash</div>
+                        </div>
+                        <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
+                    </a>
+
+                    <a href="/install-wizard.php" download
+                        style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
+                        onmouseover="this.style.background='rgba(255,255,255,.1)'"
+                        onmouseout="this.style.background='rgba(255,255,255,.06)'">
+                        <span style="font-size:1.25rem">🌐</span>
+                        <div>
+                            <div style="font-size:.875rem;font-weight:600;color:white">install/index.php</div>
+                            <div style="font-size:.75rem;color:rgba(255,255,255,.4)">Assistant de configuration web</div>
+                        </div>
+                        <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
+                    </a>
+                </div>
+
+                <div style="font-size:.75rem;color:rgba(255,255,255,.35);line-height:1.5">
+                    Placez <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">install.sh</code> à la racine de votre projet et
+                    <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">index.php</code> dans un dossier <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">install/</code>.
+                </div>
+            </div>
+        </div>
+
+        {{-- Lien documentation --}}
+        <div class="fade-up" style="text-align:center;margin-top:2.5rem">
+            <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank"
+                style="font-size:.875rem;color:rgba(255,255,255,.5);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.2);padding-bottom:.1rem;transition:color .2s"
+                onmouseover="this.style.color='rgba(255,255,255,.8)'"
+                onmouseout="this.style.color='rgba(255,255,255,.5)'">
+                📖 Consulter la documentation complète d'installation →
+            </a>
+        </div>
+    </div>
+</section>
+
 <section class="section" id="demo" style="background:var(--light)">
     <div class="section-inner">
         <div class="fade-up" style="text-align:center;margin-bottom:3rem">
@@ -262,14 +368,12 @@
                     <tbody>
                         @php
                         $demoAccounts = [
-                            ['role' => 'Administrateur',   'name' => 'Isabelle Fontaine',   'email' => 'admin@demo.pladigit.fr'],
-                            ['role' => 'Président',        'name' => 'Jean-Marie Lebreton', 'email' => 'maire@demo.pladigit.fr'],
-                            ['role' => 'DGS',              'name' => 'Sophie Marchand',     'email' => 'dgs@demo.pladigit.fr'],
-                            ['role' => 'Resp. Direction',  'name' => 'Thomas Girard',       'email' => 'technique@demo.pladigit.fr'],
-                            ['role' => 'Resp. Service',    'name' => 'Laurent Dubois',      'email' => 'urbanisme@demo.pladigit.fr'],
-                            ['role' => 'Resp. Service',    'name' => 'Nathalie Petit',      'email' => 'communication@demo.pladigit.fr'],
-                            ['role' => 'Agent',            'name' => 'Éric Moreau',         'email' => 'agent1@demo.pladigit.fr'],
-                            ['role' => 'Agent',            'name' => 'Marie-Claire Aubert', 'email' => 'agent2@demo.pladigit.fr'],
+                            ['role' => 'Administrateur',   'name' => 'Admin Démo',         'email' => 'admin@demo.pladigit.fr'],
+                            ['role' => 'Président',        'name' => 'Marie Dupont',        'email' => 'president@demo.pladigit.fr'],
+                            ['role' => 'DGS',              'name' => 'Jean-Pierre Martin',  'email' => 'dgs@demo.pladigit.fr'],
+                            ['role' => 'Resp. Direction',  'name' => 'Sophie Lambert',      'email' => 'resp.direction@demo.pladigit.fr'],
+                            ['role' => 'Resp. Service',    'name' => 'Thomas Bernard',      'email' => 'resp.service@demo.pladigit.fr'],
+                            ['role' => 'Agent',            'name' => 'Lucie Moreau',        'email' => 'user@demo.pladigit.fr'],
                         ];
                         @endphp
                         @foreach($demoAccounts as $i => $account)
@@ -388,7 +492,8 @@
                 <div class="footer-tagline">Plateforme de Digitalisation Interne<br>pour les Collectivités Publiques</div>
             </div>
             <div class="footer-links">
-                <div class="footer-col"><div class="footer-col-title">Plateforme</div><a href="#fonctionnalites">Fonctionnalités</a><a href="#tarifs">Tarifs</a><a href="#demo">Démo</a></div>
+                <div class="footer-col"><div class="footer-col-title">Plateforme</div><a href="#fonctionnalites">Fonctionnalités</a>
+            <a href="#installation">Installation</a><a href="#tarifs">Tarifs</a><a href="#demo">Démo</a></div>
                 <div class="footer-col"><div class="footer-col-title">Ressources</div><a href="#">Documentation</a><a href="#">GitHub</a><a href="#">Changelog</a></div>
                 <div class="footer-col"><div class="footer-col-title">Les Bézots</div><a href="#">À propos</a><a href="#contact">Contact</a><a href="#">Mentions légales</a></div>
             </div>
@@ -444,6 +549,27 @@
 </div>
 
 <script>
+
+// ── Copier la commande d'installation ───────────────────────
+function copyCmd() {
+    var cmd = document.getElementById('install-cmd').textContent;
+    var btn = document.getElementById('copy-btn');
+    navigator.clipboard.writeText(cmd).then(function() {
+        btn.textContent = '✅ Copié !';
+        setTimeout(function() { btn.textContent = '📋 Copier'; }, 2000);
+    }).catch(function() {
+        // Fallback pour les navigateurs sans clipboard API
+        var ta = document.createElement('textarea');
+        ta.value = cmd;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = '✅ Copié !';
+        setTimeout(function() { btn.textContent = '📋 Copier'; }, 2000);
+    });
+}
+
 // ── Burger menu mobile ───────────────────────────────────────
 (function(){
     var burger = document.getElementById('nav-burger');

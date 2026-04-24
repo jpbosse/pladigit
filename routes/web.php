@@ -331,4 +331,35 @@ Route::middleware('tenant')->group(function () {
         require base_path('routes/ged.php');
 
     });
+
+// Sert le script bash d'installation
+Route::get('/install.sh', function () {
+    $path = base_path('install.sh');
+    if (!file_exists($path)) {
+        abort(404, 'Fichier non trouvé.');
+    }
+    return response()->file($path, [
+        'Content-Type'        => 'text/x-sh',
+        'Content-Disposition' => 'attachment; filename="install.sh"',
+    ]);
+})->name('install.script');
+ 
+// Sert le wizard PHP (téléchargement)
+// Niveau 3 : bloque si .lock existe (installation déjà effectuée sur ce serveur)
+Route::get('/install-wizard.php', function () {
+    // Si Pladigit est déjà installé sur CE serveur, bloquer le téléchargement
+    if (file_exists(base_path('install/.lock'))) {
+        return response()->view('errors.install-locked', [], 403);
+    }
+ 
+    $path = base_path('install/index.php');
+    if (!file_exists($path)) {
+        abort(404, 'Fichier non trouvé.');
+    }
+    return response()->file($path, [
+        'Content-Type'        => 'application/octet-stream',
+        'Content-Disposition' => 'attachment; filename="index.php"',
+    ]);
+})->name('install.wizard');
+
 });
