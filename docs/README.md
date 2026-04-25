@@ -8,7 +8,7 @@ Bienvenue dans la documentation technique de Pladigit.
 
 | Je veux... | Document |
 |-----------|----------|
-| Installer Pladigit (débutant) | [Guide d'installation](GUIDE-INSTALLATION.html) |
+| Installer Pladigit (débutant) | [Guide d'installation](https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html) |
 | Installer Pladigit sur un serveur | [INSTALL.md](../INSTALL.md) |
 | Lire le Cahier des Charges complet | [CDC_Pladigit_v2.3.md](CDC_Pladigit_v2.3.md) |
 | Trouver la bonne annexe | [index-annexes.md](index-annexes.md) |
