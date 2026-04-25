@@ -851,7 +851,7 @@ function page_collabora(): void {
       <input type="radio" name="collabora_mode" value="local" <?= $enough ? "checked" : "" ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
       <div>
         <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x1F4E6; Installer sur ce serveur (Docker)</div>
-        <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Collabora sera installé automatiquement. Nécessite ~2 Go et ~5 minutes supplémentaires.</div>
+        <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Collabora sera installé automatiquement via Docker. Nécessite ~2 Go d'espace disque et <strong>10 à 20 minutes supplémentaires</strong> selon votre connexion (téléchargement de l'image Docker).</div>
       </div>
     </label>
 
