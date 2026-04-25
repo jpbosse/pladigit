@@ -452,7 +452,7 @@ function render_page(string $action): void {
 
     switch ($action) {
         case 'welcome':  page_welcome();         break;
-        case 'check':    page_check();           break;
+        case 'check':    $_SESSION['step'] = 1; page_check(); break;
         case 'database': page_database($errors); break;
         case 'app':      page_app($errors);      break;
         case 'smtp':     page_smtp();            break;
