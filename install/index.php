@@ -228,24 +228,16 @@ function write_runner(): void {
     $smtp  = $_SESSION['smtp']  ?? [];
     $admin = $_SESSION['admin'] ?? [];
 
-    $appKey       = 'base64:' . base64_encode(random_bytes(32));
+    $appKey      = 'base64:' . base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
 
     $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash);
 
-    // Sauvegarder les données dans un fichier JSON — évite les problèmes
-    // d'échappement quand les mots de passe contiennent des caractères spéciaux
-    $configData = [
-        'db'         => $db,
-        'app'        => $app,
-        'smtp'       => $smtp,
-        'admin'      => $admin,
-        'app_key'    => $appKey,
-        'pwd_hash'   => $passwordHash,
-        'env'        => $envContent,
-    ];
-    file_put_contents(INSTALL_DIR . '/config.json', json_encode($configData, JSON_PRETTY_PRINT));
-    chmod(INSTALL_DIR . '/config.json', 0600);
+    // Écriture directe du .env depuis le wizard (fiable, pas d'échappement)
+    file_put_contents(PLADIGIT_ROOT . '/.env', $envContent);
+    chmod(PLADIGIT_ROOT . '/.env', 0640);
+
+    $envEscaped  = addslashes($envContent);
 
     $root   = addslashes(PLADIGIT_ROOT);
     $done   = addslashes(DONE_FILE);
@@ -300,13 +292,12 @@ try {
     \$pdo->exec("FLUSH PRIVILEGES");
     ilog('✓ Utilisateur MySQL créé');
 
-    // 2. Écrire le .env
-    ilog('Écriture de la configuration...');
-    if (file_put_contents('{$root}/.env', '{$envEscaped}') === false) {
-        fail('Impossible d\'écrire le fichier .env. Vérifiez les permissions.');
+    // 2. Vérifier le .env (écrit directement par le wizard)
+    ilog('Vérification de la configuration...');
+    if (!file_exists('{$root}/.env') || filesize('{$root}/.env') < 50) {
+        fail('.env absent ou vide.');
     }
-    chmod('{$root}/.env', 0640);
-    ilog('✓ Fichier .env créé');
+    ilog('✓ Configuration présente');
 
     // 3. Migrations
     ilog('Création des tables (migrations)...');
