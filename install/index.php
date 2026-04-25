@@ -358,6 +358,75 @@ try {
     ilog('✓ Workers configurés');
 
     // 7. Verrouiller
+    // Collabora Online (si demandé)
+    \$collaboraMode = \$cfg['collabora']['mode'] ?? 'skip';
+    if (\$collaboraMode === 'local') {
+        ilog('Installation de Docker...');
+        shell_exec('apt-get install -y docker.io 2>&1');
+        shell_exec('systemctl enable docker && systemctl start docker 2>&1');
+        ilog('✓ Docker installé');
+
+        ilog('Téléchargement et démarrage de Collabora Online...');
+        \$appUrl  = \$cfg['app']['url'] ?? '';
+        \$wopi    = addslashes(\$appUrl);
+        shell_exec("docker run -d --name collabora --restart always -p 9980:9980 -e 'aliasgroup1={\$wopi}' -e 'username=admin' -e 'password=pladigit' --cap-add MKNOD collabora/code 2>&1");
+        ilog('✓ Collabora Online démarré');
+
+        // Ajouter proxy Nginx pour Collabora
+        \$nginxConf = file_get_contents('/etc/nginx/sites-available/pladigit');
+        if (strpos(\$nginxConf, 'collabora') === false) {
+            \$collaboraProxy = "
+    # Collabora Online
+    location /collabora/ {
+        proxy_pass http://localhost:9980/;
+        proxy_set_header Host \$http_host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_read_timeout 36000s;
+        proxy_send_timeout 36000s;
+        proxy_connect_timeout 36000s;
+    }
+    location /collabora/cool/: {
+        proxy_pass http://localhost:9980/cool/;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$http_host;
+        proxy_read_timeout 36000s;
+    }
+";
+            \$nginxConf = str_replace(
+                'location ~ /\.(?!well-known)',
+                \$collaboraProxy . '    location ~ /\.(?!well-known)',
+                \$nginxConf
+            );
+            file_put_contents('/etc/nginx/sites-available/pladigit', \$nginxConf);
+            shell_exec('nginx -t && systemctl reload nginx 2>&1');
+        }
+        ilog('✓ Proxy Nginx Collabora configuré');
+
+        // Mettre à jour COLLABORA_URL dans .env
+        \$env = file_get_contents(\$root . '/.env');
+        if (strpos(\$env, 'COLLABORA_URL') === false) {
+            \$env .= "\nCOLLABORA_URL={\$appUrl}/collabora\n";
+        } else {
+            \$env = preg_replace('/COLLABORA_URL=.*/', "COLLABORA_URL={\$appUrl}/collabora", \$env);
+        }
+        file_put_contents(\$root . '/.env', \$env);
+        ilog('✓ COLLABORA_URL configurée dans .env');
+
+    } elseif (\$collaboraMode === 'external' && !empty(\$cfg['collabora']['url'])) {
+        \$env = file_get_contents(\$root . '/.env');
+        \$collUrl = \$cfg['collabora']['url'];
+        if (strpos(\$env, 'COLLABORA_URL') === false) {
+            \$env .= "\nCOLLABORA_URL={\$collUrl}\n";
+        } else {
+            \$env = preg_replace('/COLLABORA_URL=.*/', "COLLABORA_URL={\$collUrl}", \$env);
+        }
+        file_put_contents(\$root . '/.env', \$env);
+        ilog('✓ COLLABORA_URL externe configurée dans .env');
+    }
+
     file_put_contents('{$lock}', date('d/m/Y H:i:s'));
     ilog('✓ Installation sécurisée');
 
@@ -914,9 +983,10 @@ var stepMap    = {
     'cache': 'cache', 'Optimisation': 'cache',
     'Storage': 'storage', 'Liens': 'storage',
     'worker': 'supervisor', 'Supervisor': 'supervisor',
-    'sécurisée': 'lock', 'terminée': 'lock'
+    'sécurisée': 'lock', 'terminée': 'lock',
+    'Docker': 'collabora', 'Collabora': 'collabora', 'proxy': 'collabora'
 };
-var stepOrder  = ['mysql','env','migrate','cache','storage','supervisor','lock'];
+var stepOrder  = ['mysql','env','migrate','cache','storage','supervisor','collabora','lock'];
 var stepDone   = {};
 var currentPct = 0;
 
