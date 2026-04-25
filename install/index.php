@@ -419,6 +419,7 @@ function render_page(string $action): void {
         case 'database': page_database($errors); break;
         case 'app':      page_app($errors);      break;
         case 'smtp':     page_smtp();            break;
+        case 'collabora': page_collabora();        break;
         case 'admin':    page_admin($errors);    break;
         case 'install':  page_install();         break;
         case 'success':  page_success();         break;
@@ -706,6 +707,82 @@ function page_smtp(): void { ?>
   <button type="submit" class="btn btn-p">Continuer &#x2192;</button>
 </div>
 </form></div></div>
+<?php }
+
+
+function page_collabora(): void {
+    $freeBytes = disk_free_space('/');
+    $freeGb    = round($freeBytes / 1024 / 1024 / 1024, 1);
+    $enough    = $freeGb >= 4;
+    $tight     = $freeGb >= 2 && $freeGb < 4;
+    ?>
+<div class="wrap"><div class="card">
+<div class="card-title">&#x1F4DD; Collabora Online</div>
+<p class="card-sub">Collabora permet d'éditer des documents ODT, ODS et Microsoft Office directement dans le navigateur, sans installer de logiciel sur les postes.</p>
+
+<div style="background:var(--light);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.5rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+    <span style="font-size:.875rem;font-weight:600;color:var(--navy)">Espace disque disponible</span>
+    <span style="font-size:.875rem;font-weight:700;color:<?= $enough ? "var(--green)" : ($tight ? "#D97706" : "var(--red)") ?>">
+      <?= $freeGb ?> Go libres
+    </span>
+  </div>
+  <?php if ($enough): ?>
+  <div class="alert as" style="margin:0;padding:.6rem .875rem">&#x2705; Suffisant — installation recommandée (~2 Go requis)</div>
+  <?php elseif ($tight): ?>
+  <div class="alert aw" style="margin:0;padding:.6rem .875rem">&#x26A0;&#xFE0F; Juste — possible mais surveillez l'espace disque</div>
+  <?php else: ?>
+  <div class="alert ae" style="margin:0;padding:.6rem .875rem">&#x274C; Insuffisant — utilisez une instance externe ou passez</div>
+  <?php endif; ?>
+</div>
+
+<form method="POST"><input type="hidden" name="action" value="collabora">
+<div class="fg">
+  <label class="lbl">Que souhaitez-vous faire ?</label>
+  <div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem">
+
+    <label style="display:flex;align-items:flex-start;gap:.875rem;background:var(--light);border-radius:8px;padding:1rem;cursor:pointer">
+      <input type="radio" name="collabora_mode" value="local" <?= $enough ? "checked" : "" ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
+      <div>
+        <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x1F4E6; Installer sur ce serveur (Docker)</div>
+        <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Collabora sera installé automatiquement. Nécessite ~2 Go et ~5 minutes supplémentaires.</div>
+      </div>
+    </label>
+
+    <label style="display:flex;align-items:flex-start;gap:.875rem;background:var(--light);border-radius:8px;padding:1rem;cursor:pointer">
+      <input type="radio" name="collabora_mode" value="external" onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x1F310; Utiliser une instance existante</div>
+        <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Si vous disposez déjà d'un serveur Collabora Online.</div>
+        <div id="collabora-url" style="display:none;margin-top:.75rem">
+          <input type="text" name="collabora_url" class="inp" placeholder="https://collabora.macommune.fr">
+        </div>
+      </div>
+    </label>
+
+    <label style="display:flex;align-items:flex-start;gap:.875rem;background:var(--light);border-radius:8px;padding:1rem;cursor:pointer">
+      <input type="radio" name="collabora_mode" value="skip" <?= !$enough ? "checked" : "" ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
+      <div>
+        <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x23F0; Passer — configurer plus tard</div>
+        <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Vous pourrez activer Collabora depuis les paramètres.</div>
+      </div>
+    </label>
+
+  </div>
+</div>
+<div class="btns">
+  <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
+  <button type="submit" class="btn btn-p">Continuer &#x2192;</button>
+</div>
+</form>
+</div></div>
+<script>
+function toggleUrl(val) {
+    document.getElementById('collabora-url').style.display = val === 'external' ? 'block' : 'none';
+}
+var checked = document.querySelector('input[name="collabora_mode"]:checked');
+if (checked) toggleUrl(checked.value);
+</script>
 <?php }
 
 function page_admin(array $e): void { ?>
