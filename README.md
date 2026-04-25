@@ -102,18 +102,34 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 
 ---
 
-## Installation rapide
+## Installation
+
+### Installation automatique (recommandée)
+
+Une seule commande suffit. Elle installe PHP, MySQL, Redis, Nginx et Pladigit, puis ouvre un assistant de configuration dans votre navigateur.
+
+**Prérequis :** Ubuntu 22.04 ou 24.04 LTS — 2 vCPU — 4 Go RAM — 25 Go SSD
 
 ```bash
-git clone https://github.com/jpbosse/pladigit.git && cd pladigit
-composer install --no-dev --optimize-autoloader
-npm install && npm run build
-cp .env.example .env && php artisan key:generate
-php artisan migrate --database=mysql --path=database/migrations/platform
-php artisan tenant:create --name="Demo" --slug="demo" --email="admin@demo.pladigit.fr"
+curl -fsSL https://pladigit.fr/get-install | sudo bash
 ```
 
-Pour l'installation complète : [INSTALL.md](INSTALL.md)
+L'assistant web vous guide ensuite en 8 étapes pour configurer la base de données, l'URL, l'email et le compte administrateur.
+
+📖 [Guide d'installation débutant](docs/GUIDE-INSTALLATION.html) — avec captures d'écran pas-à-pas
+
+### Installation manuelle (administrateurs expérimentés)
+
+Pour les techniciens qui souhaitent contrôler chaque étape ou installer Pladigit sur un serveur existant :
+
+📖 [INSTALL.md](INSTALL.md) — guide technique complet
+
+### Téléchargement des fichiers d'installation
+
+| Fichier | Description | Lien |
+|---------|-------------|------|
+| `install.sh` | Script bash d'installation automatique | [pladigit.fr/get-install](https://pladigit.fr/get-install) |
+| `install/index.php` | Wizard web de configuration | [pladigit.fr/get-wizard](https://pladigit.fr/get-wizard) |
 
 ---
 
@@ -139,10 +155,12 @@ composer audit                                       # 0 vulnérabilité
 
 | Document | Description |
 |----------|-------------|
-| [INSTALL.md](INSTALL.md) | Installation complète — prérequis, configuration, production |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Comment contribuer |
+| [GUIDE-INSTALLATION.html](docs/GUIDE-INSTALLATION.html) | Guide d'installation pas-à-pas avec captures d'écran |
+| [INSTALL.md](INSTALL.md) | Guide technique complet — installation manuelle et production |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Comment contribuer au projet |
 | [SECURITY.md](SECURITY.md) | Signaler une vulnérabilité |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (ADR-001 à ADR-030) |
 | [docs/](docs/README.md) | Documentation technique complète |
 | [docs/guides/guide-utilisateur-phototheque.md](docs/guides/guide-utilisateur-phototheque.md) | Guide utilisateur Photothèque |
 | [docs/guides/guide-utilisateur-ged.md](docs/guides/guide-utilisateur-ged.md) | Guide utilisateur GED + Collabora |
