@@ -8,6 +8,7 @@ Bienvenue dans la documentation technique de Pladigit.
 
 | Je veux... | Document |
 |-----------|----------|
+| Installer Pladigit (débutant) | [Guide d'installation](GUIDE-INSTALLATION.html) |
 | Installer Pladigit sur un serveur | [INSTALL.md](../INSTALL.md) |
 | Lire le Cahier des Charges complet | [CDC_Pladigit_v2.3.md](CDC_Pladigit_v2.3.md) |
 | Trouver la bonne annexe | [index-annexes.md](index-annexes.md) |
@@ -31,7 +32,8 @@ docs/
 ├── index-annexes.md            ← index et rôles de toutes les annexes
 ├── glossaire.md                ← glossaire des termes techniques et métier
 │
-├── adr/                        ← Décisions architecturales (ADR-001 à ADR-025)
+├── GUIDE-INSTALLATION.html     ← Guide d'installation avec captures d'écran
+├── adr/                        ← Décisions architecturales (ADR-001 à ADR-030)
 │   ├── ADR-001-stack-frontend.md
 │   ├── ADR-002-multi-tenant-base-dedier.md
 │   └── ...
@@ -97,3 +99,8 @@ Les ADR documentent les choix techniques importants — pourquoi telle décision
 | [ADR-023](adr/ADR-023-wopi-locks.md) | Verrous WOPI — édition simultanée |
 | [ADR-024](adr/ADR-024-collabora-settings-par-tenant.md) | Configuration Collabora par tenant |
 | [ADR-025](adr/ADR-025-recherche-ged-like.md) | Recherche GED par LIKE |
+| [ADR-026](adr/ADR-026-deploiement-production-vps.md) | Déploiement production VPS OVH |
+| [ADR-027](adr/ADR-027-super-admin-restriction-ip.md) | Super Admin : restriction d'accès par IP |
+| [ADR-028](adr/ADR-028-script-installation-automatique.md) | Script d'installation automatique install.sh |
+| [ADR-029](adr/ADR-029-wizard-installation-web.md) | Wizard d'installation web PHP standalone |
+| [ADR-030](adr/ADR-030-collabora-installation-optionnelle.md) | Collabora Online : installation optionnelle via wizard |
