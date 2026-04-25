@@ -228,11 +228,24 @@ function write_runner(): void {
     $smtp  = $_SESSION['smtp']  ?? [];
     $admin = $_SESSION['admin'] ?? [];
 
-    $appKey      = 'base64:' . base64_encode(random_bytes(32));
+    $appKey       = 'base64:' . base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
 
     $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash);
-    $envEscaped  = addslashes($envContent);
+
+    // Sauvegarder les données dans un fichier JSON — évite les problèmes
+    // d'échappement quand les mots de passe contiennent des caractères spéciaux
+    $configData = [
+        'db'         => $db,
+        'app'        => $app,
+        'smtp'       => $smtp,
+        'admin'      => $admin,
+        'app_key'    => $appKey,
+        'pwd_hash'   => $passwordHash,
+        'env'        => $envContent,
+    ];
+    file_put_contents(INSTALL_DIR . '/config.json', json_encode($configData, JSON_PRETTY_PRINT));
+    chmod(INSTALL_DIR . '/config.json', 0600);
 
     $root   = addslashes(PLADIGIT_ROOT);
     $done   = addslashes(DONE_FILE);

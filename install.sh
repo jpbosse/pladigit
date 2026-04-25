@@ -191,6 +191,12 @@ install_mysql() {
     fi
 
     log "MySQL : $(mysql --version 2>/dev/null | head -1)"
+
+    # Activer authentification par mot de passe pour root (Ubuntu auth_socket par défaut)
+    info "Configuration authentification MySQL root..."
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;"         >> "$LOG_FILE" 2>&1 || warn "ALTER USER root échoué — root a peut-être déjà un mot de passe."
+    log "Authentification MySQL configurée"
+
     progress 4 7 "MySQL 8"
 }
 
@@ -276,6 +282,13 @@ install_pladigit() {
     curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
     chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
     log "Wizard d'installation téléchargé"
+
+    # Téléchargement du wizard d'installation
+    info "Téléchargement du wizard..."
+    mkdir -p "${PLADIGIT_DIR}/install"
+    curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
+    chown -R www-data:www-data "${PLADIGIT_DIR}/install"
+    log "Wizard téléchargé"
 
     progress 6 7 "Pladigit installé"
 }
