@@ -16,14 +16,14 @@ define('PID_FILE',    INSTALL_DIR . '/install.pid');
 define('DONE_FILE',   INSTALL_DIR . '/install.done');
 define('FAIL_FILE',   INSTALL_DIR . '/install.fail');
 
-// ── Si installé et session success → rediriger directement ──────────────────
-if (file_exists(LOCK_FILE) && !empty($_SESSION['install_success'])) {
+// ── Les appels API passent toujours (même après installation) ────────────────
+$apiAction = $_GET['action'] ?? '';
+if (in_array($apiAction, ['api_log', 'api_status', 'api_run'])) {
+    // Laisser passer — géré plus bas
+} elseif (file_exists(LOCK_FILE) && !empty($_SESSION['install_success'])) {
     header('Location: ?action=success');
     exit;
-}
-
-// ── Sécurité : installation déjà effectuée ────────────────────────────────────
-if (file_exists(LOCK_FILE) && empty($_SESSION['install_success'])) {
+} elseif (file_exists(LOCK_FILE)) {
     $d = trim(@file_get_contents(LOCK_FILE) ?: 'date inconnue');
     http_response_code(403);
     header('Content-Type: text/html; charset=utf-8');
