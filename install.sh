@@ -375,30 +375,38 @@ NGINX
 }
 
 # ── 7. Écran de succès ────────────────────────────────────────────────────────
+
 show_success() {
     local server_ip
     server_ip=$(hostname -I | awk '{print $1}')
-
     echo ""
     echo -e "${GREEN}${BOLD}"
-    echo "  ╔══════════════════════════════════════════════════════╗"
-    echo "  ║          Installation réussie ! 🎉                   ║"
-    echo "  ╚══════════════════════════════════════════════════════╝"
+    echo "  ╔══════════════════════════════════════════════════════════╗"
+    echo "  ║        ✅  Environnement prêt !                          ║"
+    echo "  ║        🚀  Pladigit est installé sur ce serveur.         ║"
+    echo "  ╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
-    echo -e "  ${BOLD}Étape suivante :${NC}"
+    echo -e "  ${BOLD}Ce qui vient d'être installé :${NC}"
+    echo -e "  • PHP 8.4, MySQL 8, Redis, Nginx, Supervisor, Node.js"
+    echo -e "  • Code source Pladigit et toutes ses dépendances"
     echo ""
-    echo -e "  Ouvrez votre navigateur et accédez à :"
+    echo -e "  ${BOLD}Étape suivante — Configuration :${NC}"
     echo ""
-    echo -e "  ${CYAN}${BOLD}  http://${server_ip}/install/${NC}"
+    echo -e "  Sur votre ordinateur, ouvrez un navigateur et accédez à :"
+    echo ""
+    echo -e "  ${CYAN}${BOLD}  ➜  http://${server_ip}/install/${NC}"
     echo ""
     echo -e "  L'assistant de configuration vous guidera pour :"
     echo -e "  • Configurer la base de données"
-    echo -e "  • Définir votre nom de domaine"
-    echo -e "  • Configurer l'envoi d'emails"
+    echo -e "  • Définir l'adresse de votre plateforme"
+    echo -e "  • Configurer l'envoi d'emails (optionnel)"
     echo -e "  • Créer le premier compte administrateur"
     echo ""
     echo -e "  ${YELLOW}Journal d'installation : ${LOG_FILE}${NC}"
     echo ""
+    if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
+        xdg-open "http://${server_ip}/install/" 2>/dev/null &
+    fi
 }
 
 # ── Point d'entrée ────────────────────────────────────────────────────────────
