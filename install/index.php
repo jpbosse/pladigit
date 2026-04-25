@@ -16,8 +16,14 @@ define('PID_FILE',    INSTALL_DIR . '/install.pid');
 define('DONE_FILE',   INSTALL_DIR . '/install.done');
 define('FAIL_FILE',   INSTALL_DIR . '/install.fail');
 
+// ── Si installé et session success → rediriger directement ──────────────────
+if (file_exists(LOCK_FILE) && !empty($_SESSION['install_success'])) {
+    header('Location: ?action=success');
+    exit;
+}
+
 // ── Sécurité : installation déjà effectuée ────────────────────────────────────
-if (file_exists(LOCK_FILE)) {
+if (file_exists(LOCK_FILE) && empty($_SESSION['install_success'])) {
     $d = trim(@file_get_contents(LOCK_FILE) ?: 'date inconnue');
     http_response_code(403);
     header('Content-Type: text/html; charset=utf-8');
@@ -84,10 +90,18 @@ function api_log(): void {
 
 function api_status(): void {
     header('Content-Type: application/json');
+    $done  = file_exists(DONE_FILE);
+    $error = file_exists(FAIL_FILE);
+    if ($done) {
+        $_SESSION['install_success'] = true;
+        $_SESSION['app_url']         = $_SESSION['app']['url'] ?? '';
+        $_SESSION['step']            = 6;
+    }
     echo json_encode([
-        'done'  => file_exists(DONE_FILE),
-        'error' => file_exists(FAIL_FILE),
-        'msg'   => file_exists(FAIL_FILE) ? trim(@file_get_contents(FAIL_FILE) ?: '') : '',
+        'done'     => $done,
+        'error'    => $error,
+        'msg'      => $error ? trim(@file_get_contents(FAIL_FILE) ?: '') : '',
+        'redirect' => $done ? '?action=success' : null,
     ]);
 }
 
@@ -338,7 +352,7 @@ try {
     ilog('✓ Installation terminée avec succès !');
 
     // 9. Nettoyage dans 60s
-    \$cleanup = "#!/bin/bash\nsleep 60 && rm -rf " . dirname('{$done}') . "\n";
+    \$cleanup = "#!/bin/bash\nsleep 600 && rm -rf " . dirname('{$done}') . "\n";
     file_put_contents('/tmp/pladigit-cleanup.sh', \$cleanup);
     chmod('/tmp/pladigit-cleanup.sh', 0755);
     shell_exec('nohup /tmp/pladigit-cleanup.sh > /dev/null 2>&1 &');
@@ -810,10 +824,10 @@ function pollLog() {
                     updateSteps(line);
                 });
             }
-            if (data.done) {
+            if (data.done || data.redirect) {
                 clearInterval(pollTimer);
                 setProgress(100, 'Installation terminée !');
-                setTimeout(() => { window.location.href = '?action=success'; }, 1500);
+                setTimeout(() => { window.location.href = data.redirect || '?action=success'; }, 2000);
             }
             if (data.error) {
                 clearInterval(pollTimer);
