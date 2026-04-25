@@ -918,7 +918,7 @@ function pollLog() {
                 clearInterval(pollTimer);
                 setProgress(100, 'Installation terminée !');
                 document.getElementById('prog-text').textContent = 'Installation terminée — redirection...';
-                setTimeout(() => { window.location.href = '?action=success'; }, 2000);
+                setTimeout(() => { window.location.href = '../install-success.html'; }, 2000);
                 return;
             }
             if (data.error) {
@@ -940,7 +940,7 @@ function checkStatus() {
                 clearInterval(pollTimer);
                 clearInterval(statusTimer);
                 setProgress(100, 'Installation terminée — redirection...');
-                setTimeout(() => { window.location.href = '?action=success'; }, 1500);
+                setTimeout(() => { window.location.href = '../install-success.html'; }, 1500);
             }
             if (data.error) {
                 clearInterval(pollTimer);
