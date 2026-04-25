@@ -3,7 +3,7 @@
 #  Pladigit — Script d'installation automatique
 #  Version : 1.0.0
 #  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
-#  Usage   : curl -fsSL https://pladigit.fr/install.sh | sudo bash
+#  Usage   : curl -fsSL https://pladigit.fr/get-install | sudo bash
 # ==============================================================================
 set -euo pipefail
 
@@ -76,8 +76,8 @@ check_prerequisites() {
     if [[ "$ID" != "ubuntu" ]]; then
         die "Pladigit nécessite Ubuntu 22.04 ou 24.04. Système détecté : $ID $VERSION_ID"
     fi
-    if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" && "$VERSION_ID" != "26.04" ]]; then
-        warn "Version Ubuntu non testée : $VERSION_ID. L'installation peut échouer."
+    if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]]; then
+        die "Version Ubuntu non supportée : $VERSION_ID. Pladigit nécessite Ubuntu 22.04 ou 24.04 LTS."
     else
         log "Système : Ubuntu $VERSION_ID — OK"
     fi
@@ -269,6 +269,13 @@ install_pladigit() {
     sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
         || die "npm build échoué."
     log "Assets JS compilés"
+
+    # Téléchargement du wizard d'installation
+    info "Téléchargement du wizard d'installation..."
+    mkdir -p "${PLADIGIT_DIR}/install"
+    curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
+    chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
+    log "Wizard d'installation téléchargé"
 
     progress 6 7 "Pladigit installé"
 }

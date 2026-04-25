@@ -272,7 +272,7 @@
 
                 {{-- Commande à copier --}}
                 <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1.25rem">
-                    <code id="install-cmd" style="font-size:.78rem;color:#86efac;background:transparent;padding:0;word-break:break-all">curl -fsSL https://pladigit.fr/install.sh | sudo bash</code>
+                    <code id="install-cmd" style="font-size:.78rem;color:#86efac;background:transparent;padding:0;word-break:break-all">curl -fsSL https://pladigit.fr/get-install | sudo bash</code>
                     <button onclick="copyCmd()" id="copy-btn"
                         style="flex-shrink:0;background:var(--gold);color:var(--navy);border:none;border-radius:4px;padding:.35rem .75rem;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">
                         📋 Copier
@@ -293,7 +293,7 @@
                 </p>
 
                 <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.75rem">
-                    <a href="/install.sh" download
+                    <a href="/get-install" download
                         style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
                         onmouseover="this.style.background='rgba(255,255,255,.1)'"
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">
@@ -305,7 +305,7 @@
                         <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
                     </a>
 
-                    <a href="/install-wizard.php" download
+                    <a href="/get-wizard" download
                         style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
                         onmouseover="this.style.background='rgba(255,255,255,.1)'"
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">
