@@ -362,4 +362,15 @@ Route::get('/install-wizard.php', function () {
     ]);
 })->name('install.wizard');
 
+// Route guide d'installation — sert le HTML directement
+Route::get('/guide-installation', function () {
+    $path = base_path('docs/GUIDE-INSTALLATION.html');
+    if (!file_exists($path)) {
+        abort(404, 'Guide non trouvé.');
+    }
+    return response()->file($path, [
+        'Content-Type' => 'text/html; charset=utf-8',
+    ]);
+})->name('guide.installation');
+
 });

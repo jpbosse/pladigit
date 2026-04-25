@@ -326,12 +326,18 @@
         </div>
 
         {{-- Lien documentation --}}
-        <div class="fade-up" style="text-align:center;margin-top:2.5rem">
+        <div class="fade-up" style="text-align:center;margin-top:2.5rem;display:flex;flex-direction:column;gap:.75rem;align-items:center">
+            <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank"
+                style="font-size:.875rem;color:rgba(255,255,255,.8);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:.1rem;transition:color .2s"
+                onmouseover="this.style.color='white'"
+                onmouseout="this.style.color='rgba(255,255,255,.8)'">
+                📖 Guide d'installation avec captures d'écran →
+            </a>
             <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank"
-                style="font-size:.875rem;color:rgba(255,255,255,.5);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.2);padding-bottom:.1rem;transition:color .2s"
-                onmouseover="this.style.color='rgba(255,255,255,.8)'"
-                onmouseout="this.style.color='rgba(255,255,255,.5)'">
-                📖 Consulter la documentation complète d'installation →
+                style="font-size:.8rem;color:rgba(255,255,255,.4);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.15);padding-bottom:.1rem;transition:color .2s"
+                onmouseover="this.style.color='rgba(255,255,255,.7)'"
+                onmouseout="this.style.color='rgba(255,255,255,.4)'">
+                ⚙️ Documentation technique (INSTALL.md) →
             </a>
         </div>
     </div>

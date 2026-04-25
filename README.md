@@ -116,7 +116,7 @@ curl -fsSL https://pladigit.fr/get-install | sudo bash
 
 L'assistant web vous guide ensuite en 8 étapes pour configurer la base de données, l'URL, l'email et le compte administrateur.
 
-📖 [Guide d'installation débutant](docs/GUIDE-INSTALLATION.html) — avec captures d'écran pas-à-pas
+📖 [Guide d'installation débutant](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) — avec captures d'écran pas-à-pas
 
 ### Installation manuelle (administrateurs expérimentés)
 
@@ -155,7 +155,7 @@ composer audit                                       # 0 vulnérabilité
 
 | Document | Description |
 |----------|-------------|
-| [GUIDE-INSTALLATION.html](docs/GUIDE-INSTALLATION.html) | Guide d'installation pas-à-pas avec captures d'écran |
+| [Guide d'installation](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) | Guide pas-à-pas avec captures d'écran (s'ouvre dans le navigateur) |
 | [INSTALL.md](INSTALL.md) | Guide technique complet — installation manuelle et production |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Comment contribuer au projet |
 | [SECURITY.md](SECURITY.md) | Signaler une vulnérabilité |
