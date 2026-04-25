@@ -172,7 +172,7 @@ function handle_post(string $action): void {
                 'encryption' => trim($_POST['smtp_encryption'] ?? 'tls'),
             ];
             $_SESSION['step'] = 4;
-            redirect('admin');
+            redirect('collabora');
             break;
 
         case 'admin':
@@ -408,7 +408,7 @@ function render_page(string $action): void {
     $step   = $_SESSION['step'] ?? 0;
     $errors = $_SESSION['errors'] ?? [];
     unset($_SESSION['errors']);
-    $steps  = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Administrateur', 'Installation'];
+    $steps  = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Installation'];
 
     html_open();
     html_steps($step, $steps);
