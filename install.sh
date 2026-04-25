@@ -90,6 +90,23 @@ check_prerequisites() {
     fi
     log "RAM : ${ram_mb} Mo — OK"
 
+
+    # Extension LVM automatique (Ubuntu Server alloue ~50% par défaut)
+    if command -v lvextend &>/dev/null; then
+        local lv_path
+        lv_path=$(lvdisplay 2>/dev/null | awk '/LV Path/{print $3}' | head -1)
+        if [[ -n "$lv_path" ]]; then
+            local free_pe
+            free_pe=$(vgdisplay 2>/dev/null | awk '/Free.*PE/{print $5}' | head -1)
+            if [[ -n "$free_pe" && "$free_pe" -gt 0 ]]; then
+                info "Extension automatique du volume LVM..."
+                lvextend -l +100%FREE "$lv_path" >> "$LOG_FILE" 2>&1 || true
+                resize2fs "$lv_path" >> "$LOG_FILE" 2>&1 || true
+                log "Volume LVM étendu automatiquement"
+            fi
+        fi
+    fi
+
     # Disque
     local disk_gb
     disk_gb=$(df / | awk 'NR==2 {printf "%d", $4/1024/1024}')
@@ -159,6 +176,7 @@ install_php() {
         "php${PHP_VERSION}-bcmath"
         "php${PHP_VERSION}-opcache"
         "php${PHP_VERSION}-imagick"
+        "php${PHP_VERSION}-ldap"
     )
 
     apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
@@ -270,6 +288,8 @@ install_pladigit() {
 
     # Dépendances JS
     info "Installation des dépendances JS (npm)..."
+    mkdir -p /var/www/.npm
+    chown -R www-data:www-data /var/www/.npm
     sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
         || die "npm install échoué."
     sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
@@ -327,9 +347,17 @@ server {
         deny all;
     }
 
-    # Wizard d'installation — accessible uniquement si install/ existe
-    location /install {
-        try_files \$uri \$uri/ /install/index.php?\$query_string;
+    # Wizard d'installation
+    location = /install { return 301 /install/; }
+    location /install/ {
+        root /var/www/pladigit;
+        index index.php;
+        location ~ \.php$ {
+            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME /var/www/pladigit\$fastcgi_script_name;
+            include fastcgi_params;
+            fastcgi_read_timeout 300;
+        }
     }
 }
 NGINX
@@ -361,7 +389,7 @@ show_success() {
     echo ""
     echo -e "  Ouvrez votre navigateur et accédez à :"
     echo ""
-    echo -e "  ${CYAN}${BOLD}  http://${server_ip}/install${NC}"
+    echo -e "  ${CYAN}${BOLD}  http://${server_ip}/install/${NC}"
     echo ""
     echo -e "  L'assistant de configuration vous guidera pour :"
     echo -e "  • Configurer la base de données"
