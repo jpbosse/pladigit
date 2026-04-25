@@ -845,8 +845,10 @@ function updateSteps(line) {
     }
     if (line.includes('✓')) {
         var doneCount = Object.keys(stepDone).length;
-        var pct = Math.round(doneCount / stepOrder.length * 95);
-        setProgress(pct, line.replace('[' + line.substring(1,9) + ']', '').replace('✓','').trim());
+        var pct = Math.min(95, Math.round((doneCount + 1) / stepOrder.length * 95));
+        if (pct > currentPct) {
+            setProgress(pct, line.replace(/\[\d{2}:\d{2}:\d{2}\]/, '').replace('✓','').trim());
+        }
     }
 }
 
