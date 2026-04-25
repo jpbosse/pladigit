@@ -379,7 +379,7 @@ try {
         . '</div>'
         . '<a href="' . \$url . '/super-admin" class="btn">Acceder a Pladigit &#x2192;</a>'
         . '</div></body></html>';
-    file_put_contents(\$root . '/public/install-success.html', \$successHtml);
+    file_put_contents('{$root}/public/install-success.html', \$successHtml);
     ilog('✓ Page de succes generee');
 
     // 9. Fichier DONE
