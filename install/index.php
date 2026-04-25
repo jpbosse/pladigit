@@ -629,7 +629,7 @@ function page_database(array $e): void {
     <div class="fg"><label class="lbl">Port</label><input type="text" name="db_port" class="inp" value="3306"></div>
     <div class="fg"><label class="lbl">Utilisateur root</label><input type="text" name="db_root_user" class="inp" value="root" required></div>
   </div>
-  <div class="fg"><label class="lbl">Mot de passe root</label><input type="password" name="db_root_password" class="inp" placeholder="Laisser vide si aucun"><div class="hint">Utilisé uniquement pour créer la base — non stocké.</div></div>
+  <div class="fg"><label class="lbl">Mot de passe root</label><input type="password" name="db_root_password" class="inp" placeholder="Laisser vide si aucun"><div class="hint">&#x1F4A1; Sur une nouvelle installation Ubuntu, ce mot de passe est <strong>vide</strong> — laissez le champ vide. Pour sécuriser votre serveur après installation, lancez : <code>sudo mysql_secure_installation</code></div></div>
 </div>
 
 <div style="background:var(--light);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem">
@@ -877,7 +877,8 @@ function page_install(): void { ?>
 <script>
 var logOffset  = 0;
 var logVisible = false;
-var pollTimer  = null;
+var pollTimer   = null;
+var statusTimer = null;
 var stepMap    = {
     'Connexion': 'mysql', 'Création de la base': 'mysql', "Création de l'utilisateur": 'mysql',
     'Écriture': 'env',
@@ -896,7 +897,10 @@ function startInstall() {
     document.getElementById('running').style.display  = 'block';
     fetch('?action=api_run', {method:'POST'})
         .then(r => r.json())
-        .then(d => { if(d.ok) { pollTimer = setInterval(pollLog, 1500); } });
+        .then(d => { if(d.ok) {
+            pollTimer  = setInterval(pollLog, 1500);
+            statusTimer = setInterval(checkStatus, 3000);
+        } });
 }
 
 function pollLog() {
@@ -913,11 +917,35 @@ function pollLog() {
             if (data.done || data.redirect) {
                 clearInterval(pollTimer);
                 setProgress(100, 'Installation terminée !');
-                setTimeout(() => { window.location.href = data.redirect || '?action=success'; }, 2000);
+                document.getElementById('prog-text').textContent = 'Installation terminée — redirection...';
+                setTimeout(() => { window.location.href = '?action=success'; }, 2000);
+                return;
             }
             if (data.error) {
                 clearInterval(pollTimer);
                 showError(data.lines ? data.lines.join('\n') : 'Erreur inconnue');
+                return;
+            }
+            // Vérification supplémentaire via api_status toutes les 5 secondes
+        });
+}
+
+var statusCheckCount = 0;
+function checkStatus() {
+    fetch('?action=api_status')
+        .then(r => r.json())
+        .then(data => {
+            statusCheckCount++;
+            if (data.done) {
+                clearInterval(pollTimer);
+                clearInterval(statusTimer);
+                setProgress(100, 'Installation terminée — redirection...');
+                setTimeout(() => { window.location.href = '?action=success'; }, 1500);
+            }
+            if (data.error) {
+                clearInterval(pollTimer);
+                clearInterval(statusTimer);
+                showError(data.msg || 'Erreur inconnue');
             }
         });
 }
