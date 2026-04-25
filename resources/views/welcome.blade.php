@@ -374,12 +374,14 @@
                     <tbody>
                         @php
                         $demoAccounts = [
-                            ['role' => 'Administrateur',   'name' => 'Admin Démo',         'email' => 'admin@demo.pladigit.fr'],
-                            ['role' => 'Président',        'name' => 'Marie Dupont',        'email' => 'president@demo.pladigit.fr'],
-                            ['role' => 'DGS',              'name' => 'Jean-Pierre Martin',  'email' => 'dgs@demo.pladigit.fr'],
-                            ['role' => 'Resp. Direction',  'name' => 'Sophie Lambert',      'email' => 'resp.direction@demo.pladigit.fr'],
-                            ['role' => 'Resp. Service',    'name' => 'Thomas Bernard',      'email' => 'resp.service@demo.pladigit.fr'],
-                            ['role' => 'Agent',            'name' => 'Lucie Moreau',        'email' => 'user@demo.pladigit.fr'],
+                            ['role' => 'Administrateur',   'name' => 'Isabelle Fontaine',   'email' => 'admin@demo.pladigit.fr'],
+                            ['role' => 'Maire',            'name' => 'Jean-Marie Lebreton', 'email' => 'maire@demo.pladigit.fr'],
+                            ['role' => 'DGS',              'name' => 'Sophie Marchand',     'email' => 'dgs@demo.pladigit.fr'],
+                            ['role' => 'Resp. Direction',  'name' => 'Thomas Girard',       'email' => 'technique@demo.pladigit.fr'],
+                            ['role' => 'Resp. Service',    'name' => 'Laurent Dubois',      'email' => 'urbanisme@demo.pladigit.fr'],
+                            ['role' => 'Resp. Service',    'name' => 'Nathalie Petit',      'email' => 'communication@demo.pladigit.fr'],
+                            ['role' => 'Agent',            'name' => 'Éric Moreau',         'email' => 'agent1@demo.pladigit.fr'],
+                            ['role' => 'Agent',            'name' => 'Marie-Claire Aubert', 'email' => 'agent2@demo.pladigit.fr'],
                         ];
                         @endphp
                         @foreach($demoAccounts as $i => $account)
