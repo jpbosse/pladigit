@@ -95,7 +95,7 @@ function api_status(): void {
     if ($done) {
         $_SESSION['install_success'] = true;
         $_SESSION['app_url']         = $_SESSION['app']['url'] ?? '';
-        $_SESSION['step']            = 6;
+        $_SESSION['step']            = 7;
     }
     echo json_encode([
         'done'     => $done,
@@ -180,7 +180,7 @@ function handle_post(string $action): void {
                 'mode' => $_POST['collabora_mode'] ?? 'skip',
                 'url'  => trim($_POST['collabora_url'] ?? ''),
             ];
-            $_SESSION['step'] = 5;
+            $_SESSION['step'] = 6;
             redirect('admin');
             break;
 
@@ -192,7 +192,7 @@ function handle_post(string $action): void {
                 'email'    => trim($_POST['admin_email'] ?? ''),
                 'password' => $_POST['admin_password'] ?? '',
             ];
-            $_SESSION['step'] = 5;
+            $_SESSION['step'] = 7;
             // Écrire le runner.php avec les données de session
             write_runner();
             redirect('install');
@@ -363,13 +363,13 @@ try {
 
     // 8. Page de succès dans public/
 
-    \$successHtml = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pladigit installe</title>'
+    \$successHtml = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pladigit install&#233;</title>'
         . '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem}.card{background:#fff;border-radius:10px;padding:2.5rem;max-width:560px;width:100%;box-shadow:0 4px 16px rgba(0,0,0,.08)}.icon{font-size:3rem;text-align:center;margin-bottom:1rem}.title{font-size:1.4rem;font-weight:700;color:#1E3A5F;text-align:center;margin-bottom:.5rem}.sub{font-size:.875rem;color:#6B7A8D;text-align:center;margin-bottom:1.5rem}.box{background:#F4F6F9;border-radius:8px;padding:1.25rem;margin-bottom:1rem}.bt{font-size:.72rem;font-weight:700;color:#1E3A5F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}.row{display:flex;justify-content:space-between;padding:.4rem 0;font-size:.85rem;border-bottom:1px solid #e5e7eb}.row:last-child{border:none}.lbl{font-weight:600;color:#1E3A5F}code{background:#e5e7eb;padding:.1rem .3rem;border-radius:3px;font-size:.78rem}.btn{display:block;background:#1E3A5F;color:#fff;padding:.875rem;border-radius:6px;text-decoration:none;font-weight:700;font-size:.95rem;text-align:center;margin-top:1.25rem}.ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:.75rem;font-size:.82rem;color:#16A34A;margin-bottom:1.25rem}</style>'
         . '</head><body><div class="card">'
         . '<div class="icon">&#x1F389;</div>'
-        . '<div class="title">Pladigit est installe !</div>'
-        . '<p class="sub">Votre plateforme est prete. Notez ces informations.</p>'
-        . '<div class="ok">&#x2705; Installation reussie le ' . date('d/m/Y') . ' à ' . date('H:i') . '</div>'
+        . '<div class="title">Pladigit est install&#233; !</div>'
+        . '<p class="sub">Votre plateforme est pr&#234;te. Notez ces informations.</p>'
+        . '<div class="ok">&#x2705; Installation reussie le ' . date('d/m/Y') . ' &#224; ' . date('H:i') . '</div>'
         . '<div class="box"><div class="bt">Super Administrateur</div>'
         . '<div class="row"><span class="lbl">URL</span><span>' . '{$appUrl}' . '/super-admin</span></div>'
         . '<div class="row"><span class="lbl">Email</span><span><code>' . '{$admEmail}' . '</code></span></div>'
@@ -379,7 +379,7 @@ try {
         . '<div class="row"><span class="lbl">Base</span><span><code>' . '{$dbNm}' . '</code></span></div>'
         . '<div class="row"><span class="lbl">Utilisateur</span><span><code>' . '{$dbUsr}' . '</code></span></div>'
         . '</div>'
-        . '<a href="' . '{$appUrl}' . '/super-admin" class="btn">Acceder a Pladigit &#x2192;</a>'
+        . '<a href="' . '{$appUrl}' . '/super-admin" class="btn">Acc&#233;der &#224; Pladigit &#x2192;</a>'
         . '</div></body></html>';
     file_put_contents('{$root}/public/install-success.html', \$successHtml);
     ilog('✓ Page de succes generee');
