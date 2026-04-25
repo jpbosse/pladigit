@@ -129,7 +129,7 @@ function api_run(): void {
 function handle_post(string $action): void {
     switch ($action) {
         case 'check':
-            $_SESSION['step'] = 1;
+            $_SESSION['step'] = 2;
             redirect('database');
             break;
 
@@ -145,7 +145,7 @@ function handle_post(string $action): void {
                 'app_user'      => trim($_POST['db_app_user'] ?? 'pladigit'),
                 'app_password'  => $_POST['db_app_password'] ?? '',
             ];
-            $_SESSION['step'] = 2;
+            $_SESSION['step'] = 3;
             redirect('app');
             break;
 
@@ -157,7 +157,7 @@ function handle_post(string $action): void {
                 'name'     => trim($_POST['app_name'] ?? 'Pladigit'),
                 'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
             ];
-            $_SESSION['step'] = 3;
+            $_SESSION['step'] = 4;
             redirect('smtp');
             break;
 
@@ -171,7 +171,7 @@ function handle_post(string $action): void {
                 'from_name'  => trim($_POST['smtp_from_name'] ?? 'Pladigit'),
                 'encryption' => trim($_POST['smtp_encryption'] ?? 'tls'),
             ];
-            $_SESSION['step'] = 4;
+            $_SESSION['step'] = 5;
             redirect('collabora');
             break;
 
