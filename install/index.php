@@ -175,6 +175,15 @@ function handle_post(string $action): void {
             redirect('collabora');
             break;
 
+        case 'collabora':
+            $_SESSION['collabora'] = [
+                'mode' => $_POST['collabora_mode'] ?? 'skip',
+                'url'  => trim($_POST['collabora_url'] ?? ''),
+            ];
+            $_SESSION['step'] = 5;
+            redirect('admin');
+            break;
+
         case 'admin':
             $errors = validate_admin($_POST);
             if ($errors) { $_SESSION['errors'] = $errors; redirect('admin'); }
