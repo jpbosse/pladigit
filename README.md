@@ -72,9 +72,15 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 
 ## Captures d'écran
 
-![Tableau de bord](docs/screenshots/dashboard.png)
-![Photothèque](docs/screenshots/phototheque.png)
-![Gestion de projet](docs/screenshots/projets.png)
+![Welcome](docs/screenshots/1-Welcome.png)
+![Login](docs/screenshots/2-Login.png)
+![Présentation générale](docs/screenshots/3-présentation générale.png)
+![Photothèque](docs/screenshots/4-Photothèque.png)
+![GED](docs/screenshots/5-GED.png)
+![Collabora](docs/screenshots/6-Collabora.png)
+![Projets](docs/screenshots/8-Projets.png)
+![Tâches](docs/screenshots/9-Tâches.png)
+![Administration](docs/screenshots/10-Administration.png)
 
 ---
 
