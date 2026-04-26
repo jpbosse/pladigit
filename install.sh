@@ -135,6 +135,21 @@ check_prerequisites() {
 
 # ── 1. Mise à jour système ────────────────────────────────────────────────────
 update_system() {
+    # Attendre que le verrou apt soit libéré (unattended-upgrades au boot)
+    local waited=0
+    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
+        if [ "$waited" -eq 0 ]; then
+            info "Mise à jour du système en attente (apt en cours d'utilisation)..."
+        fi
+        sleep 5
+        waited=$((waited + 5))
+        if [ "$waited" -gt 300 ]; then
+            warn "apt toujours occupé après 5 minutes — on force..."
+            rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
+            dpkg --configure -a >> "$LOG_FILE" 2>&1 || true
+            break
+        fi
+    done
     step "Étape 2/7 — Mise à jour du système"
     info "Mise à jour des paquets (peut prendre quelques minutes)..."
 
@@ -299,14 +314,14 @@ install_pladigit() {
     # Téléchargement du wizard d'installation
     info "Téléchargement du wizard d'installation..."
     mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/pladigit-wizard.txt -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
+    curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
     chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
     log "Wizard d'installation téléchargé"
 
     # Téléchargement du wizard d'installation
     info "Téléchargement du wizard..."
     mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/pladigit-wizard.txt -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
+    curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
     log "Wizard téléchargé"
 
