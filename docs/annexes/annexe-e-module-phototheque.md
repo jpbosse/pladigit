@@ -4,7 +4,7 @@ Plateforme de Digitalisation Interne
 Annexe E — Module Photothèque
 Documentation utilisateur et administrateur
 Version : Phase 4/5 — Mars 2026
-Organisation : Les Bézots — Soullans (85), France
+Organisation : Pladigit — Soullans (85), France
 Responsable : Jean-Pierre Bossé
 ⚠ DOCUMENT CONFIDENTIEL
 

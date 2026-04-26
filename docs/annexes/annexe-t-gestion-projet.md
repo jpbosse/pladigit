@@ -105,4 +105,4 @@ Tableau de bord de supervision pour Admin/DGS. 4 métriques (total, actifs, en a
 - Rapport PDF élus — finalisation de la vue DomPDF (installé, vue en place)
 
 
-Les Bézots — Soullans (85) — github.com/jpbosse/pladigit — AGPL-3.0
+Pladigit — Soullans (85) — github.com/jpbosse/pladigit — AGPL-3.0

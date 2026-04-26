@@ -32,14 +32,14 @@
         <p class="subtitle">Dernière mise à jour : {{ date('d/m/Y') }}</p>
 
         <h2>Éditeur de la plateforme</h2>
-        <p><strong>Les Bézots</strong><br>
+        <p><strong>Pladigit</strong><br>
         Association loi 1901<br>
         Soullans (85300), Vendée, France<br>
-        Email : <a href="mailto:contact@lesbezots.fr">contact@lesbezots.fr</a></p>
+        Email : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
         <h2>Responsable de la publication</h2>
         <p>Jean-Pierre Bossé<br>
-        Email : <a href="mailto:contact@lesbezots.fr">contact@lesbezots.fr</a></p>
+        Email : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
         <h2>Hébergement</h2>
         <p>La plateforme Pladigit est hébergée sur des serveurs situés en France (Union Européenne).<br>
@@ -63,7 +63,7 @@
         pour les informations relatives au traitement des données personnelles.</p>
 
         <h2>Contact</h2>
-        <p>Pour toute question : <a href="mailto:contact@lesbezots.fr">contact@lesbezots.fr</a></p>
+        <p>Pour toute question : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
     </div>
 
 </div>

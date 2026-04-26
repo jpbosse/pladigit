@@ -5,7 +5,7 @@
 
     <h1 class="text-2xl font-bold text-gray-800 mb-2">Configuration SMTP</h1>
     <p class="text-sm text-gray-500 mb-6">
-        Laisser vide pour utiliser le serveur SMTP mutualisé de Les Bézots.<br>
+        Laisser vide pour utiliser le serveur SMTP mutualisé de Pladigit.<br>
         Quand configuré, tous les emails de cette organisation sont envoyés via ce serveur.
     </p>
 
@@ -107,7 +107,7 @@
             </span>
             — Emails envoyés via <strong>{{ $org->smtp_host }}:{{ $org->smtp_port }}</strong>.
         @else
-            <span class="text-gray-500">⚙ SMTP mutualisé Les Bézots (par défaut)</span>
+            <span class="text-gray-500">⚙ SMTP mutualisé Pladigit (par défaut)</span>
         @endif
     </div>
 

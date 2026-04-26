@@ -67,7 +67,7 @@
 
     </div>
     <div class="footer">
-        Pladigit · Les Bézots · Soullans 85 · <a href="https://pladigit.fr" style="color:#9ca3af;">pladigit.fr</a>
+        Pladigit · Pladigit · Soullans 85 · <a href="https://pladigit.fr" style="color:#9ca3af;">pladigit.fr</a>
     </div>
 </div>
 </body>

@@ -73,7 +73,7 @@ class PladigitProjectSeeder extends Seeder
         $project = Project::on('tenant')->create([
             'created_by' => $admin->id,
             'name' => 'Pladigit — Développement plateforme 2025→2029',
-            'description' => 'Plateforme SaaS de digitalisation interne, alternative souveraine open source (AGPL-3.0) aux outils Microsoft. Développée pour Les Bézots (Soullans, Vendée) — 48 mois, 13 phases, Oct 2025 → Sep 2029.',
+            'description' => 'Plateforme SaaS de digitalisation interne, alternative souveraine open source (AGPL-3.0) aux outils Microsoft. Développée pour Pladigit (Soullans, Vendée) — 48 mois, 13 phases, Oct 2025 → Sep 2029.',
             'status' => 'active',
             'start_date' => '2025-10-01',
             'due_date' => '2029-09-30',

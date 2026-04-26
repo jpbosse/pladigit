@@ -40,8 +40,8 @@
         </div>
 
         <h2>Responsable du traitement</h2>
-        <p><strong>Les Bézots</strong> — Soullans (85300), France<br>
-        Email : <a href="mailto:contact@lesbezots.fr">contact@lesbezots.fr</a></p>
+        <p><strong>Pladigit</strong> — Soullans (85300), France<br>
+        Email : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
         <h2>Données collectées</h2>
         <p>Dans le cadre de l'utilisation de Pladigit, les données suivantes sont collectées :</p>
@@ -77,7 +77,7 @@
             <li><strong>Droit à la portabilité</strong> — export JSON disponible sur demande</li>
             <li><strong>Droit d'opposition</strong> — contactez votre administrateur</li>
         </ul>
-        <p>Pour exercer vos droits : <a href="mailto:contact@lesbezots.fr">contact@lesbezots.fr</a></p>
+        <p>Pour exercer vos droits : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
         <h2>Sécurité des données</h2>
         <ul>
@@ -102,7 +102,7 @@
 
         <h2>Contact DPO</h2>
         <p>Pour toute question relative à vos données personnelles :<br>
-        <a href="mailto:contact@lesbezots.fr">contact@lesbezots.fr</a></p>
+        <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
     </div>
 
 </div>

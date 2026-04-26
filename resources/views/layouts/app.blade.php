@@ -332,9 +332,9 @@
             <a href="/health" target="_blank" id="health-label"
                style="text-decoration:none;color:inherit;">Système…</a>
         </span>
-        <span>© {{ date('Y') }} Les Bézots</span>
-        <a href="mailto:contact@lesbezots.fr"
-           style="color:inherit;text-decoration:none;">contact@lesbezots.fr</a>
+        <span>© {{ date('Y') }} Pladigit</span>
+        <a href="mailto:contact@pladigit.fr"
+           style="color:inherit;text-decoration:none;">contact@pladigit.fr</a>
     </div>
 
     {{-- Bloc droite — liens légaux --}}
@@ -351,7 +351,7 @@
         <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener"
            title="Toute modification doit être publiée"
            style="color:var(--pd-muted);text-decoration:none;">Licence GNU AGPL-3.0</a>
-        <a href="mailto:contact@lesbezots.fr"
+        <a href="mailto:contact@pladigit.fr"
            style="color:var(--pd-muted);text-decoration:none;">Aide</a>
     </div>
 
@@ -371,7 +371,7 @@
             <div class="pd-footer-logo-mini">P</div>
             <div class="pd-footer-info">
                 <b>{{ config('app.name') }}</b>
-                <span>© {{ date('Y') }} — Les Bézots · Soullans</span>
+                <span>© {{ date('Y') }} — Pladigit · Soullans</span>
             </div>
         </div>
 

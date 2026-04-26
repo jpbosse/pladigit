@@ -3,7 +3,7 @@ PLADIGIT
 Guide Administrateur Organisation
 
 Version 2.0 — Phase 2 — Février 2026
-Les Bézots — Soullans (85), France
+Pladigit — Soullans (85), France
 Document confidentiel — Usage interne
 
 # Sommaire

@@ -221,4 +221,4 @@ Les modèles permettent de capitaliser sur des structures de projets récurrents
 
 
 
-Pladigit — Les Bézots, Soullans (85) — github.com/jpbosse/pladigit — AGPL-3.0
+Pladigit — Pladigit, Soullans (85) — github.com/jpbosse/pladigit — AGPL-3.0

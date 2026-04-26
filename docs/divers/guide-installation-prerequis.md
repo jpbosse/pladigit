@@ -190,7 +190,7 @@ $ git --version   # → git version 2.x.x
 
 # Configuration globale (remplacer par vos infos)
 $ git config --global user.name  "Jean-Pierre Bossé"
-$ git config --global user.email "jp@lesbezots.fr"
+$ git config --global user.email "jp@pladigit.fr"
 $ git config --global init.defaultBranch main
 $ git config --global core.editor nano
 $
@@ -199,7 +199,7 @@ $ git config --list
 
 
 # Générer la paire de clés ED25519 (plus moderne et sécurisée que RSA)
-$ ssh-keygen -t ed25519 -C "jp@lesbezots.fr" -f ~/.ssh/id_ed25519
+$ ssh-keygen -t ed25519 -C "jp@pladigit.fr" -f ~/.ssh/id_ed25519
 $
 # Afficher la clé publique à copier dans GitHub
 $ cat ~/.ssh/id_ed25519.pub
@@ -506,7 +506,7 @@ SESSION_LIFETIME=120
 SESSION_ENCRYPT=true
 
 # Super Admin (jamais en base)
-SUPER_ADMIN_EMAIL=admin@lesbezots.fr
+SUPER_ADMIN_EMAIL=admin@pladigit.fr
 SUPER_ADMIN_PASSWORD=MotDePasseSuperAdminTresLong!
 
 # Droits sur le storage Laravel

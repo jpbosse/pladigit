@@ -213,7 +213,7 @@
             Plateforme opérationnelle
         </span>
     </div>
-    <span>© {{ date('Y') }} Les Bézots</span>
+    <span>© {{ date('Y') }} Pladigit</span>
 </footer>
 
 {{-- ══════════ JS ══════════ --}}

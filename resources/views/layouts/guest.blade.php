@@ -75,7 +75,7 @@
                     display:flex;align-items:center;justify-content:center;gap:10px;">
             <span>Propulsé par <strong style="color:var(--pd-navy);font-family:'Sora',sans-serif;">Pladigit</strong></span>
             <span style="width:3px;height:3px;border-radius:50%;background:var(--pd-border);display:inline-block;"></span>
-            <span>Les Bézots</span>
+            <span>Pladigit</span>
             <span style="width:3px;height:3px;border-radius:50%;background:var(--pd-border);display:inline-block;"></span>
             <a href="#" style="color:var(--pd-muted);text-decoration:none;">Aide</a>
         </div>

@@ -317,7 +317,7 @@
         <div class="header-logo">P</div>
         <div>
             <div class="header-title">Pladigit — Statut système</div>
-            <div class="header-sub">Les Bézots · Soullans (85)</div>
+            <div class="header-sub">Pladigit · Soullans (85)</div>
         </div>
     </div>
     <div class="header-ts" id="page-ts">

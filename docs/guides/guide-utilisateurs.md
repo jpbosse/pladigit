@@ -4,7 +4,7 @@ Guide Utilisateurs
 
 Président • DGS • Responsable de direction • Responsable de service • Utilisateur
 Version 2.0 — Phase 2 — Février 2026
-Les Bézots — Soullans (85), France
+Pladigit — Soullans (85), France
 
 # Sommaire
 PARTIE 1 — Prise en main (pour tous les utilisateurs)

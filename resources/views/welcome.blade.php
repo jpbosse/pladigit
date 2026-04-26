@@ -206,7 +206,7 @@
             <div class="value-card fade-up"><div class="value-icon">🌐</div><div class="value-title">100% Open Source</div><p class="value-desc">Code source disponible sous licence AGPL-3.0. Auditable, modifiable, sans dépendance propriétaire. Construit sur Laravel.</p></div>
             <div class="value-card fade-up"><div class="value-icon">🔑</div><div class="value-title">Authentification avancée</div><p class="value-desc">Connexion locale ou via votre annuaire LDAP / Active Directory existant. Double authentification TOTP pour tous les comptes.</p></div>
             <div class="value-card fade-up"><div class="value-icon">📊</div><div class="value-title">Multi-organisations</div><p class="value-desc">Une seule installation pour gérer plusieurs collectivités. Chaque tenant est totalement isolé avec sa propre base de données.</p></div>
-            <div class="value-card fade-up"><div class="value-icon">🤝</div><div class="value-title">Support local</div><p class="value-desc">Développé et maintenu par Les Bézots, association de Soullans (Vendée). Proximité, réactivité et ancrage territorial.</p></div>
+            <div class="value-card fade-up"><div class="value-icon">🤝</div><div class="value-title">Support local</div><p class="value-desc">Développé et maintenu par Pladigit, association de Soullans (Vendée). Proximité, réactivité et ancrage territorial.</p></div>
         </div>
     </div>
 </section>
@@ -473,8 +473,8 @@
         <div class="contact-grid">
             <div class="contact-info fade-up">
                 <p>Vous souhaitez découvrir Pladigit pour votre collectivité ? Notre équipe est disponible pour vous présenter la plateforme et répondre à vos questions.</p>
-                <div class="contact-detail"><div class="contact-detail-icon">📍</div><div class="contact-detail-text">Les Bézots — Soullans (85300), Vendée</div></div>
-                <div class="contact-detail"><div class="contact-detail-icon">✉</div><div class="contact-detail-text">contact@lesbezots.fr</div></div>
+                <div class="contact-detail"><div class="contact-detail-icon">📍</div><div class="contact-detail-text">Pladigit — Soullans (85300), Vendée</div></div>
+                <div class="contact-detail"><div class="contact-detail-icon">✉</div><div class="contact-detail-text">contact@pladigit.fr</div></div>
                 <div class="contact-detail"><div class="contact-detail-icon">⚖</div><div class="contact-detail-text">Licence AGPL-3.0 — Code source sur GitHub</div></div>
             </div>
             <div class="contact-form fade-up">
@@ -510,11 +510,11 @@
                 <div class="footer-col"><div class="footer-col-title">Plateforme</div><a href="#fonctionnalites">Fonctionnalités</a>
             <a href="#installation">Installation</a><a href="#tarifs">Tarifs</a><a href="#demo">Démo</a></div>
                 <div class="footer-col"><div class="footer-col-title">Ressources</div><a href="#">Documentation</a><a href="#">GitHub</a><a href="#">Changelog</a></div>
-                <div class="footer-col"><div class="footer-col-title">Les Bézots</div><a href="#">À propos</a><a href="#contact">Contact</a><a href="#">Mentions légales</a></div>
+                <div class="footer-col"><div class="footer-col-title">Pladigit</div><a href="#">À propos</a><a href="#contact">Contact</a><a href="#">Mentions légales</a></div>
             </div>
         </div>
         <div class="footer-bottom">
-            <div class="footer-copy">© {{ date('Y') }} Les Bézots — Soullans (85), France — Licence AGPL-3.0</div>
+            <div class="footer-copy">© {{ date('Y') }} Pladigit — Soullans (85), France — Licence AGPL-3.0</div>
             <div class="footer-legal"><a href="#">Mentions légales</a><a href="#">Confidentialité</a><a href="#">CGU</a></div>
         </div>
     </div>
