@@ -773,16 +773,23 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
 
 */
 
-/* ── Footer Dynamique Pladigit ────────────────────────────── */
+/* ── Footer Dashboard Pladigit ────────────────────────────── */
 .pd-footer {
-    /* Utilise la couleur de surface du tenant ou le blanc par défaut */
-    background: var(--pd-surface); 
-    border-top: 1px solid var(--pd-border);
-    padding: 0 30px;
+    background: var(--pd-surface);
+    border-top: 2px solid color-mix(in srgb, var(--pd-navy) 15%, transparent);
+    padding: 0 24px;
     height: var(--pd-footer-h);
     display: flex;
     align-items: center;
     margin-top: auto;
+    transition: background 0.3s, border-color 0.3s, margin-left var(--pd-transition);
+    margin-left: var(--pd-sidebar-collapsed);
+}
+.pd-sidebar-open .pd-footer { margin-left: var(--pd-sidebar-w); }
+
+[data-theme="dark"] .pd-footer {
+    background: var(--pd-surface);
+    border-top-color: color-mix(in srgb, var(--pd-navy) 30%, transparent);
 }
 
 .pd-footer-container {
@@ -790,91 +797,93 @@ body:not(.pd-sidebar-open) .pd-nav-item:hover .pd-nav-tip { opacity: 1; }
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 16px;
 }
 
+/* Bloc gauche — statut + tenant */
 .pd-footer-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
 }
 
 .pd-footer-logo-mini {
-    width: 28px;
-    height: 28px;
-    /* Utilise la couleur primaire du tenant */
-    background: var(--pd-navy); 
+    width: 26px; height: 26px;
+    background: var(--pd-navy);
     color: white;
     border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    font-family: 'Sora', sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-family: 'Sora', sans-serif;
+    font-size: 13px;
+    flex-shrink: 0;
+    transition: background 0.3s;
 }
 
 .pd-footer-info b {
     display: block;
-    font-size: 13px;
-    color: var(--pd-navy);
+    font-size: 12px; font-weight: 600;
+    color: var(--pd-text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
 .pd-footer-info span {
-    font-size: 11px;
-    color: var(--pd-muted);
+    font-size: 10.5px; color: var(--pd-muted);
+    white-space: nowrap;
 }
 
+/* Pilule statut central */
 .pd-footer-status-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--pd-bg); /* Fond légèrement grisé pour détacher le pilier */
-    padding: 6px 16px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
+    display: flex; align-items: center; gap: 7px;
+    background: color-mix(in srgb, var(--pd-navy) 6%, transparent);
     border: 1px solid var(--pd-border);
+    padding: 5px 14px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; color: var(--pd-text);
+    white-space: nowrap;
+    transition: background 0.3s;
+}
+[data-theme="dark"] .pd-footer-status-pill {
+    background: color-mix(in srgb, var(--pd-navy) 25%, transparent);
 }
 
-.pd-footer-sep {
-    color: var(--pd-border);
-    margin: 0 4px;
-}
+.pd-footer-sep { color: var(--pd-border); margin: 0 2px; }
+.pd-tenant-name { color: var(--pd-navy); font-weight: 600; }
+[data-theme="dark"] .pd-tenant-name { color: var(--pd-accent); }
 
-.pd-tenant-name {
-    color: var(--pd-navy);
-}
-
+/* Point de statut */
 .pd-status-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #ccc;
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--pd-muted);
+    transition: background 0.3s, box-shadow 0.3s;
+    flex-shrink: 0;
 }
+.pd-status-dot.ok    { background: #22c55e; box-shadow: 0 0 5px rgba(34,197,94,0.5); }
+.pd-status-dot.error { background: #ef4444; box-shadow: 0 0 5px rgba(239,68,68,0.5); }
 
+/* Liens droite */
 .pd-footer-links {
-    display: flex;
-    align-items: center;
-    gap: 15px;
+    display: flex; align-items: center; gap: 14px;
     font-size: 11px;
 }
-
 .pd-footer-links a {
-    color: var(--pd-muted);
-    text-decoration: none;
+    color: var(--pd-muted); text-decoration: none;
     transition: color 0.2s;
+    white-space: nowrap;
 }
+.pd-footer-links a:hover { color: var(--pd-navy); }
+[data-theme="dark"] .pd-footer-links a:hover { color: var(--pd-accent); }
 
-.pd-footer-links a:hover {
-    color: var(--pd-accent);
-}
-
+/* Badge version */
 .pd-v-tag {
-    background: var(--pd-navy-dark);
-    color: rgba(255,255,255,0.7);
-    padding: 2px 8px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 10px;
+    background: var(--pd-navy);
+    color: rgba(255,255,255,0.85);
+    padding: 2px 9px; border-radius: 5px;
+    font-family: 'Sora', monospace; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: background 0.3s;
+}
+[data-theme="dark"] .pd-v-tag {
+    background: var(--pd-accent);
+    color: white;
 }
 
 /* ═══════════════════════════════════════════════

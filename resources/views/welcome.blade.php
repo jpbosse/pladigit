@@ -534,9 +534,9 @@
             {{-- Colonne Légal --}}
             <div class="footer-col">
                 <div class="footer-col-title">Pladigit</div>
-                <a href="#about">À propos</a>
-                <a href="{{ route('legal.mentions') }}" target="_blank">Mentions légales</a>
-                <a href="{{ route('legal.confidentialite') }}" target="_blank">Confidentialité</a>
+                <a href="#contact">À propos</a>
+                <a href="{{ route('legal.mentions') }}" target="_blank" rel="noopener">Mentions légales</a>
+                <a href="{{ route('legal.confidentialite') }}" target="_blank" rel="noopener">Confidentialité</a>
                 <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
                 <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a>
             </div>
@@ -545,8 +545,8 @@
         <div class="footer-bottom">
             <div class="footer-copy">© {{ date('Y') }} Jean-Pierre Bossé — Pladigit est un logiciel libre sous licence AGPL-3.0</div>
             <div class="footer-legal">
-                <a href="{{ route('legal.mentions') }}" target="_blank">Mentions légales</a>
-                <a href="{{ route('legal.confidentialite') }}" target="_blank">Confidentialité</a>
+                <a href="{{ route('legal.mentions') }}" target="_blank" rel="noopener">Mentions légales</a>
+                <a href="{{ route('legal.confidentialite') }}" target="_blank" rel="noopener">Confidentialité</a>
                 <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">AGPL-3.0</a>
             </div>
         </div>
