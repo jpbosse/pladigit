@@ -305,7 +305,7 @@
                         <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
                     </a>
 
-                    <a href="/install-wizard.php" download
+                    <a href="/pladigit-wizard.txt" download="index.php"
                         style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
                         onmouseover="this.style.background='rgba(255,255,255,.1)'"
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">

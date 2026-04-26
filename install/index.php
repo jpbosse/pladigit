@@ -920,12 +920,43 @@ function page_admin(array $e): void { ?>
 </form></div></div>
 <?php }
 
-function page_install(): void { ?>
+function page_install(): void {
+    $cfg           = load_config();
+    $collaboraMode = $cfg['collabora']['mode'] ?? $_SESSION['collabora']['mode'] ?? 'skip';
+    $appUrl        = $cfg['app']['url']        ?? $_SESSION['app']['url']        ?? '';
+    $isLocal       = preg_match('/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.)/', $appUrl);
+    ?>
 <div class="wrap"><div class="card" id="install-card">
 
 <div id="waiting">
-  <div class="card-title" style="text-align:center">&#x1F680; Tout est prêt !</div>
-  <p class="card-sub" style="text-align:center">Cliquez pour démarrer l'installation automatique.</p>
+  <div class="card-title" style="text-align:center">&#x1F680; Tout est pr&#xEA;t !</div>
+  <p class="card-sub" style="text-align:center">V&#xE9;rifiez le r&#xE9;capitulatif puis lancez l'installation.</p>
+
+  <div style="background:var(--light);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.85rem">
+    <div style="font-weight:700;color:var(--navy);margin-bottom:.75rem;text-transform:uppercase;font-size:.75rem;letter-spacing:.05em">Ce qui va &#xEA;tre install&#xE9;</div>
+    <div style="display:flex;flex-direction:column;gap:.4rem">
+      <div>&#x2705; PHP 8.4, MySQL 8, Redis, Nginx, Supervisor</div>
+      <div>&#x2705; Application Pladigit (Laravel)</div>
+      <?php if ($collaboraMode === 'local'): ?>
+      <div>&#x2705; <strong>Collabora Online</strong> via Docker <span style="color:var(--grey);font-size:.78rem">(~1.5 Go &mdash; 10 &agrave; 20 min suppl&#xE9;mentaires)</span></div>
+      <?php elseif ($collaboraMode === 'external'): ?>
+      <div>&#x2705; Collabora Online (instance externe)</div>
+      <?php else: ?>
+      <div style="color:var(--grey)">&#x23F0; Collabora Online &mdash; &agrave; configurer plus tard</div>
+      <?php endif; ?>
+    </div>
+  </div>
+
+  <?php if ($isLocal): ?>
+  <div class="alert ai" style="margin-bottom:1.25rem;font-size:.82rem">
+    <strong>&#x1F4BB; Installation locale d&#xE9;tect&#xE9;e</strong><br>
+    Pour acc&#xE9;der &#xE0; Pladigit avec un sous-domaine (ex: <code>demo.pladigit.local</code>),
+    ajoutez cette ligne dans <code>/etc/hosts</code> de votre poste :<br><br>
+    <code style="background:rgba(0,0,0,.08);padding:.2rem .5rem;border-radius:4px;display:inline-block;margin-top:.25rem"><?= htmlspecialchars(preg_replace('#^https?://#', '', $appUrl)) ?> demo.pladigit.local</code><br><br>
+    Puis acc&#xE9;dez via <code>http://demo.pladigit.local</code>
+  </div>
+  <?php endif; ?>
+
   <div class="btns" style="justify-content:center">
     <button id="start-btn" class="btn btn-g" onclick="startInstall()">&#x1F680; Lancer l'installation</button>
   </div>
