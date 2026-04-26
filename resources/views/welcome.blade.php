@@ -528,14 +528,12 @@
                 <div class="footer-col-title">Ressources</div>
                 <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank" rel="noopener">Guide d'installation</a>
                 <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank" rel="noopener">Documentation technique</a>
-                <a href="https://github.com/jpbosse/pladigit" target="_blank" rel="noopener">GitHub</a>
                 <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog v0.8.0</a>
             </div>
 
             {{-- Colonne Légal --}}
             <div class="footer-col">
                 <div class="footer-col-title">Pladigit</div>
-                <a href="#contact">À propos</a>
                 <a href="{{ route('legal.mentions') }}" target="_blank" rel="noopener">Mentions légales</a>
                 <a href="{{ route('legal.confidentialite') }}" target="_blank" rel="noopener">Confidentialité</a>
                 <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>

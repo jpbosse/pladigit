@@ -29,11 +29,12 @@
     <div class="card">
         <span class="badge">Document légal</span>
         <h1>Mentions légales</h1>
-        <p class="subtitle">Dernière mise à jour : {{ date('d/m/Y') }}</p>
+        <p class="subtitle">Dernière mise à jour : 26 avril 2026</p>
 
         <h2>Éditeur de la plateforme</h2>
         <p><strong>Pladigit</strong><br>
-        Association loi 1901<br>
+        Développeur indépendant<br>
+        Jean-Pierre Bossé<br>
         Soullans (85300), Vendée, France<br>
         Email : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
@@ -42,12 +43,16 @@
         Email : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
         <h2>Hébergement</h2>
-        <p>La plateforme Pladigit est hébergée sur des serveurs situés en France (Union Européenne).<br>
+        <p>La plateforme de démonstration Pladigit est hébergée sur les infrastructures de :<br>
+        <strong>OVHcloud</strong> — 2 rue Kellermann, 59100 Roubaix, France<br>
+        Serveurs situés en France (Union Européenne).<br>
         Aucune donnée n'est transmise en dehors de l'Union Européenne.</p>
+        <p>Les instances déployées par les collectivités sont hébergées sur leurs propres serveurs
+        ou l'hébergeur de leur choix.</p>
 
         <h2>Logiciel</h2>
         <p>Pladigit est un logiciel libre distribué sous licence
-        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">GNU AGPL-3.0</a>.<br>
+        <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">GNU AGPL-3.0</a>.<br>
         Le code source est disponible sur
         <a href="https://github.com/jpbosse/pladigit" target="_blank" rel="noopener">github.com/jpbosse/pladigit</a>.</p>
         <p>En vertu de la licence AGPL-3.0, toute organisation utilisant ce logiciel — y compris
