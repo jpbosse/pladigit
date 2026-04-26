@@ -204,7 +204,7 @@
                      border-radius:5px;padding:2px 8px;
                      font-size:11px;font-weight:600;color:var(--sa-primary);
                      font-family:'Sora',sans-serif;">
-            v1.4 · Super Admin
+            v0.8.0 · Super Admin
         </span>
         <span style="display:flex;align-items:center;gap:5px;">
             <span style="width:6px;height:6px;border-radius:50%;

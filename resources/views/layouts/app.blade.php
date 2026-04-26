@@ -326,7 +326,7 @@
 
     {{-- Bloc gauche — infos système --}}
     <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--pd-muted);">
-        <span style="font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:.02em;">v1.5 · Phase 3</span>
+        <span style="font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:.02em;">v0.8.0</span>
         <span style="display:flex;align-items:center;gap:5px;">
             <span id="health-dot" class="pd-status-dot"></span>
             <a href="/health" target="_blank" id="health-label"
@@ -388,7 +388,7 @@
             <a href="{{ route('legal.mentions') }}">Mentions légales</a>
             <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
             <a href="#">Support</a>
-            <span class="pd-v-tag">v1.5</span>
+            <span class="pd-v-tag">v0.8.0</span>
         </div>
     </div>
 </footer>
