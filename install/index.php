@@ -281,7 +281,9 @@ function write_runner(): void {
     $app       = $cfg['app']       ?? $_SESSION['app']       ?? [];
     $smtp      = $cfg['smtp']      ?? $_SESSION['smtp']      ?? [];
     $admin     = $cfg['admin']     ?? $_SESSION['admin']     ?? [];
-    $collabora = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
+    $collabora     = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
+    $collaboraMode = $collabora['mode'] ?? 'skip';
+    $collaboraUrl  = $collabora['url']  ?? '';
 
     $appKey      = 'base64:' . base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
