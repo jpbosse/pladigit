@@ -311,7 +311,7 @@
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">
                         <span style="font-size:1.25rem">🌐</span>
                         <div>
-                            <div style="font-size:.875rem;font-weight:600;color:white">install/index.php</div>
+                            <div style="font-size:.875rem;font-weight:600;color:white">install/index.php (wizard)</div>
                             <div style="font-size:.75rem;color:rgba(255,255,255,.4)">Assistant de configuration web</div>
                         </div>
                         <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>

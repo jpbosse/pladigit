@@ -660,6 +660,7 @@ function page_welcome(): void { ?>
       ['&#x1F5C4;', 'Connecter la base de données MySQL'],
       ['&#x1F310;', "Définir l'adresse de votre plateforme"],
       ['&#x1F4E7;', "Configurer l'envoi d'emails (optionnel)"],
+      ['&#x1F4DD;', "Choisir les options (Collabora Online)"],
       ['&#x1F464;', 'Créer votre compte administrateur'],
       ['&#x1F680;', "Lancer l'installation automatique"],
   ] as [$icon, $label]): ?>
@@ -668,7 +669,7 @@ function page_welcome(): void { ?>
   </div>
   <?php endforeach; ?>
 </div>
-<div class="alert ai"><strong>Durée estimée :</strong> 5 à 10 minutes.</div>
+<div class="alert ai"><strong>Durée estimée :</strong> 5 à 10 minutes (30 minutes si Collabora Online est installé).</div>
 <div class="btns" style="justify-content:center">
   <a href="?action=check" class="btn btn-p">Commencer l'installation &#x2192;</a>
 </div>
