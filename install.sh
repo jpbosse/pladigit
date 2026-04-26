@@ -310,6 +310,24 @@ install_pladigit() {
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
     log "Wizard téléchargé"
 
+    # Déploiement du script d'installation Collabora (exécuté en root via sudo)
+    info "Déploiement du script Collabora..."
+    curl -fsSL https://pladigit.fr/get-collabora-installer -o "${PLADIGIT_DIR}/install/install-collabora.sh" \
+        >> "$LOG_FILE" 2>&1 || warn "Script Collabora non disponible depuis le serveur — copie locale utilisée."
+    chmod +x "${PLADIGIT_DIR}/install/install-collabora.sh"
+    chown root:root "${PLADIGIT_DIR}/install/install-collabora.sh"
+    log "Script Collabora déployé"
+
+    # Autoriser www-data à exécuter install-collabora.sh en root sans mot de passe
+    SUDOERS_LINE="www-data ALL=(root) NOPASSWD: ${PLADIGIT_DIR}/install/install-collabora.sh"
+    SUDOERS_FILE="/etc/sudoers.d/pladigit-collabora"
+    echo "$SUDOERS_LINE" > "$SUDOERS_FILE"
+    chmod 440 "$SUDOERS_FILE"
+    # Valider la syntaxe sudoers
+    visudo -c -f "$SUDOERS_FILE" >> "$LOG_FILE" 2>&1 \
+        && log "Règle sudoers Collabora configurée" \
+        || { warn "Règle sudoers invalide — suppression."; rm -f "$SUDOERS_FILE"; }
+
     progress 6 7 "Pladigit installé"
 }
 

@@ -373,4 +373,16 @@ Route::get('/guide-installation', function () {
     ]);
 })->name('guide.installation');
 
+// Route Laravel pour get-collabora-installer
+ Route::get('/get-collabora-installer', function () {
+     $path = base_path('install/install-collabora.sh');
+     if (!file_exists($path)) { abort(404); }
+     return response()->file($path, [
+         'Content-Type'        => 'text/x-sh',
+         'Content-Disposition' => 'inline; filename="install-collabora.sh"',
+     ]);
+ })->name('install.collabora');
+
+
+
 });
