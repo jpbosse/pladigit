@@ -305,22 +305,23 @@
                         <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
                     </a>
 
-                    <a href="/pladigit-wizard.txt" download="index.php"
+                    <a href="/pladigit-wizard.txt" download="pladigit-wizard.txt"
                         style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
                         onmouseover="this.style.background='rgba(255,255,255,.1)'"
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">
                         <span style="font-size:1.25rem">🌐</span>
                         <div>
-                            <div style="font-size:.875rem;font-weight:600;color:white">install/index.php (wizard)</div>
+                            <div style="font-size:.875rem;font-weight:600;color:white">Wizard d'installation (index.php)</div>
                             <div style="font-size:.75rem;color:rgba(255,255,255,.4)">Assistant de configuration web</div>
                         </div>
                         <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
                     </a>
                 </div>
 
-                <div style="font-size:.75rem;color:rgba(255,255,255,.35);line-height:1.5">
-                    Placez <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">install.sh</code> à la racine de votre projet et
-                    <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">index.php</code> dans un dossier <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">install/</code>.
+                <div style="font-size:.75rem;color:rgba(255,255,255,.35);line-height:1.6;margin-top:.75rem">
+                    Placez <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">install.sh</code> à la racine de votre projet.<br>
+                    Pour le wizard : renommez le fichier téléchargé en <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">index.php</code>
+                    et placez-le dans un dossier <code style="background:rgba(255,255,255,.1);color:rgba(255,255,255,.7)">install/</code>.
                 </div>
             </div>
         </div>

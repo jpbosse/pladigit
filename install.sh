@@ -314,14 +314,14 @@ install_pladigit() {
     # Téléchargement du wizard d'installation
     info "Téléchargement du wizard d'installation..."
     mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
+    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
     chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
     log "Wizard d'installation téléchargé"
 
     # Téléchargement du wizard d'installation
     info "Téléchargement du wizard..."
     mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/get-wizard -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
+    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
     log "Wizard téléchargé"
 
