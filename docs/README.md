@@ -33,7 +33,7 @@ docs/
 ├── glossaire.md                ← glossaire des termes techniques et métier
 │
 ├── GUIDE-INSTALLATION.html     ← Guide d'installation avec captures d'écran
-├── adr/                        ← Décisions architecturales (ADR-001 à ADR-030)
+├── adr/                        ← Décisions architecturales (ADR-001 à ADR-031)
 │   ├── ADR-001-stack-frontend.md
 │   ├── ADR-002-multi-tenant-base-dedier.md
 │   └── ...
@@ -104,3 +104,4 @@ Les ADR documentent les choix techniques importants — pourquoi telle décision
 | [ADR-028](adr/ADR-028-script-installation-automatique.md) | Script d'installation automatique install.sh |
 | [ADR-029](adr/ADR-029-wizard-installation-web.md) | Wizard d'installation web PHP standalone |
 | [ADR-030](adr/ADR-030-collabora-installation-optionnelle.md) | Collabora Online : installation optionnelle via wizard |
+| [ADR-031](adr/ADR-031-install-collabora-sudo.md) | Script `install-collabora.sh` : installation Docker en root via sudoers |
