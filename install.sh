@@ -442,27 +442,87 @@ main() {
     # ── Vérification installation existante ──────────────────────────────────────
     if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
         echo ""
-        echo -e "${YELLOW}${BOLD}  ⚠️  Pladigit semble déjà installé sur ce serveur.${NC}"
+        echo -e "${YELLOW}${BOLD}  ⚠️  Pladigit est déjà installé sur ce serveur.${NC}"
         echo ""
-        echo -e "  Fichiers détectés :"
-        echo -e "  • ${PLADIGIT_DIR}/.env"
-        echo -e "  • ${PLADIGIT_DIR}/install/.lock"
+        echo -e "  Que souhaitez-vous faire ?"
         echo ""
-        echo -e "  ${RED}Relancer l'installation écrasera votre configuration existante.${NC}"
-        echo -e "  ${RED}Vos données ne seront PAS supprimées, mais le fichier .env sera réécrit.${NC}"
+        echo -e "  ${BOLD}1)${NC} Mettre à jour  — git pull + migrations + cache (recommandé)"
+        echo -e "  ${BOLD}2)${NC} Réinstaller    — repart de zéro (réécrit le .env)"
+        echo -e "  ${BOLD}3)${NC} Annuler        — ne rien faire"
         echo ""
-        echo -e "  Pour continuer, tapez exactement : ${BOLD}je confirme la réinstallation${NC}"
-        echo -n "  > "
-        read -r confirm
-        if [[ "$confirm" != "je confirme la réinstallation" ]]; then
-            echo ""
-            echo -e "  ${GREEN}Installation annulée. Votre installation existante est préservée.${NC}"
-            echo ""
-            exit 0
-        fi
-        echo ""
-        warn "Réinstallation confirmée — poursuite de l'installation..."
-        echo ""
+        echo -n "  Votre choix [1/2/3] : "
+        read -r choix
+
+        case "$choix" in
+            1)
+                echo ""
+                echo -e "${CYAN}${BOLD}  ── Mise à jour de Pladigit ──${NC}"
+                echo ""
+                cd "$PLADIGIT_DIR" || die "Impossible d'accéder à ${PLADIGIT_DIR}"
+
+                step "Récupération du code..."
+                git pull origin main >> "$LOG_FILE" 2>&1 \
+                    && log "Code mis à jour" \
+                    || warn "git pull échoué — on continue avec la version actuelle"
+
+                step "Mise à jour des dépendances PHP..."
+                sudo -u www-data composer install \
+                    --no-dev --optimize-autoloader --no-interaction \
+                    --working-dir="$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
+                    || warn "composer install échoué"
+
+                step "Compilation des assets..."
+                sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
+                    && sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
+                    || warn "npm build échoué"
+
+                step "Migrations base de données..."
+                sudo -u www-data php "$PLADIGIT_DIR/artisan" migrate --force >> "$LOG_FILE" 2>&1 \
+                    || warn "migrate échoué"
+                sudo -u www-data php "$PLADIGIT_DIR/artisan" migrate \
+                    --path=database/migrations/platform --force >> "$LOG_FILE" 2>&1 \
+                    || warn "migrate platform échoué"
+
+                step "Optimisation du cache..."
+                sudo -u www-data php "$PLADIGIT_DIR/artisan" config:cache >> "$LOG_FILE" 2>&1
+                sudo -u www-data php "$PLADIGIT_DIR/artisan" route:cache  >> "$LOG_FILE" 2>&1
+                sudo -u www-data php "$PLADIGIT_DIR/artisan" view:cache   >> "$LOG_FILE" 2>&1
+
+                step "Redémarrage des workers..."
+                supervisorctl restart pladigit-worker:* >> "$LOG_FILE" 2>&1 || true
+
+                echo ""
+                echo -e "${GREEN}${BOLD}  ✅  Mise à jour terminée !${NC}"
+                echo ""
+                echo -e "  Pladigit est à jour. Aucune reconfiguration nécessaire."
+                echo ""
+                exit 0
+                ;;
+            2)
+                echo ""
+                echo -e "  ${RED}Réinstallation — le fichier .env sera réécrit.${NC}"
+                echo -e "  Vos données ne seront PAS supprimées."
+                echo ""
+                echo -e "  Pour confirmer, tapez exactement : ${BOLD}je confirme la réinstallation${NC}"
+                echo -n "  > "
+                read -r confirm
+                if [[ "$confirm" != "je confirme la réinstallation" ]]; then
+                    echo ""
+                    echo -e "  ${GREEN}Annulé. Votre installation est préservée.${NC}"
+                    echo ""
+                    exit 0
+                fi
+                echo ""
+                warn "Réinstallation confirmée — poursuite..."
+                echo ""
+                ;;
+            *)
+                echo ""
+                echo -e "  ${GREEN}Annulé. Votre installation est préservée.${NC}"
+                echo ""
+                exit 0
+                ;;
+        esac
     fi
 
     check_prerequisites
