@@ -14,7 +14,25 @@ define('INSTALL_DIR', PLADIGIT_ROOT . '/install');
 define('LOG_FILE',    INSTALL_DIR . '/install.log');
 define('PID_FILE',    INSTALL_DIR . '/install.pid');
 define('DONE_FILE',   INSTALL_DIR . '/install.done');
+define('CONFIG_FILE',  INSTALL_DIR . '/config.json');
 define('FAIL_FILE',   INSTALL_DIR . '/install.fail');
+
+
+// =============================================================================
+// CONFIG JSON — persistance des choix wizard indépendante de la session
+// =============================================================================
+function save_config(array $data): void {
+    $current = file_exists(CONFIG_FILE)
+        ? (json_decode(file_get_contents(CONFIG_FILE), true) ?? [])
+        : [];
+    $merged = array_merge($current, $data);
+    file_put_contents(CONFIG_FILE, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function load_config(): array {
+    if (!file_exists(CONFIG_FILE)) return [];
+    return json_decode(file_get_contents(CONFIG_FILE), true) ?? [];
+}
 
 // ── Les appels API passent toujours (même après installation) ────────────────
 $apiAction = $_GET['action'] ?? '';
@@ -109,13 +127,14 @@ function api_run(): void {
     header('Content-Type: application/json');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok'=>false]); return; }
 
-    // Écrire le runner au dernier moment — toute la session est définitive
+    // Écrire le runner depuis le JSON — source de vérité unique
     write_runner();
 
     // Nettoyer les fichiers précédents
     @unlink(LOG_FILE);
     @unlink(DONE_FILE);
     @unlink(FAIL_FILE);
+    @unlink(CONFIG_FILE);
 
     // Lancer l'installation en arrière-plan
     $script = escapeshellarg(INSTALL_DIR . '/runner.php');
@@ -139,7 +158,7 @@ function handle_post(string $action): void {
         case 'database':
             $errors = validate_database($_POST);
             if ($errors) { $_SESSION['errors'] = $errors; redirect('database'); }
-            $_SESSION['db'] = [
+            $db = [
                 'host'          => trim($_POST['db_host'] ?? '127.0.0.1'),
                 'port'          => trim($_POST['db_port'] ?? '3306'),
                 'name'          => trim($_POST['db_name'] ?? 'pladigit'),
@@ -148,6 +167,8 @@ function handle_post(string $action): void {
                 'app_user'      => trim($_POST['db_app_user'] ?? 'pladigit'),
                 'app_password'  => $_POST['db_app_password'] ?? '',
             ];
+            $_SESSION['db'] = $db;
+            save_config(['db' => $db]);
             $_SESSION['step'] = 3;
             redirect('app');
             break;
@@ -155,17 +176,19 @@ function handle_post(string $action): void {
         case 'app':
             $errors = validate_app($_POST);
             if ($errors) { $_SESSION['errors'] = $errors; redirect('app'); }
-            $_SESSION['app'] = [
+            $app = [
                 'url'      => rtrim(trim($_POST['app_url'] ?? ''), '/'),
                 'name'     => trim($_POST['app_name'] ?? 'Pladigit'),
                 'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
             ];
+            $_SESSION['app'] = $app;
+            save_config(['app' => $app]);
             $_SESSION['step'] = 4;
             redirect('smtp');
             break;
 
         case 'smtp':
-            $_SESSION['smtp'] = [
+            $smtp = [
                 'host'       => trim($_POST['smtp_host'] ?? ''),
                 'port'       => trim($_POST['smtp_port'] ?? '587'),
                 'username'   => trim($_POST['smtp_username'] ?? ''),
@@ -174,15 +197,19 @@ function handle_post(string $action): void {
                 'from_name'  => trim($_POST['smtp_from_name'] ?? 'Pladigit'),
                 'encryption' => trim($_POST['smtp_encryption'] ?? 'tls'),
             ];
+            $_SESSION['smtp'] = $smtp;
+            save_config(['smtp' => $smtp]);
             $_SESSION['step'] = 5;
             redirect('collabora');
             break;
 
         case 'collabora':
-            $_SESSION['collabora'] = [
+            $collabora = [
                 'mode' => $_POST['collabora_mode'] ?? 'skip',
                 'url'  => trim($_POST['collabora_url'] ?? ''),
             ];
+            $_SESSION['collabora'] = $collabora;
+            save_config(['collabora' => $collabora]);
             $_SESSION['step'] = 6;
             redirect('admin');
             break;
@@ -190,13 +217,14 @@ function handle_post(string $action): void {
         case 'admin':
             $errors = validate_admin($_POST);
             if ($errors) { $_SESSION['errors'] = $errors; redirect('admin'); }
-            $_SESSION['admin'] = [
+            $admin = [
                 'name'     => trim($_POST['admin_name'] ?? ''),
                 'email'    => trim($_POST['admin_email'] ?? ''),
                 'password' => $_POST['admin_password'] ?? '',
             ];
+            $_SESSION['admin'] = $admin;
+            save_config(['admin' => $admin]);
             $_SESSION['step'] = 7;
-            // Le runner sera écrit au moment du clic "Lancer l'installation" (api_run)
             redirect('install');
             break;
     }
@@ -248,10 +276,12 @@ function validate_admin(array $p): array {
 // RUNNER — script PHP exécuté en arrière-plan
 // =============================================================================
 function write_runner(): void {
-    $db    = $_SESSION['db']    ?? [];
-    $app   = $_SESSION['app']   ?? [];
-    $smtp  = $_SESSION['smtp']  ?? [];
-    $admin = $_SESSION['admin'] ?? [];
+    $cfg       = load_config();
+    $db        = $cfg['db']        ?? $_SESSION['db']        ?? [];
+    $app       = $cfg['app']       ?? $_SESSION['app']       ?? [];
+    $smtp      = $cfg['smtp']      ?? $_SESSION['smtp']      ?? [];
+    $admin     = $cfg['admin']     ?? $_SESSION['admin']     ?? [];
+    $collabora = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
 
     $appKey      = 'base64:' . base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
@@ -823,8 +853,9 @@ function page_collabora(): void {
     $freeGb      = round($freeBytes / 1024 / 1024 / 1024, 1);
     $enough      = $freeGb >= 4;
     $tight       = $freeGb >= 2 && $freeGb < 4;
-    $savedMode   = $_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip');
-    $savedUrl    = $_SESSION['collabora']['url']  ?? '';
+    $cfg         = load_config();
+    $savedMode   = $cfg['collabora']['mode'] ?? ($_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip'));
+    $savedUrl    = $cfg['collabora']['url']  ?? ($_SESSION['collabora']['url']  ?? '');
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F4DD; Collabora Online</div>
