@@ -116,21 +116,22 @@
         .form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
         .btn-submit{width:100%;padding:0.85rem;background:var(--navy);color:white;border:none;border-radius:4px;font-family:'Source Sans 3',sans-serif;font-size:0.95rem;font-weight:700;cursor:pointer;transition:background 0.2s}
         .btn-submit:hover{background:var(--navy2)}
-        footer{background:var(--navy2);padding:3rem 2rem 1.5rem}
+        footer{background:linear-gradient(180deg,var(--navy2) 0%,#0f1e30 100%);padding:4rem 2rem 0;border-top:1px solid rgba(196,151,42,0.2)}
         .footer-inner{max-width:1200px;margin:0 auto}
-        .footer-top{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:2rem;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:1.5rem}
-        .footer-logo{font-family:'Libre Baskerville',serif;font-size:1.2rem;font-weight:700;color:white;margin-bottom:0.5rem}
-        .footer-logo span{color:var(--gold)}
-        .footer-tagline{font-size:0.82rem;color:rgba(255,255,255,0.4)}
-        .footer-links{display:flex;gap:3rem}
-        .footer-col-title{font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:0.75rem}
-        .footer-col a{display:block;font-size:0.82rem;color:rgba(255,255,255,0.55);text-decoration:none;margin-bottom:0.4rem;transition:color 0.2s}
-        .footer-col a:hover{color:white}
-        .footer-bottom{display:flex;justify-content:space-between;align-items:center}
-
-        .footer-copy{font-size:0.78rem;color:rgba(255,255,255,0.3)}
+        .footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:3rem;padding-bottom:2.5rem;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:1.5rem}
+        .footer-brand .footer-logo{font-family:'Libre Baskerville',serif;font-size:1.4rem;font-weight:700;color:white;margin-bottom:0.75rem}
+        .footer-brand .footer-logo span{color:var(--gold)}
+        .footer-brand p{font-size:0.82rem;color:rgba(255,255,255,0.4);line-height:1.7;max-width:260px;margin-bottom:1.25rem}
+        .footer-badge{display:inline-flex;align-items:center;gap:0.4rem;background:rgba(196,151,42,0.1);border:1px solid rgba(196,151,42,0.25);color:var(--gold2);padding:0.3rem 0.75rem;border-radius:2rem;font-size:0.72rem;font-weight:600;letter-spacing:0.05em;text-decoration:none;transition:all 0.2s}
+        .footer-badge:hover{background:rgba(196,151,42,0.2)}
+        .footer-col-title{font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem}
+        .footer-col a{display:block;font-size:0.83rem;color:rgba(255,255,255,0.5);text-decoration:none;margin-bottom:0.6rem;transition:all 0.2s}
+        .footer-col a:hover{color:white;padding-left:4px}
+        .footer-bottom{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;padding-bottom:1.5rem}
+        .footer-copy{font-size:0.75rem;color:rgba(255,255,255,0.25)}
         .footer-legal{display:flex;gap:1.5rem}
-        .footer-legal a{font-size:0.78rem;color:rgba(255,255,255,0.3);text-decoration:none}
+        .footer-legal a{font-size:0.75rem;color:rgba(255,255,255,0.3);text-decoration:none;transition:color 0.2s}
+        .footer-legal a:hover{color:rgba(255,255,255,0.7)}
         .alert-success{background:#D1FAE5;border:1px solid #6EE7B7;color:#065F46;padding:1rem 2rem;text-align:center;font-weight:500}
         .fade-up{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
         .fade-up.visible{opacity:1;transform:translateY(0)}
