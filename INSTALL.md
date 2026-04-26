@@ -38,7 +38,7 @@ Téléchargez Ubuntu Server 24.04 LTS sur [ubuntu.com/download/server](https://u
 Connectez-vous à votre serveur via SSH ou ouvrez un terminal, puis copiez-collez cette commande :
 
 ```bash
-curl -fsSL https://pladigit.fr/get-install | sudo bash
+curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
 Le script installe automatiquement :
@@ -56,15 +56,16 @@ Depuis votre ordinateur, ouvrez un navigateur et accédez à l'URL affichée par
 http://ADRESSE-IP-DU-SERVEUR/install/
 ```
 
-L'assistant vous guide en 7 étapes :
+L'assistant vous guide en 8 étapes :
 
 1. **Vérification** — le système est-il compatible ?
 2. **Base de données** — connexion MySQL et création de l'utilisateur dédié
 3. **Application** — URL et nom de votre organisation
 4. **Email** — configuration SMTP optionnelle
-5. **Collabora** — édition collaborative de documents (optionnel)
+5. **Collabora** — choix du mode d'installation (Docker local, instance externe, ou plus tard)
 6. **Administrateur** — création du compte Super Admin
-7. **Installation** — lancement automatique avec barre de progression
+7. **Récapitulatif** — vérification des choix avant lancement
+8. **Installation** — lancement automatique avec barre de progression
 
 À la fin, une page de confirmation affiche vos identifiants de connexion.
 
@@ -116,6 +117,7 @@ cd /var/www/pladigit
 git pull origin main
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
+php artisan migrate --force
 php artisan migrate --path=database/migrations/platform --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 sudo supervisorctl restart pladigit-worker:*
@@ -313,9 +315,9 @@ server {
     }
 
     location ~ \.php$ {
-        try_files $uri /index.php?$query_string;
         fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
+        fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
         include fastcgi_params;
     }
 

@@ -16,35 +16,41 @@ Par ailleurs, un projet open source qui cible ADULLACT et les collectivités doi
 
 ## Décision
 
-Créer un script bash `install.sh` hébergé sur `https://pladigit.fr/get-install`, exécutable en une seule commande :
+Créer un script bash `install.sh` hébergé sur `https://pladigit.fr/install.sh`, exécutable en une seule commande :
 
 ```bash
-curl -fsSL https://pladigit.fr/get-install | sudo bash
+curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
 Le script prend en charge l'intégralité de l'installation de l'environnement serveur :
 
-1. **Vérification système** — OS (Ubuntu 22.04/24.04), RAM (≥ 2 Go), disque (≥ 10 Go), connexion internet, ports 80/443
-2. **Extension LVM automatique** — Ubuntu Server alloue ~50 % du volume logique par défaut ; le script étend automatiquement le LVM avant la vérification de l'espace disque
-3. **Mise à jour système** — `apt-get update && upgrade`
-4. **PHP 8.4** — via PPA Ondrej (Ubuntu 22.04/24.04) avec toutes les extensions requises : fpm, cli, mysql, redis, xml, curl, mbstring, zip, gd, intl, bcmath, opcache, imagick, ldap
-5. **MySQL 8** — installation + activation de l'authentification native root (incompatible avec PDO par défaut sur Ubuntu)
-6. **Redis, Nginx, Supervisor, Node.js 20**
-7. **Clonage du dépôt** + installation des dépendances PHP (Composer) et JS (npm + Vite build)
-8. **Téléchargement du wizard** depuis `https://pladigit.fr/get-wizard`
-9. **Configuration Nginx** — vhost avec bloc `install/` pour le wizard
+1. **Attente verrou apt** — `unattended-upgrades` tourne souvent au boot ; le script attend jusqu'à 5 minutes que le verrou `/var/lib/dpkg/lock-frontend` soit libéré avant de lancer `apt-get`.
+2. **Vérification système** — OS (Ubuntu 22.04/24.04), RAM (≥ 2 Go), disque (≥ 10 Go), connexion internet, ports 80/443
+3. **Extension LVM automatique** — Ubuntu Server alloue ~50 % du volume logique par défaut ; le script étend automatiquement le LVM avant la vérification de l'espace disque
+4. **Mise à jour système** — `apt-get update && upgrade`
+5. **PHP 8.4** — via PPA Ondrej avec toutes les extensions requises
+6. **MySQL 8** — installation + activation de l'authentification native root
+7. **Redis, Nginx, Supervisor, Node.js 20**
+8. **Clonage du dépôt** + installation des dépendances PHP (Composer) et JS (npm + Vite build)
+9. **Téléchargement du wizard** depuis `https://pladigit.fr/install-wizard.php`
+10. **Déploiement de `install-collabora.sh`** et configuration de la règle sudoers (voir ADR-031)
+11. **Configuration Nginx** — vhost avec bloc `install/` pour le wizard
 
 À la fin, le script affiche l'URL du wizard de configuration.
 
 ---
 
-## Protection contre la réinstallation
+## Gestion du serveur existant
 
-Le script détecte si Pladigit est déjà installé (présence de `.env` + `install/.lock`) et demande une confirmation explicite avant de continuer :
+Quand `install.sh` détecte que Pladigit est déjà installé (présence de `.env` + `install/.lock`), il propose un menu à 3 choix :
 
 ```
-Pour continuer, tapez exactement : je confirme la réinstallation
+1) Mettre à jour  — git pull + migrations + cache (recommandé)
+2) Réinstaller    — repart de zéro (réécrit le .env)
+3) Annuler        — ne rien faire
 ```
+
+La mise à jour (option 1) exécute : `git pull` → `composer install` → `npm build` → `migrate` → cache → redémarrage workers.
 
 ---
 
@@ -54,14 +60,13 @@ Pour continuer, tapez exactement : je confirme la réinstallation
 |---|---|
 | Ubuntu 22.04 LTS | ✅ PHP 8.4 via PPA Ondrej |
 | Ubuntu 24.04 LTS | ✅ PHP 8.4 via PPA Ondrej |
-| Ubuntu 26.04 LTS | ❌ Non supporté (PPA Ondrej indisponible au moment de l'écriture) |
 | Debian, CentOS, etc. | ❌ Non supporté |
 
 ---
 
 ## Alternatives écartées
 
-**Docker Compose** — plus portable mais ajoute une couche de complexité (gestion des volumes, réseau, logs) qui dépasse les compétences des administrateurs cibles. Envisagé pour une version future.
+**Docker Compose** — plus portable mais ajoute une couche de complexité hors de portée des administrateurs cibles. Envisagé pour une version future.
 
 **Ansible/Terraform** — trop complexe pour un débutant.
 

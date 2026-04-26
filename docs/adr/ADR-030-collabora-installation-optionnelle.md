@@ -1,7 +1,7 @@
 # ADR-030 — Collabora Online : installation optionnelle via wizard
 
 **Date :** Avril 2026  
-**Statut :** Accepté — implémentation partielle  
+**Statut :** Accepté  
 **Auteur :** Jean-Pierre Bossé
 
 ---
@@ -19,18 +19,20 @@ Cependant, Collabora est gourmand en ressources (~2 Go RAM, ~2 Go disque pour l'
 Intégrer une étape **Collabora** dans le wizard d'installation avec trois options :
 
 ### Option 1 — Installer sur ce serveur (Docker)
-Collabora Online est installé via Docker sur le même serveur. Le wizard :
+
+Collabora Online est installé via Docker sur le même serveur via le script `install-collabora.sh` (voir ADR-031). Le wizard :
 1. Vérifie l'espace disque disponible (`disk_free_space('/')`)
-2. Affiche une recommandation selon l'espace :
-   - ≥ 4 Go libres → "Suffisant — recommandé"
-   - 2–4 Go → "Juste — possible mais surveillez l'espace"
-   - < 2 Go → "Insuffisant — utilisez une instance externe"
-3. Installe Docker et lance Collabora Online via `docker run`
+2. Affiche une recommandation selon l'espace disponible
+3. Délègue l'installation à `install-collabora.sh` via `sudo` (règle sudoers configurée par `install.sh`)
+
+L'installation Docker peut durer **10 à 20 minutes** selon la connexion (téléchargement de l'image ~1.5 Go).
 
 ### Option 2 — Utiliser une instance existante
+
 L'administrateur renseigne l'URL d'un serveur Collabora existant. Le wizard écrit `COLLABORA_URL` dans le `.env`.
 
 ### Option 3 — Passer (configurer plus tard)
+
 Collabora n'est pas configuré. L'édition de documents est désactivée. L'administrateur peut activer Collabora depuis les paramètres de l'organisation.
 
 ---
@@ -41,26 +43,25 @@ Collabora n'est pas configuré. L'édition de documents est désactivée. L'admi
 |---|---|
 | Étape wizard avec 3 options | ✅ Implémenté |
 | Détection espace disque | ✅ Implémenté |
-| Installation Docker automatique | 🔄 À implémenter |
+| Installation Docker automatique via `install-collabora.sh` | ✅ Implémenté |
 | Configuration `COLLABORA_URL` | ✅ Implémenté |
 | Skip / configuration ultérieure | ✅ Implémenté |
-
-L'installation Docker automatique (Option 1) n'est pas encore implémentée dans le runner. Sélectionner "Installer sur ce serveur" passe l'étape sans installer Collabora — un avertissement sera ajouté.
+| Progression temps réel dans le wizard | ✅ Implémenté |
 
 ---
 
 ## Prérequis Collabora
 
-- Docker installé (`apt-get install docker.io`)
 - Port 9980 accessible ou reverse proxy Nginx
 - Certificat SSL (Collabora requiert HTTPS en production)
 - Minimum 2 Go RAM supplémentaires
+- ~2 Go d'espace disque pour l'image Docker
 
 ---
 
 ## Alternatives écartées
 
-**Installation native (paquet .deb)** — complexe, dépend de la distribution, peu documenté pour Ubuntu 24.04.
+**Installation native (paquet .deb)** — complexe, dépend de la distribution.
 
 **Instance mutualisée Pladigit** — intéressante à terme pour les très petites structures, mais nécessite une infrastructure supplémentaire.
 
@@ -69,5 +70,4 @@ L'installation Docker automatique (Option 1) n'est pas encore implémentée dans
 ## Conséquences
 
 - Un administrateur peut déployer Pladigit sans Collabora et l'ajouter ultérieurement.
-- L'installation Docker complète sera disponible dans une version future du wizard.
 - Les organisations avec Collabora configuré bénéficient de l'édition collaborative ; les autres ont accès uniquement au téléchargement/upload de fichiers.
