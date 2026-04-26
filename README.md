@@ -70,6 +70,14 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 
 ---
 
+## Captures d'écran
+
+![Tableau de bord](docs/screenshots/dashboard.png)
+![Photothèque](docs/screenshots/phototheque.png)
+![Gestion de projet](docs/screenshots/projets.png)
+
+---
+
 ## Remplacement des outils Microsoft
 
 | Microsoft | Alternative Pladigit | Statut |
