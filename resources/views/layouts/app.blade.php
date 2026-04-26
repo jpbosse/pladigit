@@ -387,7 +387,7 @@
         <div class="pd-footer-links">
             <a href="{{ route('legal.mentions') }}">Mentions légales</a>
             <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
-            <a href="#">Support</a>
+            <a href="mailto:contact@pladigit.fr">Support</a>
             <span class="pd-v-tag">v0.8.0</span>
         </div>
     </div>

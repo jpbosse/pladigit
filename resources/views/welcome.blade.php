@@ -134,8 +134,8 @@
         .alert-success{background:#D1FAE5;border:1px solid #6EE7B7;color:#065F46;padding:1rem 2rem;text-align:center;font-weight:500}
         .fade-up{opacity:0;transform:translateY(24px);transition:opacity 0.6s ease,transform 0.6s ease}
         .fade-up.visible{opacity:1;transform:translateY(0)}
-        @media(max-width:900px){.hero-inner{grid-template-columns:1fr}.hero-card{display:none}.values-grid,.modules-grid{grid-template-columns:repeat(2,1fr)}.plans-grid{grid-template-columns:1fr}.contact-grid{grid-template-columns:1fr}.footer-links{gap:1.5rem}}
-        @media(max-width:600px){.values-grid,.modules-grid,.plans-grid{grid-template-columns:1fr}.footer-top{flex-direction:column;gap:2rem}}
+        @media(max-width:900px){.hero-inner{grid-template-columns:1fr}.hero-card{display:none}.values-grid,.modules-grid{grid-template-columns:repeat(2,1fr)}.plans-grid{grid-template-columns:1fr}.contact-grid{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr 1fr;gap:2rem}}
+        @media(max-width:600px){.values-grid,.modules-grid,.plans-grid{grid-template-columns:1fr}.footer-grid{grid-template-columns:1fr}.footer-brand{grid-column:1}}
     </style>
 </head>
 <body>
@@ -501,21 +501,54 @@
 
 <footer>
     <div class="footer-inner">
-        <div class="footer-top">
-            <div>
+        <div class="footer-grid">
+
+            {{-- Colonne marque --}}
+            <div class="footer-brand">
                 <div class="footer-logo">Pladi<span>git</span></div>
-                <div class="footer-tagline">Plateforme de Digitalisation Interne<br>pour les Collectivités Publiques</div>
+                <p>Alternative souveraine et open source à Microsoft 365, conçue pour les collectivités locales françaises.</p>
+                <a href="https://github.com/jpbosse/pladigit" target="_blank" rel="noopener" class="footer-badge">
+                    <svg width="13" height="13" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                    Code source GitHub
+                </a>
             </div>
-            <div class="footer-links">
-                <div class="footer-col"><div class="footer-col-title">Plateforme</div><a href="#fonctionnalites">Fonctionnalités</a>
-            <a href="#installation">Installation</a><a href="#tarifs">Tarifs</a><a href="#demo">Démo</a></div>
-                <div class="footer-col"><div class="footer-col-title">Ressources</div><a href="#">Documentation</a><a href="#">GitHub</a><a href="#">Changelog</a></div>
-                <div class="footer-col"><div class="footer-col-title">Pladigit</div><a href="#">À propos</a><a href="#contact">Contact</a><a href="#">Mentions légales</a></div>
+
+            {{-- Colonne Plateforme --}}
+            <div class="footer-col">
+                <div class="footer-col-title">Plateforme</div>
+                <a href="#fonctionnalites">Fonctionnalités</a>
+                <a href="#installation">Installation</a>
+                <a href="#demo">Démo</a>
+                <a href="#contact">Contact</a>
             </div>
+
+            {{-- Colonne Ressources --}}
+            <div class="footer-col">
+                <div class="footer-col-title">Ressources</div>
+                <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank" rel="noopener">Guide d'installation</a>
+                <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank" rel="noopener">Documentation technique</a>
+                <a href="https://github.com/jpbosse/pladigit" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog v0.8.0</a>
+            </div>
+
+            {{-- Colonne Légal --}}
+            <div class="footer-col">
+                <div class="footer-col-title">Pladigit</div>
+                <a href="#about">À propos</a>
+                <a href="{{ route('legal.mentions') }}" target="_blank">Mentions légales</a>
+                <a href="{{ route('legal.confidentialite') }}" target="_blank">Confidentialité</a>
+                <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
+                <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a>
+            </div>
+
         </div>
         <div class="footer-bottom">
-            <div class="footer-copy">© {{ date('Y') }} Pladigit — Soullans (85), France — Licence AGPL-3.0</div>
-            <div class="footer-legal"><a href="#">Mentions légales</a><a href="#">Confidentialité</a><a href="#">CGU</a></div>
+            <div class="footer-copy">© {{ date('Y') }} Jean-Pierre Bossé — Pladigit est un logiciel libre sous licence AGPL-3.0</div>
+            <div class="footer-legal">
+                <a href="{{ route('legal.mentions') }}" target="_blank">Mentions légales</a>
+                <a href="{{ route('legal.confidentialite') }}" target="_blank">Confidentialité</a>
+                <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">AGPL-3.0</a>
+            </div>
         </div>
     </div>
 </footer>
