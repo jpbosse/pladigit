@@ -109,6 +109,9 @@ function api_run(): void {
     header('Content-Type: application/json');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok'=>false]); return; }
 
+    // Écrire le runner au dernier moment — toute la session est définitive
+    write_runner();
+
     // Nettoyer les fichiers précédents
     @unlink(LOG_FILE);
     @unlink(DONE_FILE);
@@ -193,8 +196,7 @@ function handle_post(string $action): void {
                 'password' => $_POST['admin_password'] ?? '',
             ];
             $_SESSION['step'] = 7;
-            // Écrire le runner.php avec les données de session
-            write_runner();
+            // Le runner sera écrit au moment du clic "Lancer l'installation" (api_run)
             redirect('install');
             break;
     }
