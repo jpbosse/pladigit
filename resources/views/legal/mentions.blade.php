@@ -44,7 +44,7 @@
 
         <h2>Hébergement</h2>
         <p>La plateforme de démonstration Pladigit est hébergée sur les infrastructures de :<br>
-        <strong>OVHcloud</strong> — 2 rue Kellermann, 59100 Roubaix, France<br>
+        <strong>OVHcloud</strong> — Via Alessandro Fauchè 58, 20154 Milan, Italie (Union Européenne)<br>
         Serveurs situés en France (Union Européenne).<br>
         Aucune donnée n'est transmise en dehors de l'Union Européenne.</p>
         <p>Les instances déployées par les collectivités sont hébergées sur leurs propres serveurs

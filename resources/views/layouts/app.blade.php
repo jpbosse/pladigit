@@ -365,31 +365,69 @@
 </footer>
 -->
 
-<footer class="pd-footer">
-    <div class="pd-footer-container">
-        <div class="pd-footer-brand">
-            <div class="pd-footer-logo-mini">P</div>
-            <div class="pd-footer-info">
-                <b>{{ config('app.name') }}</b>
-                <span>© {{ date('Y') }} — Pladigit · Soullans</span>
+<footer id="pd-main-footer" style="
+    background: var(--pd-surface);
+    border-top: 2px solid color-mix(in srgb, var(--pd-navy) 15%, transparent);
+    padding: 0 24px;
+    height: var(--pd-footer-h);
+    display: flex;
+    align-items: center;
+    margin-top: auto;
+    margin-left: var(--pd-sidebar-collapsed);
+    transition: margin-left var(--pd-transition), background 0.3s;
+    font-size: 12px;
+">
+    <div style="width:100%;display:flex;justify-content:space-between;align-items:center;gap:16px;">
+
+        {{-- Gauche : logo + nom + copyright --}}
+        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <div style="
+                width:26px;height:26px;
+                background:var(--pd-navy);color:white;
+                border-radius:6px;display:flex;align-items:center;justify-content:center;
+                font-weight:700;font-family:'Sora',sans-serif;font-size:13px;flex-shrink:0;
+            ">P</div>
+            <div style="min-width:0;">
+                <b style="display:block;font-size:12px;font-weight:600;color:var(--pd-text);white-space:nowrap;">{{ config('app.name') }}</b>
+                <span style="font-size:10.5px;color:var(--pd-muted);white-space:nowrap;">© {{ date('Y') }} — Pladigit · Soullans</span>
             </div>
         </div>
 
-        <div class="pd-footer-status-pill">
-            <div class="pd-status-dot" id="health-dot"></div>
-            <span id="health-label">Connexion...</span>
+        {{-- Centre : statut système + tenant --}}
+        <div style="
+            display:flex;align-items:center;gap:7px;
+            background:color-mix(in srgb, var(--pd-navy) 8%, transparent);
+            border:1px solid var(--pd-border);
+            padding:5px 14px;border-radius:20px;
+            font-size:11px;font-weight:600;color:var(--pd-text);
+            white-space:nowrap;
+        ">
+            <div class="pd-status-dot" id="health-dot" style="width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;"></div>
+            <a href="/health" target="_blank" id="health-label" style="text-decoration:none;color:inherit;">Système…</a>
             @if($tenant)
-                <span class="pd-footer-sep">|</span>
-                <span class="pd-tenant-name">{{ $tenant->name }}</span>
+                <span style="color:var(--pd-border);margin:0 2px;">|</span>
+                <span style="color:var(--pd-navy);font-weight:600;">{{ $tenant->name }}</span>
             @endif
         </div>
 
-        <div class="pd-footer-links">
-            <a href="{{ route('legal.mentions') }}" target="_blank" rel="noopener">Mentions légales</a>
-            <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener">Licence AGPL-3.0</a>
-            <a href="mailto:contact@pladigit.fr">Support</a>
-            <span class="pd-v-tag">v0.8.0</span>
+        {{-- Droite : liens légaux + version --}}
+        <div style="display:flex;align-items:center;gap:14px;font-size:11px;flex-shrink:0;">
+            <a href="{{ route('legal.mentions') }}" target="_blank" rel="noopener"
+               style="color:var(--pd-muted);text-decoration:none;"
+               onmouseover="this.style.color='var(--pd-text)'" onmouseout="this.style.color='var(--pd-muted)'">Mentions légales</a>
+            <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener"
+               style="color:var(--pd-muted);text-decoration:none;"
+               onmouseover="this.style.color='var(--pd-text)'" onmouseout="this.style.color='var(--pd-muted)'">Licence AGPL-3.0</a>
+            <a href="mailto:contact@pladigit.fr"
+               style="color:var(--pd-muted);text-decoration:none;"
+               onmouseover="this.style.color='var(--pd-text)'" onmouseout="this.style.color='var(--pd-muted)'">Support</a>
+            <span style="
+                background:var(--pd-navy);color:rgba(255,255,255,0.85);
+                padding:2px 9px;border-radius:5px;
+                font-family:'Sora',monospace;font-size:10px;font-weight:700;
+            ">v0.8.0</span>
         </div>
+
     </div>
 </footer>
 
@@ -562,7 +600,18 @@
     backdrop?.addEventListener('click', closeMobileSidebar);
 
     // Redimensionnement : recalculer
-    window.addEventListener('resize', function(){ applySidebar(); });
+    window.addEventListener('resize', function(){ applySidebar(); syncFooter(); });
+
+    // Sync footer margin avec sidebar
+    function syncFooter() {
+        var footer = document.getElementById('pd-main-footer');
+        if (!footer) return;
+        footer.style.marginLeft = document.body.classList.contains('pd-sidebar-open')
+            ? 'var(--pd-sidebar-w)'
+            : 'var(--pd-sidebar-collapsed)';
+    }
+    document.addEventListener('pd-sidebar-changed', syncFooter);
+    syncFooter();
 
     // Avatar menu
     var avatarBtn = document.getElementById('pd-avatar-btn');

@@ -30,9 +30,9 @@
     </a>
 
     <div class="card">
-        <span class="badge">RGPD conforme</span>
+        <span class="badge">Conformité RGPD</span>
         <h1>Politique de confidentialité</h1>
-        <p class="subtitle">Dernière mise à jour : {{ date('d/m/Y') }}</p>
+        <p class="subtitle">Dernière mise à jour : 26 avril 2026</p>
 
         <div class="highlight">
             Pladigit est une plateforme auto-hébergée. Vos données restent sur vos propres serveurs
@@ -40,7 +40,8 @@
         </div>
 
         <h2>Responsable du traitement</h2>
-        <p><strong>Pladigit</strong> — Soullans (85300), France<br>
+        <p><strong>Jean-Pierre Bossé</strong> — Développeur indépendant<br>
+        Soullans (85300), France<br>
         Email : <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
 
         <h2>Données collectées</h2>
@@ -93,15 +94,27 @@
         de la plateforme. Aucun cookie publicitaire ou de traçage tiers n'est utilisé.</p>
 
         <h2>Sous-traitants</h2>
-        <p>Pladigit n'utilise aucun service tiers pour le traitement des données.
-        La plateforme est intégralement auto-hébergée sur vos propres serveurs.</p>
+        <p>Pour l'instance de démonstration accessible sur <strong>pladigit.fr</strong>, un seul sous-traitant
+        est impliqué pour l'hébergement :</p>
+        <ul>
+            <li><strong>OVHcloud</strong> — Via Alessandro Fauchè 58, 20154 Milan, Italie (Union Européenne) —
+            <a href="https://www.ovhcloud.com/fr/personal-data-protection/" target="_blank" rel="noopener">
+            politique de confidentialité OVHcloud</a></li>
+        </ul>
+        <p>Les instances auto-hébergées par les collectivités n'impliquent aucun sous-traitant
+        de la part de Pladigit.</p>
 
         <h2>Notification CNIL</h2>
         <p>En cas de violation de données, les personnes concernées et la CNIL seront notifiées
         dans un délai de 72 heures conformément à l'article 33 du RGPD.</p>
 
         <h2>Contact DPO</h2>
-        <p>Pour toute question relative à vos données personnelles :<br>
+        <p>Pour toute question relative à vos données personnelles : <a href="mailto:dpo@votre-organisation.fr">Contacter votre DPO</a>.<br>
+        Chaque organisation déployant Pladigit est responsable de la désignation de son propre
+        Délégué à la Protection des Données (DPO) conformément au RGPD.</p>
+
+        <h2>Contact éditeur</h2>
+        <p>Pour toute question relative à la plateforme Pladigit :<br>
         <a href="mailto:contact@pladigit.fr">contact@pladigit.fr</a></p>
     </div>
 
