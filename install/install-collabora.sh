@@ -133,8 +133,11 @@ if [ -f "$NGINX_CONF" ] && ! grep -q "collabora" "$NGINX_CONF"; then
     }
 "
     # Insérer avant le bloc location ~ /\.(?!well-known)
-    sed -i "s|location ~ /\\\\.(?!well-known)|${COLLABORA_BLOCK}\n    location ~ /\\.(?!well-known)|" "$NGINX_CONF" \
-        >> "$LOG_FILE" 2>&1
+    awk -v block="$COLLABORA_BLOCK" '
+        /location ~ \/\.\(\?!well-known\)/ && !done { print block; done=1 }
+        { print }
+    ' "$NGINX_CONF" > /tmp/nginx-pladigit.tmp \
+        && mv /tmp/nginx-pladigit.tmp "$NGINX_CONF"
 
     nginx -t >> "$LOG_FILE" 2>&1 \
         && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
