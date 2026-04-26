@@ -272,7 +272,7 @@
 
                 {{-- Commande à copier --}}
                 <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1.25rem">
-                    <code id="install-cmd" style="font-size:.78rem;color:#86efac;background:transparent;padding:0;word-break:break-all">curl -fsSL https://pladigit.fr/get-install | sudo bash</code>
+                    <code id="install-cmd" style="font-size:.78rem;color:#86efac;background:transparent;padding:0;word-break:break-all">curl -fsSL https://pladigit.fr/install.sh | sudo bash</code>
                     <button onclick="copyCmd()" id="copy-btn"
                         style="flex-shrink:0;background:var(--gold);color:var(--navy);border:none;border-radius:4px;padding:.35rem .75rem;font-size:.75rem;font-weight:700;cursor:pointer;transition:all .2s;white-space:nowrap">
                         📋 Copier
@@ -293,7 +293,7 @@
                 </p>
 
                 <div style="display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.75rem">
-                    <a href="/get-install" download
+                    <a href="/install.sh" download
                         style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
                         onmouseover="this.style.background='rgba(255,255,255,.1)'"
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">
@@ -305,7 +305,7 @@
                         <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
                     </a>
 
-                    <a href="/get-wizard" download
+                    <a href="/install-wizard.php" download
                         style="display:flex;align-items:center;gap:.75rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;text-decoration:none;transition:all .2s"
                         onmouseover="this.style.background='rgba(255,255,255,.1)'"
                         onmouseout="this.style.background='rgba(255,255,255,.06)'">
@@ -325,19 +325,25 @@
             </div>
         </div>
 
-        {{-- Lien documentation --}}
-        <div class="fade-up" style="text-align:center;margin-top:2.5rem;display:flex;flex-direction:column;gap:.75rem;align-items:center">
-            <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank"
-                style="font-size:.875rem;color:rgba(255,255,255,.8);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.3);padding-bottom:.1rem;transition:color .2s"
-                onmouseover="this.style.color='white'"
-                onmouseout="this.style.color='rgba(255,255,255,.8)'">
-                📖 Guide d'installation avec captures d'écran →
+        {{-- Liens documentation --}}
+        <div class="fade-up" style="text-align:center;margin-top:2.5rem;display:flex;flex-wrap:wrap;gap:1rem;align-items:center;justify-content:center">
+            <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank" rel="noopener"
+                style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;padding:.65rem 1.25rem;font-size:.875rem;font-weight:600;text-decoration:none;transition:all .2s;backdrop-filter:blur(4px)"
+                onmouseover="this.style.background='rgba(255,255,255,.25)';this.style.borderColor='rgba(255,255,255,.7)'"
+                onmouseout="this.style.background='rgba(255,255,255,.15)';this.style.borderColor='rgba(255,255,255,.4)'">
+                📖 Guide d'installation illustré
             </a>
-            <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank"
-                style="font-size:.8rem;color:rgba(255,255,255,.4);text-decoration:none;border-bottom:1px solid rgba(255,255,255,.15);padding-bottom:.1rem;transition:color .2s"
-                onmouseover="this.style.color='rgba(255,255,255,.7)'"
-                onmouseout="this.style.color='rgba(255,255,255,.4)'">
-                ⚙️ Documentation technique (INSTALL.md) →
+            <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank" rel="noopener"
+                style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;padding:.65rem 1.25rem;font-size:.875rem;font-weight:600;text-decoration:none;transition:all .2s;backdrop-filter:blur(4px)"
+                onmouseover="this.style.background='rgba(255,255,255,.25)';this.style.borderColor='rgba(255,255,255,.7)'"
+                onmouseout="this.style.background='rgba(255,255,255,.15)';this.style.borderColor='rgba(255,255,255,.4)'">
+                ⚙️ Documentation technique
+            </a>
+            <a href="https://github.com/jpbosse/pladigit" target="_blank" rel="noopener"
+                style="display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;padding:.65rem 1.25rem;font-size:.875rem;font-weight:600;text-decoration:none;transition:all .2s;backdrop-filter:blur(4px)"
+                onmouseover="this.style.background='rgba(255,255,255,.25)';this.style.borderColor='rgba(255,255,255,.7)'"
+                onmouseout="this.style.background='rgba(255,255,255,.15)';this.style.borderColor='rgba(255,255,255,.4)'">
+                ⭐ Code source GitHub
             </a>
         </div>
     </div>
