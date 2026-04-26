@@ -246,10 +246,11 @@ function validate_admin(array $p): array {
 // RUNNER — script PHP exécuté en arrière-plan
 // =============================================================================
 function write_runner(): void {
-    $db    = $_SESSION['db']    ?? [];
-    $app   = $_SESSION['app']   ?? [];
-    $smtp  = $_SESSION['smtp']  ?? [];
-    $admin = $_SESSION['admin'] ?? [];
+    $db        = $_SESSION['db']        ?? [];
+    $app       = $_SESSION['app']       ?? [];
+    $smtp      = $_SESSION['smtp']      ?? [];
+    $admin     = $_SESSION['admin']     ?? [];
+    $collabora = $_SESSION['collabora'] ?? [];
 
     $appKey      = 'base64:' . base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
@@ -278,6 +279,8 @@ function write_runner(): void {
     $dbName = addslashes($db['name']);
     $appUser = addslashes($db['app_user']);
     $rootUser = addslashes($db['root_user']);
+    $collaboraMode = addslashes($collabora['mode'] ?? 'skip');
+    $collaboraUrl  = addslashes($collabora['url']  ?? '');
 
     $script = <<<RUNNER
 <?php
@@ -358,29 +361,24 @@ try {
     ilog('✓ Workers configurés');
 
     // 7. Collabora Online (si demandé)
-    \$collaboraMode = \$cfg['collabora']['mode'] ?? 'skip';
+    \$collaboraMode = '{$collaboraMode}';
     if (\$collaboraMode === 'local') {
         ilog('Collabora : démarrage de l\'installation Docker...');
         ilog('Collabora : cette étape peut durer 10 à 20 minutes (téléchargement ~1.5 Go)');
 
         \$collaboraScript = '{$root}/install/install-collabora.sh';
         \$logFile = dirname('{$done}') . '/install.log';
-        \$appUrlC = escapeshellarg(\$cfg['app']['url'] ?? '');
-        \$rootC   = escapeshellarg('{$root}');
-        \$logC    = escapeshellarg(\$logFile);
 
         if (!file_exists(\$collaboraScript) || !is_executable(\$collaboraScript)) {
             ilog('✗ ERREUR : install-collabora.sh absent ou non exécutable.');
             ilog('  → Collabora non installé. Vous pouvez l\'activer manuellement plus tard.');
         } else {
-            // Lancer en synchrone pour capturer les logs en temps réel
-            \$cmd = "sudo {$root}/install/install-collabora.sh {\$logFile} " . (\$cfg['app']['url'] ?? '') . " {$root} 2>&1";
+            \$cmd = "sudo {$root}/install/install-collabora.sh {\$logFile} {$appUrl} {$root} 2>&1";
             \$handle = popen(\$cmd, 'r');
             if (\$handle) {
-                // Le script écrit directement dans le log — on attend juste la fin
                 while (!feof(\$handle)) {
                     fread(\$handle, 1024);
-                    usleep(500000); // 0.5s
+                    usleep(500000);
                 }
                 \$exitCode = pclose(\$handle);
                 if (\$exitCode !== 0) {
@@ -392,9 +390,9 @@ try {
                 ilog('  → Collabora non installé. Activez-le manuellement depuis les paramètres.');
             }
         }
-    } elseif (\$collaboraMode === 'external' && !empty(\$cfg['collabora']['url'])) {
+    } elseif (\$collaboraMode === 'external' && !empty('{$collaboraUrl}')) {
         \$env = file_get_contents('{$root}/.env');
-        \$collUrl = \$cfg['collabora']['url'];
+        \$collUrl = '{$collaboraUrl}';
         if (strpos(\$env, 'COLLABORA_URL') === false) {
             \$env .= "\nCOLLABORA_URL={\$collUrl}\n";
         } else {
