@@ -817,10 +817,12 @@ function page_smtp(): void { ?>
 
 
 function page_collabora(): void {
-    $freeBytes = disk_free_space('/');
-    $freeGb    = round($freeBytes / 1024 / 1024 / 1024, 1);
-    $enough    = $freeGb >= 4;
-    $tight     = $freeGb >= 2 && $freeGb < 4;
+    $freeBytes   = disk_free_space('/');
+    $freeGb      = round($freeBytes / 1024 / 1024 / 1024, 1);
+    $enough      = $freeGb >= 4;
+    $tight       = $freeGb >= 2 && $freeGb < 4;
+    $savedMode   = $_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip');
+    $savedUrl    = $_SESSION['collabora']['url']  ?? '';
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F4DD; Collabora Online</div>
@@ -848,7 +850,7 @@ function page_collabora(): void {
   <div style="display:flex;flex-direction:column;gap:.75rem;margin-top:.5rem">
 
     <label style="display:flex;align-items:flex-start;gap:.875rem;background:var(--light);border-radius:8px;padding:1rem;cursor:pointer">
-      <input type="radio" name="collabora_mode" value="local" <?= $enough ? "checked" : "" ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
+      <input type="radio" name="collabora_mode" value="local" <?= $savedMode === 'local' ? 'checked' : '' ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
       <div>
         <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x1F4E6; Installer sur ce serveur (Docker)</div>
         <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Collabora sera installé automatiquement via Docker. Nécessite ~2 Go d'espace disque et <strong>10 à 20 minutes supplémentaires</strong> selon votre connexion (téléchargement de l'image Docker).</div>
@@ -856,18 +858,18 @@ function page_collabora(): void {
     </label>
 
     <label style="display:flex;align-items:flex-start;gap:.875rem;background:var(--light);border-radius:8px;padding:1rem;cursor:pointer">
-      <input type="radio" name="collabora_mode" value="external" onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
+      <input type="radio" name="collabora_mode" value="external" <?= $savedMode === 'external' ? 'checked' : '' ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
       <div style="flex:1">
         <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x1F310; Utiliser une instance existante</div>
         <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Si vous disposez déjà d'un serveur Collabora Online.</div>
         <div id="collabora-url" style="display:none;margin-top:.75rem">
-          <input type="text" name="collabora_url" class="inp" placeholder="https://collabora.macommune.fr">
+          <input type="text" name="collabora_url" class="inp" value="<?= htmlspecialchars($savedUrl) ?>" placeholder="https://collabora.macommune.fr">
         </div>
       </div>
     </label>
 
     <label style="display:flex;align-items:flex-start;gap:.875rem;background:var(--light);border-radius:8px;padding:1rem;cursor:pointer">
-      <input type="radio" name="collabora_mode" value="skip" <?= !$enough ? "checked" : "" ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
+      <input type="radio" name="collabora_mode" value="skip" <?= $savedMode === 'skip' ? 'checked' : '' ?> onchange="toggleUrl(this.value)" style="margin-top:.2rem;flex-shrink:0">
       <div>
         <div style="font-weight:600;font-size:.875rem;color:var(--navy)">&#x23F0; Passer — configurer plus tard</div>
         <div style="font-size:.78rem;color:var(--grey);margin-top:.2rem">Vous pourrez activer Collabora depuis les paramètres.</div>
@@ -905,7 +907,7 @@ function page_admin(array $e): void { ?>
 </div>
 <div class="alert ai"><strong>Conseil :</strong> exemple : <code>Mairie-2025-Pladigit!</code></div>
 <div class="btns">
-  <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
+  <a href="?action=collabora" class="btn btn-s">&#x2190; Retour</a>
   <button type="submit" class="btn btn-p">Lancer l'installation &#x2192;</button>
 </div>
 </form></div></div>
