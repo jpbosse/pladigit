@@ -4,7 +4,7 @@
 
 | Version | Supportée |
 |---------|-----------|
-| 0.7.x (branche main) | ✅ Oui |
+| 0.8.x (branche main) | ✅ Oui |
 | Versions antérieures | ❌ Non |
 
 ## Signaler une vulnérabilité

@@ -111,7 +111,7 @@ Une seule commande suffit. Elle installe PHP, MySQL, Redis, Nginx et Pladigit, p
 **Prérequis :** Ubuntu 22.04 ou 24.04 LTS — 2 vCPU — 4 Go RAM — 25 Go SSD
 
 ```bash
-curl -fsSL https://pladigit.fr/get-install | sudo bash
+curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
 L'assistant web vous guide ensuite en 8 étapes pour configurer la base de données, l'URL, l'email et le compte administrateur.
@@ -128,8 +128,8 @@ Pour les techniciens qui souhaitent contrôler chaque étape ou installer Pladig
 
 | Fichier | Description | Lien |
 |---------|-------------|------|
-| `install.sh` | Script bash d'installation automatique | [pladigit.fr/get-install](https://pladigit.fr/get-install) |
-| `install/index.php` | Wizard web de configuration | [pladigit.fr/get-wizard](https://pladigit.fr/get-wizard) |
+| `install.sh` | Script bash d'installation automatique | [pladigit.fr/install.sh](https://pladigit.fr/install.sh) |
+| `install/index.php` | Wizard web de configuration | [pladigit.fr/install-wizard.php](https://pladigit.fr/install-wizard.php) |
 
 ---
 
@@ -158,9 +158,10 @@ composer audit                                       # 0 vulnérabilité
 | [Guide d'installation](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) | Guide pas-à-pas avec captures d'écran (s'ouvre dans le navigateur) |
 | [INSTALL.md](INSTALL.md) | Guide technique complet — installation manuelle et production |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Comment contribuer au projet |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Code de conduite de la communauté |
 | [SECURITY.md](SECURITY.md) | Signaler une vulnérabilité |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
-| [docs/adr/](docs/adr/) | Architecture Decision Records (ADR-001 à ADR-030) |
+| [docs/adr/](docs/adr/) | Architecture Decision Records (ADR-001 à ADR-031) |
 | [docs/](docs/README.md) | Documentation technique complète |
 | [docs/guides/guide-utilisateur-phototheque.md](docs/guides/guide-utilisateur-phototheque.md) | Guide utilisateur Photothèque |
 | [docs/guides/guide-utilisateur-ged.md](docs/guides/guide-utilisateur-ged.md) | Guide utilisateur GED + Collabora |
