@@ -5,6 +5,32 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 
 ---
 
+## [0.8.0] — Avril 2026
+
+### Ajouté
+- **Script d'installation automatique** `install.sh` — une seule commande pour installer l'environnement complet (PHP 8.4, MySQL 8, Redis, Nginx, Supervisor, Node.js 20)
+- **Wizard d'installation web** 8 étapes — interface graphique standalone PHP, sans dépendance Laravel
+- **Installation Collabora Online automatique** via Docker — script `install-collabora.sh` exécuté en root via sudoers, avec progression temps réel dans le wizard
+- **Menu mise à jour / réinstallation** — détection d'installation existante avec 3 choix : Mettre à jour, Réinstaller, Annuler
+- **Persistance des choix wizard** via `config.json` — navigation libre entre les étapes sans perte de données
+- Récapitulatif avant lancement avec détection d'installation locale
+- ADR-028 : script d'installation automatique
+- ADR-029 : wizard d'installation web PHP standalone
+- ADR-030 : Collabora Online installation optionnelle via wizard
+- ADR-031 : script `install-collabora.sh` via sudoers
+
+### Modifié
+- Identité du projet : "Les Bézots" → **Pladigit**, `lesbezots.fr` → `pladigit.fr`
+- `contact@pladigit.fr` comme adresse de contact officielle
+- Protection réinstallation : confirmation texte → menu 3 choix interactif
+- `GRANT ALL PRIVILEGES ON *.*` pour l'utilisateur MySQL (requis pour le multi-tenant)
+
+### Technique
+- Attente automatique du verrou `apt` au démarrage (gestion `unattended-upgrades`)
+- Config Nginx : `SCRIPT_FILENAME $realpath_root/index.php` pour le routage Laravel correct
+
+---
+
 ## [0.7.0] — Avril 2026
 
 ### Ajouté
