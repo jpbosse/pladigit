@@ -366,8 +366,8 @@
 -->
 
 <footer id="pd-main-footer" style="
-    background: var(--pd-surface);
-    border-top: 2px solid color-mix(in srgb, var(--pd-navy) 15%, transparent);
+    background: var(--pd-navy);
+    border-top: 1px solid var(--pd-navy-dark);
     padding: 0 24px;
     height: var(--pd-footer-h);
     display: flex;
@@ -383,46 +383,47 @@
         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
             <div style="
                 width:26px;height:26px;
-                background:var(--pd-navy);color:white;
+                background:rgba(255,255,255,0.15);color:white;
                 border-radius:6px;display:flex;align-items:center;justify-content:center;
                 font-weight:700;font-family:'Sora',sans-serif;font-size:13px;flex-shrink:0;
             ">P</div>
             <div style="min-width:0;">
-                <b style="display:block;font-size:12px;font-weight:600;color:var(--pd-text);white-space:nowrap;">{{ config('app.name') }}</b>
-                <span style="font-size:10.5px;color:var(--pd-muted);white-space:nowrap;">© {{ date('Y') }} — Pladigit · Soullans</span>
+                <b style="display:block;font-size:12px;font-weight:600;color:rgba(255,255,255,0.9);white-space:nowrap;">{{ config('app.name') }}</b>
+                <span style="font-size:10.5px;color:rgba(255,255,255,0.45);white-space:nowrap;">© {{ date('Y') }} — Pladigit · Soullans</span>
             </div>
         </div>
 
         {{-- Centre : statut système + tenant --}}
         <div style="
             display:flex;align-items:center;gap:7px;
-            background:color-mix(in srgb, var(--pd-navy) 8%, transparent);
-            border:1px solid var(--pd-border);
+            background:rgba(255,255,255,0.1);
+            border:1px solid rgba(255,255,255,0.15);
             padding:5px 14px;border-radius:20px;
-            font-size:11px;font-weight:600;color:var(--pd-text);
+            font-size:11px;font-weight:600;color:rgba(255,255,255,0.85);
             white-space:nowrap;
         ">
-            <div class="pd-status-dot" id="health-dot" style="width:7px;height:7px;border-radius:50%;background:#ccc;flex-shrink:0;"></div>
+            <div class="pd-status-dot" id="health-dot" style="width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.3);flex-shrink:0;"></div>
             <a href="/health" target="_blank" id="health-label" style="text-decoration:none;color:inherit;">Système…</a>
             @if($tenant)
-                <span style="color:var(--pd-border);margin:0 2px;">|</span>
-                <span style="color:var(--pd-navy);font-weight:600;">{{ $tenant->name }}</span>
+                <span style="color:rgba(255,255,255,0.25);margin:0 2px;">|</span>
+                <span style="color:white;font-weight:600;">{{ $tenant->name }}</span>
             @endif
         </div>
 
         {{-- Droite : liens légaux + version --}}
         <div style="display:flex;align-items:center;gap:14px;font-size:11px;flex-shrink:0;">
             <a href="{{ route('legal.mentions') }}" target="_blank" rel="noopener"
-               style="color:var(--pd-muted);text-decoration:none;"
-               onmouseover="this.style.color='var(--pd-text)'" onmouseout="this.style.color='var(--pd-muted)'">Mentions légales</a>
+               style="color:rgba(255,255,255,0.5);text-decoration:none;"
+               onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Mentions légales</a>
             <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener"
-               style="color:var(--pd-muted);text-decoration:none;"
-               onmouseover="this.style.color='var(--pd-text)'" onmouseout="this.style.color='var(--pd-muted)'">Licence AGPL-3.0</a>
+               style="color:rgba(255,255,255,0.5);text-decoration:none;"
+               onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Licence AGPL-3.0</a>
             <a href="mailto:contact@pladigit.fr"
-               style="color:var(--pd-muted);text-decoration:none;"
-               onmouseover="this.style.color='var(--pd-text)'" onmouseout="this.style.color='var(--pd-muted)'">Support</a>
+               style="color:rgba(255,255,255,0.5);text-decoration:none;"
+               onmouseover="this.style.color='white'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Support</a>
             <span style="
-                background:var(--pd-navy);color:rgba(255,255,255,0.85);
+                background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.9);
+                border:1px solid rgba(255,255,255,0.2);
                 padding:2px 9px;border-radius:5px;
                 font-family:'Sora',monospace;font-size:10px;font-weight:700;
             ">v0.8.0</span>
