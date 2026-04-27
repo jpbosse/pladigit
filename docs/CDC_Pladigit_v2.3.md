@@ -180,8 +180,7 @@ Ce qui distingue les offres est le niveau d'accompagnement, pas l'accès à la f
 | Offre | Accompagnement |
 |-------|----------------|
 | Communautaire | Tout disponible — configuration autonome |
-| Assistance | Accompagnement configuration prestataire RGS \*\* et PKI interne |
-| Enterprise | Déploiement PKI sur mesure + SLA chaîne de signature |
+| Partenaire | Accompagnement configuration prestataire RGS \*\*, PKI interne, SLA chaîne de signature — sur devis |
 
 #### DataGrid — listes structurées no-code
 - Définition des structures de tables par le Super Admin (aucun accès MySQL direct pour les utilisateurs)

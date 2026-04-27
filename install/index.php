@@ -904,7 +904,7 @@ if (checked) toggleUrl(checked.value);
 function page_admin(array $e): void { ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F464; Compte Super Administrateur</div>
-<p class="card-sub">Ce compte permet d'administrer toute la plateforme Pladigit (création des organisations, gestion des abonnements).</p>
+<p class="card-sub">Ce compte permet d'administrer toute la plateforme Pladigit (création des organisations, gestion des accès et des plans).</p>
 <?php errs($e) ?>
 <form method="POST"><input type="hidden" name="action" value="admin">
 <div class="fg"><label class="lbl">Nom complet</label><input type="text" name="admin_name" class="inp" placeholder="Marie Dupont" required></div>

@@ -33,8 +33,8 @@
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Plan *</label>
 		<select name="plan" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm">
-                    <option value="communautaire">Communautaire — Auto-hébergé — Illimité</option>
-                    <option value="partenaire">Partenaire — Avec accompagnement — Illimité</option>
+                    <option value="communautaire" {{ old('plan') === 'communautaire' ? 'selected' : '' }}>Communautaire — Auto-hébergé — Gratuit</option>
+                    <option value="partenaire" {{ old('plan') === 'partenaire' ? 'selected' : '' }}>Partenaire — Avec accompagnement — Sur devis</option>
                 </select>
             </div>
 

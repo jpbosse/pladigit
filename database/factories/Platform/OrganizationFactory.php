@@ -37,8 +37,8 @@ class OrganizationFactory extends Factory
         return $this->state(['status' => 'suspended']);
     }
 
-    public function assistance(): static
+    public function partenaire(): static
     {
-        return $this->state(['plan' => 'assistance', 'max_users' => 200]);
+        return $this->state(['plan' => 'partenaire', 'max_users' => 9999]);
     }
 }
