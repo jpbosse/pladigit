@@ -56,9 +56,25 @@ Pour créer une nouvelle organisation cliente, suivre les étapes suivantes :
 - Créer le premier administrateur de l'organisation
 ## 4.2 Champs du formulaire
 
-## 4.3 Plans disponibles
+| Champ | Obligatoire | Description |
+|-------|-------------|-------------|
+| Nom de l'organisation | Oui | Nom complet affiché dans l'interface (ex : Commune de Soullans) |
+| Slug | Oui | Identifiant URL unique, lettres minuscules et tirets (ex : commune-soullans). Détermine le nom de la base de données — définitif |
+| Plan | Oui | Voir section 4.3 |
+| Quota de stockage | Oui | En Mo. Minimum 512 Mo. Par défaut 10 240 Mo (10 Go) |
 
 ⚠ Note : Le slug est définitif une fois l'organisation créée. Il détermine le nom de la base de données. Choisir avec soin.
+
+## 4.3 Plans disponibles
+
+Pladigit propose deux plans :
+
+| Plan | Tarif | Description |
+|------|-------|-------------|
+| **Communautaire** | Gratuit | Auto-hébergement autonome. Accès complet à toutes les fonctionnalités. Support via la communauté GitHub. Convient aux organisations disposant de compétences techniques en interne. |
+| **Partenaire** | Sur devis | Accompagnement à l'installation, aux mises à jour et à la configuration (SMTP, LDAP, PKI, Collabora). Support direct. Convient aux communes et associations sans ressource IT dédiée. |
+
+Les deux plans donnent accès à l'ensemble des modules. La différence porte uniquement sur le niveau d'accompagnement fourni.
 
 # 5. Configuration SMTP d'une organisation
 La configuration SMTP permet à l'organisation d'envoyer des emails (notifications, réinitialisation de mot de passe, alertes). Elle est accessible depuis la page de détail de chaque organisation.
