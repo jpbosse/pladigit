@@ -35,30 +35,31 @@
         <div id="versionMsg" class="text-xs mt-2 hidden"></div>
     </div>
 
-    {{-- ── Statut ── --}}
+    {{-- ── Statut + bouton ── --}}
     <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-5" id="statusCard">
         <h2 class="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b">Dernière mise à jour</h2>
 
         @if(! $settings->update_last_run_at)
-            <p class="text-sm text-gray-400 italic">Aucune mise à jour effectuée.</p>
-        @else
-            <div class="flex items-center gap-3 flex-wrap">
-                @if($settings->update_last_status === 'success')
-                    <span class="text-green-600 font-semibold text-sm">✓ Succès</span>
-                @elseif($settings->update_last_status === 'running')
-                    <span class="text-blue-600 font-semibold text-sm">⏳ En cours…</span>
-                @else
-                    <span class="text-red-600 font-semibold text-sm">✗ Échec</span>
-                @endif
-                <span class="text-sm text-gray-500">{{ $settings->update_last_run_at->format('d/m/Y à H:i:s') }}</span>
-                @if($settings->update_current_version)
-                    <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-mono">v{{ $settings->update_current_version }}</span>
-                @endif
-            </div>
-            @if($settings->update_last_message)
-                <p class="text-xs text-gray-500 mt-1 font-mono">{{ $settings->update_last_message }}</p>
-            @endif
+            <p id="noUpdate" class="text-sm text-gray-400 italic">Aucune mise à jour effectuée.</p>
         @endif
+
+        <div id="statusRow" class="flex items-center gap-3 flex-wrap {{ ! $settings->update_last_run_at ? 'hidden' : '' }}">
+            <span id="statusBadge" class="font-semibold text-sm
+                {{ $settings->update_last_status === 'success' ? 'text-green-600' : ($settings->update_last_status === 'running' ? 'text-blue-600' : 'text-red-600') }}">
+                @if($settings->update_last_status === 'success') ✓ Succès
+                @elseif($settings->update_last_status === 'running') ⏳ En cours…
+                @elseif($settings->update_last_status === 'error') ✗ Échec
+                @endif
+            </span>
+            <span id="statusDate" class="text-sm text-gray-500">
+                {{ $settings->update_last_run_at?->format('d/m/Y à H:i:s') }}
+            </span>
+            @if($settings->update_current_version)
+            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-mono">
+                v{{ $settings->update_current_version }}
+            </span>
+            @endif
+        </div>
 
         <div class="mt-4 flex items-center gap-3 flex-wrap">
             <button type="button" onclick="runUpdate()" id="runBtn"
@@ -77,6 +78,21 @@
         </div>
     </div>
 
+    {{-- ── Log en temps réel ── --}}
+    <div id="logCard" class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5 {{ ! $settings->update_last_run_at ? 'hidden' : '' }}">
+        <div class="flex items-center justify-between px-5 py-3 border-b">
+            <h2 class="text-sm font-semibold text-gray-700">Journal d'exécution</h2>
+            <button type="button" onclick="clearLog()" id="clearLogBtn"
+                    class="text-xs text-gray-400 hover:text-gray-600 transition">
+                Effacer l'affichage
+            </button>
+        </div>
+        <pre id="logBox"
+             style="font-size:11px;line-height:1.6;font-family:'JetBrains Mono','Fira Mono','Consolas',monospace;
+                    background:#0f1117;color:#d1d5db;padding:16px;border-radius:0 0 12px 12px;
+                    max-height:360px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;margin:0;">{{ $settings->update_last_message ?? '' }}</pre>
+    </div>
+
     {{-- ── Informations ── --}}
     <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-800">
         <p class="font-semibold mb-2">⚠ Avant de lancer une mise à jour</p>
@@ -91,6 +107,9 @@
 </div>
 
 <script>
+const CSRF = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
+// ── Vérification version GitHub ───────────────────────────────────────────────
 async function checkVersion() {
     const btn = document.getElementById('checkBtn');
     const msg = document.getElementById('versionMsg');
@@ -103,7 +122,6 @@ async function checkVersion() {
             document.getElementById('availableVersion').textContent = 'v' + d.version;
             msg.textContent = '✓ Version récupérée depuis GitHub.';
             msg.className = 'text-xs mt-2 text-green-600';
-            // Mettre à jour le libellé du bouton de mise à jour
             const runBtn = document.getElementById('runBtn');
             if (runBtn && !runBtn.disabled) {
                 runBtn.textContent = '▶ Mettre à jour vers v' + d.version;
@@ -120,6 +138,7 @@ async function checkVersion() {
     btn.disabled = false; btn.textContent = 'Vérifier sur GitHub';
 }
 
+// ── Lancement mise à jour ─────────────────────────────────────────────────────
 async function runUpdate() {
     const available = document.getElementById('availableVersion')?.textContent?.trim();
     const label = available && available !== '—' ? available : 'la dernière version';
@@ -129,17 +148,22 @@ async function runUpdate() {
     const res = document.getElementById('runResult');
     btn.disabled = true; btn.textContent = '⏳ Lancement…';
     res.className = 'text-sm hidden';
+
+    // Afficher le panneau de log
+    document.getElementById('logCard').classList.remove('hidden');
+    document.getElementById('logBox').textContent = '';
+
     try {
         const r = await fetch('{{ route('super-admin.update.run') }}', {
             method: 'POST',
-            headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' }
+            headers: { 'X-Requested-With':'XMLHttpRequest', 'X-CSRF-TOKEN': CSRF }
         });
         const d = await r.json();
         res.textContent = d.ok ? '✅ ' + d.message : '❌ ' + d.message;
         res.className = 'text-sm ' + (d.ok ? 'text-green-600' : 'text-red-600');
         if (d.ok) {
             btn.textContent = '⏳ Mise à jour en cours…';
-            pollStatus(180);
+            startPolling();
         } else {
             btn.disabled = false;
             btn.textContent = '▶ Lancer la mise à jour';
@@ -153,40 +177,96 @@ async function runUpdate() {
     res.classList.remove('hidden');
 }
 
-let pollCount = 0;
-async function pollStatus(max) {
-    if (pollCount++ > max) return;
+// ── Polling status + log ──────────────────────────────────────────────────────
+let pollTimer = null;
+let logOffset = 0;
+let pollIterations = 0;
+const MAX_POLL = 180;
+
+function startPolling() {
+    logOffset = 0;
+    pollIterations = 0;
+    poll();
+}
+
+async function poll() {
+    if (pollIterations++ > MAX_POLL) return;
+
+    await Promise.all([fetchStatus(), fetchLog()]);
+
+    const status = document.getElementById('statusBadge')?.dataset.status;
+    if (status === 'running' || !status) {
+        pollTimer = setTimeout(poll, 2000);
+    }
+}
+
+async function fetchStatus() {
     try {
         const r = await fetch('{{ route('super-admin.update.status') }}', { headers: {'X-Requested-With':'XMLHttpRequest'} });
         const d = await r.json();
         const res = document.getElementById('runResult');
         const btn = document.getElementById('runBtn');
-        if (d.status === 'running') {
-            setTimeout(() => pollStatus(max), 2000);
-            return;
+        const badge = document.getElementById('statusBadge');
+        const row = document.getElementById('statusRow');
+        const noUpdate = document.getElementById('noUpdate');
+
+        if (noUpdate) noUpdate.classList.add('hidden');
+        if (row) row.classList.remove('hidden');
+
+        if (d.last_run) {
+            const dateEl = document.getElementById('statusDate');
+            if (dateEl) dateEl.textContent = d.last_run;
         }
+
+        if (!badge) return;
+        badge.dataset.status = d.status ?? '';
+
         if (d.status === 'success') {
+            badge.textContent = '✓ Succès';
+            badge.className = 'font-semibold text-sm text-green-600';
             res.textContent = '✅ Mise à jour terminée avec succès.';
             res.className = 'text-sm text-green-600';
             btn.textContent = '▶ Lancer la mise à jour';
             btn.disabled = false;
-            // Recharger la page pour afficher le nouveau statut
             setTimeout(() => window.location.reload(), 2000);
         } else if (d.status === 'error') {
+            badge.textContent = '✗ Échec';
+            badge.className = 'font-semibold text-sm text-red-600';
             res.textContent = '❌ ' + (d.message || 'Erreur lors de la mise à jour.');
             res.className = 'text-sm text-red-600';
             btn.textContent = '▶ Lancer la mise à jour';
             btn.disabled = false;
+        } else if (d.status === 'running') {
+            badge.textContent = '⏳ En cours…';
+            badge.className = 'font-semibold text-sm text-blue-600';
         }
-    } catch {
-        setTimeout(() => pollStatus(max), 2000);
-    }
-    pollCount = 0;
+    } catch { /* silencieux */ }
 }
 
-// Si une mise à jour est en cours au chargement de la page, démarrer le polling
+async function fetchLog() {
+    try {
+        const r = await fetch(
+            '{{ route('super-admin.update.log') }}?offset=' + logOffset,
+            { headers: {'X-Requested-With':'XMLHttpRequest'} }
+        );
+        const d = await r.json();
+        if (d.lines && d.lines.length > 0) {
+            const box = document.getElementById('logBox');
+            box.textContent += d.lines.join('\n') + '\n';
+            box.scrollTop = box.scrollHeight;
+        }
+        if (d.offset > logOffset) logOffset = d.offset;
+    } catch { /* silencieux */ }
+}
+
+function clearLog() {
+    const box = document.getElementById('logBox');
+    if (box) box.textContent = '';
+}
+
+// ── Auto-démarrage si mise à jour en cours au chargement ─────────────────────
 @if($settings->update_last_status === 'running')
-document.addEventListener('DOMContentLoaded', () => pollStatus(180));
+document.addEventListener('DOMContentLoaded', () => startPolling());
 @endif
 </script>
 @endsection

@@ -46,6 +46,7 @@ class UpdateController extends Controller
             'update_last_message' => 'Mise à jour démarrée…',
             'update_last_run_at' => now(),
             'update_current_version' => config('app.version'),
+            'update_log_path' => $logFile,
         ]);
 
         // Lancement en arrière-plan : nohup garantit que le processus survit à la fin de la requête
@@ -88,6 +89,33 @@ class UpdateController extends Controller
             'last_run' => $settings->update_last_run_at?->format('d/m/Y à H:i:s'),
             'current_version' => $settings->update_current_version,
             'available_version' => $settings->update_available_version,
+        ]);
+    }
+
+    public function log(): JsonResponse
+    {
+        $settings = PlatformSettings::firstOrCreate([]);
+        $logPath = $settings->update_log_path;
+        $offset = (int) request()->query('offset', 0);
+
+        if (! $logPath || ! str_starts_with($logPath, self::LOG_DIR)) {
+            return response()->json(['lines' => [], 'offset' => 0]);
+        }
+
+        if (! file_exists($logPath)) {
+            return response()->json(['lines' => [], 'offset' => 0]);
+        }
+
+        $content = file_get_contents($logPath, false, null, $offset);
+        if ($content === false) {
+            return response()->json(['lines' => [], 'offset' => $offset]);
+        }
+
+        $lines = array_values(array_filter(explode("\n", $content)));
+
+        return response()->json([
+            'lines' => $lines,
+            'offset' => $offset + strlen($content),
         ]);
     }
 

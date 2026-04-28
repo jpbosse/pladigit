@@ -42,7 +42,7 @@ class PlatformSettings extends Model
         'backup_last_message', 'backup_last_size_bytes',
         'update_last_run_at', 'update_last_status',
         'update_last_message', 'update_current_version',
-        'update_available_version',
+        'update_available_version', 'update_log_path',
     ];
 
     protected $casts = [

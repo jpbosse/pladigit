@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\SuperAdmin;
 
+use App\Console\Commands\UpdateStatusCommand;
 use App\Models\Platform\PlatformSettings;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -42,6 +43,33 @@ class UpdateControllerTest extends TestCase
     {
         $this->post(route('super-admin.update.run'))
             ->assertRedirect(route('super-admin.login'));
+    }
+
+    // ── UpdateStatusCommand ────────────────────────────────────────────
+
+    public function test_update_status_command_success(): void
+    {
+        $this->artisan('pladigit:update-status', ['status' => 'success', 'message' => 'Terminé'])
+            ->assertSuccessful();
+
+        $settings = PlatformSettings::first();
+        $this->assertEquals('success', $settings->update_last_status);
+        $this->assertEquals('Terminé', $settings->update_last_message);
+    }
+
+    public function test_update_status_command_error(): void
+    {
+        $this->artisan('pladigit:update-status', ['status' => 'error', 'message' => 'Échec git pull'])
+            ->assertSuccessful();
+
+        $settings = PlatformSettings::first();
+        $this->assertEquals('error', $settings->update_last_status);
+    }
+
+    public function test_update_status_command_statut_invalide(): void
+    {
+        $this->artisan('pladigit:update-status', ['status' => 'invalid'])
+            ->assertFailed();
     }
 
     // ── run() ──────────────────────────────────────────────────────────
@@ -94,6 +122,49 @@ class UpdateControllerTest extends TestCase
                 'message' => null,
                 'last_run' => null,
             ]);
+    }
+
+    // ── log() ──────────────────────────────────────────────────────────
+
+    public function test_log_retourne_lignes_vides_si_pas_de_log_path(): void
+    {
+        $response = $this->actingAsSuperAdmin()
+            ->getJson(route('super-admin.update.log'));
+
+        $response->assertOk()
+            ->assertJson(['lines' => [], 'offset' => 0]);
+    }
+
+    public function test_log_retourne_lignes_depuis_fichier(): void
+    {
+        $logFile = storage_path('logs/updates/test_'.time().'.log');
+        @mkdir(dirname($logFile), 0755, true);
+        file_put_contents($logFile, "[2026-04-28] Étape 1\n[2026-04-28] Étape 2\n");
+
+        PlatformSettings::create(['update_log_path' => $logFile]);
+
+        $response = $this->actingAsSuperAdmin()
+            ->getJson(route('super-admin.update.log').'?offset=0');
+
+        $response->assertOk()
+            ->assertJsonStructure(['lines', 'offset']);
+
+        $data = $response->json();
+        $this->assertContains('[2026-04-28] Étape 1', $data['lines']);
+        $this->assertGreaterThan(0, $data['offset']);
+
+        @unlink($logFile);
+    }
+
+    public function test_log_rejette_chemin_hors_repertoire(): void
+    {
+        PlatformSettings::create(['update_log_path' => '/etc/passwd']);
+
+        $response = $this->actingAsSuperAdmin()
+            ->getJson(route('super-admin.update.log'));
+
+        $response->assertOk()
+            ->assertJson(['lines' => [], 'offset' => 0]);
     }
 
     // ── checkVersion() ─────────────────────────────────────────────────

@@ -79,6 +79,7 @@ Route::prefix('super-admin')
         Route::post('update/run', [UpdateController::class, 'run'])->name('update.run');
         Route::get('update/status', [UpdateController::class, 'status'])->name('update.status');
         Route::get('update/check-version', [UpdateController::class, 'checkVersion'])->name('update.check-version');
+        Route::get('update/log', [UpdateController::class, 'log'])->name('update.log');
 
         Route::get('backup', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'index'])->name('backup');
         Route::put('backup', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'update'])->name('backup.update');

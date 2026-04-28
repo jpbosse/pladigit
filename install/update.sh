@@ -14,7 +14,9 @@ log() {
 }
 
 fail() {
-    log "✗ ERREUR : $1"
+    local MSG="$1"
+    log "✗ ERREUR : $MSG"
+    cd "$ROOT_DIR" && $PHP artisan pladigit:update-status error "$MSG" >> "$LOG_FILE" 2>&1 || true
     cd "$ROOT_DIR" && $PHP artisan up >> "$LOG_FILE" 2>&1 || true
     exit 1
 }
@@ -37,6 +39,7 @@ log "✓ Mode maintenance activé"
 
 # ── 2. git pull ───────────────────────────────────────────────────────────────
 log "Récupération des sources (git pull origin main)..."
+git config --global --add safe.directory "$ROOT_DIR" >> "$LOG_FILE" 2>&1 || true
 git pull origin main >> "$LOG_FILE" 2>&1 \
     || fail "git pull origin main a échoué — vérifiez la connectivité réseau ou les conflits"
 log "✓ Sources mises à jour"
@@ -99,4 +102,7 @@ log "✓ Mode maintenance désactivé"
 log "══════════════════════════════════════════════"
 log "✓ Mise à jour terminée avec succès"
 log "══════════════════════════════════════════════"
+
+$PHP artisan pladigit:update-status success "Mise à jour terminée avec succès" >> "$LOG_FILE" 2>&1 || true
+
 exit 0
