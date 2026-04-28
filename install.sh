@@ -365,6 +365,17 @@ server {
 
     client_max_body_size 100M;
 
+    # Masquer la version Nginx
+    server_tokens off;
+
+    # ── Headers HTTP de sécurité ──────────────────────────────────────────
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
+
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
@@ -377,6 +388,11 @@ server {
     }
 
     location ~ /\.(?!well-known).* {
+        deny all;
+    }
+
+    # Bloquer les fichiers sensibles (défense en profondeur)
+    location ~ ^/(\.env|\.git|composer\.(json|lock)) {
         deny all;
     }
 
