@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculateur ROI — Pladigit vs Microsoft 365</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bleu: #1a3a5c;
+    --bleu-clair: #2d6ea0;
+    --cyan: #00b4c8;
+    --vert: #00c46a;
+    --rouge: #e84040;
+    --gris-fonce: #1c1f26;
+    --gris: #3a3f4a;
+    --gris-clair: #8a9ab0;
+    --fond: #f0f4f8;
+    --blanc: #ffffff;
+    --border: #d0dce8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--fond);
+    color: var(--gris-fonce);
+    min-height: 100vh;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--bleu);
+    color: var(--blanc);
+    padding: 2.5rem 2rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -80px;
+    width: 320px; height: 320px;
+    background: radial-gradient(circle, rgba(0,180,200,0.18) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -40px; left: 30%;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(0,196,106,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .header-badge {
+    display: inline-block;
+    background: rgba(0,180,200,0.18);
+    color: var(--cyan);
+    border: 1px solid rgba(0,180,200,0.35);
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.65rem;
+    margin-bottom: 0.9rem;
+  }
+  header h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 800;
+    line-height: 1.15;
+    margin-bottom: 0.5rem;
+  }
+  header h1 span { color: var(--cyan); }
+  header p {
+    font-size: 0.92rem;
+    color: rgba(255,255,255,0.65);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    max-width: 520px;
+  }
+
+  /* ── Layout ── */
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem 1rem 3rem;
+  }
+
+  /* ── Section titles ── */
+  .section-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--bleu-clair);
+    margin-bottom: 1rem;
+    padding-left: 0.1rem;
+  }
+
+  /* ── Inputs card ── */
+  .card {
+    background: var(--blanc);
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    padding: 1.6rem 1.8rem;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 2px 12px rgba(26,58,92,0.06);
+  }
+
+  .inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem 1.6rem;
+  }
+  @media (max-width: 600px) { .inputs-grid { grid-template-columns: 1fr; } }
+
+  .field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--gris);
+    margin-bottom: 0.4rem;
+    letter-spacing: 0.01em;
+  }
+  .field .hint {
+    font-size: 0.7rem;
+    color: var(--gris-clair);
+    margin-top: 0.25rem;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 5px;
+    border-radius: 4px;
+    background: linear-gradient(to right, var(--cyan) 0%, var(--cyan) var(--pct, 50%), var(--border) var(--pct, 50%));
+    outline: none;
+    cursor: pointer;
+    margin-top: 0.3rem;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--bleu);
+    border: 3px solid var(--blanc);
+    box-shadow: 0 0 0 2px var(--bleu);
+    cursor: pointer;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--bleu);
+    border: 3px solid var(--blanc);
+    box-shadow: 0 0 0 2px var(--bleu);
+    cursor: pointer;
+  }
+
+  .range-val {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--bleu);
+    min-width: 3.5rem;
+  }
+
+  /* Toggle */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    margin-top: 0.2rem;
+  }
+  .toggle {
+    position: relative;
+    width: 42px; height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .slider-toggle {
+    position: absolute; inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    cursor: pointer;
+    transition: 0.25s;
+  }
+  .slider-toggle::before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.25s;
+  }
+  .toggle input:checked + .slider-toggle { background: var(--vert); }
+  .toggle input:checked + .slider-toggle::before { transform: translateX(20px); }
+  .toggle-label { font-size: 0.82rem; color: var(--gris); }
+
+  /* ── Results ── */
+  .results-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.4rem;
+  }
+  @media (max-width: 640px) { .results-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 400px) { .results-grid { grid-template-columns: 1fr; } }
+
+  .result-card {
+    background: var(--blanc);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem 1.3rem;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(26,58,92,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .result-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26,58,92,0.1); }
+  .result-card.highlight {
+    background: var(--bleu);
+    border-color: var(--bleu);
+    color: var(--blanc);
+  }
+  .result-card.highlight::after {
+    content: '';
+    position: absolute;
+    top: -30px; right: -30px;
+    width: 90px; height: 90px;
+    background: radial-gradient(circle, rgba(0,180,200,0.25), transparent 70%);
+  }
+  .result-card .label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gris-clair);
+    margin-bottom: 0.4rem;
+  }
+  .result-card.highlight .label { color: rgba(255,255,255,0.55); }
+  .result-card .value {
+    font-size: 1.7rem;
+    font-weight: 800;
+    line-height: 1;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .result-card.highlight .value { color: var(--cyan); }
+  .result-card .sub {
+    font-size: 0.72rem;
+    color: var(--gris-clair);
+    margin-top: 0.3rem;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+  }
+  .result-card.highlight .sub { color: rgba(255,255,255,0.5); }
+  .result-card .trend-up { color: var(--vert); font-size: 0.75rem; font-weight: 600; margin-top: 0.2rem; }
+  .result-card .trend-down { color: var(--rouge); font-size: 0.75rem; font-weight: 600; margin-top: 0.2rem; }
+
+  /* ── Comparison bar ── */
+  .comparison-card {
+    background: var(--blanc);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.6rem 1.8rem;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 2px 12px rgba(26,58,92,0.06);
+  }
+  .comp-row {
+    margin-bottom: 1.1rem;
+  }
+  .comp-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.45rem;
+  }
+  .comp-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--gris);
+  }
+  .comp-amount {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+  }
+  .bar-track {
+    height: 10px;
+    background: var(--fond);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.6s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .bar-ms { background: linear-gradient(90deg, #e84040, #ff7070); }
+  .bar-pladigit { background: linear-gradient(90deg, #00b4c8, #00c46a); }
+
+  /* ── Timeline ── */
+  .timeline-card {
+    background: var(--blanc);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.6rem 1.8rem;
+    margin-bottom: 1.4rem;
+    box-shadow: 0 2px 12px rgba(26,58,92,0.06);
+  }
+  .timeline-years {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+  }
+  .year-col {
+    flex: 1;
+    text-align: center;
+  }
+  .year-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--gris-clair);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+  .year-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: center;
+  }
+  .year-bar-ms, .year-bar-pl {
+    width: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: white;
+    min-height: 22px;
+    transition: height 0.5s ease;
+  }
+  .year-bar-ms { background: linear-gradient(180deg, #e84040, #c02020); }
+  .year-bar-pl { background: linear-gradient(180deg, #00b4c8, #009aaa); }
+  .year-legend {
+    display: flex;
+    gap: 1.4rem;
+    margin-top: 1rem;
+    font-size: 0.72rem;
+    color: var(--gris);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+    margin-right: 0.4rem;
+    vertical-align: middle;
+  }
+
+  /* ── Argent économisé / mois ── */
+  .savings-banner {
+    background: linear-gradient(135deg, var(--bleu) 0%, #0e2c4e 100%);
+    color: white;
+    border-radius: 14px;
+    padding: 1.8rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 1.4rem;
+  }
+  .savings-banner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 20px,
+      rgba(255,255,255,0.02) 20px,
+      rgba(255,255,255,0.02) 21px
+    );
+  }
+  .savings-banner .big-number {
+    font-size: clamp(2.5rem, 8vw, 4rem);
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--cyan);
+    line-height: 1;
+    margin-bottom: 0.4rem;
+    text-shadow: 0 0 40px rgba(0,180,200,0.4);
+  }
+  .savings-banner .tagline {
+    font-size: 0.9rem;
+    color: rgba(255,255,255,0.7);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+  }
+  .savings-banner .sub-info {
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.45);
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Footnote ── */
+  footer {
+    text-align: center;
+    padding: 1.5rem 1rem 2.5rem;
+    font-size: 0.72rem;
+    color: var(--gris-clair);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    border-top: 1px solid var(--border);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  footer a { color: var(--bleu-clair); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  /* ── CTA ── */
+  .cta-row {
+    display: flex;
+    gap: 0.9rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin: 1.6rem 0 0.5rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 0.65rem 1.4rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,58,92,0.18); }
+  .btn-primary { background: var(--cyan); color: var(--bleu); }
+  .btn-secondary { background: transparent; color: var(--bleu); border: 2px solid var(--border); }
+
+  /* animate numbers */
+  .anim { transition: all 0.3s ease; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-badge">Calculateur ROI</div>
+  <h1>Combien vous coûte<br><span>Microsoft 365</span> ?</h1>
+  <p>Estimez votre économie réelle en passant à Pladigit — données mises à jour, calcul instantané.</p>
+</header>
+
+<main>
+
+  <!-- INPUTS -->
+  <p class="section-title">Votre situation</p>
+  <div class="card">
+    <div class="inputs-grid">
+
+      <div class="field">
+        <label>Nombre d'agents concernés : <span class="range-val" id="val-agents">10</span></label>
+        <input type="range" id="agents" min="2" max="100" value="10" step="1">
+        <p class="hint">Agents utilisant une licence Microsoft</p>
+      </div>
+
+      <div class="field">
+        <label>Tarif Microsoft 365 par agent/mois : <span class="range-val" id="val-prix">12,50</span> €</label>
+        <input type="range" id="prix" min="8" max="28" value="12.50" step="0.50">
+        <p class="hint">Business Basic ~8 €, Standard ~12,50 €, Premium ~22 €</p>
+      </div>
+
+      <div class="field">
+        <label>Coût VPS mensuel : <span class="range-val" id="val-vps">15</span> €/mois</label>
+        <input type="range" id="vps" min="5" max="80" value="15" step="5">
+        <p class="hint">Sans Collabora ~15 €, avec Collabora ~40–60 €</p>
+      </div>
+
+      <div class="field">
+        <label>Durée d'analyse : <span class="range-val" id="val-duree">3</span> ans</label>
+        <input type="range" id="duree" min="1" max="5" value="3" step="1">
+        <p class="hint">Durée typique d'un contrat logiciel collectivité</p>
+      </div>
+
+      <div class="field">
+        <label>Hausse annuelle Microsoft (%/an) : <span class="range-val" id="val-hausse">10</span> %</label>
+        <input type="range" id="hausse" min="0" max="25" value="10" step="1">
+        <p class="hint">+10 à +15 %/an constaté sur catalogue UGAP 2021–2024</p>
+      </div>
+
+      <div class="field">
+        <label>Accompagnement Partenaire estimé :</label>
+        <div class="toggle-row" style="margin-top:0.5rem">
+          <label class="toggle">
+            <input type="checkbox" id="partenaire">
+            <span class="slider-toggle"></span>
+          </label>
+          <span class="toggle-label">Inclure le plan Partenaire (formation + install)</span>
+        </div>
+        <div id="partenaire-field" style="display:none; margin-top:0.8rem;">
+          <label>Coût accompagnement : <span class="range-val" id="val-accomp">800</span> €/an</label>
+          <input type="range" id="accomp" min="200" max="3000" value="800" step="100">
+          <p class="hint">Première année : installation + formation. Années suivantes : suivi.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RÉSULTATS CHIFFRES CLÉS -->
+  <p class="section-title">Résultats</p>
+  <div class="results-grid">
+    <div class="result-card">
+      <div class="label">Coût MS365 / an</div>
+      <div class="value anim" id="r-ms-an">—</div>
+      <div class="sub">licences uniquement</div>
+      <div class="trend-down" id="r-ms-trend"></div>
+    </div>
+    <div class="result-card">
+      <div class="label">Coût Pladigit / an</div>
+      <div class="value anim" id="r-pl-an">—</div>
+      <div class="sub">VPS + accompagnement</div>
+    </div>
+    <div class="result-card highlight">
+      <div class="label">Économie / an</div>
+      <div class="value anim" id="r-eco-an">—</div>
+      <div class="sub">dès la première année</div>
+    </div>
+  </div>
+
+  <!-- BANNIÈRE ÉCONOMIE TOTALE -->
+  <div class="savings-banner">
+    <div class="big-number" id="r-total">—</div>
+    <div class="tagline">économisés sur <span id="r-duree-label">3 ans</span></div>
+    <div class="sub-info" id="r-mois-label"></div>
+  </div>
+
+  <!-- COMPARAISON BARRES -->
+  <div class="comparison-card">
+    <p class="section-title">Comparaison des coûts cumulés</p>
+    <div class="comp-row">
+      <div class="comp-header">
+        <span class="comp-name">🔴 Microsoft 365 (avec hausse tarifaire)</span>
+        <span class="comp-amount" id="bar-ms-label" style="color:var(--rouge)">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill bar-ms" id="bar-ms" style="width:100%"></div></div>
+    </div>
+    <div class="comp-row">
+      <div class="comp-header">
+        <span class="comp-name">🟢 Pladigit</span>
+        <span class="comp-amount" id="bar-pl-label" style="color:var(--cyan)">—</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill bar-pladigit" id="bar-pl" style="width:30%"></div></div>
+    </div>
+    <p style="font-size:0.72rem; color:var(--gris-clair); margin-top:0.8rem; font-family:'Instrument Serif',serif; font-style:italic;" id="ratio-label"></p>
+  </div>
+
+  <!-- TIMELINE PAR ANNÉE -->
+  <div class="timeline-card">
+    <p class="section-title">Coût annuel par année</p>
+    <div class="timeline-years" id="timeline"></div>
+    <div class="year-legend">
+      <span><span class="legend-dot" style="background:#e84040"></span>Microsoft 365</span>
+      <span><span class="legend-dot" style="background:#00b4c8"></span>Pladigit</span>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-row">
+    <a class="btn btn-primary" href="https://pladigit.fr" target="_blank">
+      🚀 Voir la démo
+    </a>
+    <a class="btn btn-secondary" href="https://github.com/jpbosse/pladigit" target="_blank">
+      ⭐ Code source GitHub
+    </a>
+    <a class="btn btn-secondary" href="mailto:contact@pladigit.fr">
+      ✉ Contacter Jean-Pierre
+    </a>
+  </div>
+
+</main>
+
+<footer>
+  Calcul indicatif fondé sur les tarifs UGAP 2024 et les chiffres réels de l'infrastructure Pladigit (ADR-026).<br>
+  Pladigit — AGPL-3.0 · <a href="https://pladigit.fr">pladigit.fr</a> · <a href="https://github.com/jpbosse/pladigit">github.com/jpbosse/pladigit</a>
+</footer>
+
+<script>
+  const fmtEur = (n) => {
+    if (n >= 1000) return (n/1000).toFixed(n >= 10000 ? 0 : 1).replace('.', ',') + ' k€';
+    return Math.round(n).toLocaleString('fr-FR') + ' €';
+  };
+  const fmtEurFull = (n) => Math.round(n).toLocaleString('fr-FR') + ' €';
+
+  function setRange(id, valId, fmt) {
+    const el = document.getElementById(id);
+    const val = document.getElementById(valId);
+    function update() {
+      const v = parseFloat(el.value);
+      val.textContent = fmt ? fmt(v) : v;
+      const min = parseFloat(el.min), max = parseFloat(el.max);
+      const pct = ((v - min) / (max - min)) * 100;
+      el.style.setProperty('--pct', pct + '%');
+    }
+    el.addEventListener('input', () => { update(); recalc(); });
+    update();
+  }
+
+  setRange('agents', 'val-agents', v => Math.round(v));
+  setRange('prix', 'val-prix', v => v.toFixed(2).replace('.', ','));
+  setRange('vps', 'val-vps', v => Math.round(v));
+  setRange('duree', 'val-duree', v => Math.round(v));
+  setRange('hausse', 'val-hausse', v => Math.round(v));
+  setRange('accomp', 'val-accomp', v => Math.round(v));
+
+  document.getElementById('partenaire').addEventListener('change', function() {
+    document.getElementById('partenaire-field').style.display = this.checked ? 'block' : 'none';
+    recalc();
+  });
+
+  function recalc() {
+    const agents = parseInt(document.getElementById('agents').value);
+    const prix = parseFloat(document.getElementById('prix').value);
+    const vps = parseInt(document.getElementById('vps').value);
+    const duree = parseInt(document.getElementById('duree').value);
+    const hausse = parseFloat(document.getElementById('hausse').value) / 100;
+    const avecPartenaire = document.getElementById('partenaire').checked;
+    const accomp = parseInt(document.getElementById('accomp').value);
+
+    // Calcul annuel MS365 avec hausse composée
+    let totalMS = 0, totalPL = 0;
+    const years = [];
+    for (let i = 0; i < duree; i++) {
+      const msAn = agents * prix * 12 * Math.pow(1 + hausse, i);
+      const plAn = vps * 12 + (avecPartenaire ? accomp : 0);
+      totalMS += msAn;
+      totalPL += plAn;
+      years.push({ ms: msAn, pl: plAn, year: new Date().getFullYear() + i });
+    }
+
+    const ecoAn = (agents * prix * 12) - (vps * 12 + (avecPartenaire ? accomp : 0));
+    const ecoTotal = totalMS - totalPL;
+
+    // Cards
+    document.getElementById('r-ms-an').textContent = fmtEur(agents * prix * 12);
+    document.getElementById('r-pl-an').textContent = fmtEur(vps * 12 + (avecPartenaire ? accomp : 0));
+    document.getElementById('r-eco-an').textContent = fmtEur(Math.max(0, ecoAn));
+    document.getElementById('r-total').textContent = fmtEurFull(Math.round(Math.max(0, ecoTotal)));
+    document.getElementById('r-duree-label').textContent = duree + ' an' + (duree > 1 ? 's' : '');
+
+    const mois = Math.round(Math.max(0, ecoTotal) / 12);
+    document.getElementById('r-mois-label').textContent =
+      'soit environ ' + fmtEur(mois) + ' par mois en moins sur votre budget informatique';
+
+    if (hausse > 0) {
+      document.getElementById('r-ms-trend').textContent =
+        '▲ +' + Math.round(hausse * 100) + '%/an estimé → ' + fmtEur(years[years.length - 1].ms) + ' en an ' + duree;
+    } else {
+      document.getElementById('r-ms-trend').textContent = '';
+    }
+
+    // Barres comparaison
+    document.getElementById('bar-ms-label').textContent = fmtEurFull(Math.round(totalMS));
+    document.getElementById('bar-pl-label').textContent = fmtEurFull(Math.round(totalPL));
+    const pctPl = totalMS > 0 ? Math.max(3, (totalPL / totalMS) * 100) : 10;
+    document.getElementById('bar-ms').style.width = '100%';
+    document.getElementById('bar-pl').style.width = pctPl + '%';
+    const ratio = totalMS > 0 ? (totalMS / totalPL).toFixed(1) : '—';
+    document.getElementById('ratio-label').textContent =
+      'Pladigit est ' + ratio + '× moins coûteux sur ' + duree + ' an' + (duree > 1 ? 's' : '') + '.';
+
+    // Timeline
+    const maxVal = Math.max(...years.map(y => y.ms));
+    const maxH = 80;
+    const tl = document.getElementById('timeline');
+    tl.innerHTML = '';
+    years.forEach(y => {
+      const hms = Math.max(14, (y.ms / maxVal) * maxH);
+      const hpl = Math.max(14, (y.pl / maxVal) * maxH);
+      const col = document.createElement('div');
+      col.className = 'year-col';
+      col.innerHTML = `
+        <div class="year-label">${y.year}</div>
+        <div class="year-bars">
+          <div class="year-bar-ms" style="height:${hms}px">${fmtEur(y.ms)}</div>
+          <div class="year-bar-pl" style="height:${hpl}px">${fmtEur(y.pl)}</div>
+        </div>`;
+      tl.appendChild(col);
+    });
+  }
+
+  recalc();
+</script>
+</body>
+</html>
