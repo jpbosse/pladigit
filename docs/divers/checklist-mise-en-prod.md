@@ -26,7 +26,8 @@
 - [ ] Virtual host wildcard configuré (`*.pladigit.fr`)
 - [ ] SSL/TLS Let's Encrypt actif — certificat wildcard
 - [ ] Redirection HTTP → HTTPS
-- [ ] Headers sécurité : `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`
+- [ ] En-têtes HTTP de sécurité présents : `curl -I https://domaine.fr` → vérifier CSP, HSTS, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy
+- [ ] `server_tokens off` actif (Nginx ne divulgue pas sa version)
 - [ ] `client_max_body_size 110M`
 - [ ] `mod_status` désactivé ou protégé
 
@@ -64,6 +65,17 @@
 - [ ] `storage/` et `bootstrap/cache/` — droits `deploy:www-data 775`
 - [ ] Reste du projet — droits `deploy:www-data 755`
 
+### Mise à jour Super Admin
+- [ ] Règle sudoers créée pour `update.sh` :
+  ```bash
+  echo "www-data ALL=(root) NOPASSWD: /var/www/pladigit/install/update.sh" | sudo tee /etc/sudoers.d/pladigit-update && sudo chmod 440 /etc/sudoers.d/pladigit-update
+  ```
+- [ ] Répertoire de logs de mise à jour créé avec les bons droits :
+  ```bash
+  mkdir -p /var/www/pladigit/storage/logs/updates && chown www-data:www-data /var/www/pladigit/storage/logs/updates
+  ```
+- [ ] Test de la commande artisan : `php artisan pladigit:update-status success "Test"` → statut visible dans Super Admin > Mises à jour
+
 ---
 
 ## 4. Scheduler & Queues
@@ -85,6 +97,7 @@
 - [ ] Rate limiting Nginx actif sur `/login`
 - [ ] Logs d'audit activés et rétention configurée (Admin > Audit)
 - [ ] `composer audit` — 0 vulnérabilité
+- [ ] En-têtes HTTP vérifiés avec `curl -I https://domaine.fr` (CSP, HSTS, X-Frame-Options, Referrer-Policy, Permissions-Policy)
 
 ---
 

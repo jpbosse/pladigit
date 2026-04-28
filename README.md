@@ -5,7 +5,7 @@
 
 ![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?logo=laravel&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-759%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-781%20passed-brightgreen)
 ![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-blue)
 ![CI](https://github.com/jpbosse/pladigit/actions/workflows/ci.yml/badge.svg?branch=main)
 
@@ -58,6 +58,9 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 - Structure organisationnelle — Directions > Services > Agents
 - Journalisation complète — audit trail RGPD avec export CSV/JSON, rétention configurable de 12 mois (extensible à 36 mois)
 - CI/CD GitHub Actions — PHPUnit, Pint PSR-12, PHPStan niveau 5, Composer audit
+- Ressources statiques rapatriées en local — polices Google Fonts, Trix, Cropper.js : zéro requête CDN tiers, souveraineté complète
+- En-têtes HTTP de sécurité — CSP, HSTS, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, `server_tokens off`
+- Mise à jour depuis le Super Admin — `update.sh` via sudoers, log en temps réel, sans accès SSH
 
 ### Gestion de projet (Phase 3) — *remplace Microsoft Planner*
 - Vues : Kanban par jalon, Gantt SVG avec drag & drop, Liste, Charge de travail, Agenda
@@ -143,7 +146,7 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 | Tailwind CSS | 3.x | Framework CSS |
 | Collabora Online | CODE 24.x | Éditeur bureautique (protocole WOPI) |
 | Docker | 24+ | Conteneurisation Collabora |
-| PHPUnit | 11.x | Tests (759 tests / 1 645 assertions) |
+| PHPUnit | 11.x | Tests (781 tests / 1 715 assertions) |
 | PHPStan | 1.x | Analyse statique niveau 5 |
 
 ---
@@ -182,7 +185,7 @@ Pour les techniciens qui souhaitent contrôler chaque étape ou installer Pladig
 ## Tests & qualité
 
 ```bash
-php artisan test --exclude-group ldap,integration   # 759 tests
+php artisan test --exclude-group ldap,integration   # 781 tests
 ./vendor/bin/pint                                    # PSR-12
 ./vendor/bin/phpstan analyse --memory-limit=512M     # PHPStan niveau 5
 composer audit                                       # 0 vulnérabilité
@@ -190,7 +193,7 @@ composer audit                                       # 0 vulnérabilité
 
 | Vérification | Résultat |
 |-------------|----------|
-| PHPUnit 11 | **759 tests / 1 645 assertions ✅** |
+| PHPUnit 11 | **781 tests / 1 715 assertions ✅** |
 | Laravel Pint | PSR-12 ✅ |
 | PHPStan niveau 5 | 0 erreur ✅ |
 | Composer audit | 0 vulnérabilité ✅ |
@@ -219,7 +222,7 @@ composer audit                                       # 0 vulnérabilité
 | [Guide d'installation illustré](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) | Guide pas-à-pas avec captures d'écran |
 | [docs/CDC_Pladigit_v2.3.md](docs/CDC_Pladigit_v2.3.md) | Cahier des charges complet |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des termes techniques et métier |
-| [docs/adr/](docs/adr/) | Décisions architecturales — ADR-001 à ADR-031 |
+| [docs/adr/](docs/adr/) | Décisions architecturales — ADR-001 à ADR-035 |
 | [docs/annexes/](docs/annexes/) | Documentation technique par module |
 | [docs/guides/](docs/guides/) | Guides utilisateurs par profil |
 | [docs/divers/checklist-mise-en-prod.md](docs/divers/checklist-mise-en-prod.md) | Checklist mise en production |

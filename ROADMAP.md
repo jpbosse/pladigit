@@ -15,24 +15,10 @@
 | GED documentaire — Arborescence, versioning, droits fins | SharePoint | Avr 2026 |
 | Collabora Online — Édition ODT/ODS/ODP et formats Office | Word / Excel / PowerPoint | Avr 2026 |
 | Assistant d'installation — script automatique + wizard web 8 étapes | — | Avr 2026 |
+| Sécurité production — CSP, HSTS, X-Frame-Options, headers Nginx, ressources locales | — | Mai 2026 |
+| Mise à jour Super Admin — `update.sh`, log temps réel, `pladigit:update-status` | — | Mai 2026 |
 
-**En chiffres :** 759 tests verts · PHPStan niveau 5 · 31 décisions architecturales documentées · CI/CD GitHub Actions
-
----
-
-## En cours 🔧
-
-### Sécurité production — Mai–Juin 2026
-
-Renforcement de la posture de sécurité avant tout démarche de déploiement élargi. Ce bloc doit être finalisé avant de proposer Pladigit à des collectivités en production.
-
-| Tâche | Description |
-|-------|-------------|
-| En-têtes HTTP de sécurité | CSP (Content Security Policy), X-Frame-Options, Referrer-Policy, Permissions-Policy |
-| Limitation de débit | Rate limiting sur les endpoints sensibles (connexion, API, upload) |
-| Rotation de la clé de chiffrement AES | Mécanisme de rotation sans perte de données |
-| Revue Nginx | Désactivation des modules inutiles, durcissement de la configuration |
-| Checklist mise en prod | Mise à jour de `docs/divers/checklist-mise-en-prod.md` |
+**En chiffres :** 781 tests verts · PHPStan niveau 5 · 35 décisions architecturales documentées · CI/CD GitHub Actions
 
 ---
 

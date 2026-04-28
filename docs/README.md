@@ -35,8 +35,8 @@ docs/
 │
 ├── GUIDE-INSTALLATION.html          ← guide illustré pas-à-pas (s'ouvre dans le navigateur)
 │
-├── adr/                             ← Décisions architecturales — ADR-001 à ADR-031
-│   ├── ADR-001 à ADR-031            ← voir tableau complet ci-dessous
+├── adr/                             ← Décisions architecturales — ADR-001 à ADR-035
+│   ├── ADR-001 à ADR-035            ← voir tableau complet ci-dessous
 │
 ├── annexes/                         ← Documentation technique par module
 │   ├── annexe-a-personas.md         ← Personas et parcours utilisateurs
@@ -105,6 +105,10 @@ Les ADR (fiches de décision architecturale) documentent les choix techniques : 
 | [ADR-029](adr/ADR-029-wizard-installation-web.md) | Wizard d'installation web PHP standalone |
 | [ADR-030](adr/ADR-030-collabora-installation-optionnelle.md) | Collabora Online : installation optionnelle via wizard |
 | [ADR-031](adr/ADR-031-install-collabora-sudo.md) | Script `install-collabora.sh` via sudoers en root |
+| [ADR-032](adr/ADR-032-pas-de-rotation-cles-aes.md) | Rotation des clés AES : hors périmètre |
+| [ADR-033](adr/ADR-033-rapatriement-ressources-externes-csp.md) | Rapatriement des ressources externes et mise en place de la CSP |
+| [ADR-034](adr/ADR-034-mise-a-jour-super-admin.md) | Mécanisme de mise à jour depuis le Super Admin |
+| [ADR-035](adr/ADR-035-audit-cross-tenant-hors-perimetre.md) | Audit cross-tenant : hors périmètre |
 
 ---
 
