@@ -4,9 +4,6 @@
 
 @push('styles')
 
-    {{-- Trix rich text editor --}}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2.0.8/dist/trix.css">
-    <script src="https://cdn.jsdelivr.net/npm/trix@2.0.8/dist/trix.umd.min.js"></script>
     <style>
     trix-editor {
         min-height: 120px;

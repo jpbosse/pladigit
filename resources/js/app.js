@@ -1,5 +1,8 @@
 import Alpine from 'alpinejs';
 import Collapse from '@alpinejs/collapse';
+import 'trix';
+import Cropper from 'cropperjs';
+window.Cropper = Cropper;
 window.Alpine = Alpine;
 Alpine.plugin(Collapse);
 

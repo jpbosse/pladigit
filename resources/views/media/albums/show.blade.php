@@ -2,14 +2,6 @@
 
 @section('title', $album->name . ' — Photothèque')
 
-@if($canAdmin)
-@push('styles')
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
-@endpush
-@push('scripts')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
-@endpush
-@endif
 
 @push('styles')
 @include('media._ph_base_styles')

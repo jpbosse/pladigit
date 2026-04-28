@@ -3,7 +3,6 @@
 @section('title', $project->name)
 
 @push('styles')
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2.0.8/dist/trix.css">
     <style>
     .trix-content { font-size:13px; line-height:1.7; color:var(--pd-text); }
     .trix-content strong { font-weight:700; }

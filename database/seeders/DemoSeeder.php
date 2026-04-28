@@ -40,7 +40,7 @@ class DemoSeeder extends Seeder
         $this->command->info('  Seeding demo tenant — Saint-Aubin-les-Communes...');
 
         $users = $this->createUsers();
-        $this->command->info('  ✓ Utilisateurs (' . count($users) . ')');
+        $this->command->info('  ✓ Utilisateurs ('.count($users).')');
 
         $depts = $this->createDepartments($users);
         $this->command->info('  ✓ Départements');
@@ -83,12 +83,12 @@ class DemoSeeder extends Seeder
             $user = User::on('tenant')->updateOrCreate(
                 ['email' => $def['email']],
                 [
-                    'name'                => $def['name'],
-                    'password_hash'       => $password,
-                    'role'                => $def['role'],
-                    'status'              => 'active',
-                    'force_pwd_change'    => false,
-                    'totp_enabled'        => false,
+                    'name' => $def['name'],
+                    'password_hash' => $password,
+                    'role' => $def['role'],
+                    'status' => 'active',
+                    'force_pwd_change' => false,
+                    'totp_enabled' => false,
                     'password_changed_at' => now(),
                 ]
             );
@@ -105,62 +105,62 @@ class DemoSeeder extends Seeder
 
     private function createDepartments(array $users): array
     {
-        $admin    = $users['admin@demo.pladigit.fr'];
-        $dgs      = $users['dgs@demo.pladigit.fr'];
-        $thomas   = $users['technique@demo.pladigit.fr'];
-        $laurent  = $users['urbanisme@demo.pladigit.fr'];
+        $admin = $users['admin@demo.pladigit.fr'];
+        $dgs = $users['dgs@demo.pladigit.fr'];
+        $thomas = $users['technique@demo.pladigit.fr'];
+        $laurent = $users['urbanisme@demo.pladigit.fr'];
         $nathalie = $users['communication@demo.pladigit.fr'];
-        $eric     = $users['agent1@demo.pladigit.fr'];
-        $marie    = $users['agent2@demo.pladigit.fr'];
+        $eric = $users['agent1@demo.pladigit.fr'];
+        $marie = $users['agent2@demo.pladigit.fr'];
 
         // ── Directions ────────────────────────────────────────────
         $dst = Department::on('tenant')->updateOrCreate(
             ['name' => 'Direction des Services Techniques'],
             ['type' => 'direction', 'label' => 'DST', 'color' => '#1E3A5F',
-             'sort_order' => 1, 'created_by' => $admin->id]
+                'sort_order' => 1, 'created_by' => $admin->id]
         );
 
         $dgsDir = Department::on('tenant')->updateOrCreate(
             ['name' => 'Direction Générale des Services'],
             ['type' => 'direction', 'label' => 'DGS', 'color' => '#0F766E',
-             'sort_order' => 2, 'created_by' => $admin->id]
+                'sort_order' => 2, 'created_by' => $admin->id]
         );
 
         $dac = Department::on('tenant')->updateOrCreate(
             ['name' => "Direction de l'Animation et de la Culture"],
             ['type' => 'direction', 'label' => 'DAC', 'color' => '#7C3AED',
-             'sort_order' => 3, 'created_by' => $admin->id]
+                'sort_order' => 3, 'created_by' => $admin->id]
         );
 
         // ── Services ──────────────────────────────────────────────
         $voirie = Department::on('tenant')->updateOrCreate(
             ['name' => 'Service Voirie et Espaces Verts'],
             ['type' => 'service', 'label' => null, 'color' => null,
-             'sort_order' => 1, 'parent_id' => $dst->id, 'created_by' => $admin->id]
+                'sort_order' => 1, 'parent_id' => $dst->id, 'created_by' => $admin->id]
         );
 
         $urbanisme = Department::on('tenant')->updateOrCreate(
             ['name' => 'Service Urbanisme'],
             ['type' => 'service', 'label' => null, 'color' => null,
-             'sort_order' => 2, 'parent_id' => $dst->id, 'created_by' => $admin->id]
+                'sort_order' => 2, 'parent_id' => $dst->id, 'created_by' => $admin->id]
         );
 
         $rh = Department::on('tenant')->updateOrCreate(
             ['name' => 'Service Ressources Humaines'],
             ['type' => 'service', 'label' => null, 'color' => null,
-             'sort_order' => 1, 'parent_id' => $dgsDir->id, 'created_by' => $admin->id]
+                'sort_order' => 1, 'parent_id' => $dgsDir->id, 'created_by' => $admin->id]
         );
 
         $communication = Department::on('tenant')->updateOrCreate(
             ['name' => 'Service Communication'],
             ['type' => 'service', 'label' => null, 'color' => null,
-             'sort_order' => 2, 'parent_id' => $dgsDir->id, 'created_by' => $admin->id]
+                'sort_order' => 2, 'parent_id' => $dgsDir->id, 'created_by' => $admin->id]
         );
 
         $evenementiel = Department::on('tenant')->updateOrCreate(
             ['name' => 'Service Événementiel'],
             ['type' => 'service', 'label' => null, 'color' => null,
-             'sort_order' => 1, 'parent_id' => $dac->id, 'created_by' => $admin->id]
+                'sort_order' => 1, 'parent_id' => $dac->id, 'created_by' => $admin->id]
         );
 
         // ── Affectations ──────────────────────────────────────────
@@ -192,24 +192,24 @@ class DemoSeeder extends Seeder
 
     private function createProjects(array $users, array $depts): void
     {
-        $thomas   = $users['technique@demo.pladigit.fr'];
-        $laurent  = $users['urbanisme@demo.pladigit.fr'];
+        $thomas = $users['technique@demo.pladigit.fr'];
+        $laurent = $users['urbanisme@demo.pladigit.fr'];
         $nathalie = $users['communication@demo.pladigit.fr'];
-        $dgs      = $users['dgs@demo.pladigit.fr'];
-        $maire    = $users['maire@demo.pladigit.fr'];
-        $eric     = $users['agent1@demo.pladigit.fr'];
-        $marie    = $users['agent2@demo.pladigit.fr'];
+        $dgs = $users['dgs@demo.pladigit.fr'];
+        $maire = $users['maire@demo.pladigit.fr'];
+        $eric = $users['agent1@demo.pladigit.fr'];
+        $marie = $users['agent2@demo.pladigit.fr'];
 
         // ── Projet 1 : Réfection Rue des Acacias ─────────────────
         $voirie = Project::on('tenant')->create([
-            'created_by'  => $thomas->id,
-            'name'        => 'Réfection Rue des Acacias',
+            'created_by' => $thomas->id,
+            'name' => 'Réfection Rue des Acacias',
             'description' => "Travaux de réfection complète de la chaussée et des trottoirs de la rue des Acacias (450 ml). Remplacement des réseaux d'eau pluviale en sous-œuvre.",
-            'status'      => 'active',
-            'start_date'  => Carbon::parse('2025-03-01'),
-            'due_date'    => Carbon::parse('2025-09-30'),
-            'color'       => '#EA580C',
-            'is_private'  => false,
+            'status' => 'active',
+            'start_date' => Carbon::parse('2025-03-01'),
+            'due_date' => Carbon::parse('2025-09-30'),
+            'color' => '#EA580C',
+            'is_private' => false,
         ]);
 
         ProjectMember::on('tenant')->insert([
@@ -252,27 +252,27 @@ class DemoSeeder extends Seeder
             if ($i === 2) {
                 TaskComment::on('tenant')->create([
                     'task_id' => $task->id, 'user_id' => $thomas->id,
-                    'body'    => 'Publié sur le BOAMP ce matin. Délai de réception des offres fixé au 30 mars.',
+                    'body' => 'Publié sur le BOAMP ce matin. Délai de réception des offres fixé au 30 mars.',
                 ]);
             }
             if ($i === 3) {
                 TaskComment::on('tenant')->create([
                     'task_id' => $task->id, 'user_id' => $eric->id,
-                    'body'    => "Reçu 4 offres. L'entreprise Bonneau TP est la mieux-disante. Je transmets le dossier à Thomas.",
+                    'body' => "Reçu 4 offres. L'entreprise Bonneau TP est la mieux-disante. Je transmets le dossier à Thomas.",
                 ]);
             }
         }
 
         // ── Projet 2 : Révision du PLU ───────────────────────────
         $plu = Project::on('tenant')->create([
-            'created_by'  => $laurent->id,
-            'name'        => "Révision du Plan Local d'Urbanisme",
+            'created_by' => $laurent->id,
+            'name' => "Révision du Plan Local d'Urbanisme",
             'description' => "Révision générale du PLU conformément aux prescriptions du SCoT du Pays de Loire. Concertation publique, diagnostic territorial et définition des orientations d'aménagement.",
-            'status'      => 'active',
-            'start_date'  => Carbon::parse('2025-01-15'),
-            'due_date'    => Carbon::parse('2026-06-30'),
-            'color'       => '#0F766E',
-            'is_private'  => false,
+            'status' => 'active',
+            'start_date' => Carbon::parse('2025-01-15'),
+            'due_date' => Carbon::parse('2026-06-30'),
+            'color' => '#0F766E',
+            'is_private' => false,
         ]);
 
         ProjectMember::on('tenant')->insert([
@@ -292,7 +292,7 @@ class DemoSeeder extends Seeder
             'color' => '#0F766E', 'sort_order' => 2, 'parent_id' => $mDiag->id,
         ]);
         $mArret = ProjectMilestone::on('tenant')->create([
-            'project_id' => $plu->id, 'title' => "Arrêt du projet de PLU",
+            'project_id' => $plu->id, 'title' => 'Arrêt du projet de PLU',
             'due_date' => '2026-01-31',
             'color' => '#0F766E', 'sort_order' => 3,
         ]);
@@ -313,21 +313,21 @@ class DemoSeeder extends Seeder
             if ($i === 2) {
                 TaskComment::on('tenant')->create([
                     'task_id' => $task->id, 'user_id' => $laurent->id,
-                    'body'    => 'Salle de la mairie retenue pour le 22 avril. Ordre du jour envoyé aux personnes publiques associées.',
+                    'body' => 'Salle de la mairie retenue pour le 22 avril. Ordre du jour envoyé aux personnes publiques associées.',
                 ]);
             }
         }
 
         // ── Projet 3 : Fête de la Saint-Aubin 2025 ───────────────
         $fete = Project::on('tenant')->create([
-            'created_by'  => $nathalie->id,
-            'name'        => 'Fête de la Saint-Aubin 2025',
+            'created_by' => $nathalie->id,
+            'name' => 'Fête de la Saint-Aubin 2025',
             'description' => "Organisation de la fête annuelle de la commune : concerts, animations pour enfants, marché artisanal, feu d'artifice. Budget prévisionnel : 18 500 €.",
-            'status'      => 'active',
-            'start_date'  => Carbon::parse('2025-05-01'),
-            'due_date'    => Carbon::parse('2025-07-15'),
-            'color'       => '#7C3AED',
-            'is_private'  => false,
+            'status' => 'active',
+            'start_date' => Carbon::parse('2025-05-01'),
+            'due_date' => Carbon::parse('2025-07-15'),
+            'color' => '#7C3AED',
+            'is_private' => false,
         ]);
 
         ProjectMember::on('tenant')->insert([
@@ -363,7 +363,7 @@ class DemoSeeder extends Seeder
             if ($i === 2) {
                 TaskComment::on('tenant')->create([
                     'task_id' => $task->id, 'user_id' => $nathalie->id,
-                    'body'    => 'Bon de commande affiches validé. Tirage 200 exemplaires format A2.',
+                    'body' => 'Bon de commande affiches validé. Tirage 200 exemplaires format A2.',
                 ]);
             }
         }
@@ -377,9 +377,9 @@ class DemoSeeder extends Seeder
 
     private function createAlbums(array $users): void
     {
-        $thomas   = $users['technique@demo.pladigit.fr'];
+        $thomas = $users['technique@demo.pladigit.fr'];
         $nathalie = $users['communication@demo.pladigit.fr'];
-        $eric     = $users['agent1@demo.pladigit.fr'];
+        $eric = $users['agent1@demo.pladigit.fr'];
 
         // Cet album doit s'appeler exactement 'Fête de la commune 2025'
         // car DemoResetCommand::seedPhotos() le cherche par ce nom.
@@ -387,8 +387,8 @@ class DemoSeeder extends Seeder
             ['name' => 'Fête de la commune 2025'],
             [
                 'description' => 'Photos de la fête annuelle de la commune — été 2025.',
-                'visibility'  => 'public',
-                'created_by'  => $nathalie->id,
+                'visibility' => 'public',
+                'created_by' => $nathalie->id,
             ]
         );
 
@@ -396,8 +396,8 @@ class DemoSeeder extends Seeder
             ['name' => 'Vie municipale 2025'],
             [
                 'description' => 'Photos officielles des événements et réunions de la commune.',
-                'visibility'  => 'restricted',
-                'created_by'  => $nathalie->id,
+                'visibility' => 'restricted',
+                'created_by' => $nathalie->id,
             ]
         );
 
@@ -405,9 +405,9 @@ class DemoSeeder extends Seeder
             ['name' => 'Conseil municipal — Janvier 2025'],
             [
                 'description' => 'Photos de la séance du conseil municipal du 14 janvier 2025.',
-                'visibility'  => 'restricted',
-                'created_by'  => $nathalie->id,
-                'parent_id'   => $vieMunicipale->id,
+                'visibility' => 'restricted',
+                'created_by' => $nathalie->id,
+                'parent_id' => $vieMunicipale->id,
             ]
         );
 
@@ -415,8 +415,8 @@ class DemoSeeder extends Seeder
             ['name' => 'Chantiers et travaux'],
             [
                 'description' => 'Suivi photographique des chantiers en cours sur la commune.',
-                'visibility'  => 'restricted',
-                'created_by'  => $thomas->id,
+                'visibility' => 'restricted',
+                'created_by' => $thomas->id,
             ]
         );
 
@@ -424,9 +424,9 @@ class DemoSeeder extends Seeder
             ['name' => 'Rue des Acacias — Avancement'],
             [
                 'description' => 'Photos hebdomadaires du chantier de réfection.',
-                'visibility'  => 'restricted',
-                'created_by'  => $eric->id,
-                'parent_id'   => $chantiers->id,
+                'visibility' => 'restricted',
+                'created_by' => $eric->id,
+                'parent_id' => $chantiers->id,
             ]
         );
     }

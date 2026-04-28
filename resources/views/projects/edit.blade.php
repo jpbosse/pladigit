@@ -3,8 +3,6 @@
 @section('title', 'Modifier — ' . $project->name)
 
 @push('styles')
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/trix@2.0.8/dist/trix.css">
-<script src="https://cdn.jsdelivr.net/npm/trix@2.0.8/dist/trix.umd.min.js"></script>
 <style>
 trix-editor { min-height:100px;border:1px solid var(--pd-border);border-radius:0 0 8px 8px;padding:10px 12px;font-size:12px;font-family:'DM Sans',system-ui,sans-serif;color:var(--pd-text);background:var(--pd-surface);outline:none; }
 trix-editor:focus { border-color:var(--pd-navy); }

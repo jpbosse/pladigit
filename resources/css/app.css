@@ -1,3 +1,7 @@
+@import './fonts.css';
+@import 'trix/dist/trix.css';
+@import 'cropperjs/dist/cropper.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

@@ -8,7 +8,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pladigit — Plateforme de Digitalisation pour Collectivités</title>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/fonts/fonts.css">
     <style>
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}.hidden{display:none!important}
         :root{

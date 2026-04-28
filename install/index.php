@@ -4,24 +4,23 @@
  * Wizard 6 étapes — PHP standalone, sans framework
  * Compatible PHP 8.2+
  */
-
 session_start();
 
 define('PLADIGIT_ROOT', dirname(__DIR__));
-define('ENV_FILE',    PLADIGIT_ROOT . '/.env');
-define('LOCK_FILE',   PLADIGIT_ROOT . '/install/.lock');
-define('INSTALL_DIR', PLADIGIT_ROOT . '/install');
-define('LOG_FILE',    INSTALL_DIR . '/install.log');
-define('PID_FILE',    INSTALL_DIR . '/install.pid');
-define('DONE_FILE',   INSTALL_DIR . '/install.done');
-define('CONFIG_FILE',  INSTALL_DIR . '/config.json');
-define('FAIL_FILE',   INSTALL_DIR . '/install.fail');
-
+define('ENV_FILE', PLADIGIT_ROOT.'/.env');
+define('LOCK_FILE', PLADIGIT_ROOT.'/install/.lock');
+define('INSTALL_DIR', PLADIGIT_ROOT.'/install');
+define('LOG_FILE', INSTALL_DIR.'/install.log');
+define('PID_FILE', INSTALL_DIR.'/install.pid');
+define('DONE_FILE', INSTALL_DIR.'/install.done');
+define('CONFIG_FILE', INSTALL_DIR.'/config.json');
+define('FAIL_FILE', INSTALL_DIR.'/install.fail');
 
 // =============================================================================
 // CONFIG JSON — persistance des choix wizard indépendante de la session
 // =============================================================================
-function save_config(array $data): void {
+function save_config(array $data): void
+{
     $current = file_exists(CONFIG_FILE)
         ? (json_decode(file_get_contents(CONFIG_FILE), true) ?? [])
         : [];
@@ -29,8 +28,12 @@ function save_config(array $data): void {
     file_put_contents(CONFIG_FILE, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }
 
-function load_config(): array {
-    if (!file_exists(CONFIG_FILE)) return [];
+function load_config(): array
+{
+    if (! file_exists(CONFIG_FILE)) {
+        return [];
+    }
+
     return json_decode(file_get_contents(CONFIG_FILE), true) ?? [];
 }
 
@@ -38,7 +41,7 @@ function load_config(): array {
 $apiAction = $_GET['action'] ?? '';
 if (in_array($apiAction, ['api_log', 'api_status', 'api_run'])) {
     // Laisser passer — géré plus bas
-} elseif (file_exists(LOCK_FILE) && !empty($_SESSION['install_success'])) {
+} elseif (file_exists(LOCK_FILE) && ! empty($_SESSION['install_success'])) {
     header('Location: ?action=success');
     exit;
 } elseif (file_exists(LOCK_FILE)) {
@@ -53,18 +56,30 @@ if (in_array($apiAction, ['api_log', 'api_status', 'api_run'])) {
 $action = $_GET['action'] ?? $_POST['action'] ?? 'welcome';
 
 // API endpoints (appelés en AJAX)
-if ($action === 'api_log')    { api_log();    exit; }
-if ($action === 'api_status') { api_status(); exit; }
-if ($action === 'api_run')    { api_run();    exit; }
+if ($action === 'api_log') {
+    api_log();
+    exit;
+}
+if ($action === 'api_status') {
+    api_status();
+    exit;
+}
+if ($action === 'api_run') {
+    api_run();
+    exit;
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') handle_post($action);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    handle_post($action);
+}
 
 render_page($action);
 
 // =============================================================================
 // PAGE "DÉJÀ INSTALLÉ"
 // =============================================================================
-function locked_page(string $date): string {
+function locked_page(string $date): string
+{
     return '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
 <title>Pladigit — Déjà installé</title>
 <style>
@@ -81,7 +96,7 @@ code{background:#eee;padding:.1rem .35rem;border-radius:3px;font-size:.78rem}
 <div style="font-size:2.5rem">&#x1F512;</div>
 <h1>Pladigit est déjà installé</h1>
 <p>Cet assistant a déjà été utilisé sur ce serveur.</p>
-<div class="date">&#x1F4C5; Installé le : ' . htmlspecialchars($date) . '</div>
+<div class="date">&#x1F4C5; Installé le : '.htmlspecialchars($date).'</div>
 <div class="warn"><strong>&#x26A0;&#xFE0F; Réinstaller ?</strong><br>
 Supprimez le fichier <code>install/.lock</code> sur votre serveur, puis rechargez cette page.<br>
 <strong>Attention :</strong> votre fichier <code>.env</code> sera réécrit.</div>
@@ -92,40 +107,51 @@ Supprimez le fichier <code>install/.lock</code> sur votre serveur, puis recharge
 // =============================================================================
 // API AJAX
 // =============================================================================
-function api_log(): void {
+function api_log(): void
+{
     header('Content-Type: application/json');
-    $offset = (int)($_GET['offset'] ?? 0);
-    if (!file_exists(LOG_FILE)) { echo json_encode(['lines'=>[],'offset'=>0,'done'=>false,'error'=>false]); return; }
+    $offset = (int) ($_GET['offset'] ?? 0);
+    if (! file_exists(LOG_FILE)) {
+        echo json_encode(['lines' => [], 'offset' => 0, 'done' => false, 'error' => false]);
+
+        return;
+    }
     $content = file_get_contents(LOG_FILE);
-    $lines   = array_filter(explode("\n", substr($content, $offset)));
+    $lines = array_filter(explode("\n", substr($content, $offset)));
     echo json_encode([
-        'lines'  => array_values($lines),
+        'lines' => array_values($lines),
         'offset' => strlen($content),
-        'done'   => file_exists(DONE_FILE),
-        'error'  => file_exists(FAIL_FILE),
+        'done' => file_exists(DONE_FILE),
+        'error' => file_exists(FAIL_FILE),
     ]);
 }
 
-function api_status(): void {
+function api_status(): void
+{
     header('Content-Type: application/json');
-    $done  = file_exists(DONE_FILE);
+    $done = file_exists(DONE_FILE);
     $error = file_exists(FAIL_FILE);
     if ($done) {
         $_SESSION['install_success'] = true;
-        $_SESSION['app_url']         = $_SESSION['app']['url'] ?? '';
-        $_SESSION['step']            = 7;
+        $_SESSION['app_url'] = $_SESSION['app']['url'] ?? '';
+        $_SESSION['step'] = 7;
     }
     echo json_encode([
-        'done'     => $done,
-        'error'    => $error,
-        'msg'      => $error ? trim(@file_get_contents(FAIL_FILE) ?: '') : '',
+        'done' => $done,
+        'error' => $error,
+        'msg' => $error ? trim(@file_get_contents(FAIL_FILE) ?: '') : '',
         'redirect' => $done ? '?action=success' : null,
     ]);
 }
 
-function api_run(): void {
+function api_run(): void
+{
     header('Content-Type: application/json');
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['ok'=>false]); return; }
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        echo json_encode(['ok' => false]);
+
+        return;
+    }
 
     // Écrire le runner depuis le JSON — source de vérité unique
     write_runner();
@@ -137,9 +163,9 @@ function api_run(): void {
     @unlink(CONFIG_FILE);
 
     // Lancer l'installation en arrière-plan
-    $script = escapeshellarg(INSTALL_DIR . '/runner.php');
-    $log    = escapeshellarg(LOG_FILE);
-    $cmd    = "php {$script} > {$log} 2>&1 &";
+    $script = escapeshellarg(INSTALL_DIR.'/runner.php');
+    $log = escapeshellarg(LOG_FILE);
+    $cmd = "php {$script} > {$log} 2>&1 &";
     shell_exec($cmd);
 
     echo json_encode(['ok' => true]);
@@ -148,7 +174,8 @@ function api_run(): void {
 // =============================================================================
 // HANDLERS POST
 // =============================================================================
-function handle_post(string $action): void {
+function handle_post(string $action): void
+{
     switch ($action) {
         case 'check':
             $_SESSION['step'] = 2;
@@ -157,15 +184,18 @@ function handle_post(string $action): void {
 
         case 'database':
             $errors = validate_database($_POST);
-            if ($errors) { $_SESSION['errors'] = $errors; redirect('database'); }
+            if ($errors) {
+                $_SESSION['errors'] = $errors;
+                redirect('database');
+            }
             $db = [
-                'host'          => trim($_POST['db_host'] ?? '127.0.0.1'),
-                'port'          => trim($_POST['db_port'] ?? '3306'),
-                'name'          => trim($_POST['db_name'] ?? 'pladigit'),
-                'root_user'     => trim($_POST['db_root_user'] ?? 'root'),
+                'host' => trim($_POST['db_host'] ?? '127.0.0.1'),
+                'port' => trim($_POST['db_port'] ?? '3306'),
+                'name' => trim($_POST['db_name'] ?? 'pladigit'),
+                'root_user' => trim($_POST['db_root_user'] ?? 'root'),
                 'root_password' => $_POST['db_root_password'] ?? '',
-                'app_user'      => trim($_POST['db_app_user'] ?? 'pladigit'),
-                'app_password'  => $_POST['db_app_password'] ?? '',
+                'app_user' => trim($_POST['db_app_user'] ?? 'pladigit'),
+                'app_password' => $_POST['db_app_password'] ?? '',
             ];
             $_SESSION['db'] = $db;
             save_config(['db' => $db]);
@@ -175,10 +205,13 @@ function handle_post(string $action): void {
 
         case 'app':
             $errors = validate_app($_POST);
-            if ($errors) { $_SESSION['errors'] = $errors; redirect('app'); }
+            if ($errors) {
+                $_SESSION['errors'] = $errors;
+                redirect('app');
+            }
             $app = [
-                'url'      => rtrim(trim($_POST['app_url'] ?? ''), '/'),
-                'name'     => trim($_POST['app_name'] ?? 'Pladigit'),
+                'url' => rtrim(trim($_POST['app_url'] ?? ''), '/'),
+                'name' => trim($_POST['app_name'] ?? 'Pladigit'),
                 'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
             ];
             $_SESSION['app'] = $app;
@@ -189,12 +222,12 @@ function handle_post(string $action): void {
 
         case 'smtp':
             $smtp = [
-                'host'       => trim($_POST['smtp_host'] ?? ''),
-                'port'       => trim($_POST['smtp_port'] ?? '587'),
-                'username'   => trim($_POST['smtp_username'] ?? ''),
-                'password'   => $_POST['smtp_password'] ?? '',
-                'from'       => trim($_POST['smtp_from'] ?? ''),
-                'from_name'  => trim($_POST['smtp_from_name'] ?? 'Pladigit'),
+                'host' => trim($_POST['smtp_host'] ?? ''),
+                'port' => trim($_POST['smtp_port'] ?? '587'),
+                'username' => trim($_POST['smtp_username'] ?? ''),
+                'password' => $_POST['smtp_password'] ?? '',
+                'from' => trim($_POST['smtp_from'] ?? ''),
+                'from_name' => trim($_POST['smtp_from_name'] ?? 'Pladigit'),
                 'encryption' => trim($_POST['smtp_encryption'] ?? 'tls'),
             ];
             $_SESSION['smtp'] = $smtp;
@@ -206,7 +239,7 @@ function handle_post(string $action): void {
         case 'collabora':
             $collabora = [
                 'mode' => $_POST['collabora_mode'] ?? 'skip',
-                'url'  => trim($_POST['collabora_url'] ?? ''),
+                'url' => trim($_POST['collabora_url'] ?? ''),
             ];
             $_SESSION['collabora'] = $collabora;
             save_config(['collabora' => $collabora]);
@@ -216,10 +249,13 @@ function handle_post(string $action): void {
 
         case 'admin':
             $errors = validate_admin($_POST);
-            if ($errors) { $_SESSION['errors'] = $errors; redirect('admin'); }
+            if ($errors) {
+                $_SESSION['errors'] = $errors;
+                redirect('admin');
+            }
             $admin = [
-                'name'     => trim($_POST['admin_name'] ?? ''),
-                'email'    => trim($_POST['admin_email'] ?? ''),
+                'name' => trim($_POST['admin_name'] ?? ''),
+                'email' => trim($_POST['admin_email'] ?? ''),
                 'password' => $_POST['admin_password'] ?? '',
             ];
             $_SESSION['admin'] = $admin;
@@ -233,16 +269,28 @@ function handle_post(string $action): void {
 // =============================================================================
 // VALIDATIONS
 // =============================================================================
-function validate_database(array $p): array {
+function validate_database(array $p): array
+{
     $e = [];
-    if (empty($p['db_host']))       $e[] = "L'hôte MySQL est requis.";
-    if (empty($p['db_name']))       $e[] = "Le nom de la base est requis.";
-    if (empty($p['db_root_user']))  $e[] = "L'utilisateur root MySQL est requis.";
-    if (empty($p['db_app_user']))   $e[] = "L'utilisateur applicatif est requis.";
-    if (empty($p['db_app_password'])) $e[] = "Le mot de passe applicatif est requis (min. 8 caractères).";
-    elseif (strlen($p['db_app_password']) < 8) $e[] = "Le mot de passe MySQL doit faire au moins 8 caractères.";
+    if (empty($p['db_host'])) {
+        $e[] = "L'hôte MySQL est requis.";
+    }
+    if (empty($p['db_name'])) {
+        $e[] = 'Le nom de la base est requis.';
+    }
+    if (empty($p['db_root_user'])) {
+        $e[] = "L'utilisateur root MySQL est requis.";
+    }
+    if (empty($p['db_app_user'])) {
+        $e[] = "L'utilisateur applicatif est requis.";
+    }
+    if (empty($p['db_app_password'])) {
+        $e[] = 'Le mot de passe applicatif est requis (min. 8 caractères).';
+    } elseif (strlen($p['db_app_password']) < 8) {
+        $e[] = 'Le mot de passe MySQL doit faire au moins 8 caractères.';
+    }
 
-    if (!$e) {
+    if (! $e) {
         try {
             new PDO(
                 "mysql:host={$p['db_host']};port={$p['db_port']};charset=utf8mb4",
@@ -250,61 +298,78 @@ function validate_database(array $p): array {
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]
             );
         } catch (\PDOException $ex) {
-            $e[] = "Connexion MySQL impossible : " . htmlspecialchars($ex->getMessage());
+            $e[] = 'Connexion MySQL impossible : '.htmlspecialchars($ex->getMessage());
         }
     }
+
     return $e;
 }
 
-function validate_app(array $p): array {
+function validate_app(array $p): array
+{
     $e = [];
-    if (empty($p['app_url'])) $e[] = "L'URL est requise.";
-    elseif (!filter_var($p['app_url'], FILTER_VALIDATE_URL)) $e[] = "URL invalide (ex: http://192.168.1.10).";
+    if (empty($p['app_url'])) {
+        $e[] = "L'URL est requise.";
+    } elseif (! filter_var($p['app_url'], FILTER_VALIDATE_URL)) {
+        $e[] = 'URL invalide (ex: http://192.168.1.10).';
+    }
+
     return $e;
 }
 
-function validate_admin(array $p): array {
+function validate_admin(array $p): array
+{
     $e = [];
-    if (empty($p['admin_name']))  $e[] = "Le nom est requis.";
-    if (empty($p['admin_email']) || !filter_var($p['admin_email'], FILTER_VALIDATE_EMAIL)) $e[] = "Email invalide.";
-    if (strlen($p['admin_password'] ?? '') < 12) $e[] = "Mot de passe : 12 caractères minimum.";
-    if (($p['admin_password'] ?? '') !== ($p['admin_password_confirm'] ?? '')) $e[] = "Les mots de passe ne correspondent pas.";
+    if (empty($p['admin_name'])) {
+        $e[] = 'Le nom est requis.';
+    }
+    if (empty($p['admin_email']) || ! filter_var($p['admin_email'], FILTER_VALIDATE_EMAIL)) {
+        $e[] = 'Email invalide.';
+    }
+    if (strlen($p['admin_password'] ?? '') < 12) {
+        $e[] = 'Mot de passe : 12 caractères minimum.';
+    }
+    if (($p['admin_password'] ?? '') !== ($p['admin_password_confirm'] ?? '')) {
+        $e[] = 'Les mots de passe ne correspondent pas.';
+    }
+
     return $e;
 }
 
 // =============================================================================
 // RUNNER — script PHP exécuté en arrière-plan
 // =============================================================================
-function write_runner(): void {
-    $cfg       = load_config();
-    $db        = $cfg['db']        ?? $_SESSION['db']        ?? [];
-    $app       = $cfg['app']       ?? $_SESSION['app']       ?? [];
-    $smtp      = $cfg['smtp']      ?? $_SESSION['smtp']      ?? [];
-    $admin     = $cfg['admin']     ?? $_SESSION['admin']     ?? [];
-    $collabora     = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
+function write_runner(): void
+{
+    $cfg = load_config();
+    $db = $cfg['db'] ?? $_SESSION['db'] ?? [];
+    $app = $cfg['app'] ?? $_SESSION['app'] ?? [];
+    $smtp = $cfg['smtp'] ?? $_SESSION['smtp'] ?? [];
+    $admin = $cfg['admin'] ?? $_SESSION['admin'] ?? [];
+    $collabora = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
     $collaboraMode = $collabora['mode'] ?? 'skip';
-    $collaboraUrl  = $collabora['url']  ?? '';
+    $collaboraUrl = $collabora['url'] ?? '';
 
-    $appKey      = 'base64:' . base64_encode(random_bytes(32));
+    $appKey = 'base64:'.base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
 
     $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash);
 
     // Écriture directe du .env depuis le wizard (fiable, pas d'échappement)
-    file_put_contents(PLADIGIT_ROOT . '/.env', $envContent);
-    chmod(PLADIGIT_ROOT . '/.env', 0640);
+    file_put_contents(PLADIGIT_ROOT.'/.env', $envContent);
+    chmod(PLADIGIT_ROOT.'/.env', 0640);
 
-    $envEscaped  = addslashes($envContent);
+    $envEscaped = addslashes($envContent);
 
-    $root    = addslashes(PLADIGIT_ROOT);
-    $done    = addslashes(DONE_FILE);
-    $fail    = addslashes(FAIL_FILE);
-    $lock    = addslashes(LOCK_FILE);
-    $appUrl  = addslashes($app['url'] ?? '');
+    $root = addslashes(PLADIGIT_ROOT);
+    $done = addslashes(DONE_FILE);
+    $fail = addslashes(FAIL_FILE);
+    $lock = addslashes(LOCK_FILE);
+    $appUrl = addslashes($app['url'] ?? '');
     $appName = addslashes($app['name'] ?? 'Pladigit');
     $admEmail = addslashes($admin['email'] ?? '');
-    $dbNm    = addslashes($db['name'] ?? 'pladigit');
-    $dbUsr   = addslashes($db['app_user'] ?? 'pladigit');
+    $dbNm = addslashes($db['name'] ?? 'pladigit');
+    $dbUsr = addslashes($db['app_user'] ?? 'pladigit');
     $appPwd = addslashes($db['app_password']);
     $rootPwd = addslashes($db['root_password']);
     $dbHost = addslashes($db['host']);
@@ -474,74 +539,91 @@ try {
 }
 RUNNER;
 
-    file_put_contents(INSTALL_DIR . '/runner.php', $script);
+    file_put_contents(INSTALL_DIR.'/runner.php', $script);
 }
 
-function build_env(array $db, array $app, array $smtp, array $admin, string $key, string $hash): string {
-    return 'APP_NAME="' . addslashes($app['name']) . '"' . "\n"
-        . 'APP_ENV=production' . "\n"
-        . 'APP_KEY=' . $key . "\n"
-        . 'APP_DEBUG=false' . "\n"
-        . 'APP_URL=' . $app['url'] . "\n"
-        . 'APP_TIMEZONE=' . $app['timezone'] . "\n\n"
-        . 'LOG_CHANNEL=daily' . "\n"
-        . 'LOG_LEVEL=error' . "\n\n"
-        . 'DB_CONNECTION=mysql' . "\n"
-        . 'DB_HOST=' . $db['host'] . "\n"
-        . 'DB_PORT=' . $db['port'] . "\n"
-        . 'DB_DATABASE=' . $db['name'] . "\n"
-        . 'DB_USERNAME=' . $db['app_user'] . "\n"
-        . 'DB_PASSWORD=' . $db['app_password'] . "\n\n"
-        . 'CACHE_DRIVER=redis' . "\n"
-        . 'QUEUE_CONNECTION=redis' . "\n"
-        . 'SESSION_DRIVER=redis' . "\n"
-        . 'SESSION_LIFETIME=120' . "\n\n"
-        . 'REDIS_HOST=127.0.0.1' . "\n"
-        . 'REDIS_PASSWORD=null' . "\n"
-        . 'REDIS_PORT=6379' . "\n\n"
-        . 'MAIL_MAILER=smtp' . "\n"
-        . 'MAIL_HOST=' . $smtp['host'] . "\n"
-        . 'MAIL_PORT=' . $smtp['port'] . "\n"
-        . 'MAIL_USERNAME=' . $smtp['username'] . "\n"
-        . 'MAIL_PASSWORD=' . $smtp['password'] . "\n"
-        . 'MAIL_SCHEME=' . $smtp['encryption'] . "\n"
-        . 'MAIL_FROM_ADDRESS=' . $smtp['from'] . "\n"
-        . 'MAIL_FROM_NAME="' . addslashes($smtp['from_name']) . '"' . "\n\n"
-        . 'SUPER_ADMIN_EMAIL=' . $admin['email'] . "\n"
-        . 'SUPER_ADMIN_PASSWORD_HASH=' . $hash . "\n";
+function build_env(array $db, array $app, array $smtp, array $admin, string $key, string $hash): string
+{
+    return 'APP_NAME="'.addslashes($app['name']).'"'."\n"
+        .'APP_ENV=production'."\n"
+        .'APP_KEY='.$key."\n"
+        .'APP_DEBUG=false'."\n"
+        .'APP_URL='.$app['url']."\n"
+        .'APP_TIMEZONE='.$app['timezone']."\n\n"
+        .'LOG_CHANNEL=daily'."\n"
+        .'LOG_LEVEL=error'."\n\n"
+        .'DB_CONNECTION=mysql'."\n"
+        .'DB_HOST='.$db['host']."\n"
+        .'DB_PORT='.$db['port']."\n"
+        .'DB_DATABASE='.$db['name']."\n"
+        .'DB_USERNAME='.$db['app_user']."\n"
+        .'DB_PASSWORD='.$db['app_password']."\n\n"
+        .'CACHE_DRIVER=redis'."\n"
+        .'QUEUE_CONNECTION=redis'."\n"
+        .'SESSION_DRIVER=redis'."\n"
+        .'SESSION_LIFETIME=120'."\n\n"
+        .'REDIS_HOST=127.0.0.1'."\n"
+        .'REDIS_PASSWORD=null'."\n"
+        .'REDIS_PORT=6379'."\n\n"
+        .'MAIL_MAILER=smtp'."\n"
+        .'MAIL_HOST='.$smtp['host']."\n"
+        .'MAIL_PORT='.$smtp['port']."\n"
+        .'MAIL_USERNAME='.$smtp['username']."\n"
+        .'MAIL_PASSWORD='.$smtp['password']."\n"
+        .'MAIL_SCHEME='.$smtp['encryption']."\n"
+        .'MAIL_FROM_ADDRESS='.$smtp['from']."\n"
+        .'MAIL_FROM_NAME="'.addslashes($smtp['from_name']).'"'."\n\n"
+        .'SUPER_ADMIN_EMAIL='.$admin['email']."\n"
+        .'SUPER_ADMIN_PASSWORD_HASH='.$hash."\n";
 }
 
-function redirect(string $a): void { header("Location: ?action={$a}"); exit; }
+function redirect(string $a): void
+{
+    header("Location: ?action={$a}");
+    exit;
+}
 
 // =============================================================================
 // RENDU HTML
 // =============================================================================
-function render_page(string $action): void {
-    $step   = $_SESSION['step'] ?? 0;
+function render_page(string $action): void
+{
+    $step = $_SESSION['step'] ?? 0;
     $errors = $_SESSION['errors'] ?? [];
     unset($_SESSION['errors']);
-    $steps  = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Installation'];
+    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Installation'];
 
     html_open();
     html_steps($step, $steps);
 
     switch ($action) {
-        case 'welcome':  page_welcome();         break;
-        case 'check':    $_SESSION['step'] = 1; page_check(); break;
-        case 'database': page_database($errors); break;
-        case 'app':      page_app($errors);      break;
-        case 'smtp':     page_smtp();            break;
-        case 'collabora': page_collabora();        break;
-        case 'admin':    page_admin($errors);    break;
-        case 'install':  page_install();         break;
-        case 'success':  page_success();         break;
+        case 'welcome':  page_welcome();
+            break;
+        case 'check':    $_SESSION['step'] = 1;
+            page_check();
+            break;
+        case 'database': page_database($errors);
+            break;
+        case 'app':      page_app($errors);
+            break;
+        case 'smtp':     page_smtp();
+            break;
+        case 'collabora': page_collabora();
+            break;
+        case 'admin':    page_admin($errors);
+            break;
+        case 'install':  page_install();
+            break;
+        case 'success':  page_success();
+            break;
         default:         page_welcome();
     }
 
     html_close();
 }
 
-function html_open(): void { ?>
+function html_open(): void
+{ ?>
 <!DOCTYPE html><html lang="fr"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Installation Pladigit</title>
@@ -620,34 +702,42 @@ code{background:var(--light);padding:.12rem .35rem;border-radius:3px;font-size:.
 </div>
 <?php }
 
-function html_close(): void { ?>
+function html_close(): void
+{ ?>
 </body></html>
 <?php }
 
-function html_steps(int $cur, array $steps): void { ?>
+function html_steps(int $cur, array $steps): void
+{ ?>
 <div class="steps-bar"><div class="steps">
-<?php foreach ($steps as $i => $l):
+<?php foreach ($steps as $i => $l) {
     $c = $i < $cur ? 'done' : ($i === $cur ? 'active' : ''); ?>
 <div class="step <?= $c ?>">
-  <div class="sn"><?= $i < $cur ? '✓' : ($i+1) ?></div>
+  <div class="sn"><?= $i < $cur ? '✓' : ($i + 1) ?></div>
   <div class="sl"><?= htmlspecialchars($l) ?></div>
-  <?php if ($i < count($steps)-1): ?><div class="sline"></div><?php endif; ?>
+  <?php if ($i < count($steps) - 1) { ?><div class="sline"></div><?php } ?>
 </div>
-<?php endforeach; ?>
+<?php } ?>
 </div></div>
 <?php }
 
-function errs(array $e): void {
-    if (!$e) return;
+function errs(array $e): void
+{
+    if (! $e) {
+        return;
+    }
     echo '<div class="alert ae"><strong>Erreur :</strong><ul style="margin:.4rem 0 0 1.1rem">';
-    foreach ($e as $i) echo '<li>' . htmlspecialchars($i) . '</li>';
+    foreach ($e as $i) {
+        echo '<li>'.htmlspecialchars($i).'</li>';
+    }
     echo '</ul></div>';
 }
 
 // =============================================================================
 // PAGES
 // =============================================================================
-function page_welcome(): void { ?>
+function page_welcome(): void
+{ ?>
 <div class="wrap"><div class="card">
 <div style="text-align:center;margin-bottom:1.75rem">
   <div style="font-size:3rem;margin-bottom:.875rem">&#x1F3DB;</div>
@@ -660,14 +750,14 @@ function page_welcome(): void { ?>
       ['&#x1F5C4;', 'Connecter la base de données MySQL'],
       ['&#x1F310;', "Définir l'adresse de votre plateforme"],
       ['&#x1F4E7;', "Configurer l'envoi d'emails (optionnel)"],
-      ['&#x1F4DD;', "Choisir les options (Collabora Online)"],
+      ['&#x1F4DD;', 'Choisir les options (Collabora Online)'],
       ['&#x1F464;', 'Créer votre compte administrateur'],
       ['&#x1F680;', "Lancer l'installation automatique"],
-  ] as [$icon, $label]): ?>
+  ] as [$icon, $label]) { ?>
   <div style="display:flex;align-items:center;gap:.6rem;padding:.35rem 0;font-size:.875rem">
     <span><?= $icon ?></span><span><?= htmlspecialchars($label) ?></span>
   </div>
-  <?php endforeach; ?>
+  <?php } ?>
 </div>
 <div class="alert ai"><strong>Durée estimée :</strong> 5 à 10 minutes (30 minutes si Collabora Online est installé).</div>
 <div class="btns" style="justify-content:center">
@@ -676,48 +766,50 @@ function page_welcome(): void { ?>
 </div></div>
 <?php }
 
-function page_check(): void {
+function page_check(): void
+{
     $checks = [
         ['PHP >= 8.2',            version_compare(PHP_VERSION, '8.2.0', '>='), PHP_VERSION],
-        ['Extension pdo_mysql',   extension_loaded('pdo_mysql'),   extension_loaded('pdo_mysql')   ? 'OK' : 'Manquante'],
-        ['Extension mbstring',    extension_loaded('mbstring'),    extension_loaded('mbstring')    ? 'OK' : 'Manquante'],
-        ['Extension redis',       extension_loaded('redis'),       extension_loaded('redis')       ? 'OK' : 'Manquante'],
-        ['Extension gd',          extension_loaded('gd'),          extension_loaded('gd')          ? 'OK' : 'Manquante'],
-        ['Extension zip',         extension_loaded('zip'),         extension_loaded('zip')         ? 'OK' : 'Manquante'],
-        ['Extension curl',        extension_loaded('curl'),        extension_loaded('curl')        ? 'OK' : 'Manquante'],
-        ['Extension ldap',        extension_loaded('ldap'),        extension_loaded('ldap')        ? 'OK' : 'Manquante'],
-        ['storage/ accessible',   is_writable(PLADIGIT_ROOT . '/storage'), is_writable(PLADIGIT_ROOT . '/storage') ? 'OK' : 'Non accessible'],
-        ['Racine en écriture',    is_writable(PLADIGIT_ROOT),     is_writable(PLADIGIT_ROOT)      ? 'OK' : 'Non accessible'],
-        ['shell_exec disponible', function_exists('shell_exec'),  function_exists('shell_exec')   ? 'OK' : 'Désactivé'],
+        ['Extension pdo_mysql',   extension_loaded('pdo_mysql'),   extension_loaded('pdo_mysql') ? 'OK' : 'Manquante'],
+        ['Extension mbstring',    extension_loaded('mbstring'),    extension_loaded('mbstring') ? 'OK' : 'Manquante'],
+        ['Extension redis',       extension_loaded('redis'),       extension_loaded('redis') ? 'OK' : 'Manquante'],
+        ['Extension gd',          extension_loaded('gd'),          extension_loaded('gd') ? 'OK' : 'Manquante'],
+        ['Extension zip',         extension_loaded('zip'),         extension_loaded('zip') ? 'OK' : 'Manquante'],
+        ['Extension curl',        extension_loaded('curl'),        extension_loaded('curl') ? 'OK' : 'Manquante'],
+        ['Extension ldap',        extension_loaded('ldap'),        extension_loaded('ldap') ? 'OK' : 'Manquante'],
+        ['storage/ accessible',   is_writable(PLADIGIT_ROOT.'/storage'), is_writable(PLADIGIT_ROOT.'/storage') ? 'OK' : 'Non accessible'],
+        ['Racine en écriture',    is_writable(PLADIGIT_ROOT),     is_writable(PLADIGIT_ROOT) ? 'OK' : 'Non accessible'],
+        ['shell_exec disponible', function_exists('shell_exec'),  function_exists('shell_exec') ? 'OK' : 'Désactivé'],
     ];
-    $allOk = array_reduce($checks, fn($c, $i) => $c && $i[1], true);
+    $allOk = array_reduce($checks, fn ($c, $i) => $c && $i[1], true);
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">Vérification du système</div>
 <p class="card-sub">Votre serveur est-il prêt pour Pladigit ?</p>
-<?php foreach ($checks as [$lbl, $ok, $val]): ?>
+<?php foreach ($checks as [$lbl, $ok, $val]) { ?>
 <div class="chk">
   <span><?= $ok ? '&#x2705;' : '&#x274C;' ?></span>
   <span style="font-size:.875rem;flex:1"><?= htmlspecialchars($lbl) ?></span>
   <span class="chk-v"><?= htmlspecialchars($val) ?></span>
 </div>
-<?php endforeach; ?>
-<?php if (!$allOk): ?>
+<?php } ?>
+<?php if (! $allOk) { ?>
 <div class="alert ae" style="margin-top:1.25rem">Corrigez les erreurs avant de continuer.</div>
-<?php else: ?>
+<?php } else { ?>
 <div class="alert as" style="margin-top:1.25rem">Tout est en ordre ! Votre serveur est compatible.</div>
-<?php endif; ?>
+<?php } ?>
 <div class="btns">
   <a href="?action=check" class="btn btn-s">&#x21BA; Relancer</a>
-  <?php if ($allOk): ?>
+  <?php if ($allOk) { ?>
   <form method="POST"><input type="hidden" name="action" value="check">
   <button type="submit" class="btn btn-p">Continuer &#x2192;</button></form>
-  <?php endif; ?>
+  <?php } ?>
 </div>
 </div></div>
 <?php }
 
-function page_database(array $e): void {
+function page_database(array $e): void
+{
     $ip = $_SERVER['SERVER_ADDR'] ?? '127.0.0.1';
     ?>
 <div class="wrap"><div class="card">
@@ -752,7 +844,8 @@ function page_database(array $e): void {
 </form></div></div>
 <?php }
 
-function page_app(array $e): void {
+function page_app(array $e): void
+{
     $ip = $_SERVER['SERVER_ADDR'] ?? '127.0.0.1';
     ?>
 <div class="wrap"><div class="card">
@@ -784,7 +877,8 @@ function page_app(array $e): void {
 </form></div></div>
 <?php }
 
-function page_smtp(): void { ?>
+function page_smtp(): void
+{ ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F4E7; Configuration email</div>
 <p class="card-sub">Pour les notifications et réinitialisations de mots de passe. <strong>Optionnel</strong> — configurable plus tard dans les paramètres.</p>
@@ -822,15 +916,15 @@ function page_smtp(): void { ?>
 </form></div></div>
 <?php }
 
-
-function page_collabora(): void {
-    $freeBytes   = disk_free_space('/');
-    $freeGb      = round($freeBytes / 1024 / 1024 / 1024, 1);
-    $enough      = $freeGb >= 4;
-    $tight       = $freeGb >= 2 && $freeGb < 4;
-    $cfg         = load_config();
-    $savedMode   = $cfg['collabora']['mode'] ?? ($_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip'));
-    $savedUrl    = $cfg['collabora']['url']  ?? ($_SESSION['collabora']['url']  ?? '');
+function page_collabora(): void
+{
+    $freeBytes = disk_free_space('/');
+    $freeGb = round($freeBytes / 1024 / 1024 / 1024, 1);
+    $enough = $freeGb >= 4;
+    $tight = $freeGb >= 2 && $freeGb < 4;
+    $cfg = load_config();
+    $savedMode = $cfg['collabora']['mode'] ?? ($_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip'));
+    $savedUrl = $cfg['collabora']['url'] ?? ($_SESSION['collabora']['url'] ?? '');
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F4DD; Collabora Online</div>
@@ -839,17 +933,17 @@ function page_collabora(): void {
 <div style="background:var(--light);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.5rem">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
     <span style="font-size:.875rem;font-weight:600;color:var(--navy)">Espace disque disponible</span>
-    <span style="font-size:.875rem;font-weight:700;color:<?= $enough ? "var(--green)" : ($tight ? "#D97706" : "var(--red)") ?>">
+    <span style="font-size:.875rem;font-weight:700;color:<?= $enough ? 'var(--green)' : ($tight ? '#D97706' : 'var(--red)') ?>">
       <?= $freeGb ?> Go libres
     </span>
   </div>
-  <?php if ($enough): ?>
+  <?php if ($enough) { ?>
   <div class="alert as" style="margin:0;padding:.6rem .875rem">&#x2705; Suffisant — installation recommandée (~2 Go requis)</div>
-  <?php elseif ($tight): ?>
+  <?php } elseif ($tight) { ?>
   <div class="alert aw" style="margin:0;padding:.6rem .875rem">&#x26A0;&#xFE0F; Juste — possible mais surveillez l'espace disque</div>
-  <?php else: ?>
+  <?php } else { ?>
   <div class="alert ae" style="margin:0;padding:.6rem .875rem">&#x274C; Insuffisant — utilisez une instance externe ou passez</div>
-  <?php endif; ?>
+  <?php } ?>
 </div>
 
 <form method="POST"><input type="hidden" name="action" value="collabora">
@@ -901,7 +995,8 @@ if (checked) toggleUrl(checked.value);
 </script>
 <?php }
 
-function page_admin(array $e): void { ?>
+function page_admin(array $e): void
+{ ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F464; Compte Super Administrateur</div>
 <p class="card-sub">Ce compte permet d'administrer toute la plateforme Pladigit (création des organisations, gestion des accès et des plans).</p>
@@ -921,11 +1016,12 @@ function page_admin(array $e): void { ?>
 </form></div></div>
 <?php }
 
-function page_install(): void {
-    $cfg           = load_config();
+function page_install(): void
+{
+    $cfg = load_config();
     $collaboraMode = $cfg['collabora']['mode'] ?? $_SESSION['collabora']['mode'] ?? 'skip';
-    $appUrl        = $cfg['app']['url']        ?? $_SESSION['app']['url']        ?? '';
-    $isLocal       = preg_match('/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.)/', $appUrl);
+    $appUrl = $cfg['app']['url'] ?? $_SESSION['app']['url'] ?? '';
+    $isLocal = preg_match('/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.)/', $appUrl);
     ?>
 <div class="wrap"><div class="card" id="install-card">
 
@@ -938,17 +1034,17 @@ function page_install(): void {
     <div style="display:flex;flex-direction:column;gap:.4rem">
       <div>&#x2705; PHP 8.4, MySQL 8, Redis, Nginx, Supervisor</div>
       <div>&#x2705; Application Pladigit (Laravel)</div>
-      <?php if ($collaboraMode === 'local'): ?>
+      <?php if ($collaboraMode === 'local') { ?>
       <div>&#x2705; <strong>Collabora Online</strong> via Docker <span style="color:var(--grey);font-size:.78rem">(~1.5 Go &mdash; 10 &agrave; 20 min suppl&#xE9;mentaires)</span></div>
-      <?php elseif ($collaboraMode === 'external'): ?>
+      <?php } elseif ($collaboraMode === 'external') { ?>
       <div>&#x2705; Collabora Online (instance externe)</div>
-      <?php else: ?>
+      <?php } else { ?>
       <div style="color:var(--grey)">&#x23F0; Collabora Online &mdash; &agrave; configurer plus tard</div>
-      <?php endif; ?>
+      <?php } ?>
     </div>
   </div>
 
-  <?php if ($isLocal): ?>
+  <?php if ($isLocal) { ?>
   <div class="alert ai" style="margin-bottom:1.25rem;font-size:.82rem">
     <strong>&#x1F4BB; Installation locale d&#xE9;tect&#xE9;e</strong><br>
     Pour acc&#xE9;der &#xE0; Pladigit avec un sous-domaine (ex: <code>demo.pladigit.local</code>),
@@ -956,7 +1052,7 @@ function page_install(): void {
     <code style="background:rgba(0,0,0,.08);padding:.2rem .5rem;border-radius:4px;display:inline-block;margin-top:.25rem"><?= htmlspecialchars(preg_replace('#^https?://#', '', $appUrl)) ?> demo.pladigit.local</code><br><br>
     Puis acc&#xE9;dez via <code>http://demo.pladigit.local</code>
   </div>
-  <?php endif; ?>
+  <?php } ?>
 
   <div class="btns" style="justify-content:center">
     <button id="start-btn" class="btn btn-g" onclick="startInstall()">&#x1F680; Lancer l'installation</button>
@@ -978,20 +1074,20 @@ function page_install(): void {
   <div id="install-steps">
     <?php
     $installSteps = [
-        'mysql'      => 'Connexion et configuration MySQL',
-        'env'        => 'Écriture de la configuration',
-        'migrate'    => 'Création des tables',
-        'cache'      => 'Optimisation du cache',
-        'storage'    => 'Configuration du stockage',
+        'mysql' => 'Connexion et configuration MySQL',
+        'env' => 'Écriture de la configuration',
+        'migrate' => 'Création des tables',
+        'cache' => 'Optimisation du cache',
+        'storage' => 'Configuration du stockage',
         'supervisor' => 'Démarrage des workers',
-        'lock'       => 'Finalisation',
+        'lock' => 'Finalisation',
     ];
-    foreach ($installSteps as $key => $label): ?>
+    foreach ($installSteps as $key => $label) { ?>
     <div class="install-step pending" id="step-<?= $key ?>">
       <span class="icon" id="icon-<?= $key ?>">&#x23F3;</span>
       <span><?= htmlspecialchars($label) ?></span>
     </div>
-    <?php endforeach; ?>
+    <?php } ?>
   </div>
 
   <div style="margin-top:1.25rem">
@@ -1152,10 +1248,11 @@ function escHtml(s) {
 </script>
 <?php }
 
-function page_success(): void {
-    $url   = $_SESSION['app_url']         ?? '';
-    $admin = $_SESSION['admin']           ?? [];
-    $db    = $_SESSION['db']              ?? [];
+function page_success(): void
+{
+    $url = $_SESSION['app_url'] ?? '';
+    $admin = $_SESSION['admin'] ?? [];
+    $db = $_SESSION['db'] ?? [];
     ?>
 <div class="wrap"><div class="card">
 <div style="text-align:center;font-size:3.5rem;margin-bottom:1.25rem">&#x1F389;</div>

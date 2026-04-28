@@ -332,57 +332,61 @@ Route::middleware('tenant')->group(function () {
 
     });
 
-// Sert le script bash d'installation
-Route::get('/install.sh', function () {
-    $path = base_path('install.sh');
-    if (!file_exists($path)) {
-        abort(404, 'Fichier non trouvé.');
-    }
-    return response()->file($path, [
-        'Content-Type'        => 'text/x-sh',
-        'Content-Disposition' => 'attachment; filename="install.sh"',
-    ]);
-})->name('install.script');
- 
-// Sert le wizard PHP (téléchargement)
-// Niveau 3 : bloque si .lock existe (installation déjà effectuée sur ce serveur)
-Route::get('/install-wizard.php', function () {
-    // Si Pladigit est déjà installé sur CE serveur, bloquer le téléchargement
-    if (file_exists(base_path('install/.lock'))) {
-        return response()->view('errors.install-locked', [], 403);
-    }
- 
-    $path = base_path('install/index.php');
-    if (!file_exists($path)) {
-        abort(404, 'Fichier non trouvé.');
-    }
-    return response()->file($path, [
-        'Content-Type'        => 'application/octet-stream',
-        'Content-Disposition' => 'attachment; filename="index.php"',
-    ]);
-})->name('install.wizard');
+    // Sert le script bash d'installation
+    Route::get('/install.sh', function () {
+        $path = base_path('install.sh');
+        if (! file_exists($path)) {
+            abort(404, 'Fichier non trouvé.');
+        }
 
-// Route guide d'installation — sert le HTML directement
-Route::get('/guide-installation', function () {
-    $path = base_path('docs/GUIDE-INSTALLATION.html');
-    if (!file_exists($path)) {
-        abort(404, 'Guide non trouvé.');
-    }
-    return response()->file($path, [
-        'Content-Type' => 'text/html; charset=utf-8',
-    ]);
-})->name('guide.installation');
+        return response()->file($path, [
+            'Content-Type' => 'text/x-sh',
+            'Content-Disposition' => 'attachment; filename="install.sh"',
+        ]);
+    })->name('install.script');
 
-// Route Laravel pour get-collabora-installer
- Route::get('/get-collabora-installer', function () {
-     $path = base_path('install/install-collabora.sh');
-     if (!file_exists($path)) { abort(404); }
-     return response()->file($path, [
-         'Content-Type'        => 'text/x-sh',
-         'Content-Disposition' => 'inline; filename="install-collabora.sh"',
-     ]);
- })->name('install.collabora');
+    // Sert le wizard PHP (téléchargement)
+    // Niveau 3 : bloque si .lock existe (installation déjà effectuée sur ce serveur)
+    Route::get('/install-wizard.php', function () {
+        // Si Pladigit est déjà installé sur CE serveur, bloquer le téléchargement
+        if (file_exists(base_path('install/.lock'))) {
+            return response()->view('errors.install-locked', [], 403);
+        }
 
+        $path = base_path('install/index.php');
+        if (! file_exists($path)) {
+            abort(404, 'Fichier non trouvé.');
+        }
 
+        return response()->file($path, [
+            'Content-Type' => 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="index.php"',
+        ]);
+    })->name('install.wizard');
+
+    // Route guide d'installation — sert le HTML directement
+    Route::get('/guide-installation', function () {
+        $path = base_path('docs/GUIDE-INSTALLATION.html');
+        if (! file_exists($path)) {
+            abort(404, 'Guide non trouvé.');
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'text/html; charset=utf-8',
+        ]);
+    })->name('guide.installation');
+
+    // Route Laravel pour get-collabora-installer
+    Route::get('/get-collabora-installer', function () {
+        $path = base_path('install/install-collabora.sh');
+        if (! file_exists($path)) {
+            abort(404);
+        }
+
+        return response()->file($path, [
+            'Content-Type' => 'text/x-sh',
+            'Content-Disposition' => 'inline; filename="install-collabora.sh"',
+        ]);
+    })->name('install.collabora');
 
 });
