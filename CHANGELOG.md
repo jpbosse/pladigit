@@ -1,7 +1,24 @@
 # Changelog — Pladigit
 
-Toutes les modifications notables sont documentées ici.  
+Toutes les modifications notables sont documentées ici.
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning [SemVer](https://semver.org/).
+
+---
+
+## [0.8.1] — Mai 2026
+
+### Ajouté
+- **ARGUMENTAIRE.md** — document de référence complet pour les échanges avec les collectivités, centres de gestion et syndicats informatiques : contexte du projet, 8 argumentaires thématiques (sécurité, comparatif Nextcloud, comparatif Microsoft, CDG, cas concret, DINUM, ANSSI/RGPD, DataGrid/DataPilot)
+- **OBJECTIONS.md** — questions fréquentes et réponses honnêtes, destiné à la racine du dépôt GitHub pour les visiteurs
+- **public/calculateur-roi-pladigit.html** — calculateur ROI interactif en HTML autonome, accessible depuis la page d'accueil et depuis la sidebar de navigation
+- **Sidebar de navigation** sur la page d'accueil (`welcome.blade.php`) — remplace la barre de navigation horizontale par une sidebar fixe à gauche (240px) avec lien vers le calculateur ROI, surlignage actif selon le scroll, burger mobile avec overlay
+- **SGM (Secrétaire Général de Mairie)** — terminologie mise à jour dans la documentation et la page de démo conformément à la loi du 30 décembre 2023 (renommage de secrétaire de mairie en secrétaire général de mairie)
+- **DataGrid + DataPilot** ajoutés dans la grille des modules de la page d'accueil et dans la roadmap
+
+### Modifié
+- README.md : ajout des nouvelles entrées de documentation (ARGUMENTAIRE, OBJECTIONS, calculateur ROI), SGM dans les rôles, DataGrid/DataPilot dans le tableau de remplacement Microsoft et la roadmap, section auteur enrichie
+- docs/README.md : ajout des nouvelles entrées
+- docs/glossaire.md : compteur ADR corrigé (22 → 31), ajout des termes SGM, DGS, TOTP, RGPD, AIPD, SecNumCloud, ODF, CalDAV, CDG
 
 ---
 
@@ -36,16 +53,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 ### Ajouté
 - **Collabora Online (WOPI)** — édition collaborative ODT/ODS/ODP et formats Microsoft Office
 - Protocole WOPI complet : CheckFileInfo, GetFile, PutFile, Lock/Unlock/RefreshLock/GetLock
-- Token d'accès multi-tenant sécurisé (`{org_slug}:{raw_token}`)
+- Token d'accès multi-organisation sécurisé (`{org_slug}:{raw_token}`)
 - Versioning automatique à chaque sauvegarde depuis Collabora
-- Administration Collabora : URL, TTL session, test de connexion (Admin > GED > Collabora)
+- Administration Collabora : URL, durée de session, test de connexion (Admin > GED > Collabora)
 - ADR-021 : `access_token_ttl` comme timestamp Unix absolu en millisecondes
 - ADR-022 : Collabora intégré à GED, pas de module séparé
+- ADR-023 : gestion des verrous WOPI
+- ADR-024 : configuration Collabora par organisation
 
 ### Technique
-- 759 tests PHPUnit / 1645 assertions — tous verts
+- 759 tests PHPUnit / 1 645 assertions — tous verts
 - PHPStan niveau 5 : 0 erreur
-- CI/CD GitHub Actions : 4 checks verts en continu
+- CI/CD GitHub Actions : 4 vérifications vertes en continu
 
 ---
 
@@ -54,12 +73,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 ### Ajouté
 - **GED documentaire** — arborescence, permissions fines, upload drag & drop
 - Versioning complet des documents (historique, restauration, archivage horodaté)
-- Synchronisation NAS → GED (détection nouveaux fichiers, mtime 5 min, job async)
-- Recherche plein texte MySQL FULLTEXT (ADR-014)
+- Synchronisation NAS → GED (détection nouveaux fichiers, toutes les 5 minutes, job asynchrone)
+- Recherche plein texte MySQL FULLTEXT (ADR-025)
 - Intégration GED ↔ Projets (`ProjectGedLink`)
 - Gouvernance admin : transfert de propriété, purge, intégrité des fichiers
 - Suppression récursive de dossiers avec confirmation et audit
-- Module gating `COLLABORA` intégré à `GED`
 - ADR-020 : abstraction du stockage GED via `GedStorageInterface`
 
 ---
@@ -82,31 +100,30 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 
 ### Ajouté
 - **Photothèque NAS** — albums hiérarchiques, upload multi-fichiers, traitement asynchrone
-- Import ZIP asynchrone (job queue)
+- Import ZIP asynchrone (file de tâches)
 - Synchronisation NAS planifiée (local, SFTP, SMB)
 - Miniatures automatiques, extraction EXIF, tri par date de prise de vue
-- Watermark configurable (GD natif — ADR-018)
-- Déduplication SHA-256 cross-album
-- Droits par album (rôles globaux + overrides utilisateur)
+- Filigrane (watermark) configurable — GD natif PHP (ADR-018)
+- Déduplication SHA-256 cross-album (ADR-013)
+- Droits par album (rôles globaux + surcharges utilisateur)
 - Modules activables par organisation via JSON `enabled_modules` (ADR-016)
 - ADR-012 : stockage NAS, pas cloud
-- ADR-013 : déduplication SHA-256
-- ADR-014 : queue database
-- ADR-015 : streaming range HTTP
+- ADR-014 : file de tâches (queue database)
+- ADR-015 : streaming HTTP adaptatif (range HTTP)
 
 ---
 
 ## [0.3.0] — Mars 2026
 
 ### Ajouté
-- **Gestion de projet** — Kanban par jalon, Gantt SVG drag & drop, Liste, Charge, Agenda
+- **Gestion de projet** — Kanban par jalon, Gantt SVG drag & drop, Liste, Charge de travail, Agenda
 - Tâches : récurrence, dépendances Fin→Fin, commentaires, sous-tâches
 - Budget : investissement / fonctionnement, co-financement, graphiques
 - Risques, observations, parties prenantes, conduite du changement
-- Export PDF tableau de bord élus, export iCal jalons
+- Export PDF tableau de bord élus, export iCal jalons (RFC 5545)
 - Modèles de projet réutilisables, duplication avec décalage de dates
 - Historique d'activité (15 types d'actions)
-- Droits hiérarchiques projets (ADR-011) — Resp. Direction/Service en lecture automatique
+- Droits hiérarchiques projets (ADR-011) — Responsables Direction/Service en lecture automatique
 - Intégration Jitsi Meet souverain (`meet.numerique.gouv.fr`)
 - ADR-008 à ADR-011
 
@@ -115,12 +132,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 ## [0.2.0] — Janvier–Mars 2026
 
 ### Ajouté
-- **Authentification LDAP/Active Directory** — LDAPS obligatoire, circuit breaker, sync automatique
-- Gestion des rôles hiérarchiques (Admin, Président, DGS, Resp. Direction, Resp. Service, Agent)
+- **Authentification LDAP/Active Directory** — LDAPS obligatoire, circuit breaker, synchronisation automatique
+- Gestion des rôles hiérarchiques (Admin, Président, DGS, Responsable Direction, Responsable Service, Agent)
 - Structure organisationnelle Directions > Services > Agents
-- Invitation par email (token 72h)
-- Personnalisation visuelle par organisation (logo, couleurs — branding)
-- Dashboard avec statistiques et widgets par rôle
+- Invitation par email (jeton valable 72 heures)
+- Personnalisation visuelle par organisation (logo, couleurs)
+- Tableau de bord avec statistiques et widgets par rôle
 - Profil utilisateur complet
 - ADR-005 à ADR-007
 
@@ -130,11 +147,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 
 ### Ajouté
 - Socle technique Laravel 11 + PHP 8.4 + MySQL 8 + Redis 7
-- Architecture multi-tenant : base MySQL dédiée par organisation (ADR-002)
+- Architecture multi-organisation : base MySQL dédiée par organisation (ADR-002)
 - Authentification locale — bcrypt coût 12, verrouillage de compte (ADR-004)
 - Double authentification TOTP — Google Authenticator, Aegis, codes de secours chiffrés AES-256 (ADR-017)
 - Politique de mot de passe configurable (longueur, complexité, expiration, historique)
-- Journalisation complète — audit trail, export CSV/JSON, rétention RGPD configurable
-- Super Admin isolé (credentials `.env` uniquement, hors base de données)
+- Journalisation complète — audit trail, export CSV/JSON, rétention RGPD configurable (12 mois par défaut, extensible à 36 mois)
+- Super Admin isolé (identifiants `.env` uniquement, hors base de données)
 - CI/CD GitHub Actions : PHPUnit, Pint PSR-12, PHPStan niveau 5, Composer audit (ADR-003)
 - ADR-001 à ADR-004

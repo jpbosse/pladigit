@@ -1,6 +1,6 @@
 # Pladigit — Plateforme de Digitalisation Interne
 
-> Alternative souveraine et open source aux outils Microsoft (Teams, SharePoint, OneDrive, Word, Excel, Planner)  
+> Alternative souveraine et open source aux outils Microsoft (Teams, SharePoint, OneDrive, Word, Excel, Planner)
 > Conçue pour les collectivités locales, associations et structures du secteur parapublic français.
 
 ![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
@@ -13,16 +13,37 @@
 
 ## Présentation
 
-**Pladigit** est une plateforme SaaS multi-tenant destinée aux organisations publiques et parapubliques françaises souhaitant reprendre le contrôle de leurs outils numériques.
+**Pladigit** est une plateforme multi-organisation destinée aux collectivités publiques et parapubliques françaises souhaitant reprendre le contrôle de leurs outils numériques.
 
-Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**, hébergé en France, sans aucune dépendance à un cloud propriétaire.
+Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**, hébergé en France ou sur ses propres serveurs, sans aucune dépendance à un cloud propriétaire.
 
 ### Pourquoi Pladigit ?
 
-- **Souveraineté numérique** — hébergement en France, données hors UE impossibles, formats ouverts (ODF)
-- **Open source AGPL-3.0** — code auditable, pas de vendor lock-in, déployable sur vos serveurs
-- **Conçu pour les collectivités** — mairies, communautés de communes, associations, secteur parapublic
+- **Souveraineté numérique** — hébergement en France ou sur serveur interne, formats ouverts ODF, données hors portée des législations étrangères
+- **Open source AGPL-3.0** — code auditable, pas de dépendance à un fournisseur unique, déployable sur vos serveurs
+- **Conçu pour les collectivités françaises** — mairies, communautés de communes, associations, secteur parapublic, structure hiérarchique Direction > Service > Agent native
 - **Zéro abonnement logiciel** — aucune licence Microsoft, aucun abonnement cloud
+
+### Qui développe Pladigit ?
+
+Pladigit est développé par **Jean-Pierre Bossé**, retraité de la fonction publique territoriale, basé à Soullans (Vendée). Ce projet est né d'une connaissance de terrain des besoins des petites collectivités et d'une conviction : un outil libre, bien conçu et installable en 30 minutes peut répondre aux besoins de 90 % des communes de moins de 20 000 habitants.
+
+Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse)
+
+---
+
+## Remplacement des outils Microsoft
+
+| Outil Microsoft | Alternative Pladigit | Statut |
+|-----------------|---------------------|--------|
+| Planner | Gestion de projet (Kanban, Gantt, Budget) | ✅ Livré |
+| OneDrive / Photos | Photothèque NAS | ✅ Livré |
+| SharePoint | GED documentaire + Collabora Online | ✅ Livré |
+| Word / Excel / PowerPoint | Collabora Online (ODF natif) | ✅ Livré |
+| Excel (listes et synthèses) | DataGrid + DataPilot | 🔜 Planifié |
+| Teams | Messagerie instantanée | 🔜 Planifié |
+| Outlook Calendrier | Agenda global + CalDAV | 🔜 Planifié |
+| Forms | Sondages Pladigit | 🔜 Planifié |
 
 ---
 
@@ -30,43 +51,44 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 
 ### Socle (Phases 1–2)
 - Authentification locale sécurisée — bcrypt coût 12, verrouillage de compte, politique de mot de passe configurable
-- Double authentification TOTP (Google Authenticator, Aegis) avec codes de secours chiffrés AES-256
-- Authentification LDAP / Active Directory (LDAPS obligatoire, circuit breaker, sync automatique)
-- Architecture multi-tenant — base MySQL dédiée par organisation, isolation totale
-- Gestion des rôles hiérarchiques — Admin, Président, DGS, Resp. Direction, Resp. Service, Agent
+- Double authentification TOTP (Google Authenticator, Aegis, Authy) — codes de secours chiffrés AES-256
+- Authentification LDAP / Active Directory — LDAPS obligatoire, circuit breaker, synchronisation automatique
+- Architecture multi-organisation — base MySQL dédiée par organisation, isolation totale
+- Gestion des rôles hiérarchiques — Admin, Président, DGS (Directeur Général des Services), SGM (Secrétaire Général de Mairie, loi du 30 décembre 2023), Responsable Direction, Responsable Service, Agent
 - Structure organisationnelle — Directions > Services > Agents
-- Journalisation complète — audit trail avec export CSV/JSON, rétention configurable (RGPD)
+- Journalisation complète — audit trail RGPD avec export CSV/JSON, rétention configurable de 12 mois (extensible à 36 mois)
 - CI/CD GitHub Actions — PHPUnit, Pint PSR-12, PHPStan niveau 5, Composer audit
 
 ### Gestion de projet (Phase 3) — *remplace Microsoft Planner*
 - Vues : Kanban par jalon, Gantt SVG avec drag & drop, Liste, Charge de travail, Agenda
 - Tâches : récurrence, dépendances (Fin→Fin), commentaires, sous-tâches, assignation
-- Budget : investissement / fonctionnement, co-financement, graphiques
+- Budget : lignes investissement / fonctionnement / co-financement, graphiques, alertes dépassement
 - Risques, observations, parties prenantes, conduite du changement
-- Export PDF élus, export iCal jalons, modèles de projet, duplication
+- Export PDF pour les élus, export iCal jalons, modèles de projet réutilisables, duplication
 - Droits : UserRole global + ProjectRole par projet (ADR-010, ADR-011)
+- Intégration visioconférence Jitsi Meet souverain (meet.numerique.gouv.fr)
 
 ### Photothèque NAS (Phases 4–5) — *remplace OneDrive Photos*
-- Albums hiérarchiques, upload drag & drop, traitement asynchrone (queue)
-- Déduplication SHA-256 cross-album, extraction EXIF, watermark configurable
-- Partage par lien sécurisé temporaire, export ZIP, streaming range HTTP
+- Albums hiérarchiques, upload drag & drop, traitement asynchrone (file de tâches)
+- Déduplication SHA-256 cross-album, extraction EXIF, filigrane configurable
+- Partage par lien sécurisé temporaire, export ZIP, streaming HTTP adaptatif
 - Synchronisation planifiée depuis NAS (local, SFTP, SMB)
-- Droits par album, quotas de stockage stricts par organisation
+- Droits par album, quotas de stockage stricts par organisation (alertes à 80/90/95 %)
 
 ### GED documentaire (Phase 6) — *remplace SharePoint*
 - Arborescence de dossiers avec permissions fines (rôle, direction, service, utilisateur)
-- Upload drag & drop, prévisualisation inline, versioning complet
-- Synchronisation NAS → GED (détection nouveaux fichiers, mtime 5 min)
-- Recherche plein texte (MySQL FULLTEXT — ADR-014)
-- Gouvernance admin : transfert de propriété, purge, intégrité des fichiers
+- Upload drag & drop, prévisualisation en ligne, versioning complet avec restauration
+- Synchronisation NAS → GED (détection nouveaux fichiers, toutes les 5 minutes)
+- Recherche plein texte (MySQL FULLTEXT — ADR-025)
+- Gouvernance admin : transfert de propriété, purge, vérification d'intégrité
 - Intégration GED ↔ Projets (ProjectGedLink)
 
 ### Collabora Online (Phase 7) — *remplace Microsoft Office*
-- Édition collaborative des formats ODF (ODT, ODS, ODP) et Microsoft Office
+- Édition collaborative des formats ODF (ODT, ODS, ODP) et Microsoft Office (DOCX, XLSX, PPTX)
 - Protocole WOPI complet : CheckFileInfo, GetFile, PutFile, Lock/Unlock/RefreshLock/GetLock
-- Token d'accès multi-tenant sécurisé — un seul aliasgroup Collabora pour tous les tenants
-- Versioning automatique à chaque sauvegarde Collabora
-- Administration : URL, TTL session, test de connexion depuis l'interface admin
+- Token d'accès multi-organisation sécurisé — un seul aliasgroup Collabora pour tous les tenants
+- Versioning automatique à chaque sauvegarde
+- Administration : URL, durée de session, test de connexion depuis l'interface admin
 
 ---
 
@@ -108,20 +130,6 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 
 ---
 
-## Remplacement des outils Microsoft
-
-| Microsoft | Alternative Pladigit | Statut |
-|-----------|---------------------|--------|
-| Planner | Gestion de projet | ✅ Livré |
-| OneDrive / Photos | Photothèque NAS | ✅ Livré |
-| SharePoint | GED Pladigit | ✅ Livré |
-| Word / Excel / PowerPoint | Collabora Online | ✅ Livré |
-| Teams | Chat Pladigit | Planifié |
-| Outlook Calendrier | Agenda global + CalDAV | Planifié |
-| Forms | Sondages Pladigit | Planifié |
-
----
-
 ## Stack technique
 
 | Technologie | Version | Rôle |
@@ -130,12 +138,12 @@ Chaque organisation dispose d'un espace **isolé, sécurisé et personnalisé**,
 | Laravel | 11.x | Framework MVC |
 | Alpine.js | 3.x | Interactivité frontend |
 | Livewire | 4.2 | Composants réactifs |
-| MySQL | 8.0+ | SGBD multi-tenant |
-| Redis | 7.x | Cache, queues, sessions |
+| MySQL | 8.0+ | Base de données multi-organisation |
+| Redis | 7.x | Cache, files de tâches, sessions |
 | Tailwind CSS | 3.x | Framework CSS |
-| Collabora Online | CODE 24.x | Éditeur bureautique WOPI |
+| Collabora Online | CODE 24.x | Éditeur bureautique (protocole WOPI) |
 | Docker | 24+ | Conteneurisation Collabora |
-| PHPUnit | 11.x | Tests (759 tests / 1645 assertions) |
+| PHPUnit | 11.x | Tests (759 tests / 1 645 assertions) |
 | PHPStan | 1.x | Analyse statique niveau 5 |
 
 ---
@@ -154,7 +162,7 @@ curl -fsSL https://pladigit.fr/install.sh | sudo bash
 
 L'assistant web vous guide ensuite en 8 étapes pour configurer la base de données, l'URL, l'email et le compte administrateur.
 
-📖 [Guide d'installation débutant](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) — avec captures d'écran pas-à-pas
+📖 [Guide d'installation illustré](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) — avec captures d'écran pas-à-pas
 
 ### Installation manuelle (administrateurs expérimentés)
 
@@ -180,9 +188,9 @@ php artisan test --exclude-group ldap,integration   # 759 tests
 composer audit                                       # 0 vulnérabilité
 ```
 
-| Check | Résultat |
-|-------|----------|
-| PHPUnit 11 | **759 tests / 1645 assertions ✅** |
+| Vérification | Résultat |
+|-------------|----------|
+| PHPUnit 11 | **759 tests / 1 645 assertions ✅** |
 | Laravel Pint | PSR-12 ✅ |
 | PHPStan niveau 5 | 0 erreur ✅ |
 | Composer audit | 0 vulnérabilité ✅ |
@@ -191,18 +199,48 @@ composer audit                                       # 0 vulnérabilité
 
 ## Documentation
 
+### Documents racine
+
 | Document | Description |
 |----------|-------------|
-| [Guide d'installation](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) | Guide pas-à-pas avec captures d'écran (s'ouvre dans le navigateur) |
 | [INSTALL.md](INSTALL.md) | Guide technique complet — installation manuelle et production |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Comment contribuer au projet |
-| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Code de conduite de la communauté |
-| [SECURITY.md](SECURITY.md) | Signaler une vulnérabilité |
+| [SECURITY.md](SECURITY.md) | Signaler une vulnérabilité de sécurité |
 | [CHANGELOG.md](CHANGELOG.md) | Historique des versions |
-| [docs/adr/](docs/adr/) | Architecture Decision Records (ADR-001 à ADR-031) |
-| [docs/](docs/README.md) | Documentation technique complète |
-| [docs/guides/guide-utilisateur-phototheque.md](docs/guides/guide-utilisateur-phototheque.md) | Guide utilisateur Photothèque |
-| [docs/guides/guide-utilisateur-ged.md](docs/guides/guide-utilisateur-ged.md) | Guide utilisateur GED + Collabora |
+| [ROADMAP.md](ROADMAP.md) | Feuille de route détaillée |
+| [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Code de conduite de la communauté |
+| [ARGUMENTAIRE.md](ARGUMENTAIRE.md) | Argumentaires thématiques pour les collectivités et partenaires |
+| [OBJECTIONS.md](OBJECTIONS.md) | Questions fréquentes et réponses honnêtes |
+
+### Documentation technique (`docs/`)
+
+| Document | Description |
+|----------|-------------|
+| [Guide d'installation illustré](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) | Guide pas-à-pas avec captures d'écran |
+| [docs/CDC_Pladigit_v2.3.md](docs/CDC_Pladigit_v2.3.md) | Cahier des charges complet |
+| [docs/glossaire.md](docs/glossaire.md) | Glossaire des termes techniques et métier |
+| [docs/adr/](docs/adr/) | Décisions architecturales — ADR-001 à ADR-031 |
+| [docs/annexes/](docs/annexes/) | Documentation technique par module |
+| [docs/guides/](docs/guides/) | Guides utilisateurs par profil |
+| [docs/divers/checklist-mise-en-prod.md](docs/divers/checklist-mise-en-prod.md) | Checklist mise en production |
+| [docs/divers/guide-maintenance.md](docs/divers/guide-maintenance.md) | Guide de maintenance |
+
+### Guides utilisateurs
+
+| Guide | Profil cible |
+|-------|-------------|
+| [guide-utilisateurs.md](docs/guides/guide-utilisateurs.md) | Tous les agents |
+| [guide-admin-organisation.md](docs/guides/guide-admin-organisation.md) | Administrateurs organisation (SGM, DGS) |
+| [guide-super-admin.md](docs/guides/guide-super-admin.md) | Super administrateur plateforme |
+| [guide-utilisateur-gestion-projet.md](docs/guides/guide-utilisateur-gestion-projet.md) | Responsables de projet |
+| [guide-utilisateur-phototheque.md](docs/guides/guide-utilisateur-phototheque.md) | Responsables photothèque |
+| [guide-utilisateur-ged.md](docs/guides/guide-utilisateur-ged.md) | Utilisateurs GED et Collabora |
+
+### Outils en ligne
+
+| Outil | Description |
+|-------|-------------|
+| [calculateur-roi-pladigit.html](public/calculateur-roi-pladigit.html) | Calculateur ROI interactif — comparer le coût Pladigit vs Microsoft 365 |
 
 ---
 
@@ -211,13 +249,16 @@ composer audit                                       # 0 vulnérabilité
 ```
 Oct 2025          Avr 2026               2027
 │                 │                      │
-├─ Ph.1 Socle ✅  ├─ Ph.6 GED ✅        ├─ Chat
-├─ Ph.2 Users ✅  ├─ Ph.7 Collabora ✅  ├─ Agenda global
-├─ Ph.3 Projets ✅│                      ├─ Sondages
-├─ Ph.4-5 Photo ✅│                      └─ Publication open source
+├─ Ph.1 Socle ✅  ├─ Ph.6 GED ✅        ├─ DataGrid (listes sans code)
+├─ Ph.2 Users ✅  ├─ Ph.7 Collabora ✅  ├─ DataPilot (tableaux croisés)
+├─ Ph.3 Projets ✅├─ Ph.8 Wizard ✅     ├─ Messagerie instantanée
+├─ Ph.4-5 Photo ✅│                      ├─ Agenda global + CalDAV
+                  │                      ├─ Workflows documentaires
+                  │                      ├─ Signature électronique
+                  │                      └─ IA locale (Ollama — N3)
 ```
 
-Voir [ROADMAP.md](ROADMAP.md) pour le détail.
+Voir [ROADMAP.md](ROADMAP.md) pour le détail complet.
 
 ---
 
@@ -225,18 +266,18 @@ Voir [ROADMAP.md](ROADMAP.md) pour le détail.
 
 Une instance est disponible sur **[pladigit.fr](https://pladigit.fr)** à titre de démonstration.
 
-> ⚠ Cette instance tourne sur infrastructure personnelle. La disponibilité n'est pas garantie.  
+> ⚠ Cette instance tourne sur infrastructure personnelle. La disponibilité n'est pas garantie.
 > Elle est réinitialisée périodiquement. Ne pas y déposer de données sensibles.
 
 ---
 
 ## Contribuer
 
-Les contributions sont les bienvenues — code, documentation, traductions, retours d'usage.
+Les contributions sont les bienvenues — code, documentation, traductions, retours d'usage terrain.
 
 Voir [CONTRIBUTING.md](CONTRIBUTING.md) pour démarrer.
 
-L'infrastructure de démonstration (VPS, domaine) est financée personnellement.  
+L'infrastructure de démonstration (VPS, domaine) est financée personnellement.
 Si ce projet vous est utile, vous pouvez soutenir son développement via [GitHub Sponsors](https://github.com/sponsors/jpbosse).
 
 ---
@@ -251,9 +292,11 @@ Si ce projet vous est utile, vous pouvez soutenir son développement via [GitHub
 ## Auteur
 
 **Jean-Pierre Bossé** — Soullans (Vendée, France)
+Retraité de la fonction publique territoriale
 
 - GitHub : [@jpbosse](https://github.com/jpbosse)
 - Email : contact@pladigit.fr
+- Site : [pladigit.fr](https://pladigit.fr)
 
 ---
 
