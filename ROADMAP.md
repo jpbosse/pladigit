@@ -1,6 +1,6 @@
 # Roadmap — Pladigit
 
-> Une vue simple de l'avancement et des prochaines étapes.  
+> Une vue simple de l'avancement et des prochaines étapes.
 > Cette roadmap reflète la réalité du projet : un développeur, une vision claire, un rythme soutenu.
 
 ---
@@ -9,63 +9,86 @@
 
 | Module | Ce que ça remplace | Depuis |
 |--------|-------------------|--------|
-| Socle — Auth, 2FA, LDAP, multi-tenant | — | Oct 2025 |
-| Gestion de projet — Kanban, Gantt, Budget | Microsoft Planner | Mars 2026 |
-| Photothèque NAS — Albums, EXIF, partage | OneDrive Photos | Mars 2026 |
-| GED documentaire — Arborescence, versioning | SharePoint | Avr 2026 |
-| Collabora Online — Édition ODT/ODS/ODP | Word / Excel / PowerPoint | Avr 2026 |
+| Socle — Auth, double authentification, LDAP, multi-organisation | — | Oct 2025 |
+| Gestion de projet — Kanban, Gantt, Budget, Risques | Microsoft Planner | Mars 2026 |
+| Photothèque NAS — Albums, EXIF, partage, filigrane | OneDrive Photos | Mars 2026 |
+| GED documentaire — Arborescence, versioning, droits fins | SharePoint | Avr 2026 |
+| Collabora Online — Édition ODT/ODS/ODP et formats Office | Word / Excel / PowerPoint | Avr 2026 |
+| Assistant d'installation — script automatique + wizard web 8 étapes | — | Avr 2026 |
 
-**En chiffres :** 759 tests verts · PHPStan niveau 5 · CI/CD GitHub Actions
+**En chiffres :** 759 tests verts · PHPStan niveau 5 · 31 décisions architecturales documentées · CI/CD GitHub Actions
+
+---
+
+## En cours 🔧
+
+### Sécurité production — Mai–Juin 2026
+
+Renforcement de la posture de sécurité avant tout démarche de déploiement élargi. Ce bloc doit être finalisé avant de proposer Pladigit à des collectivités en production.
+
+| Tâche | Description |
+|-------|-------------|
+| En-têtes HTTP de sécurité | CSP (Content Security Policy), X-Frame-Options, Referrer-Policy, Permissions-Policy |
+| Limitation de débit | Rate limiting sur les endpoints sensibles (connexion, API, upload) |
+| Rotation de la clé de chiffrement AES | Mécanisme de rotation sans perte de données |
+| Revue Nginx | Désactivation des modules inutiles, durcissement de la configuration |
+| Checklist mise en prod | Mise à jour de `docs/divers/checklist-mise-en-prod.md` |
 
 ---
 
 ## Ce qui vient ensuite 🔜
 
-Ces modules sont planifiés dans l'ordre de priorité. Les dates sont indicatives.
+Les modules sont dans l'ordre de priorité révisé. Les dates sont indicatives.
 
 | Module | Ce que ça remplace | Période visée |
 |--------|-------------------|---------------|
-| Sécurité production — CSP, headers, rate limiting | — | Mai 2026 |
-| Chat temps réel — canaux, 1:1, WebSocket | Microsoft Teams | Été 2026 |
-| Agenda global — CalDAV, récurrence, export iCal | Outlook Calendrier | Automne 2026 |
-| Pladigit comme source de vérité documentaire — modèles, nommage automatique | — | 2026–2027 |
-| Sondages & questionnaires | Microsoft Forms | 2027 |
-| ERP léger — tables no-code, DataGrid | — | 2027 |
+| **DataGrid** — listes collaboratives sans programmation | Tableurs Excel éparpillés | Été 2026 |
+| **DataPilot** — tableaux croisés dynamiques sur DataGrid | Synthèses Excel manuelles | Été–Automne 2026 |
+| Chat temps réel — canaux par service/projet, 1:1, WebSocket | Microsoft Teams | Automne 2026 |
+| Agenda global — CalDAV, récurrence, synchronisation Thunderbird | Outlook Calendrier | Fin 2026 |
+| Pladigit comme source de vérité documentaire — modèles, nommage automatique, circuits de validation | — | 2026–2027 |
+| Signature électronique — RGS ** (Yousign/Docaposte) pour les élus | — | 2027 |
+| Sondages et questionnaires | Microsoft Forms | 2027 |
+
+### Pourquoi DataGrid et DataPilot avant le Chat et l'Agenda
+
+Le Chat et l'Agenda sont des modules visibles et attendus, mais ils ne résolvent pas le problème le plus fréquent constaté dans les petites collectivités : les dizaines de tableurs Excel éparpillés — listes d'élus, registres d'associations, suivi d'équipements, tableaux de bord — chacun dans son coin, sans lien entre eux, sans traçabilité.
+
+DataGrid remplace ces tableurs par des listes collaboratives intégrées à Pladigit, accessibles selon les droits de chaque agent. DataPilot permet d'en extraire des synthèses croisées à la demande. Ces deux modules constituent un argument commercial fort et différenciant, notamment face à Nextcloud, et ils sont réalisables par un développeur solo dans un délai raisonnable.
 
 ---
 
 ## Ce qui est envisagé plus tard 💡
 
-Ces fonctionnalités sont identifiées mais sans date planifiée.  
-Elles pourront émerger de la communauté open source.
+Ces fonctionnalités sont identifiées mais sans date planifiée. Elles pourront émerger des retours terrain ou de contributions de la communauté.
 
-- **IA locale** — tagging automatique photos (Ollama + LLaVA), recherche sémantique documents
-- **Applications mobiles / PWA** — accès terrain pour les agents
-- **API REST publique** — connecteurs SIG, SIRH, logiciels métiers collectivités
-- **Accessibilité RGAA 4.1** — audit complet et mise en conformité
-- **Fil d'actualités RSS** — agrégateur pour les organisations
+- **Intelligence artificielle locale** — catégorisation automatique des photos (Ollama + LLaVA), recherche sémantique dans les documents. Prévu sur la configuration AMD 3800x / 32 Go RAM avec modèle Mistral 7B Q4.
+- **Applications mobiles / PWA** — accès terrain pour les agents de voirie, culture, technique
+- **API REST publique** — connecteurs SIG (Système d'Information Géographique), SIRH, logiciels métiers collectivités
+- **Accessibilité RGAA 4.1** — référentiel général d'amélioration de l'accessibilité — audit complet et mise en conformité
+- **Fil d'actualités RSS** — agrégateur de veille informationnelle pour les organisations
 
 ---
 
 ## Ce qui est hors périmètre
 
-Ces éléments ont été explicitement écartés pour des raisons de souveraineté ou de complexité :
+Ces éléments ont été explicitement écartés pour des raisons de souveraineté ou de cohérence :
 
-- Connecteurs Microsoft 365 / Slack / Trello — contraire à la philosophie souveraine
+- Connecteurs Microsoft 365 / Slack / Trello — contraire à la philosophie souveraine du projet
 - Hébergement cloud AWS / Google / Azure — même raison
-- ONLYOFFICE — origine et défendabilité dans le secteur public (voir ADR-022)
-- Portail citoyen — périmètre différent, peut faire l'objet d'un projet séparé
+- ONLYOFFICE — origine et défendabilité dans le secteur public écartées (voir ADR-022)
+- Portail citoyen — périmètre différent, peut faire l'objet d'un projet distinct
 
 ---
 
 ## Comment contribuer à la roadmap
 
-Si vous êtes une collectivité, une association ou un développeur et qu'un module vous manque :
+Si vous êtes une collectivité, une association, un centre de gestion ou un développeur et qu'un module vous manque :
 
 1. Ouvrir une [issue GitHub](https://github.com/jpbosse/pladigit/issues) avec le label `roadmap`
-2. Décrire le besoin concret, pas la solution technique
+2. Décrire le besoin concret et le contexte collectivité, pas la solution technique
 3. Les besoins exprimés par des utilisateurs réels remontent en priorité
 
 ---
 
-*Dernière mise à jour : Avril 2026*
+*Dernière mise à jour : Mai 2026*
