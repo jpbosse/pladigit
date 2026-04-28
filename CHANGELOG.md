@@ -12,7 +12,6 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 - **OBJECTIONS.md** — questions fréquentes et réponses honnêtes, destiné à la racine du dépôt GitHub pour les visiteurs
 - **public/calculateur-roi-pladigit.html** — calculateur ROI interactif en HTML autonome, accessible depuis la page d'accueil et depuis la sidebar de navigation
 - **Sidebar de navigation** sur la page d'accueil (`welcome.blade.php`) — remplace la barre de navigation horizontale par une sidebar fixe à gauche (240px) avec lien vers le calculateur ROI, surlignage actif selon le scroll, burger mobile avec overlay
-- **SGM (Secrétaire Général de Mairie)** — terminologie mise à jour dans la documentation et la page de démo conformément à la loi du 30 décembre 2023 (renommage de secrétaire de mairie en secrétaire général de mairie)
 - **DataGrid + DataPilot** ajoutés dans la grille des modules de la page d'accueil et dans la roadmap
 
 ### Modifié

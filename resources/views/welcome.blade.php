@@ -282,7 +282,7 @@
             <span class="link-icon">⚙️</span> Doc. technique
         </a>
         <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" class="sidebar-link" target="_blank" rel="noopener">
-            <span class="link-icon">📋</span> Changelog v0.8
+            <span class="link-icon">📋</span> Changelog v{{ config('app.version') }}
         </a>
 
         <div class="sidebar-divider"></div>
@@ -304,7 +304,7 @@
         <a href="#demo" class="btn-sidebar-ghost">
             🚀 Tester la démo
         </a>
-        <div class="sidebar-version">v0.8.0 · AGPL-3.0</div>
+        <div class="sidebar-version">v{{ config('app.version') }} · AGPL-3.0</div>
     </div>
 
 </aside>
@@ -606,7 +606,7 @@
                     <a href="/calculateur-roi-pladigit.html" target="_blank">📊 Calculateur ROI</a>
                     <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank" rel="noopener">Guide d'installation</a>
                     <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank" rel="noopener">Documentation technique</a>
-                    <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog v0.8.0</a>
+                    <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog v{{ config('app.version') }}</a>
                 </div>
                 <div class="footer-col">
                     <div class="footer-col-title">Pladigit</div>
