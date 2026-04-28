@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | Numéro de version affiché dans l'interface (sidebar, footer, super-admin).
+    | C'est LE seul endroit à modifier pour mettre la version à jour partout.
+    | Accessible via config('app.version') dans tout le code.
+    |
+    */
+
+    'version' => env('APP_VERSION', '0.8.1'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

@@ -326,7 +326,7 @@
 
     {{-- Bloc gauche — infos système --}}
     <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--pd-muted);">
-        <span style="font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:.02em;">v0.8.0</span>
+        <span style="font-weight:600;color:rgba(255,255,255,0.85);letter-spacing:.02em;">v{{ config('app.version') }}</span>
         <span style="display:flex;align-items:center;gap:5px;">
             <span id="health-dot" class="pd-status-dot"></span>
             <a href="/health" target="_blank" id="health-label"
@@ -426,7 +426,7 @@
                 border:1px solid rgba(255,255,255,0.2);
                 padding:2px 9px;border-radius:5px;
                 font-family:'Sora',monospace;font-size:10px;font-weight:700;
-            ">v0.8.0</span>
+            ">v{{ config('app.version') }}</span>
         </div>
 
     </div>
