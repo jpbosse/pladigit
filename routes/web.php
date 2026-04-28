@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
+use App\Http\Controllers\SuperAdmin\UpdateController;
 
 // ── Page d'accueil publique ───────────────────────────────
 Route::get('/health', [App\Http\Controllers\HealthController::class, 'check'])->name('health');
@@ -73,6 +74,11 @@ Route::prefix('super-admin')
         Route::post('organizations/{organization}/ldap', [OrganizationController::class, 'updateLdap'])->name('organizations.update-ldap');
         Route::post('organizations/{organization}/ldap/test', [OrganizationController::class, 'testLdap'])->name('organizations.test-ldap');
         Route::post('organizations/{organization}/modules', [OrganizationController::class, 'updateModules'])->name('organizations.update-modules');
+
+        Route::get('update', [UpdateController::class, 'index'])->name('update');
+        Route::post('update/run', [UpdateController::class, 'run'])->name('update.run');
+        Route::get('update/status', [UpdateController::class, 'status'])->name('update.status');
+        Route::get('update/check-version', [UpdateController::class, 'checkVersion'])->name('update.check-version');
 
         Route::get('backup', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'index'])->name('backup');
         Route::put('backup', [\App\Http\Controllers\SuperAdmin\BackupController::class, 'update'])->name('backup.update');

@@ -40,6 +40,9 @@ class PlatformSettings extends Model
         'backup_retention_count',
         'backup_last_run_at', 'backup_last_status',
         'backup_last_message', 'backup_last_size_bytes',
+        'update_last_run_at', 'update_last_status',
+        'update_last_message', 'update_current_version',
+        'update_available_version',
     ];
 
     protected $casts = [
@@ -48,6 +51,7 @@ class PlatformSettings extends Model
         'backup_retention_count' => 'integer',
         'backup_last_run_at' => 'datetime',
         'backup_last_size_bytes' => 'integer',
+        'update_last_run_at' => 'datetime',
     ];
 
     public function backupIsConfigured(): bool
