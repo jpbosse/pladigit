@@ -346,7 +346,19 @@ install_pladigit() {
     progress 6 7 "Pladigit installé"
 }
 
-# ── 6. Configuration Nginx ────────────────────────────────────────────────────
+# ── 6. Cron Laravel scheduler ────────────────────────────────────────────────
+setup_cron() {
+    local CRON_ENTRY="* * * * * cd ${PLADIGIT_DIR} && php artisan schedule:run >> /dev/null 2>&1"
+
+    if crontab -u www-data -l 2>/dev/null | grep -qF "schedule:run"; then
+        log "Cron Laravel scheduler : déjà configuré"
+    else
+        (crontab -u www-data -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -u www-data -
+        log "Cron Laravel scheduler configuré (www-data)"
+    fi
+}
+
+# ── 7. Configuration Nginx ────────────────────────────────────────────────────
 configure_nginx() {
     step "Étape 7/7 — Configuration Nginx"
 
@@ -522,6 +534,9 @@ main() {
                 step "Redémarrage des workers..."
                 supervisorctl restart pladigit-worker:* >> "$LOG_FILE" 2>&1 || true
 
+                step "Vérification du cron scheduler..."
+                setup_cron
+
                 echo ""
                 echo -e "${GREEN}${BOLD}  ✅  Mise à jour terminée !${NC}"
                 echo ""
@@ -563,6 +578,7 @@ main() {
     install_services
     install_pladigit
     configure_nginx
+    setup_cron
     show_success
 }
 

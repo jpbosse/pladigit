@@ -7,6 +7,7 @@ use App\Models\Platform\Organization;
 use App\Models\Tenant\TenantSettings;
 use App\Services\TenantManager;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 
 /**
  * Lance une sauvegarde pour les organisations dont la sauvegarde est activée.
@@ -87,6 +88,13 @@ class BackupCommand extends Command
                 $this->line("  Ignoré : {$org->slug} (pas encore l'heure selon la fréquence '{$settings->backup_schedule}')");
 
                 continue;
+            }
+
+            if (($settings->backup_driver ?? 'local') === 'local') {
+                $localPath = trim((string) ($settings->backup_local_path ?? ''));
+                if ($localPath !== '') {
+                    File::ensureDirectoryExists($localPath, 0750);
+                }
             }
 
             BackupJob::dispatch($org->slug);

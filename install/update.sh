@@ -99,6 +99,16 @@ $PHP artisan up >> "$LOG_FILE" 2>&1 \
     || fail "Impossible de désactiver le mode maintenance"
 log "✓ Mode maintenance désactivé"
 
+# ── 10. Vérification du cron schedule:run ────────────────────────────────────
+CRON_ENTRY="* * * * * cd $ROOT_DIR && $PHP artisan schedule:run >> /dev/null 2>&1"
+log "Vérification du cron Laravel scheduler (www-data)..."
+if crontab -u www-data -l 2>/dev/null | grep -qF "schedule:run"; then
+    log "✓ Cron Laravel scheduler : présent"
+else
+    (crontab -u www-data -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -u www-data -
+    log "✓ Cron Laravel scheduler réinstallé (www-data)"
+fi
+
 log "══════════════════════════════════════════════"
 log "✓ Mise à jour terminée avec succès"
 log "══════════════════════════════════════════════"
