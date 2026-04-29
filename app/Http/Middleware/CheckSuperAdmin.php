@@ -10,6 +10,12 @@ class CheckSuperAdmin
 {
     public function handle(Request $request, Closure $next): mixed
     {
+        // Vérification IP — avant toute autre chose (défense en profondeur)
+        $allowedIps = config('superadmin.allowed_ips', ['127.0.0.1', '::1']);
+        if (! in_array($request->ip(), $allowedIps, true)) {
+            abort(403, 'Accès refusé — adresse IP non autorisée.');
+        }
+
         // Rate limiting — 10 tentatives par minute par IP
         $key = 'super-admin:'.$request->ip();
         if (RateLimiter::tooManyAttempts($key, 10)) {

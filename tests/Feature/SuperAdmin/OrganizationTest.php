@@ -52,6 +52,14 @@ class OrganizationTest extends TestCase
             ->assertRedirect();
     }
 
+    public function test_ip_non_autorisée_reçoit_403(): void
+    {
+        $this->actingAsSuperAdmin()
+            ->withServerVariables(['REMOTE_ADDR' => '1.2.3.4'])
+            ->get(route('super-admin.organizations.index'))
+            ->assertForbidden();
+    }
+
     public function test_super_admin_peut_voir_la_liste(): void
     {
         $this->actingAsSuperAdmin()

@@ -45,5 +45,6 @@
         <env name="DB_DATABASE"      value="pladigit_testing_platform"/>
         <env name="DB_TENANT_DATABASE" value="pladigit_testing_tenant"/>
         <env name="DB_CONNECTION"    value="mysql"/>
+        <env name="SUPER_ADMIN_ALLOWED_IPS" value="127.0.0.1,::1"/>
     </php>
 </phpunit>

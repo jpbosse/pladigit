@@ -386,6 +386,46 @@ setup_cron() {
     fi
 }
 
+# ── 6b. IPs autorisées Super Admin ───────────────────────────────────────────
+setup_super_admin_ip() {
+    local env_file="${PLADIGIT_DIR}/.env"
+
+    # Détecter l'IP publique de l'administrateur (best-effort)
+    local detected_ip
+    detected_ip=$(curl -sf --max-time 5 https://ifconfig.me 2>/dev/null || true)
+
+    echo ""
+    info "Restriction d'accès au Super Admin par IP (ADR-027)"
+    info "IP publique détectée de ce poste : ${detected_ip:-inconnue}"
+    echo ""
+    echo -e "  Entrez les IPs autorisées séparées par des virgules."
+    echo -e "  ${YELLOW}Laissez vide pour utiliser 127.0.0.1,::1 (accès local uniquement).${NC}"
+    echo ""
+    echo -n "  SUPER_ADMIN_ALLOWED_IPS [127.0.0.1,::1] : "
+    read -r admin_ips || admin_ips=""
+    [[ -z "$admin_ips" ]] && admin_ips="127.0.0.1,::1"
+
+    # Créer le .env depuis .env.example s'il n'existe pas encore
+    if [[ ! -f "$env_file" ]]; then
+        if [[ -f "${PLADIGIT_DIR}/.env.example" ]]; then
+            cp "${PLADIGIT_DIR}/.env.example" "$env_file"
+            log ".env initialisé depuis .env.example"
+        else
+            touch "$env_file"
+        fi
+        chown www-data:www-data "$env_file"
+        chmod 640 "$env_file"
+    fi
+
+    if grep -q "^SUPER_ADMIN_ALLOWED_IPS=" "$env_file" 2>/dev/null; then
+        sed -i "s|^SUPER_ADMIN_ALLOWED_IPS=.*|SUPER_ADMIN_ALLOWED_IPS=${admin_ips}|" "$env_file"
+    else
+        echo "SUPER_ADMIN_ALLOWED_IPS=${admin_ips}" >> "$env_file"
+    fi
+
+    log "SUPER_ADMIN_ALLOWED_IPS configuré : ${admin_ips}"
+}
+
 # ── 7. Configuration Nginx ────────────────────────────────────────────────────
 configure_nginx() {
     step "Étape 7/7 — Configuration Nginx"
@@ -607,6 +647,7 @@ main() {
     install_pladigit
     configure_nginx
     setup_cron
+    setup_super_admin_ip
     show_success
 }
 
