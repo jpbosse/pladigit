@@ -251,7 +251,24 @@ install_services() {
     # Supervisor
     apt-get install -y -qq supervisor >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Supervisor."
     systemctl enable supervisor >> "$LOG_FILE" 2>&1
-    log "Supervisor installé"
+    systemctl start supervisor  >> "$LOG_FILE" 2>&1 || true
+
+    cat > /etc/supervisor/conf.d/pladigit.conf << SUPERVISOR
+[program:pladigit-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php ${PLADIGIT_DIR}/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=${PLADIGIT_DIR}/storage/logs/worker.log
+stopwaitsecs=3600
+SUPERVISOR
+
+    log "Supervisor installé et configuré (user=www-data)"
 
     # Node.js 20
     if ! command -v node &>/dev/null; then
@@ -291,6 +308,12 @@ install_pladigit() {
     chown -R www-data:www-data "$PLADIGIT_DIR"
     chmod -R 755 "$PLADIGIT_DIR"
     chmod -R 775 "$PLADIGIT_DIR/storage" "$PLADIGIT_DIR/bootstrap/cache"
+
+    # Répertoire de sauvegarde (non couvert par le chmod -R 775 générique)
+    mkdir -p "${PLADIGIT_DIR}/storage/app/private/backup"
+    chown www-data:www-data "${PLADIGIT_DIR}/storage/app/private/backup"
+    chmod 750 "${PLADIGIT_DIR}/storage/app/private/backup"
+
     log "Permissions configurées"
 
     # Dépendances PHP
@@ -342,6 +365,11 @@ install_pladigit() {
     visudo -c -f "$SUDOERS_FILE" >> "$LOG_FILE" 2>&1 \
         && log "Règle sudoers Collabora configurée" \
         || { warn "Règle sudoers invalide — suppression."; rm -f "$SUDOERS_FILE"; }
+
+    # Activation des workers Supervisor (le code et storage/ sont prêts)
+    supervisorctl reread >> "$LOG_FILE" 2>&1 || true
+    supervisorctl update >> "$LOG_FILE" 2>&1 || true
+    log "Workers Supervisor activés"
 
     progress 6 7 "Pladigit installé"
 }
