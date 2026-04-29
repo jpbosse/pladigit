@@ -3,17 +3,20 @@
 namespace App\Console\Commands;
 
 use App\Jobs\BackupJob;
+use App\Jobs\PlatformBackupJob;
 use App\Models\Platform\Organization;
-use App\Models\Tenant\TenantSettings;
-use App\Services\TenantManager;
+use App\Models\Platform\PlatformSettings;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
 /**
- * Lance une sauvegarde pour les organisations dont la sauvegarde est activée.
+ * Lance une sauvegarde pour les organisations actives.
+ *
+ * La configuration de sauvegarde (driver, chemin, schedule) est lue depuis
+ * PlatformSettings — source de vérité unique pour le Super Admin.
  *
  * Usage :
- *   php artisan pladigit:backup               — toutes les orgs actives avec backup_enabled
+ *   php artisan pladigit:backup               — toutes les orgs (via PlatformBackupJob)
  *   php artisan pladigit:backup --slug=demo   — une organisation précise
  *   php artisan pladigit:backup --force       — force même si backup_enabled = false
  */
@@ -25,14 +28,15 @@ class BackupCommand extends Command
 
     protected $description = 'Lance la sauvegarde des données Pladigit';
 
-    public function handle(TenantManager $tenantManager): int
+    public function handle(): int
     {
         $slugFilter = $this->option('slug');
         $force = (bool) $this->option('force');
 
-        // Sans --slug : utiliser PlatformSettings comme source de vérité
+        $platformSettings = PlatformSettings::firstOrCreate([]);
+
+        // Sans --slug ni --force : chemin automatique via PlatformBackupJob
         if (! $slugFilter && ! $force) {
-            $platformSettings = \App\Models\Platform\PlatformSettings::firstOrCreate([]);
             if (! $platformSettings->backup_enabled) {
                 $this->line('Sauvegarde plateforme désactivée dans PlatformSettings.');
 
@@ -43,9 +47,27 @@ class BackupCommand extends Command
 
                 return self::SUCCESS;
             }
-            // Dispatcher le job plateforme qui gère toutes les orgs en un coup
-            \App\Jobs\PlatformBackupJob::dispatch();
+            PlatformBackupJob::dispatch();
             $this->info('Sauvegarde plateforme (toutes orgs) lancée en arrière-plan.');
+
+            return self::SUCCESS;
+        }
+
+        // Chemin manuel (--slug / --force) : vérifications platform-wide
+        if (! $platformSettings->backupIsConfigured()) {
+            $this->error('Sauvegarde non configurée dans PlatformSettings.');
+
+            return self::FAILURE;
+        }
+
+        if (! $force && ! $platformSettings->backup_enabled) {
+            $this->line('Sauvegarde désactivée dans PlatformSettings (utilisez --force pour forcer).');
+
+            return self::SUCCESS;
+        }
+
+        if (! $force && ! $this->isDue($platformSettings->backup_schedule ?? 'daily')) {
+            $this->line("Pas encore l'heure (fréquence: {$platformSettings->backup_schedule}).");
 
             return self::SUCCESS;
         }
@@ -67,33 +89,10 @@ class BackupCommand extends Command
         $dispatched = 0;
 
         foreach ($orgs as $org) {
-            $tenantManager->connectTo($org);
-            $settings = TenantSettings::firstOrCreate([]);
-
-            if (! $force && ! $settings->backup_enabled) {
-                $this->line("  Ignoré : {$org->slug} (sauvegarde désactivée)");
-
-                continue;
-            }
-
-            if (! $settings->backupIsConfigured()) {
-                $this->warn("  Ignoré : {$org->slug} (destination non configurée)");
-
-                continue;
-            }
-
-            // Filtre de fréquence : le schedule tourne toutes les heures,
-            // mais "daily" ne déclenche qu'à minuit et "weekly" le dimanche à minuit.
-            if (! $force && ! $this->isDue($settings->backup_schedule ?? 'daily')) {
-                $this->line("  Ignoré : {$org->slug} (pas encore l'heure selon la fréquence '{$settings->backup_schedule}')");
-
-                continue;
-            }
-
-            if (($settings->backup_driver ?? 'local') === 'local') {
-                $localPath = trim((string) ($settings->backup_local_path ?? ''));
+            if (($platformSettings->backup_driver ?? 'local') === 'local') {
+                $localPath = trim((string) ($platformSettings->backup_local_path ?? ''));
                 if ($localPath !== '') {
-                    File::ensureDirectoryExists($localPath, 0750);
+                    File::ensureDirectoryExists($localPath.'/'.$org->slug, 0750);
                 }
             }
 

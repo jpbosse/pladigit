@@ -50,9 +50,9 @@ class PlatformBackupJob implements ShouldQueue
             try {
                 $tenantManager->connectTo($org);
 
-                // On utilise un TenantSettings proxy qui redirige vers PlatformSettings
-                // pour la destination (driver, path, etc.), mais on est connecté au bon tenant
-                $proxySettings = $this->buildProxySettings($platformSettings);
+                // Proxy TenantSettings alimenté par PlatformSettings,
+                // avec sous-répertoire isolé par organisation pour le driver local.
+                $proxySettings = $this->buildProxySettings($platformSettings, $org->slug);
 
                 $result = $backupService->run($org, $proxySettings);
 
@@ -84,21 +84,26 @@ class PlatformBackupJob implements ShouldQueue
     }
 
     /**
-     * Construit un TenantSettings temporaire alimenté par PlatformSettings
-     * pour que BackupService::sendToDestination() utilise la destination plateforme.
+     * Construit un TenantSettings proxy alimenté par PlatformSettings.
+     * Le chemin local est isolé dans un sous-répertoire par organisation.
      */
-    private function buildProxySettings(PlatformSettings $ps): TenantSettings
+    private function buildProxySettings(PlatformSettings $ps, string $orgSlug): TenantSettings
     {
+        $localPath = rtrim((string) ($ps->backup_local_path ?? ''), '/');
+        if ($localPath !== '') {
+            $localPath .= '/'.$orgSlug;
+        }
+
         $proxy = new TenantSettings;
         $proxy->forceFill([
-            'backup_driver' => $ps->backup_driver,
-            'backup_local_path' => $ps->backup_local_path,
-            'backup_sftp_host' => $ps->backup_sftp_host,
-            'backup_sftp_port' => $ps->backup_sftp_port,
-            'backup_sftp_user' => $ps->backup_sftp_user,
+            'backup_driver'            => $ps->backup_driver,
+            'backup_local_path'        => $localPath,
+            'backup_sftp_host'         => $ps->backup_sftp_host,
+            'backup_sftp_port'         => $ps->backup_sftp_port,
+            'backup_sftp_user'         => $ps->backup_sftp_user,
             'backup_sftp_password_enc' => $ps->backup_sftp_password_enc,
-            'backup_sftp_path' => $ps->backup_sftp_path,
-            'backup_retention_count' => $ps->backup_retention_count,
+            'backup_sftp_path'         => $ps->backup_sftp_path,
+            'backup_retention_count'   => $ps->backup_retention_count,
         ]);
 
         return $proxy;
