@@ -58,17 +58,28 @@ progress() {
     echo "" | tee -a "$LOG_FILE" > /dev/null
 }
 
-# ── 0. Vérifications préalables ───────────────────────────────────────────────
-check_prerequisites() {
-    step "Étape 1/7 — Vérification du système"
+# ── Variables globales d'état — remplies par check_prerequisites ──────────────
+NEED_SYSTEM_UPDATE=false
+NEED_PHP=false
+NEED_MYSQL=false
+NEED_REDIS=false
+NEED_NGINX=false
+NEED_SUPERVISOR=false
+NEED_NODE=false
+ALL_INSTALLED=false
+MYSQL_ROOT_PASSWORD=""   # Demandé si MySQL déjà installé avec mot de passe
 
-    # Root
+# ── 0. Inventaire complet du système ──────────────────────────────────────────
+check_prerequisites() {
+    step "Étape 1/7 — Inventaire du système"
+
+    # ── Droits root ──────────────────────────────────────────────────────────
     if [[ $EUID -ne 0 ]]; then
         die "Ce script doit être exécuté en tant que root (sudo)."
     fi
     log "Droits root : OK"
 
-    # OS
+    # ── OS ───────────────────────────────────────────────────────────────────
     if [[ ! -f /etc/os-release ]]; then
         die "Système d'exploitation non reconnu."
     fi
@@ -77,12 +88,11 @@ check_prerequisites() {
         die "Pladigit nécessite Ubuntu 22.04 ou 24.04. Système détecté : $ID $VERSION_ID"
     fi
     if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]]; then
-        die "Version Ubuntu non supportée : $VERSION_ID. Pladigit nécessite Ubuntu 22.04 ou 24.04 LTS."
-    else
-        log "Système : Ubuntu $VERSION_ID — OK"
+        die "Version Ubuntu non supportée : $VERSION_ID"
     fi
+    log "Système : Ubuntu $VERSION_ID — OK"
 
-    # RAM
+    # ── RAM ──────────────────────────────────────────────────────────────────
     local ram_mb
     ram_mb=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)
     if (( ram_mb < MIN_RAM_MB )); then
@@ -90,8 +100,7 @@ check_prerequisites() {
     fi
     log "RAM : ${ram_mb} Mo — OK"
 
-
-    # Extension LVM automatique (Ubuntu Server alloue ~50% par défaut)
+    # ── Extension LVM automatique ────────────────────────────────────────────
     if command -v lvextend &>/dev/null; then
         local lv_path
         lv_path=$(lvdisplay 2>/dev/null | awk '/LV Path/{print $3}' | head -1)
@@ -107,7 +116,7 @@ check_prerequisites() {
         fi
     fi
 
-    # Disque
+    # ── Disque ───────────────────────────────────────────────────────────────
     local disk_gb
     disk_gb=$(df / | awk 'NR==2 {printf "%d", $4/1024/1024}')
     if (( disk_gb < MIN_DISK_GB )); then
@@ -115,26 +124,145 @@ check_prerequisites() {
     fi
     log "Disque : ${disk_gb} Go disponibles — OK"
 
-    # Connexion internet
+    # ── Connexion internet ───────────────────────────────────────────────────
     if ! curl -sf --max-time 5 https://github.com > /dev/null 2>&1; then
         die "Pas de connexion internet. Vérifiez votre réseau."
     fi
     log "Connexion internet — OK"
 
-    # Ports 80 et 443
+    # ── Inventaire des composants ────────────────────────────────────────────
+    echo ""
+    echo -e "  ${BOLD}Composants détectés :${NC}"
+    echo ""
+
+    # PHP
+    if command -v "php${PHP_VERSION}" &>/dev/null || \
+       (command -v php &>/dev/null && php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"); then
+        log "  PHP ${PHP_VERSION}      : ✅ installé ($(php -r 'echo PHP_VERSION;' 2>/dev/null))"
+    else
+        warn "  PHP ${PHP_VERSION}      : ❌ à installer"
+        NEED_PHP=true
+        NEED_SYSTEM_UPDATE=true
+    fi
+
+    # Composer
+    if command -v composer &>/dev/null; then
+        log "  Composer    : ✅ installé ($(composer --version --no-ansi 2>/dev/null | awk '{print $3}'))"
+    else
+        warn "  Composer    : ❌ à installer"
+        NEED_PHP=true
+    fi
+
+    # MySQL
+    if command -v mysql &>/dev/null && systemctl is-active --quiet mysql 2>/dev/null; then
+        # Tester si root se connecte sans mot de passe (fresh install Ubuntu)
+        if mysql -u root -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
+            log "  MySQL       : ✅ installé et actif (accès root sans mot de passe)"
+            MYSQL_ROOT_PASSWORD=""
+        else
+            # MySQL installé avec mot de passe root — on le demande
+            warn "  MySQL       : ✅ installé et actif (mot de passe root requis)"
+            echo ""
+            echo -n "  Entrez le mot de passe root MySQL : "
+            read -rs MYSQL_ROOT_PASSWORD
+            echo ""
+            # Vérifier que le mot de passe est correct
+            if ! mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
+                die "Mot de passe MySQL root incorrect."
+            fi
+            log "  MySQL       : mot de passe root vérifié ✅"
+        fi
+    elif command -v mysql &>/dev/null; then
+        warn "  MySQL       : ⚠️  installé mais inactif"
+        NEED_MYSQL=true
+    else
+        warn "  MySQL       : ❌ à installer"
+        NEED_MYSQL=true
+        NEED_SYSTEM_UPDATE=true
+    fi
+
+    # Redis
+    if command -v redis-server &>/dev/null && systemctl is-active --quiet redis-server 2>/dev/null; then
+        log "  Redis       : ✅ installé et actif"
+    elif command -v redis-server &>/dev/null; then
+        warn "  Redis       : ⚠️  installé mais inactif"
+        NEED_REDIS=true
+    else
+        warn "  Redis       : ❌ à installer"
+        NEED_REDIS=true
+        NEED_SYSTEM_UPDATE=true
+    fi
+
+    # Nginx
+    if command -v nginx &>/dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
+        log "  Nginx       : ✅ installé et actif ($(nginx -v 2>&1 | awk -F/ '{print $2}'))"
+    elif command -v nginx &>/dev/null; then
+        warn "  Nginx       : ⚠️  installé mais inactif"
+        NEED_NGINX=true
+    else
+        warn "  Nginx       : ❌ à installer"
+        NEED_NGINX=true
+        NEED_SYSTEM_UPDATE=true
+    fi
+
+    # Supervisor
+    if command -v supervisorctl &>/dev/null && systemctl is-active --quiet supervisor 2>/dev/null; then
+        log "  Supervisor  : ✅ installé et actif"
+    elif command -v supervisorctl &>/dev/null; then
+        warn "  Supervisor  : ⚠️  installé mais inactif"
+        NEED_SUPERVISOR=true
+    else
+        warn "  Supervisor  : ❌ à installer"
+        NEED_SUPERVISOR=true
+        NEED_SYSTEM_UPDATE=true
+    fi
+
+    # Node.js
+    if command -v node &>/dev/null; then
+        log "  Node.js     : ✅ installé ($(node --version 2>/dev/null))"
+    else
+        warn "  Node.js     : ❌ à installer"
+        NEED_NODE=true
+        NEED_SYSTEM_UPDATE=true
+    fi
+
+    # Pladigit
+    if [[ -d "${PLADIGIT_DIR}/.git" ]]; then
+        log "  Pladigit    : ✅ déjà cloné"
+    else
+        warn "  Pladigit    : ❌ à cloner"
+    fi
+
+    echo ""
+
+    # ── Décision globale ─────────────────────────────────────────────────────
+    if [[ "$NEED_PHP" == false && "$NEED_MYSQL" == false && \
+          "$NEED_REDIS" == false && "$NEED_NGINX" == false && \
+          "$NEED_SUPERVISOR" == false && "$NEED_NODE" == false ]]; then
+        ALL_INSTALLED=true
+        log "Tous les composants sont déjà installés."
+    else
+        info "Composants manquants détectés — installation en cours..."
+    fi
+
+    # ── Ports 80 et 443 ──────────────────────────────────────────────────────
     for port in 80 443; do
         if ss -tlnp | grep -q ":${port} "; then
-            warn "Port ${port} déjà utilisé. Nginx pourrait ne pas démarrer correctement."
-        else
-            log "Port ${port} disponible — OK"
+            warn "Port ${port} déjà utilisé."
         fi
     done
 
-    progress 1 7 "Vérification système"
+    progress 1 7 "Inventaire système"
 }
 
 # ── 1. Mise à jour système ────────────────────────────────────────────────────
 update_system() {
+    if [[ "$NEED_SYSTEM_UPDATE" == false ]]; then
+        log "Mise à jour système : non nécessaire — on continue"
+        progress 2 7 "Mise à jour système (ignorée)"
+        return
+    fi
+
     # Attendre que le verrou apt soit libéré (unattended-upgrades au boot)
     local waited=0
     while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
@@ -150,6 +278,7 @@ update_system() {
             break
         fi
     done
+
     step "Étape 2/7 — Mise à jour du système"
     info "Mise à jour des paquets (peut prendre quelques minutes)..."
 
@@ -242,10 +371,15 @@ install_mysql() {
         systemctl start mysql >> "$LOG_FILE" 2>&1 || die "Impossible de démarrer MySQL."
     fi
 
-    # Activer authentification par mot de passe pour root (Ubuntu auth_socket par défaut)
-    # Idempotent — on ignore l'erreur si root a déjà un mot de passe
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" \
-        >> "$LOG_FILE" 2>&1 || warn "ALTER USER root ignoré — root a peut-être déjà un mot de passe."
+    # Construire la commande mysql selon qu'on a un mot de passe root ou non
+    local mysql_cmd="mysql -u root"
+    [[ -n "${MYSQL_ROOT_PASSWORD}" ]] && mysql_cmd="mysql -u root -p${MYSQL_ROOT_PASSWORD}"
+
+    # Sur une fresh install Ubuntu, root utilise auth_socket — on passe en mot de passe vide
+    if [[ -z "${MYSQL_ROOT_PASSWORD}" ]]; then
+        ${mysql_cmd} -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" \
+            >> "$LOG_FILE" 2>&1 || warn "ALTER USER root ignoré — déjà configuré."
+    fi
 
     log "Authentification MySQL configurée"
     progress 4 7 "MySQL 8"
@@ -685,6 +819,17 @@ main() {
     fi
 
     check_prerequisites
+
+    # ── Court-circuit si tout est déjà installé ──────────────────────────────
+    if [[ "$ALL_INSTALLED" == true ]] && [[ -d "${PLADIGIT_DIR}/.git" ]]; then
+        install_pladigit   # git pull + assets + permissions
+        configure_nginx
+        setup_cron
+        setup_super_admin_ip
+        show_success
+        return
+    fi
+
     update_system
     install_php
     install_mysql
