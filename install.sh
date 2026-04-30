@@ -171,10 +171,12 @@ update_system() {
 install_php() {
     step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
 
-    # Dépôt Ondrej
-    if ! grep -q "ondrej/php" /etc/apt/sources.list.d/*.list 2>/dev/null; then
+    # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
+    if ! grep -rq "ondrej/php\|ondrej-ubuntu-php" /etc/apt/sources.list.d/ 2>/dev/null; then
         add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1 || die "Impossible d'ajouter le dépôt PHP."
         apt-get update -qq >> "$LOG_FILE" 2>&1
+    else
+        log "Dépôt ondrej/php déjà présent — on continue"
     fi
 
     local php_packages=(
