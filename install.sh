@@ -136,8 +136,9 @@ check_prerequisites() {
     echo ""
 
     # PHP
-    if command -v "php${PHP_VERSION}" &>/dev/null || \
-       (command -v php &>/dev/null && php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"); then
+    local php_detected_version
+    php_detected_version=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null || true)
+    if [[ "$php_detected_version" == "${PHP_VERSION}" ]]; then
         log "  PHP ${PHP_VERSION}      : ✅ installé ($(php -r 'echo PHP_VERSION;' 2>/dev/null))"
     else
         warn "  PHP ${PHP_VERSION}      : ❌ à installer"
