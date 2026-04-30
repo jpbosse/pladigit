@@ -171,43 +171,52 @@ update_system() {
 install_php() {
     step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
 
-    # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
-    if ! grep -rq "ondrej/php\|ondrej-ubuntu-php" /etc/apt/sources.list.d/ 2>/dev/null; then
-        add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1 || die "Impossible d'ajouter le dépôt PHP."
-        apt-get update -qq >> "$LOG_FILE" 2>&1
+    # Vérifier si PHP est déjà installé à la bonne version
+    if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
+        log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
-        log "Dépôt ondrej/php déjà présent — on continue"
+        # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
+        if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
+            info "Ajout du dépôt ondrej/php..."
+            add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1 || die "Impossible d'ajouter le dépôt PHP."
+            apt-get update -qq >> "$LOG_FILE" 2>&1
+        else
+            log "Dépôt ondrej/php déjà présent"
+        fi
+
+        local php_packages=(
+            "php${PHP_VERSION}-fpm"
+            "php${PHP_VERSION}-cli"
+            "php${PHP_VERSION}-mysql"
+            "php${PHP_VERSION}-redis"
+            "php${PHP_VERSION}-xml"
+            "php${PHP_VERSION}-curl"
+            "php${PHP_VERSION}-mbstring"
+            "php${PHP_VERSION}-zip"
+            "php${PHP_VERSION}-gd"
+            "php${PHP_VERSION}-intl"
+            "php${PHP_VERSION}-bcmath"
+            "php${PHP_VERSION}-opcache"
+            "php${PHP_VERSION}-imagick"
+            "php${PHP_VERSION}-ldap"
+        )
+
+        info "Installation de PHP ${PHP_VERSION} et extensions..."
+        apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
+            || die "Impossible d'installer PHP ${PHP_VERSION}."
+
+        log "PHP ${PHP_VERSION} installé"
     fi
 
-    local php_packages=(
-        "php${PHP_VERSION}-fpm"
-        "php${PHP_VERSION}-cli"
-        "php${PHP_VERSION}-mysql"
-        "php${PHP_VERSION}-redis"
-        "php${PHP_VERSION}-xml"
-        "php${PHP_VERSION}-curl"
-        "php${PHP_VERSION}-mbstring"
-        "php${PHP_VERSION}-zip"
-        "php${PHP_VERSION}-gd"
-        "php${PHP_VERSION}-intl"
-        "php${PHP_VERSION}-bcmath"
-        "php${PHP_VERSION}-opcache"
-        "php${PHP_VERSION}-imagick"
-        "php${PHP_VERSION}-ldap"
-    )
-
-    apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
-        || die "Impossible d'installer PHP ${PHP_VERSION}."
-
-    log "PHP ${PHP_VERSION} installé"
-
     # Composer
-    if ! command -v composer &>/dev/null; then
+    if command -v composer &>/dev/null; then
+        log "Composer déjà installé : $(composer --version --no-ansi 2>/dev/null | head -1)"
+    else
         info "Installation de Composer..."
         curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
             >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Composer."
+        log "Composer installé : $(composer --version --no-ansi 2>/dev/null | head -1)"
     fi
-    log "Composer : $(composer --version --no-ansi 2>/dev/null | head -1)"
 
     progress 3 7 "PHP ${PHP_VERSION} + Composer"
 }
@@ -216,22 +225,29 @@ install_php() {
 install_mysql() {
     step "Étape 4/7 — Installation de MySQL 8"
 
-    if ! command -v mysql &>/dev/null; then
+    if command -v mysql &>/dev/null; then
+        log "MySQL déjà installé : $(mysql --version 2>/dev/null | head -1)"
+    else
+        info "Installation de MySQL Server..."
         apt-get install -y -qq mysql-server >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer MySQL."
         systemctl enable mysql >> "$LOG_FILE" 2>&1
         systemctl start mysql >> "$LOG_FILE" 2>&1
-    else
-        log "MySQL déjà installé — on continue"
+        log "MySQL installé : $(mysql --version 2>/dev/null | head -1)"
     fi
 
-    log "MySQL : $(mysql --version 2>/dev/null | head -1)"
+    # S'assurer que MySQL tourne
+    if ! systemctl is-active --quiet mysql; then
+        info "Démarrage de MySQL..."
+        systemctl start mysql >> "$LOG_FILE" 2>&1 || die "Impossible de démarrer MySQL."
+    fi
 
     # Activer authentification par mot de passe pour root (Ubuntu auth_socket par défaut)
-    info "Configuration authentification MySQL root..."
-    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;"         >> "$LOG_FILE" 2>&1 || warn "ALTER USER root échoué — root a peut-être déjà un mot de passe."
-    log "Authentification MySQL configurée"
+    # Idempotent — on ignore l'erreur si root a déjà un mot de passe
+    mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" \
+        >> "$LOG_FILE" 2>&1 || warn "ALTER USER root ignoré — root a peut-être déjà un mot de passe."
 
+    log "Authentification MySQL configurée"
     progress 4 7 "MySQL 8"
 }
 
@@ -240,21 +256,38 @@ install_services() {
     step "Étape 5/7 — Installation Redis, Nginx, Supervisor, Node.js"
 
     # Redis
-    apt-get install -y -qq redis-server >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Redis."
+    if command -v redis-server &>/dev/null; then
+        log "Redis déjà installé : $(redis-server --version 2>/dev/null | head -1)"
+    else
+        info "Installation de Redis..."
+        apt-get install -y -qq redis-server >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Redis."
+        log "Redis installé"
+    fi
     systemctl enable redis-server >> "$LOG_FILE" 2>&1
-    systemctl start redis-server >> "$LOG_FILE" 2>&1
-    log "Redis installé"
+    systemctl is-active --quiet redis-server || systemctl start redis-server >> "$LOG_FILE" 2>&1
 
     # Nginx
-    apt-get install -y -qq nginx >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Nginx."
+    if command -v nginx &>/dev/null; then
+        log "Nginx déjà installé : $(nginx -v 2>&1 | head -1)"
+    else
+        info "Installation de Nginx..."
+        apt-get install -y -qq nginx >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Nginx."
+        log "Nginx installé"
+    fi
     systemctl enable nginx >> "$LOG_FILE" 2>&1
-    log "Nginx installé"
 
     # Supervisor
-    apt-get install -y -qq supervisor >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Supervisor."
+    if command -v supervisorctl &>/dev/null; then
+        log "Supervisor déjà installé"
+    else
+        info "Installation de Supervisor..."
+        apt-get install -y -qq supervisor >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Supervisor."
+        log "Supervisor installé"
+    fi
     systemctl enable supervisor >> "$LOG_FILE" 2>&1
-    systemctl start supervisor  >> "$LOG_FILE" 2>&1 || true
+    systemctl is-active --quiet supervisor || systemctl start supervisor >> "$LOG_FILE" 2>&1 || true
 
+    # Configuration Supervisor (toujours réécrite pour garantir la cohérence)
     cat > /etc/supervisor/conf.d/pladigit.conf << SUPERVISOR
 [program:pladigit-worker]
 process_name=%(program_name)s_%(process_num)02d
@@ -269,15 +302,17 @@ redirect_stderr=true
 stdout_logfile=${PLADIGIT_DIR}/storage/logs/worker.log
 stopwaitsecs=3600
 SUPERVISOR
-
-    log "Supervisor installé et configuré (user=www-data)"
+    log "Supervisor configuré (user=www-data)"
 
     # Node.js 20
-    if ! command -v node &>/dev/null; then
+    if command -v node &>/dev/null; then
+        log "Node.js déjà installé : $(node --version 2>/dev/null)"
+    else
+        info "Installation de Node.js 20..."
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1
         apt-get install -y -qq nodejs >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Node.js."
+        log "Node.js installé : $(node --version 2>/dev/null)"
     fi
-    log "Node.js : $(node --version 2>/dev/null)"
 
     # UFW
     if command -v ufw &>/dev/null; then
