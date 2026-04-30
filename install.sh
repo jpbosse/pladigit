@@ -553,7 +553,7 @@ setup_cron() {
     if crontab -u www-data -l 2>/dev/null | grep -qF "schedule:run"; then
         log "Cron Laravel scheduler : déjà configuré"
     else
-        (crontab -u www-data -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -u www-data -
+        (crontab -u www-data -l 2>/dev/null || true; echo "$CRON_ENTRY") | crontab -u www-data -
         log "Cron Laravel scheduler configuré (www-data)"
     fi
 }
