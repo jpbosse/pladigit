@@ -568,22 +568,33 @@ setup_super_admin_ip() {
 
     echo ""
     info "Restriction d'accès au Super Admin par IP (ADR-027)"
-    info "IP publique détectée de ce poste : ${detected_ip:-inconnue}"
     echo ""
 
-    # Détection TTY — si pas de terminal interactif (ex: lancé via wizard web),
-    # on utilise la valeur par défaut sans bloquer.
+    # Détection TTY — si pas de terminal interactif, valeur par défaut sans bloquer.
     if [ -t 0 ]; then
-        echo -e "  Entrez les IPs autorisées séparées par des virgules."
-        echo -e "  ${YELLOW}Laissez vide pour utiliser 127.0.0.1,::1 (accès local uniquement).${NC}"
+        echo -e "  ${BOLD}Sécurité — Accès à l'interface Super Administrateur${NC}"
         echo ""
-        echo -n "  SUPER_ADMIN_ALLOWED_IPS [127.0.0.1,::1] : "
+        echo -e "  Pour protéger l'accès Super Admin, seules certaines adresses IP"
+        echo -e "  seront autorisées à s'y connecter."
+        echo ""
+        if [[ -n "${detected_ip}" ]]; then
+            echo -e "  Votre adresse IP publique actuelle : ${CYAN}${BOLD}${detected_ip}${NC}"
+            echo -e "  ${YELLOW}Recommandé : entrez cette IP pour vous autoriser l'accès.${NC}"
+        else
+            echo -e "  ${YELLOW}Impossible de détecter votre IP publique.${NC}"
+        fi
+        echo ""
+        echo -e "  Laissez vide pour autoriser uniquement l'accès local (127.0.0.1)"
+        echo -e "  ou entrez une ou plusieurs IPs séparées par des virgules."
+        echo ""
+        local suggestion="${detected_ip:-127.0.0.1}"
+        echo -n "  IP(s) autorisée(s) [${suggestion}] : "
         read -r admin_ips || admin_ips=""
+        [[ -z "$admin_ips" ]] && admin_ips="${suggestion}"
     else
-        admin_ips=""
-        info "Pas de terminal interactif — SUPER_ADMIN_ALLOWED_IPS par défaut (127.0.0.1,::1)"
+        admin_ips="${detected_ip:-127.0.0.1,::1}"
+        info "Pas de terminal interactif — SUPER_ADMIN_ALLOWED_IPS par défaut (${admin_ips})"
     fi
-    [[ -z "$admin_ips" ]] && admin_ips="127.0.0.1,::1"
 
     # Créer le .env depuis .env.example s'il n'existe pas encore
     if [[ ! -f "$env_file" ]]; then
