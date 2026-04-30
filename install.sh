@@ -398,11 +398,19 @@ setup_super_admin_ip() {
     info "Restriction d'accès au Super Admin par IP (ADR-027)"
     info "IP publique détectée de ce poste : ${detected_ip:-inconnue}"
     echo ""
-    echo -e "  Entrez les IPs autorisées séparées par des virgules."
-    echo -e "  ${YELLOW}Laissez vide pour utiliser 127.0.0.1,::1 (accès local uniquement).${NC}"
-    echo ""
-    echo -n "  SUPER_ADMIN_ALLOWED_IPS [127.0.0.1,::1] : "
-    read -r admin_ips || admin_ips=""
+
+    # Détection TTY — si pas de terminal interactif (ex: lancé via wizard web),
+    # on utilise la valeur par défaut sans bloquer.
+    if [ -t 0 ]; then
+        echo -e "  Entrez les IPs autorisées séparées par des virgules."
+        echo -e "  ${YELLOW}Laissez vide pour utiliser 127.0.0.1,::1 (accès local uniquement).${NC}"
+        echo ""
+        echo -n "  SUPER_ADMIN_ALLOWED_IPS [127.0.0.1,::1] : "
+        read -r admin_ips || admin_ips=""
+    else
+        admin_ips=""
+        info "Pas de terminal interactif — SUPER_ADMIN_ALLOWED_IPS par défaut (127.0.0.1,::1)"
+    fi
     [[ -z "$admin_ips" ]] && admin_ips="127.0.0.1,::1"
 
     # Créer le .env depuis .env.example s'il n'existe pas encore
