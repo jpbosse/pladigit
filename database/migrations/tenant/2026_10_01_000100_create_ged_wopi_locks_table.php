@@ -17,6 +17,7 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (Schema::connection('tenant')->hasTable('ged_wopi_locks')) { return; }
         Schema::connection('tenant')->create('ged_wopi_locks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('document_id')

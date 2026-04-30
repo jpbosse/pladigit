@@ -19,6 +19,7 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (Schema::connection('tenant')->hasTable('project_templates')) { return; }
         Schema::connection('tenant')->create('project_templates', function (Blueprint $table) {
             $table->id();
             $table->string('name', 255);

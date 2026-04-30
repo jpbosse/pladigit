@@ -18,6 +18,7 @@ return new class extends Migration
     public function up(): void
     {
         // ── Risques & freins ──────────────────────────────────────────────
+        if (Schema::connection('tenant')->hasTable('project_risks')) { return; }
         Schema::connection('tenant')->create('project_risks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('project_id')->constrained()->onDelete('cascade');

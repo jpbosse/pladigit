@@ -28,6 +28,7 @@ return new class extends Migration
 
     public function up(): void
     {
+        if (Schema::connection('tenant')->hasTable('task_dependencies')) { return; }
         Schema::connection('tenant')->create('task_dependencies', function (Blueprint $table) {
             $table->id();
 

@@ -2,6 +2,7 @@
 
 namespace App\Models\Tenant;
 
+use App\Enums\GedDocumentType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,6 +12,18 @@ use Illuminate\Support\Collection;
 
 /**
  * Document GED rattaché à un dossier.
+ *
+ * Depuis le Niveau 2 (ADR-038), un document peut être typé (délibération,
+ * arrêté, compte-rendu…) avec référence normalisée, date officielle et
+ * service émetteur.
+ *
+ * @property string|null         $document_type
+ * @property string|null         $reference      Ex: DEL-2026-042
+ * @property \Carbon\Carbon|null $document_date
+ * @property string|null         $object
+ * @property int|null            $department_id
+ * @property int|null            $template_id
+ * @property array|null          $tags
  */
 class GedDocument extends Model
 {
@@ -26,12 +39,22 @@ class GedDocument extends Model
         'size_bytes',
         'current_version',
         'created_by',
+        // Niveau 2 — classification documentaire (ADR-038)
+        'document_type',
+        'reference',
+        'document_date',
+        'object',
+        'department_id',
+        'template_id',
+        'tags',
     ];
 
     protected $casts = [
-        'size_bytes' => 'integer',
+        'size_bytes'      => 'integer',
         'current_version' => 'integer',
-        'deleted_at' => 'datetime',
+        'deleted_at'      => 'datetime',
+        'document_date'   => 'date',
+        'tags'            => 'array',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -58,6 +81,20 @@ class GedDocument extends Model
     public function projectLinks(): HasMany
     {
         return $this->hasMany(ProjectGedLink::class, 'ged_document_id');
+    }
+
+    // ── Relations Niveau 2 ───────────────────────────────────
+
+    /** @return BelongsTo<Department, $this> */
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class, 'department_id');
+    }
+
+    /** @return BelongsTo<GedDocumentTemplate, $this> */
+    public function template(): BelongsTo
+    {
+        return $this->belongsTo(GedDocumentTemplate::class, 'template_id');
     }
 
     /**
@@ -93,6 +130,46 @@ class GedDocument extends Model
     }
 
     // ── Helpers ──────────────────────────────────────────────
+
+    /**
+     * Retourne l'enum GedDocumentType ou null si non typé.
+     */
+    public function documentTypeEnum(): ?GedDocumentType
+    {
+        if (empty($this->document_type)) {
+            return null;
+        }
+
+        return GedDocumentType::tryFrom($this->document_type);
+    }
+
+    /**
+     * Indique si ce document est un acte réglementaire officiel
+     * (délibération, arrêté, décision).
+     */
+    public function isOfficialAct(): bool
+    {
+        $type = $this->documentTypeEnum();
+
+        return $type !== null && $type->isOfficialAct();
+    }
+
+    /**
+     * Label du type documentaire pour l'affichage.
+     * Retourne "Non classifié" si aucun type n'est défini.
+     */
+    public function documentTypeLabel(): string
+    {
+        return $this->documentTypeEnum()?->label() ?? 'Non classifié';
+    }
+
+    /**
+     * Classes CSS Tailwind du badge de type (couleur de fond + texte).
+     */
+    public function documentTypeBadgeColor(): string
+    {
+        return $this->documentTypeEnum()?->badgeColor() ?? 'bg-gray-100 text-gray-400';
+    }
 
     /** Taille lisible. Ex: "1,4 Mo", "320 Ko". */
     public function humanSize(): string
