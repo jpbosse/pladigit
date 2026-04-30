@@ -157,7 +157,7 @@ check_prerequisites() {
     # MySQL
     if command -v mysql &>/dev/null && systemctl is-active --quiet mysql 2>/dev/null; then
         # Tester si root se connecte sans mot de passe (fresh install Ubuntu)
-        if mysql -u root -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
+        if mysql -u root --connect-timeout=3 -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
             log "  MySQL       : ✅ installé et actif (accès root sans mot de passe)"
             MYSQL_ROOT_PASSWORD=""
         else
@@ -168,7 +168,7 @@ check_prerequisites() {
             read -rs MYSQL_ROOT_PASSWORD
             echo ""
             # Vérifier que le mot de passe est correct
-            if ! mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
+            if ! mysql -u root --connect-timeout=3 -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
                 die "Mot de passe MySQL root incorrect."
             fi
             log "  MySQL       : mot de passe root vérifié ✅"
