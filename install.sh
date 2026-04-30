@@ -139,7 +139,7 @@ check_prerequisites() {
     local php_detected_version
     php_detected_version=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null || true)
     if [[ "$php_detected_version" == "${PHP_VERSION}" ]]; then
-        log "  PHP ${PHP_VERSION}      : ✅ installé ($(php -r 'echo PHP_VERSION;' 2>/dev/null))"
+        log "  PHP ${PHP_VERSION}      : ✅ installé"
     else
         warn "  PHP ${PHP_VERSION}      : ❌ à installer"
         NEED_PHP=true
@@ -148,7 +148,7 @@ check_prerequisites() {
 
     # Composer
     if command -v composer &>/dev/null; then
-        log "  Composer    : ✅ installé ($(composer --version --no-ansi 2>/dev/null | awk '{print $3}'))"
+        log "  Composer    : ✅ installé"
     else
         warn "  Composer    : ❌ à installer"
         NEED_PHP=true
@@ -196,7 +196,7 @@ check_prerequisites() {
 
     # Nginx
     if command -v nginx &>/dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
-        log "  Nginx       : ✅ installé et actif ($(nginx -v 2>&1 | awk -F/ '{print $2}'))"
+        log "  Nginx       : ✅ installé et actif"
     elif command -v nginx &>/dev/null; then
         warn "  Nginx       : ⚠️  installé mais inactif"
         NEED_NGINX=true
@@ -220,7 +220,7 @@ check_prerequisites() {
 
     # Node.js
     if command -v node &>/dev/null; then
-        log "  Node.js     : ✅ installé ($(node --version 2>/dev/null))"
+        log "  Node.js     : ✅ installé"
     else
         warn "  Node.js     : ❌ à installer"
         NEED_NODE=true
