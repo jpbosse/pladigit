@@ -18,7 +18,7 @@ PLADIGIT_USER="www-data"
 LOG_FILE="/var/log/pladigit-install.log"
 MIN_RAM_MB=2048
 MIN_DISK_GB=10
-PHP_VERSION="8.4"
+PHP_VERSION="8.3"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log()     { echo -e "${GREEN}✓${NC} $*" | tee -a "$LOG_FILE"; }
@@ -297,30 +297,38 @@ update_system() {
     progress 2 7 "Mise à jour système"
 }
 
-# ── 2. PHP 8.4 ────────────────────────────────────────────────────────────────
+# ── 2. PHP 8.x ────────────────────────────────────────────────────────────────
 install_php() {
-    step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
+    step "Étape 3/7 — Installation de PHP"
 
-    # Vérifier si PHP est déjà installé à la bonne version
-    if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
-        log "PHP ${PHP_VERSION} déjà installé — on continue"
-    else
-        # Ajouter le dépôt sury.org si PHP 8.4 n'est pas dispo nativement
-        if ! apt-cache show "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1; then
-            if ! grep -rq "ondrej\|sury" /etc/apt/sources.list.d/ 2>/dev/null; then
-                info "Ajout du dépôt PHP (packages.sury.org)..."
-                curl -fsSL https://packages.sury.org/php/apt.gpg \
-                    | gpg --dearmor -o /usr/share/keyrings/sury-php-keyring.gpg \
-                    >> "$LOG_FILE" 2>&1 \
-                    || die "Impossible de récupérer la clé GPG du dépôt PHP."
-                echo "deb [signed-by=/usr/share/keyrings/sury-php-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
-                    > /etc/apt/sources.list.d/sury-php.list \
-                    || die "Impossible d'écrire le dépôt PHP."
-                apt-get update -qq >> "$LOG_FILE" 2>&1
-                log "Dépôt sury.org ajouté"
-            else
-                log "Dépôt PHP déjà présent"
+    # Détecter la version PHP disponible nativement (8.3 sur Ubuntu 24.04 noble)
+    # Pas de dépôt externe — fiabilité maximale
+    if command -v php &>/dev/null; then
+        local detected
+        detected=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null)
+        if [[ "$detected" == 8.* ]]; then
+            PHP_VERSION="$detected"
+            log "PHP ${PHP_VERSION} déjà installé — on continue"
+        fi
+    fi
+
+    if ! command -v "php${PHP_VERSION}" &>/dev/null && ! command -v php &>/dev/null; then
+        # Activer le dépôt universe (PHP 8.3 disponible nativement sur Ubuntu 24.04)
+        info "Activation du dépôt universe..."
+        add-apt-repository -y universe >> "$LOG_FILE" 2>&1
+        apt-get update -qq >> "$LOG_FILE" 2>&1
+
+        # Vérifier quelle version est disponible
+        for ver in 8.3 8.2; do
+            if apt-cache show "php${ver}-fpm" >> "$LOG_FILE" 2>&1; then
+                PHP_VERSION="$ver"
+                log "PHP ${PHP_VERSION} disponible dans les dépôts Ubuntu"
+                break
             fi
+        done
+
+        if [[ -z "$PHP_VERSION" ]]; then
+            die "Aucune version de PHP 8.x trouvée dans les dépôts. Vérifiez votre connexion réseau."
         fi
 
         local php_packages=(
@@ -340,7 +348,7 @@ install_php() {
             "php${PHP_VERSION}-ldap"
         )
 
-        info "Installation de PHP ${PHP_VERSION} et extensions..."
+        info "Installation de PHP ${PHP_VERSION} (dépôts Ubuntu natifs)..."
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
 
