@@ -305,26 +305,21 @@ install_php() {
     if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
         log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
-        # Tenter l'installation directe (PHP 8.4 parfois dispo nativement)
-        if ! apt-get install -y -qq "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1; then
-            # Paquet absent — ajouter le dépôt ondrej/sury
+        # Ajouter le dépôt sury.org si PHP 8.4 n'est pas dispo nativement
+        if ! apt-cache show "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1; then
             if ! grep -rq "ondrej\|sury" /etc/apt/sources.list.d/ 2>/dev/null; then
-                info "Ajout du dépôt PHP (ondrej/php)..."
-                if timeout 30 add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1; then
-                    log "Dépôt ondrej/php ajouté via PPA"
-                else
-                    # Fallback : dépôt Sury direct (même source, sans Launchpad)
-                    warn "PPA Launchpad inaccessible — utilisation de packages.sury.org..."
-                    curl -fsSL https://packages.sury.org/php/apt.gpg \
-                        | gpg --dearmor -o /usr/share/keyrings/sury-php-keyring.gpg \
-                        >> "$LOG_FILE" 2>&1 \
-                        || die "Impossible de récupérer la clé GPG du dépôt PHP."
-                    echo "deb [signed-by=/usr/share/keyrings/sury-php-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
-                        > /etc/apt/sources.list.d/sury-php.list \
-                        || die "Impossible d'écrire le dépôt PHP."
-                    log "Dépôt sury.org ajouté en fallback"
-                fi
+                info "Ajout du dépôt PHP (packages.sury.org)..."
+                curl -fsSL https://packages.sury.org/php/apt.gpg \
+                    | gpg --dearmor -o /usr/share/keyrings/sury-php-keyring.gpg \
+                    >> "$LOG_FILE" 2>&1 \
+                    || die "Impossible de récupérer la clé GPG du dépôt PHP."
+                echo "deb [signed-by=/usr/share/keyrings/sury-php-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
+                    > /etc/apt/sources.list.d/sury-php.list \
+                    || die "Impossible d'écrire le dépôt PHP."
                 apt-get update -qq >> "$LOG_FILE" 2>&1
+                log "Dépôt sury.org ajouté"
+            else
+                log "Dépôt PHP déjà présent"
             fi
         fi
 
