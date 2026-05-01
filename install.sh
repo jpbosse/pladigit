@@ -509,16 +509,10 @@ install_pladigit() {
     # Téléchargement du wizard d'installation
     info "Téléchargement du wizard d'installation..."
     mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
-    chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
-    log "Wizard d'installation téléchargé"
-
-    # Téléchargement du wizard d'installation
-    info "Téléchargement du wizard..."
-    mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
+    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php" \
+        >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
-    log "Wizard téléchargé"
+    log "Wizard d'installation téléchargé"
 
     # Déploiement du script d'installation Collabora (exécuté en root via sudo)
     info "Déploiement du script Collabora..."
@@ -668,8 +662,11 @@ server {
     }
 
     # Wizard d'installation
+    # ^~ empêche les regex extérieures (~ \.php$) d'intercepter les requêtes
+    # vers /install/ et garantit que le handler PHP imbriqué est utilisé avec
+    # le bon SCRIPT_FILENAME (/var/www/pladigit/install/index.php).
     location = /install { return 301 /install/; }
-    location /install/ {
+    location ^~ /install/ {
         root /var/www/pladigit;
         index index.php;
         location ~ \.php$ {
