@@ -308,7 +308,7 @@ install_php() {
         # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
         if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
             info "Ajout du dépôt ondrej/php..."
-            add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1 || die "Impossible d'ajouter le dépôt PHP."
+            DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:ondrej/php || die "Impossible d'ajouter le dépôt PHP."
             apt-get update -qq >> "$LOG_FILE" 2>&1
         else
             log "Dépôt ondrej/php déjà présent"
