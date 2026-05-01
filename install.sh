@@ -18,7 +18,7 @@ PLADIGIT_USER="www-data"
 LOG_FILE="/var/log/pladigit-install.log"
 MIN_RAM_MB=2048
 MIN_DISK_GB=10
-PHP_VERSION="8.3"
+PHP_VERSION="8.4"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log()     { echo -e "${GREEN}✓${NC} $*" | tee -a "$LOG_FILE"; }
@@ -297,45 +297,21 @@ update_system() {
     progress 2 7 "Mise à jour système"
 }
 
-# ── 2. PHP 8.x ────────────────────────────────────────────────────────────────
+# ── 2. PHP 8.4 ────────────────────────────────────────────────────────────────
 install_php() {
-    step "Étape 3/7 — Installation de PHP"
+    step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
 
-    # Détecter la version PHP disponible nativement (8.3 sur Ubuntu 24.04 noble)
-    # Pas de dépôt externe — fiabilité maximale
-    if command -v php &>/dev/null; then
-        local detected
-        detected=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null)
-        if [[ "$detected" == 8.* ]]; then
-            PHP_VERSION="$detected"
-            log "PHP ${PHP_VERSION} déjà installé — on continue"
-        fi
-    fi
-
-    if ! command -v "php${PHP_VERSION}" &>/dev/null && ! command -v php &>/dev/null; then
-        # Forcer le miroir français pour des téléchargements rapides
-        if grep -q "archive.ubuntu.com" /etc/apt/sources.list 2>/dev/null; then
-            sed -i 's|http://archive.ubuntu.com|http://fr.archive.ubuntu.com|g' /etc/apt/sources.list
-            sed -i 's|http://security.ubuntu.com|http://fr.archive.ubuntu.com|g' /etc/apt/sources.list
-            log "Miroir apt basculé sur fr.archive.ubuntu.com"
-        fi
-
-        # Activer le dépôt universe (PHP 8.3 disponible nativement sur Ubuntu 24.04)
-        info "Activation du dépôt universe..."
-        add-apt-repository -y universe >> "$LOG_FILE" 2>&1
-        apt-get update -qq >> "$LOG_FILE" 2>&1
-
-        # Vérifier quelle version est disponible
-        for ver in 8.3 8.2; do
-            if apt-cache show "php${ver}-fpm" >> "$LOG_FILE" 2>&1; then
-                PHP_VERSION="$ver"
-                log "PHP ${PHP_VERSION} disponible dans les dépôts Ubuntu"
-                break
-            fi
-        done
-
-        if [[ -z "$PHP_VERSION" ]]; then
-            die "Aucune version de PHP 8.x trouvée dans les dépôts. Vérifiez votre connexion réseau."
+    # Vérifier si PHP est déjà installé à la bonne version
+    if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
+        log "PHP ${PHP_VERSION} déjà installé — on continue"
+    else
+        # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
+        if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
+            info "Ajout du dépôt ondrej/php..."
+            add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1 || die "Impossible d'ajouter le dépôt PHP."
+            apt-get update -qq >> "$LOG_FILE" 2>&1
+        else
+            log "Dépôt ondrej/php déjà présent"
         fi
 
         local php_packages=(
@@ -355,7 +331,7 @@ install_php() {
             "php${PHP_VERSION}-ldap"
         )
 
-        info "Installation de PHP ${PHP_VERSION} (dépôts Ubuntu natifs)..."
+        info "Installation de PHP ${PHP_VERSION} et extensions..."
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
 
@@ -533,10 +509,16 @@ install_pladigit() {
     # Téléchargement du wizard d'installation
     info "Téléchargement du wizard d'installation..."
     mkdir -p "${PLADIGIT_DIR}/install"
-    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php" \
-        >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
-    chown -R www-data:www-data "${PLADIGIT_DIR}/install"
+    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible — continuez manuellement."
+    chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
     log "Wizard d'installation téléchargé"
+
+    # Téléchargement du wizard d'installation
+    info "Téléchargement du wizard..."
+    mkdir -p "${PLADIGIT_DIR}/install"
+    curl -fsSL https://pladigit.fr/install-wizard.php -o "${PLADIGIT_DIR}/install/index.php"         >> "$LOG_FILE" 2>&1 || warn "Wizard non disponible."
+    chown -R www-data:www-data "${PLADIGIT_DIR}/install"
+    log "Wizard téléchargé"
 
     # Déploiement du script d'installation Collabora (exécuté en root via sudo)
     info "Déploiement du script Collabora..."
@@ -686,11 +668,8 @@ server {
     }
 
     # Wizard d'installation
-    # ^~ empêche les regex extérieures (~ \.php$) d'intercepter les requêtes
-    # vers /install/ et garantit que le handler PHP imbriqué est utilisé avec
-    # le bon SCRIPT_FILENAME (/var/www/pladigit/install/index.php).
     location = /install { return 301 /install/; }
-    location ^~ /install/ {
+    location /install/ {
         root /var/www/pladigit;
         index index.php;
         location ~ \.php$ {
