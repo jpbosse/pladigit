@@ -313,6 +313,13 @@ install_php() {
     fi
 
     if ! command -v "php${PHP_VERSION}" &>/dev/null && ! command -v php &>/dev/null; then
+        # Forcer le miroir français pour des téléchargements rapides
+        if grep -q "archive.ubuntu.com" /etc/apt/sources.list 2>/dev/null; then
+            sed -i 's|http://archive.ubuntu.com|http://fr.archive.ubuntu.com|g' /etc/apt/sources.list
+            sed -i 's|http://security.ubuntu.com|http://fr.archive.ubuntu.com|g' /etc/apt/sources.list
+            log "Miroir apt basculé sur fr.archive.ubuntu.com"
+        fi
+
         # Activer le dépôt universe (PHP 8.3 disponible nativement sur Ubuntu 24.04)
         info "Activation du dépôt universe..."
         add-apt-repository -y universe >> "$LOG_FILE" 2>&1
