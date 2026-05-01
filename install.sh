@@ -305,10 +305,23 @@ install_php() {
     if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
         log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
-        # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
-        if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
-            info "Ajout du dépôt ondrej/php..."
-            add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1 || die "Impossible d'ajouter le dépôt PHP."
+        # Dépôt Ondrej/Sury — détection .list ET .sources (Ubuntu 24.04+)
+        if ! grep -rq "ondrej\|sury" /etc/apt/sources.list.d/ 2>/dev/null; then
+            info "Ajout du dépôt PHP (ondrej/php)..."
+            if add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1; then
+                log "Dépôt ondrej/php ajouté via PPA"
+            else
+                # Fallback : dépôt Sury direct (même source, sans passer par Launchpad)
+                warn "PPA Launchpad inaccessible — utilisation de packages.sury.org..."
+                curl -fsSL https://packages.sury.org/php/apt.gpg \
+                    | gpg --dearmor -o /usr/share/keyrings/sury-php-keyring.gpg \
+                    >> "$LOG_FILE" 2>&1 \
+                    || die "Impossible de récupérer la clé GPG du dépôt PHP."
+                echo "deb [signed-by=/usr/share/keyrings/sury-php-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
+                    > /etc/apt/sources.list.d/sury-php.list \
+                    || die "Impossible d'écrire le dépôt PHP."
+                log "Dépôt sury.org ajouté en fallback"
+            fi
             apt-get update -qq >> "$LOG_FILE" 2>&1
         else
             log "Dépôt ondrej/php déjà présent"
