@@ -308,7 +308,7 @@ install_php() {
         # Dépôt Ondrej/Sury — détection .list ET .sources (Ubuntu 24.04+)
         if ! grep -rq "ondrej\|sury" /etc/apt/sources.list.d/ 2>/dev/null; then
             info "Ajout du dépôt PHP (ondrej/php)..."
-            if add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1; then
+            if timeout 30 add-apt-repository -y ppa:ondrej/php >> "$LOG_FILE" 2>&1; then
                 log "Dépôt ondrej/php ajouté via PPA"
             else
                 # Fallback : dépôt Sury direct (même source, sans passer par Launchpad)
