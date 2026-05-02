@@ -7,12 +7,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 
 ## [Unreleased]
 
+---
+
+## [0.8.2] — Mai 2026
+
 ### Ajouté
 - **Rapatriement des ressources statiques en local** — polices Google Fonts (Sora, DM Sans), Trix editor, Cropper.js hébergés localement ; zéro requête vers des CDN tiers, compatible CSP stricte (ADR-033)
 - **En-têtes HTTP de sécurité Nginx** — CSP (Content Security Policy), HSTS, X-Frame-Options DENY, X-Content-Type-Options, Referrer-Policy strict-origin, Permissions-Policy, `server_tokens off` (ADR-033)
 - **Mécanisme de mise à jour depuis le Super Admin** — `install/update.sh` exécuté en root via sudoers, log en temps réel dans l'interface, commande artisan `pladigit:update-status` (ADR-034)
 - ADR-032 : rotation des clés AES — hors périmètre (décision documentée)
 - ADR-035 : audit cross-tenant — hors périmètre (décision documentée)
+- **Script `install.sh`** — PHP 8.3+ natif Ubuntu (dépôts universe), sans dépôt externe (PPA Ondrej/sury.org supprimé)
+- **Wizard `install/index.php`** — versionné dans le dépôt git, plus de téléchargement depuis URL externe
+- **`SUPER_ADMIN_ALLOWED_IPS`** auto-détecté depuis l'IP du client lors de l'installation (wizard)
+- **Hook git post-merge** sur le VPS — synchronisation automatique de `install.sh` vers `public/`
+- **`session_start()` corrigé** dans le wizard — suppression du doublon
+
+### Modifié
+- `composer.lock` — compatible PHP 8.3 (Symfony 7.x) et PHP 8.4
+- CDC v2.3 → v2.4 — ajout sections Sécurité production et Installation & déploiement dans Niveau 1
+- Documentation complète mise à jour — toutes les références PHP 8.4 → PHP 8.3+, PPA Ondrej supprimé
 
 ---
 
