@@ -574,7 +574,8 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'MAIL_FROM_ADDRESS='.$smtp['from']."\n"
         .'MAIL_FROM_NAME="'.addslashes($smtp['from_name']).'"'."\n\n"
         .'SUPER_ADMIN_EMAIL='.$admin['email']."\n"
-        .'SUPER_ADMIN_PASSWORD_HASH='.$hash."\n";
+        .'SUPER_ADMIN_PASSWORD_HASH='.$hash."\n"
+	.'SUPER_ADMIN_ALLOWED_IPS='.($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')."\n";
 }
 
 function redirect(string $a): void
