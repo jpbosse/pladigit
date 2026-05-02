@@ -1,5 +1,4 @@
 <?php
-session_start();
 /**
  * Pladigit — Assistant d'installation web v2.0
  * Wizard 6 étapes — PHP standalone, sans framework
