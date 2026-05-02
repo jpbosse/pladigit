@@ -42,7 +42,7 @@ curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
 Le script installe automatiquement :
-- PHP 8.4 + toutes les extensions requises
+- PHP 8.3+ + toutes les extensions requises
 - MySQL 8, Redis, Nginx, Supervisor, Node.js 20
 - Le code source de Pladigit et ses dépendances
 
@@ -145,22 +145,22 @@ ssh ubuntu@VOTRE_IP
 sudo apt update && sudo apt upgrade -y
 ```
 
-### 3. PHP 8.4
+### 3. PHP 8.3+ (natif Ubuntu)
 
 ```bash
 sudo add-apt-repository ppa:ondrej/php -y && sudo apt update
 
-sudo apt install -y php8.4 php8.4-cli php8.4-fpm php8.4-common \
-  php8.4-mysql php8.4-xml php8.4-curl php8.4-gd php8.4-imagick \
-  php8.4-mbstring php8.4-opcache php8.4-zip php8.4-intl \
-  php8.4-redis php8.4-bcmath php8.4-ldap
+sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-common \
+  php8.3-mysql php8.3-xml php8.3-curl php8.3-gd php8.3-imagick \
+  php8.3-mbstring php8.3-opcache php8.3-zip php8.3-intl \
+  php8.3-redis php8.3-bcmath php8.3-ldap
 ```
 
 Vérification :
 
 ```bash
-php8.4 --version
-php8.4 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath|gd'
+php8.3 --version
+php8.3 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath|gd'
 ```
 
 ### 4. MySQL 8
@@ -315,7 +315,7 @@ server {
     }
 
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;
         fastcgi_param SCRIPT_NAME /index.php;
         include fastcgi_params;

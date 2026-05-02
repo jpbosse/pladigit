@@ -3,7 +3,7 @@
 > Alternative souveraine et open source aux outils Microsoft (Teams, SharePoint, OneDrive, Word, Excel, Planner)
 > Conçue pour les collectivités locales, associations et structures du secteur parapublic français.
 
-![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?logo=laravel&logoColor=white)
 ![Tests](https://img.shields.io/badge/Tests-781%20passed-brightgreen)
 ![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-blue)
@@ -137,7 +137,7 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| PHP | 8.4 | Langage backend |
+| PHP | 8.3+ | Langage backend |
 | Laravel | 11.x | Framework MVC |
 | Alpine.js | 3.x | Interactivité frontend |
 | Livewire | 4.2 | Composants réactifs |
