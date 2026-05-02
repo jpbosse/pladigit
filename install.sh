@@ -302,11 +302,25 @@ install_php() {
     step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
 
     # Vérifier si PHP est déjà installé à la bonne version
-    if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
+if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
         log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
+        if ! grep -rq "ondrej\|sury" /etc/apt/sources.list.d/ 2>/dev/null; then
+            info "Ajout du dépôt PHP 8.4..."
+            if timeout 60 bash -c 'DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:ondrej/php' >> "$LOG_FILE" 2>&1; then
+                log "Dépôt ondrej/php ajouté"
+            elif curl -fsSL --max-time 30 https://packages.sury.org/php/apt.gpg \
+                | gpg --dearmor -o /usr/share/keyrings/sury-php-keyring.gpg 2>/dev/null \
+                && echo "deb [signed-by=/usr/share/keyrings/sury-php-keyring.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
+                > /etc/apt/sources.list.d/sury-php.list; then
+                log "Dépôt sury.org ajouté en fallback"
+            else
+                die "Dépôt PHP 8.4 indisponible. Vérifiez votre connexion et réessayez."
+            fi
+        else
+            log "Dépôt PHP déjà présent"
+        fi
         apt-get update -qq >> "$LOG_FILE" 2>&1
-
 
 
         local php_packages=(
