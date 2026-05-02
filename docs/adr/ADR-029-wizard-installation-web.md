@@ -50,7 +50,7 @@ Créer un wizard web PHP standalone `install/index.php`, accessible sur `http://
 
 Les données saisies dans les formulaires sont stockées dans `install/config.json` (chmod 600) à chaque étape. `write_runner()` lit ce fichier au moment du clic "Lancer l'installation" pour générer `runner.php` avec toutes les valeurs interpolées directement dans le code PHP (pas de variables à résoudre à l'exécution du runner).
 
-Le `.env` est écrit directement par le wizard (pas par le runner) pour garantir l'intégrité du contenu.
+Le `.env` est écrit directement par le wizard (pas par le runner) pour garantir l'intégrité du contenu. Il inclut automatiquement `SUPER_ADMIN_ALLOWED_IPS` avec l'IP du client détectée via `$_SERVER['REMOTE_ADDR']`.
 
 ### Sécurité
 
@@ -70,6 +70,7 @@ Le `.env` est écrit directement par le wizard (pas par le runner) pour garantir
 
 ## Conséquences
 
-- Le wizard est hébergé sur `pladigit.fr/install-wizard.php` et téléchargé lors de l'installation — une mise à jour du wizard est disponible immédiatement sans mettre à jour le code de chaque installation.
+- Le wizard `install/index.php` est versionné dans le dépôt git et déployé lors du clonage par `install.sh` — plus de dépendance à une URL externe pour son téléchargement.
+- `SUPER_ADMIN_ALLOWED_IPS` est automatiquement renseigné avec l'IP du client lors de l'installation — aucune intervention manuelle nécessaire.
 - Le polling Ajax toutes les 1,5 s génère une charge négligeable.
 - Le dossier `install/` doit être absent sur un serveur en production.

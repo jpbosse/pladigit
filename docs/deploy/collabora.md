@@ -261,7 +261,7 @@ server {
     root /var/www/pladigit/public;
 
     location ^~ /wopi/ {
-        fastcgi_pass   unix:/var/run/php/php8.4-fpm.sock;
+        fastcgi_pass   unix:/var/run/php/php8.3-fpm.sock;
         fastcgi_param  SCRIPT_FILENAME /var/www/pladigit/public/index.php;
         fastcgi_param  QUERY_STRING    $query_string;
         fastcgi_param  REQUEST_URI     $request_uri;

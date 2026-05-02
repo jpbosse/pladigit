@@ -126,10 +126,10 @@ sudo -u deploy php artisan pladigit:purge-expired-data
 
 ```bash
 # Redémarrer tous les services
-sudo systemctl restart nginx php8.4-fpm mysql redis
+sudo systemctl restart nginx php8.3-fpm mysql redis
 
 # Vérifier l'état
-sudo systemctl status nginx php8.4-fpm mysql redis
+sudo systemctl status nginx php8.3-fpm mysql redis
 
 # Collabora Online
 docker ps | grep collabora

@@ -26,30 +26,30 @@ $ lsb_release -a
 
 ✓  Résultat attendu : 'Ubuntu 24.04 LTS' ou version supérieure.
 
-## Étape 2 — PHP 8.4 et ses extensions
+## Étape 2 — PHP 8.3 et ses extensions
 
 
-Ubuntu 24.04 fournit PHP 8.3 par défaut. Pour garantir PHP 8.4 (version spécifiée dans le CDC), on utilise le PPA officiel.
+Ubuntu 24.04 fournit PHP 8.3 par défaut. Pour garantir PHP 8.3 (version spécifiée dans le CDC), on utilise le PPA officiel.
 
 # Ajouter le PPA PHP d'Ondřej Surý (maintenu et fiable)
 $ sudo add-apt-repository ppa:ondrej/php -y
 $ sudo apt update
 
-# Installer PHP 8.4 et toutes les extensions requises par Laravel 11
-$ sudo apt install -y php8.4 php8.4-cli php8.4-fpm php8.4-common \
-$   php8.4-mysql php8.4-xml php8.4-xmlrpc php8.4-curl php8.4-gd \apt
-$   php8.4-imagick php8.4-dev php8.4-imap php8.4-mbstring \
-$   php8.4-opcache php8.4-soap php8.4-zip php8.4-intl \
-$   php8.4-redis php8.4-bcmath php8.4-ldap
+# Installer PHP 8.3 et toutes les extensions requises par Laravel 11
+$ sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-common \
+$   php8.3-mysql php8.3-xml php8.3-xmlrpc php8.3-curl php8.3-gd \apt
+$   php8.3-imagick php8.3-dev php8.3-imap php8.3-mbstring \
+$   php8.3-opcache php8.3-soap php8.3-zip php8.3-intl \
+$   php8.3-redis php8.3-bcmath php8.3-ldap
 
 # Vérification
-$ php8.4 --version
-$ php8.4 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath'
+$ php8.3 --version
+$ php8.3 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath'
 
 ✓  Vous devez voir toutes ces extensions listées. Si l'une manque, installez-la séparément avec apt.
 
 
-📄 /etc/php/8.4/cli/php.ini  (et /etc/php/8.4/fpm/php.ini pour la prod)
+📄 /etc/php/8.3/cli/php.ini  (et /etc/php/8.3/fpm/php.ini pour la prod)
 ; Mémoire — Laravel + imports de fichiers volumineux
 memory_limit = 256M
 
@@ -70,15 +70,15 @@ opcache.max_accelerated_files = 10000
 opcache.revalidate_freq = 0   ; 0 = revalidation à chaque requête en dev
 
 # Appliquer la config et vérifier
-$ sudo systemctl restart php8.4-fpm
-$ php8.4 -r "echo ini_get('memory_limit') . PHP_EOL;"
+$ sudo systemctl restart php8.3-fpm
+$ php8.3 -r "echo ini_get('memory_limit') . PHP_EOL;"
 
 ## Étape 3 — Composer 2
 
 
 # Télécharger et vérifier l'installeur officiel
 $ curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
-$ php8.4 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+$ php8.3 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
 $
 # Vérification
 $ composer --version
@@ -277,19 +277,19 @@ X11Forwarding no
 $ sudo systemctl restart sshd
 # Tester la connexion dans un NOUVEAU terminal avant de fermer l'actuel
 
-## Étape 9 — PHP-FPM 8.4 et Nginx (production)
+## Étape 9 — PHP-FPM 8.3 et Nginx (production)
 
 
 $ sudo add-apt-repository ppa:ondrej/php -y && sudo apt update
-$ sudo apt install -y php8.4-fpm php8.4-cli php8.4-mysql php8.4-redis \
-$   php8.4-xml php8.4-curl php8.4-mbstring php8.4-zip php8.4-intl \
-$   php8.4-bcmath php8.4-ldap php8.4-gd php8.4-imagick php8.4-opcache
+$ sudo apt install -y php8.3-fpm php8.3-cli php8.3-mysql php8.3-redis \
+$   php8.3-xml php8.3-curl php8.3-mbstring php8.3-zip php8.3-intl \
+$   php8.3-bcmath php8.3-ldap php8.3-gd php8.3-imagick php8.3-opcache
 $
 $ sudo apt install -y nginx
 $
 # Démarrer les services
-$ sudo systemctl start php8.4-fpm nginx
-$ sudo systemctl enable php8.4-fpm nginx
+$ sudo systemctl start php8.3-fpm nginx
+$ sudo systemctl enable php8.3-fpm nginx
 
 
 📄 /etc/nginx/sites-available/pladigit
@@ -339,7 +339,7 @@ location = /robots.txt  { access_log off; log_not_found off; }
 error_page 404 /index.php;
 
 location ~ .php$ {
-fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
 fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
 include fastcgi_params;
 fastcgi_read_timeout 120;
@@ -628,7 +628,7 @@ fi
 
 echo ""
 echo "--- Langages & outils ---"
-check "PHP 8.4"      "php8.4 -r 'echo PHP_VERSION;'"   "8.4"
+check "PHP 8.3"      "php8.3 -r 'echo PHP_VERSION;'"   "8.3"
 check "Composer 2"   "composer --version"               "Composer version 2"
 check "Node.js 20"   "node --version"                   "v20"
 check "npm"          "npm --version"                    "10"
@@ -637,7 +637,7 @@ check "Git"          "git --version"                    "git version 2"
 echo ""
 echo "--- Extensions PHP ---"
 for EXT in pdo_mysql redis mbstring curl zip intl bcmath ldap gd; do
-php8.4 -m | grep -q "^$EXT$"     && echo "  ✓ $EXT"     || echo "  ✗ $EXT MANQUANTE → sudo apt install php8.4-$EXT"
+php8.3 -m | grep -q "^$EXT$"     && echo "  ✓ $EXT"     || echo "  ✗ $EXT MANQUANTE → sudo apt install php8.3-$EXT"
 done
 
 echo ""
@@ -667,7 +667,7 @@ $ chmod +x check_prereqs.sh && ./check_prereqs.sh
 
 ### Environnement de développement local
 - Ubuntu 24.04 LTS à jour
-- PHP 8.4 avec toutes les extensions (mysql, redis, mbstring, curl, zip, intl, bcmath, ldap, gd, imagick, opcache)
+- PHP 8.3 avec toutes les extensions (mysql, redis, mbstring, curl, zip, intl, bcmath, ldap, gd, imagick, opcache)
 - Composer 2 installé globalement
 - MySQL 8 démarré, base pladigit_platform et pladigit_tenant_template créées
 - Utilisateur MySQL 'pladigit' créé avec les bons droits
@@ -679,7 +679,7 @@ $ chmod +x check_prereqs.sh && ./check_prereqs.sh
 - Utilisateur deploy créé, root désactivé
 - UFW : ports 22, 80, 443 autorisés, reste bloqué
 - SSH : authentification par mot de passe désactivée
-- PHP 8.4-FPM configuré avec php.ini production
+- PHP 8.3-FPM configuré avec php.ini production
 - Nginx configuré avec VirtualHost wildcard et headers sécurité
 - MySQL 8 avec mot de passe fort pour l'utilisateur applicatif
 - Redis 7 avec mot de passe et bind localhost

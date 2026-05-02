@@ -14,7 +14,7 @@
 - [ ] UFW actif — ports 22, 80, 443 autorisés, tout le reste bloqué
 - [ ] Fail2ban installé et actif
 
-### PHP 8.4
+### PHP 8.3
 - [ ] Extensions requises présentes : `pdo_mysql redis gd exif intl mbstring zip bcmath ldap`
 - [ ] `memory_limit = 256M`
 - [ ] `upload_max_filesize = 100M` / `post_max_size = 105M`

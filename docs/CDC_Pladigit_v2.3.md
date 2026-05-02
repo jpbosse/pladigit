@@ -54,7 +54,7 @@ Le projet est développé à un rythme soutenu — 7 phases livrées en 6 mois (
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| PHP | 8.4 | Langage backend |
+| PHP | 8.3+ | Langage backend |
 | Laravel | 11.x | Framework MVC |
 | Livewire | 4.2 | Composants réactifs |
 | Alpine.js | 3.x | Interactivité frontend |
@@ -257,7 +257,7 @@ Les modules sont activables par organisation via la colonne JSON `enabled_module
 ```
 VPS Ubuntu 24 LTS — hébergeur français (OVH, Scaleway, Infomaniak)
 ├── Nginx + SSL Let's Encrypt wildcard (*.pladigit.fr)
-├── PHP 8.4-FPM
+├── PHP 8.3-FPM
 ├── MySQL 8 — bases dédiées par tenant
 ├── Redis 7 — cache, queues, sessions
 ├── Supervisor — 2 queue workers

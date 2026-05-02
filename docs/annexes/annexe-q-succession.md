@@ -16,7 +16,7 @@ Ce projet est porté par un développeur unique. Ce plan garantit qu'un tiers pu
 
 ### Étape 3 — Accéder à la production
 - Connexion SSH au VPS avec la clé récupérée dans le coffre-fort.
-- Vérifier l'état des services : systemctl status nginx php8.4-fpm mysql redis
+- Vérifier l'état des services : systemctl status nginx php8.3-fpm mysql redis
 - Vérifier Collabora Online : docker ps | grep collabora
 
 ### Étape 4 — Effectuer une modification
