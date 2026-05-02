@@ -306,13 +306,19 @@ install_php() {
         log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
         # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
-        if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
+
+
+
+	if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
             info "Ajout du dépôt ondrej/php..."
-            DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:ondrej/php || die "Impossible d'ajouter le dépôt PHP."
+            DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:ondrej/php 2>/dev/null \
+                || warn "Dépôt ondrej indisponible — utilisation de PHP natif Ubuntu."
             apt-get update -qq >> "$LOG_FILE" 2>&1
         else
             log "Dépôt ondrej/php déjà présent"
         fi
+
+
 
         local php_packages=(
             "php${PHP_VERSION}-fpm"
