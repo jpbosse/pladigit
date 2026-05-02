@@ -18,7 +18,7 @@ PLADIGIT_USER="www-data"
 LOG_FILE="/var/log/pladigit-install.log"
 MIN_RAM_MB=2048
 MIN_DISK_GB=10
-PHP_VERSION="8.3"
+PHP_VERSION="8.4"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log()     { echo -e "${GREEN}✓${NC} $*" | tee -a "$LOG_FILE"; }
