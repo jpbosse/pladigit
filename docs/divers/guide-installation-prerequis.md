@@ -29,10 +29,10 @@ $ lsb_release -a
 ## Étape 2 — PHP 8.3 et ses extensions
 
 
-Ubuntu 24.04 fournit PHP 8.3 par défaut. Pour garantir PHP 8.3 (version spécifiée dans le CDC), on utilise le PPA officiel.
+PHP 8.3 est disponible nativement dans Ubuntu 24.04 via le dépôt universe — aucun dépôt externe requis.
 
-# Ajouter le PPA PHP d'Ondřej Surý (maintenu et fiable)
-$ sudo add-apt-repository ppa:ondrej/php -y
+# Activer le dépôt universe (PHP 8.3 natif Ubuntu 24.04)
+$ sudo add-apt-repository -y universe
 $ sudo apt update
 
 # Installer PHP 8.3 et toutes les extensions requises par Laravel 11
@@ -280,7 +280,7 @@ $ sudo systemctl restart sshd
 ## Étape 9 — PHP-FPM 8.3 et Nginx (production)
 
 
-$ sudo add-apt-repository ppa:ondrej/php -y && sudo apt update
+$ sudo add-apt-repository -y universe && sudo apt update
 $ sudo apt install -y php8.3-fpm php8.3-cli php8.3-mysql php8.3-redis \
 $   php8.3-xml php8.3-curl php8.3-mbstring php8.3-zip php8.3-intl \
 $   php8.3-bcmath php8.3-ldap php8.3-gd php8.3-imagick php8.3-opcache

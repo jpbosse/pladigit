@@ -1,4 +1,4 @@
-# Pladigit — Cahier des Charges v2.3
+# Pladigit — Cahier des Charges v2.4
 
 > Plateforme de Digitalisation Interne  
 > Alternative souveraine open source AGPL-3.0  
@@ -11,7 +11,7 @@
 | **Dépôt** | github.com/jpbosse/pladigit |
 | **Domaine** | pladigit.fr (avril 2026 → avril 2029) |
 | **Licence** | AGPL-3.0 (code) / CC BY-SA 4.0 (documentation) |
-| **Version** | 2.3 — Avril 2026 |
+| **Version** | 2.4 — Mai 2026 |
 
 ---
 
@@ -23,6 +23,7 @@
 | v2.1 | Mars 2026 | Phase 3 Gestion de projet livrée. |
 | v2.2 | Mars 2026 | Phases 4–5 Photothèque livrées. |
 | v2.3 | Avril 2026 | Phases 6–7 GED + Collabora livrées. Refonte complète du planning en 3 niveaux. Ajout workflows, signature électronique, DataGrid, DataPilot. |
+| v2.4 | Mai 2026 | Script d'installation automatique. Wizard web d'installation. PHP 8.3+ natif Ubuntu (sans dépôt externe). SUPER_ADMIN_ALLOWED_IPS auto-détecté. |
 
 ---
 
@@ -89,7 +90,7 @@ Le projet est développé à un rythme soutenu — 7 phases livrées en 6 mois (
 
 ## 4. Planning — 3 niveaux
 
-Le planning v2.3 abandonne la numérotation séquentielle des phases au profit de trois niveaux reflétant la réalité du projet.
+Le planning v2.4 abandonne la numérotation séquentielle des phases au profit de trois niveaux reflétant la réalité du projet.
 
 ---
 
@@ -257,7 +258,7 @@ Les modules sont activables par organisation via la colonne JSON `enabled_module
 ```
 VPS Ubuntu 24 LTS — hébergeur français (OVH, Scaleway, Infomaniak)
 ├── Nginx + SSL Let's Encrypt wildcard (*.pladigit.fr)
-├── PHP 8.3-FPM
+├── PHP 8.3+-FPM
 ├── MySQL 8 — bases dédiées par tenant
 ├── Redis 7 — cache, queues, sessions
 ├── Supervisor — 2 queue workers
@@ -273,7 +274,7 @@ Minimum sans Collabora : 2 vCPU / 4 Go RAM / 40 Go SSD
 
 ## 8. Décisions architecturales (ADR)
 
-22 ADR documentés dans `docs/adr/` — de ADR-001 (stack frontend) à ADR-022 (Collabora intégré à GED). Chaque décision technique importante est tracée avec son contexte, ses alternatives considérées et ses conséquences.
+38 ADR documentés dans `docs/adr/` — de ADR-001 (stack frontend) à ADR-038 (source de vérité documentaire). Chaque décision technique importante est tracée avec son contexte, ses alternatives considérées et ses conséquences.
 
 ---
 
@@ -286,7 +287,7 @@ Minimum sans Collabora : 2 vCPU / 4 Go RAM / 40 Go SSD
 | CONTRIBUTING.md | Contributeurs | Racine |
 | SECURITY.md | Chercheurs sécurité | Racine |
 | ROADMAP.md | Élus, contributeurs | Racine |
-| docs/adr/ | Développeurs | 22 ADR |
+| docs/adr/ | Développeurs | 38 ADR |
 | docs/annexes/ | Développeurs | 12 annexes techniques |
 | docs/guides/ | Utilisateurs finaux | 4 guides par rôle |
 | docs/divers/ | Opérateurs | Installation, maintenance, checklist prod |
