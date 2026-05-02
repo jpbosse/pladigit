@@ -23,7 +23,7 @@
 | v2.1 | Mars 2026 | Phase 3 Gestion de projet livrée. |
 | v2.2 | Mars 2026 | Phases 4–5 Photothèque livrées. |
 | v2.3 | Avril 2026 | Phases 6–7 GED + Collabora livrées. Refonte complète du planning en 3 niveaux. Ajout workflows, signature électronique, DataGrid, DataPilot. |
-| v2.4 | Mai 2026 | Script d'installation automatique. Wizard web d'installation. PHP 8.3+ natif Ubuntu (sans dépôt externe). SUPER_ADMIN_ALLOWED_IPS auto-détecté. |
+| v2.4 | Mai 2026 | Script d'installation automatique. Wizard web. PHP 8.3+ natif Ubuntu. SUPER_ADMIN_ALLOWED_IPS auto-détecté. Début Niveau 2 : CSP + headers HTTP, rate limiting, protection Nginx, mise à jour Pladigit. ADR-032 et ADR-035 : rotation AES et audit cross-tenant hors périmètre. |
 
 ---
 
@@ -142,19 +142,27 @@ Le planning v2.4 abandonne la numérotation séquentielle des phases au profit d
 - Versioning automatique à chaque sauvegarde
 - Administration URL, TTL session, test connexion depuis l'interface admin
 
+#### Sécurité production (mai 2026)
+- CSP et headers HTTP de sécurité complets (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy)
+- Rate limiting sur les endpoints d'authentification (/login, /2fa, /super-admin/login)
+- Protection Nginx — mode maintenance, logs, disponibilité
+- Rotation des clés AES : hors périmètre — décision documentée ADR-032
+- Audit cross-tenant : hors périmètre — isolation garantie architecturalement, ADR-035
+
+#### Installation et déploiement (mai 2026)
+- Script d'installation automatique `install.sh` — une commande pour tout installer sur Ubuntu 22.04/24.04
+- Wizard web d'installation en 8 étapes — sans aucune compétence technique requise
+- PHP 8.3+ natif Ubuntu, sans dépôt externe (fiabilité maximale)
+- `SUPER_ADMIN_ALLOWED_IPS` auto-détecté depuis l'IP du client lors de l'installation
+- Mise à jour Pladigit depuis l'interface Super Admin (git pull, migrations, cache, workers)
+- Hook git post-merge — synchronisation automatique de `install.sh` vers `public/`
+
 ---
 
 ### Niveau 2 — Prochaines priorités 🔜
 
 > Ce qui sera développé avant et juste après la publication GitHub publique.  
 > Ordre indicatif — certains modules peuvent être parallélisés.
-
-#### Sécurité production
-- CSP (Content Security Policy) et headers HTTP sécurité complets
-- Rate limiting sur les sous-domaines et les endpoints d'authentification
-- Rotation des clés AES TOTP/LDAP
-- Audit cross-tenant TenantManager
-- Protection Nginx — maintenance, disponibilité, logs
 
 #### "Pladigit source de vérité documentaire"
 - Modèles de documents par type — délibération, arrêté, compte-rendu, courrier

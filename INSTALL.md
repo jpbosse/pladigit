@@ -1,7 +1,7 @@
 # INSTALL.md — Pladigit
 
 > Guide d'installation pour déployer Pladigit en production.  
-> Ubuntu 24.04 LTS — Avril 2026.
+> Ubuntu 24.04 LTS — Mai 2026.
 
 ---
 
@@ -42,7 +42,7 @@ curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
 Le script installe automatiquement :
-- PHP 8.3+ + toutes les extensions requises
+- PHP 8.3+ natif Ubuntu (dépôts universe)
 - MySQL 8, Redis, Nginx, Supervisor, Node.js 20
 - Le code source de Pladigit et ses dépendances
 
@@ -148,7 +148,7 @@ sudo apt update && sudo apt upgrade -y
 ### 3. PHP 8.3+ (natif Ubuntu)
 
 ```bash
-sudo add-apt-repository ppa:ondrej/php -y && sudo apt update
+sudo add-apt-repository -y universe && sudo apt update
 
 sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-common \
   php8.3-mysql php8.3-xml php8.3-curl php8.3-gd php8.3-imagick \
