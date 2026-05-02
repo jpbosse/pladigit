@@ -441,6 +441,14 @@
                             <div><div style="font-size:.875rem;font-weight:600;color:white">Wizard d'installation</div><div style="font-size:.75rem;color:rgba(255,255,255,.4)">Assistant de configuration web</div></div>
                             <span style="margin-left:auto;font-size:.75rem;color:rgba(255,255,255,.3)">↓</span>
                         </a>
+			<p style="font-size:.75rem;color:rgba(255,255,255,.5);margin-top:.75rem;line-height:1.6">
+                            💡 <strong style="color:rgba(255,255,255,.7)">Utilisation du wizard :</strong>
+                            Renommez le fichier téléchargé en <code style="background:rgba(255,255,255,.1);padding:.1rem .3rem;border-radius:3px">index.php</code>,
+                            copiez-le dans le dossier <code style="background:rgba(255,255,255,.1);padding:.1rem .3rem;border-radius:3px">install/</code>
+                            de votre serveur, puis accédez à
+                            <code style="background:rgba(255,255,255,.1);padding:.1rem .3rem;border-radius:3px">http://IP-DU-SERVEUR/install/</code>
+                            depuis votre navigateur.
+                        </p>
                     </div>
                 </div>
             </div>
