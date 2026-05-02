@@ -35,7 +35,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 ## [0.8.0] — Avril 2026
 
 ### Ajouté
-- **Script d'installation automatique** `install.sh` — une seule commande pour installer l'environnement complet (PHP 8.4, MySQL 8, Redis, Nginx, Supervisor, Node.js 20)
+- **Script d'installation automatique** `install.sh` — une seule commande pour installer l'environnement complet (PHP 8.3+, MySQL 8, Redis, Nginx, Supervisor, Node.js 20)
 - **Wizard d'installation web** 8 étapes — interface graphique standalone PHP, sans dépendance Laravel
 - **Installation Collabora Online automatique** via Docker — script `install-collabora.sh` exécuté en root via sudoers, avec progression temps réel dans le wizard
 - **Menu mise à jour / réinstallation** — détection d'installation existante avec 3 choix : Mettre à jour, Réinstaller, Annuler
@@ -156,7 +156,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 ## [0.1.0] — Octobre–Décembre 2025
 
 ### Ajouté
-- Socle technique Laravel 11 + PHP 8.4 + MySQL 8 + Redis 7
+- Socle technique Laravel 11 + PHP 8.3+ + MySQL 8 + Redis 7
 - Architecture multi-organisation : base MySQL dédiée par organisation (ADR-002)
 - Authentification locale — bcrypt coût 12, verrouillage de compte (ADR-004)
 - Double authentification TOTP — Google Authenticator, Aegis, codes de secours chiffrés AES-256 (ADR-017)

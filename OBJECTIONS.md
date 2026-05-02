@@ -162,7 +162,7 @@ Ce qui reste possible et utile dès maintenant : **installer Pladigit en parall�
 
 C'est exactement le problème que l'assistant d'installation de Pladigit a été conçu pour résoudre.
 
-Une seule commande à saisir sur le serveur installe automatiquement tous les composants nécessaires (PHP 8.4, base de données MySQL 8, Redis, serveur web Nginx, et Pladigit lui-même) sur un serveur Ubuntu 22.04 ou 24.04. Un assistant web en 8 étapes guide ensuite la configuration (base de données, adresse web, courriel, compte administrateur) — sans aucune ligne de commande supplémentaire.
+Une seule commande à saisir sur le serveur installe automatiquement tous les composants nécessaires (PHP 8.3+, base de données MySQL 8, Redis, serveur web Nginx, et Pladigit lui-même) sur un serveur Ubuntu 22.04 ou 24.04. Un assistant web en 8 étapes guide ensuite la configuration (base de données, adresse web, courriel, compte administrateur) — sans aucune ligne de commande supplémentaire.
 
 L'installation complète, éditeur Collabora inclus, prend environ **30 minutes**. Elle est documentée et testée.
 

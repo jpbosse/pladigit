@@ -44,7 +44,7 @@ Les fonctionnalités liées aux collectivités françaises, à la souveraineté 
 
 ### Prérequis
 
-- PHP 8.4, Composer 2, Node.js 20, MySQL 8, Redis 7
+- PHP 8.3+, Composer 2, Node.js 20, MySQL 8, Redis 7
 - Lire [INSTALL.md](INSTALL.md) pour mettre en place l'environnement de développement local
 - Lire [CLAUDE.md](CLAUDE.md) pour les commandes utiles et l'architecture du projet (fichier de contexte utilisé lors du développement assisté par intelligence artificielle)
 
