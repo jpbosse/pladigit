@@ -18,7 +18,7 @@ PLADIGIT_USER="www-data"
 LOG_FILE="/var/log/pladigit-install.log"
 MIN_RAM_MB=2048
 MIN_DISK_GB=10
-PHP_VERSION="8.4"
+PHP_VERSION="8.3"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log()     { echo -e "${GREEN}✓${NC} $*" | tee -a "$LOG_FILE"; }
@@ -305,18 +305,7 @@ install_php() {
     if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
         log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
-        # Dépôt Ondrej — détection .list ET .sources (Ubuntu 24.04+)
-
-
-
-	if ! grep -rq "ondrej" /etc/apt/sources.list.d/ 2>/dev/null; then
-            info "Ajout du dépôt ondrej/php..."
-            DEBIAN_FRONTEND=noninteractive add-apt-repository -y ppa:ondrej/php 2>/dev/null \
-                || warn "Dépôt ondrej indisponible — utilisation de PHP natif Ubuntu."
-            apt-get update -qq >> "$LOG_FILE" 2>&1
-        else
-            log "Dépôt ondrej/php déjà présent"
-        fi
+        apt-get update -qq >> "$LOG_FILE" 2>&1
 
 
 
