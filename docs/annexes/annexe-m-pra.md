@@ -10,7 +10,7 @@
 
 ## M.3 — Procédures de reprise
 ### Scénario 1 — Panne serveur (redémarrage)
-systemctl restart nginx php8.4-fpm mysql redis
+systemctl restart nginx php8.3-fpm mysql redis
 Vérifier les logs (/var/log/nginx, storage/logs/laravel.log). Tester la connexion web.
 Durée estimée : 15–30 minutes.
 

@@ -82,10 +82,10 @@ sudo certbot certonly --manual --preferred-challenges dns \
 
 ```bash
 # 1. Tables Laravel de base (users, cache, jobs)
-php8.4 artisan migrate --force
+php8.3 artisan migrate --force
 
 # 2. Tables de la plateforme Pladigit (organizations, audit_logs...)
-php8.4 artisan migrate --path=database/migrations/platform --force
+php8.3 artisan migrate --path=database/migrations/platform --force
 ```
 
 **Raison :** Les migrations sont organisées en trois dossiers distincts :
