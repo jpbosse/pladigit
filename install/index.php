@@ -1033,7 +1033,7 @@ function page_install(): void
   <div style="background:var(--light);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.85rem">
     <div style="font-weight:700;color:var(--navy);margin-bottom:.75rem;text-transform:uppercase;font-size:.75rem;letter-spacing:.05em">Ce qui va &#xEA;tre install&#xE9;</div>
     <div style="display:flex;flex-direction:column;gap:.4rem">
-      <div>&#x2705; PHP 8.4, MySQL 8, Redis, Nginx, Supervisor</div>
+      <div>&#x2705; PHP 8.3+, MySQL 8, Redis, Nginx, Supervisor</div>
       <div>&#x2705; Application Pladigit (Laravel)</div>
       <?php if ($collaboraMode === 'local') { ?>
       <div>&#x2705; <strong>Collabora Online</strong> via Docker <span style="color:var(--grey);font-size:.78rem">(~1.5 Go &mdash; 10 &agrave; 20 min suppl&#xE9;mentaires)</span></div>
