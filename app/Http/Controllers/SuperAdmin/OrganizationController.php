@@ -5,11 +5,17 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Enums\ModuleKey;
 use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
+use App\Models\Tenant\TenantSettings;
+use App\Models\Tenant\User;
 use App\Services\ProvisioningException;
+use App\Services\TenantMailer;
 use App\Services\TenantManager;
 use App\Services\TenantProvisioningService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use LdapRecord\Connection;
 
 class OrganizationController extends Controller
 {
@@ -67,7 +73,7 @@ class OrganizationController extends Controller
         try {
             $this->tenantManager->connectTo($organization);
             $userCount = \DB::connection('tenant')->table('users')->count();
-            $ldapSettings = \App\Models\Tenant\TenantSettings::first();
+            $ldapSettings = TenantSettings::first();
         } catch (\Throwable) {
         }
 
@@ -134,7 +140,7 @@ class OrganizationController extends Controller
 
         $this->tenantManager->connectTo($organization);
 
-        \App\Models\Tenant\User::updateOrCreate(
+        User::updateOrCreate(
             ['email' => $request->email],
             [
                 'name' => $request->name,
@@ -164,7 +170,7 @@ class OrganizationController extends Controller
         $data = collect($validated)->except('smtp_password')->toArray();
 
         if (filled($request->smtp_password)) {
-            $data['smtp_password_enc'] = \Illuminate\Support\Facades\Crypt::encryptString($request->smtp_password);
+            $data['smtp_password_enc'] = Crypt::encryptString($request->smtp_password);
         }
 
         $organization->update($data);
@@ -178,7 +184,7 @@ class OrganizationController extends Controller
     {
         try {
             $org = $organization->fresh();
-            $mailer = app(\App\Services\TenantMailer::class);
+            $mailer = app(TenantMailer::class);
 
             if (! $mailer->isConfigured($org)) {
                 return response()->json(['ok' => false, 'message' => 'SMTP non configuré sur cette organisation.']);
@@ -201,7 +207,7 @@ class OrganizationController extends Controller
     {
         try {
             $this->tenantManager->connectTo($organization);
-            $settings = \App\Models\Tenant\TenantSettings::first()?->fresh();
+            $settings = TenantSettings::first()?->fresh();
 
             if (! $settings || ! $settings->ldap_host) {
                 return response()->json(['ok' => false, 'message' => 'LDAP non configuré sur cette organisation.']);
@@ -211,8 +217,8 @@ class OrganizationController extends Controller
                 return response()->json(['ok' => false, 'message' => 'Mot de passe LDAP non enregistré — veuillez le saisir et sauvegarder avant de tester.']);
             }
 
-            $password = \Illuminate\Support\Facades\Crypt::decryptString($settings->ldap_bind_password_enc);
-            $conn = new \LdapRecord\Connection([
+            $password = Crypt::decryptString($settings->ldap_bind_password_enc);
+            $conn = new Connection([
                 'hosts' => [$settings->ldap_host],
                 'port' => $settings->ldap_port ?? 636,
                 'base_dn' => $settings->ldap_base_dn,
@@ -245,12 +251,12 @@ class OrganizationController extends Controller
 
         $this->tenantManager->connectTo($organization);
 
-        $settings = \App\Models\Tenant\TenantSettings::first() ?? new \App\Models\Tenant\TenantSettings;
+        $settings = TenantSettings::first() ?? new TenantSettings;
 
         $data = collect($validated)->except('ldap_bind_password')->toArray();
 
         if (filled($request->ldap_bind_password)) {
-            $data['ldap_bind_password_enc'] = \Illuminate\Support\Facades\Crypt::encryptString($request->ldap_bind_password);
+            $data['ldap_bind_password_enc'] = Crypt::encryptString($request->ldap_bind_password);
         }
 
         $settings->fill($data)->save();
@@ -260,7 +266,7 @@ class OrganizationController extends Controller
             ->with('success', 'Configuration LDAP sauvegardée.');
     }
 
-    public function updateModules(Request $request, Organization $organization): \Illuminate\Http\RedirectResponse
+    public function updateModules(Request $request, Organization $organization): RedirectResponse
     {
         $validKeys = ModuleKey::values();
 

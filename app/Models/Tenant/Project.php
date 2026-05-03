@@ -4,13 +4,16 @@ namespace App\Models\Tenant;
 
 use App\Enums\ProjectRole;
 use App\Enums\UserRole;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 /**
  * Projet d'un tenant.
@@ -144,8 +147,8 @@ class Project extends Model
         return $this->hasMany(ProjectObservation::class)->latest();
     }
 
-    /** @return \Illuminate\Database\Eloquent\Relations\MorphMany<ProjectDocument, $this> */
-    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    /** @return MorphMany<ProjectDocument, $this> */
+    public function documents(): MorphMany
     {
         return $this->morphMany(ProjectDocument::class, 'documentable')->latest();
     }
@@ -156,8 +159,8 @@ class Project extends Model
         return $this->belongsTo(GedFolder::class, 'ged_folder_id');
     }
 
-    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<ProjectGedLink, $this> */
-    public function gedLinks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    /** @return HasMany<ProjectGedLink, $this> */
+    public function gedLinks(): HasMany
     {
         return $this->hasMany(ProjectGedLink::class, 'documentable_id')
             ->where('documentable_type', self::class);
@@ -178,9 +181,9 @@ class Project extends Model
      * Les projets privés sont toujours visibles par leurs membres explicites,
      * quelle que soit leur couche d'accès.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @param  Builder<static>  $query
      */
-    public function scopeVisibleFor(\Illuminate\Database\Eloquent\Builder $query, User $user): \Illuminate\Database\Eloquent\Builder
+    public function scopeVisibleFor(Builder $query, User $user): Builder
     {
         $role = $user->role ? UserRole::tryFrom($user->role) : null;
 
@@ -218,17 +221,17 @@ class Project extends Model
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @param  Builder<static>  $query
      */
-    public function scopeActive(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', 'active');
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @param  Builder<static>  $query
      */
-    public function scopeByStatus(\Illuminate\Database\Eloquent\Builder $query, string $status): \Illuminate\Database\Eloquent\Builder
+    public function scopeByStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
     }
@@ -273,9 +276,9 @@ class Project extends Model
     /**
      * Risques actifs (non clôturés), triés par score décroissant.
      *
-     * @return \Illuminate\Support\Collection<int, ProjectRisk>
+     * @return Collection<int, ProjectRisk>
      */
-    public function activeRisks(): \Illuminate\Support\Collection
+    public function activeRisks(): Collection
     {
         return $this->risks
             ->whereNotIn('status', ['closed'])

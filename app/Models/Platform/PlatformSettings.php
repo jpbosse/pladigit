@@ -2,6 +2,7 @@
 
 namespace App\Models\Platform;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -18,7 +19,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $backup_sftp_password_enc
  * @property string|null $backup_sftp_path
  * @property int $backup_retention_count
- * @property \Carbon\Carbon|null $backup_last_run_at
+ * @property Carbon|null $backup_last_run_at
  * @property string|null $backup_last_status
  * @property string|null $backup_last_message
  * @property int|null $backup_last_size_bytes

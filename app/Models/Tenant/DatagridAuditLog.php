@@ -57,12 +57,12 @@ class DatagridAuditLog extends Model
         return false;
     }
 
-    public function delete(): bool|null
+    public function delete(): ?bool
     {
         return false;
     }
 
-    public function forceDelete(): bool|null
+    public function forceDelete(): ?bool
     {
         return false;
     }

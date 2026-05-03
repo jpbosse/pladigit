@@ -3,6 +3,7 @@
 namespace App\Models\Tenant;
 
 use App\Enums\GedDocumentType;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,13 +18,13 @@ use Illuminate\Support\Collection;
  * arrêté, compte-rendu…) avec référence normalisée, date officielle et
  * service émetteur.
  *
- * @property string|null         $document_type
- * @property string|null         $reference      Ex: DEL-2026-042
- * @property \Carbon\Carbon|null $document_date
- * @property string|null         $object
- * @property int|null            $department_id
- * @property int|null            $template_id
- * @property array|null          $tags
+ * @property string|null $document_type
+ * @property string|null $reference Ex: DEL-2026-042
+ * @property Carbon|null $document_date
+ * @property string|null $object
+ * @property int|null $department_id
+ * @property int|null $template_id
+ * @property array|null $tags
  */
 class GedDocument extends Model
 {
@@ -50,11 +51,11 @@ class GedDocument extends Model
     ];
 
     protected $casts = [
-        'size_bytes'      => 'integer',
+        'size_bytes' => 'integer',
         'current_version' => 'integer',
-        'deleted_at'      => 'datetime',
-        'document_date'   => 'date',
-        'tags'            => 'array',
+        'deleted_at' => 'datetime',
+        'document_date' => 'date',
+        'tags' => 'array',
     ];
 
     // ── Relations ────────────────────────────────────────────

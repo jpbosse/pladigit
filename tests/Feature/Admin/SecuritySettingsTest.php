@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Http\Middleware\ResolveTenant;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use Illuminate\Support\Facades\Config;
@@ -106,7 +107,7 @@ class SecuritySettingsTest extends TestCase
     {
         TenantSettings::firstOrCreate([])->update(['session_lifetime_minutes' => 300]);
 
-        $middleware = app(\App\Http\Middleware\ResolveTenant::class);
+        $middleware = app(ResolveTenant::class);
         $reflection = new \ReflectionMethod($middleware, 'applySessionLifetime');
         $reflection->setAccessible(true);
         $reflection->invoke($middleware);
@@ -119,7 +120,7 @@ class SecuritySettingsTest extends TestCase
         $original = Config::get('session.lifetime');
         TenantSettings::firstOrCreate([])->update(['session_lifetime_minutes' => 0]);
 
-        $middleware = app(\App\Http\Middleware\ResolveTenant::class);
+        $middleware = app(ResolveTenant::class);
         $reflection = new \ReflectionMethod($middleware, 'applySessionLifetime');
         $reflection->setAccessible(true);
         $reflection->invoke($middleware);

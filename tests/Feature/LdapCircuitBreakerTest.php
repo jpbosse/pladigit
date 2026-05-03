@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\LdapAuthService;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
 use LdapRecord\Connection;
 use LdapRecord\LdapRecordException;
+use LdapRecord\Query\Builder;
 use Mockery;
 use Tests\TestCase;
 
@@ -43,7 +45,7 @@ class LdapCircuitBreakerTest extends TestCase
             'ldap_port' => 636,
             'ldap_base_dn' => 'dc=test,dc=local',
             'ldap_bind_dn' => 'cn=admin,dc=test,dc=local',
-            'ldap_bind_password_enc' => \Illuminate\Support\Facades\Crypt::encryptString('secret'),
+            'ldap_bind_password_enc' => Crypt::encryptString('secret'),
             'ldap_use_ssl' => true,
             'ldap_use_tls' => false,
         ]);
@@ -61,7 +63,7 @@ class LdapCircuitBreakerTest extends TestCase
         $service->throwOnConnect = $throwOnConnect;
 
         if (! $throwOnConnect) {
-            $queryMock = Mockery::mock(\LdapRecord\Query\Builder::class);
+            $queryMock = Mockery::mock(Builder::class);
             $queryMock->shouldReceive('setDn')->andReturnSelf();
             $queryMock->shouldReceive('whereHas')->andReturnSelf();
             $queryMock->shouldReceive('whereEquals')->andReturnSelf();

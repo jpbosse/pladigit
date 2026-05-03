@@ -6,9 +6,12 @@ use App\Models\Platform\Organization;
 use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedDocumentVersion;
 use App\Models\Tenant\GedFolder;
+use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
+use App\Services\MediaService;
 use App\Services\TenantManager;
+use Database\Seeders\DemoSeeder;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -56,7 +59,7 @@ class DemoResetCommand extends Command
         $this->wipePhysicalFiles();
         $this->info('✓ Fichiers physiques supprimés');
 
-        $seeder = new \Database\Seeders\DemoSeeder;
+        $seeder = new DemoSeeder;
         $seeder->setContainer(app())->setCommand($this);
         $seeder->run();
         $this->info('✓ Données de base re-seedées');
@@ -280,7 +283,7 @@ class DemoResetCommand extends Command
             return;
         }
 
-        $album = \App\Models\Tenant\MediaAlbum::on('tenant')
+        $album = MediaAlbum::on('tenant')
             ->where('name', 'Fête de la commune 2025')
             ->first();
         if (! $album) {
@@ -293,7 +296,7 @@ class DemoResetCommand extends Command
             mkdir($nasPath, 0775, true);
         }
 
-        $mediaService = app(\App\Services\MediaService::class);
+        $mediaService = app(MediaService::class);
 
         $count = 0;
         foreach ($photos as $photoPath) {

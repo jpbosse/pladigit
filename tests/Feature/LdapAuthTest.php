@@ -2,12 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Platform\Organization;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\LdapAuthService;
+use App\Services\TenantManager;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -23,7 +27,7 @@ use Tests\TestCase;
  *   bob@pladigit.test     / password_bob    → pas de groupe → rôle user
  *   charlie@pladigit.test / password_charlie → groupe dgs → rôle dgs
  */
-#[\PHPUnit\Framework\Attributes\Group('ldap')]
+#[Group('ldap')]
 class LdapAuthTest extends TestCase
 {
     use WithFaker;
@@ -54,14 +58,14 @@ class LdapAuthTest extends TestCase
         // ── Simuler un tenant résolu ──────────────────────────────────
         // LdapAuthService vérifie hasTenant() en premier.
         // En test sans requête HTTP il n'y a pas de tenant → not_configured → null.
-        $fakeOrg = new \App\Models\Platform\Organization([
+        $fakeOrg = new Organization([
             'slug' => 'testing',
             'name' => 'Organisation Test',
             'db_name' => env('DB_TENANT_DATABASE', 'pladigit_testing_tenant'),
             'status' => 'active',
         ]);
         $fakeOrg->id = 0;
-        app(\App\Services\TenantManager::class)->connectTo($fakeOrg);
+        app(TenantManager::class)->connectTo($fakeOrg);
 
         // Settings LDAP pointant vers OpenLDAP Docker (plain LDAP, pas TLS)
         TenantSettings::on('tenant')->updateOrCreate([], [
@@ -101,7 +105,7 @@ class LdapAuthTest extends TestCase
     // Cas 1 — Authentification réussie, utilisateur créé en base
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function cas1_authentification_ldap_reussie_cree_utilisateur(): void
     {
         $service = app(LdapAuthService::class);
@@ -130,7 +134,7 @@ class LdapAuthTest extends TestCase
     // Cas 2 — Mauvais mot de passe → bind_failed
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function cas2_mauvais_mot_de_passe_retourne_bind_failed(): void
     {
         $service = app(LdapAuthService::class);
@@ -145,7 +149,7 @@ class LdapAuthTest extends TestCase
     // Cas 3 — Email inconnu → user_not_found
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function cas3_email_inconnu_retourne_user_not_found(): void
     {
         $service = app(LdapAuthService::class);
@@ -160,7 +164,7 @@ class LdapAuthTest extends TestCase
     // Cas 4 — Serveur inaccessible → unavailable
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function cas4_serveur_inaccessible_retourne_unavailable(): void
     {
         // Port fermé = serveur inaccessible
@@ -184,7 +188,7 @@ class LdapAuthTest extends TestCase
     // Cas 5 — Rôles résolus depuis les groupes LDAP
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function cas5_role_resolu_depuis_groupes_ldap(): void
     {
         $service = app(LdapAuthService::class);

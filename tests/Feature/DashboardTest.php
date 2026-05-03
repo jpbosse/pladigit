@@ -7,6 +7,7 @@ use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
 use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -45,7 +46,7 @@ class DashboardTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('allRolesProvider')]
+    #[DataProvider('allRolesProvider')]
     public function test_tous_les_rôles_peuvent_accéder_au_dashboard(string $roleKey): void
     {
         $this->actingAs($this->{$roleKey})

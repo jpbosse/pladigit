@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
 
 /**
  * Modèle utilisateur d'un tenant.
@@ -123,7 +124,7 @@ class User extends Authenticatable
      * - resp_service   → membres de ses services uniquement
      * - user           → lui-même uniquement
      */
-    public function visibleUsers(): \Illuminate\Support\Collection
+    public function visibleUsers(): Collection
     {
         $role = UserRole::tryFrom($this->role ?? '');
 

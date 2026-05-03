@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Tenant\User;
+
 return [
     'defaults' => [
         'guard' => 'web',   // Guard par défaut = tenant
@@ -35,7 +37,7 @@ return [
         // Provider tenant — modèle User de la base tenant
         'tenant_users' => [
             'driver' => 'eloquent',
-            'model' => App\Models\Tenant\User::class,
+            'model' => User::class,
         ],
         'super_admin_users' => [
             'driver' => 'array',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Projects;
 
+use App\Enums\ProjectRole;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\AuditLog;
 use App\Models\Tenant\Project;
@@ -96,6 +97,6 @@ class ProjectHistoryController extends Controller
         }
         $role = $project->memberRole($user);
 
-        return $role === \App\Enums\ProjectRole::OWNER;
+        return $role === ProjectRole::OWNER;
     }
 }

@@ -5,12 +5,14 @@
 namespace App\Services;
 
 use App\Exceptions\DuplicateMediaException;
+use App\Jobs\ProcessMediaUpload;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
 use App\Services\Nas\NasConnectorInterface;
 use App\Services\Nas\NasManager;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use RuntimeException;
@@ -144,7 +146,7 @@ class MediaService
                 // $thumbPath est toujours null ici — la miniature est générée par le Job.
             } catch (\Throwable) {
                 // Log mais on ne masque pas l'erreur originale
-                \Illuminate\Support\Facades\Log::warning('MediaService::upload — impossible de supprimer le fichier NAS orphelin', [
+                Log::warning('MediaService::upload — impossible de supprimer le fichier NAS orphelin', [
                     'nas_path' => $nasPath,
                     'thumb_path' => $thumbPath,
                 ]);
@@ -160,8 +162,8 @@ class MediaService
         $this->notifyQuotaThresholdIfCrossed(strlen($contents));
 
         // Dispatch du Job de traitement en arrière-plan
-        $org = app(\App\Services\TenantManager::class)->current();
-        \App\Jobs\ProcessMediaUpload::dispatch(
+        $org = app(TenantManager::class)->current();
+        ProcessMediaUpload::dispatch(
             $item->id,
             $org->slug,
             $nasPath,
@@ -252,7 +254,7 @@ class MediaService
     ): array {
         // Verrou atomique — empêche deux syncs simultanées sur le même tenant
         $lockKey = 'nas_sync_lock_'.md5(config('database.connections.tenant.database', 'tenant'));
-        $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 300); // TTL 5 min
+        $lock = Cache::lock($lockKey, 300); // TTL 5 min
 
         if (! $lock->get()) {
             Log::warning('MediaService::syncAlbumTree — sync déjà en cours, abandon.');
@@ -1152,7 +1154,7 @@ class MediaService
      */
     private function quotaInfo(): ?array
     {
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
 
         if (! $org) {
             return null;

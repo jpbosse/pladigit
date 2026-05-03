@@ -3,6 +3,8 @@
 namespace Tests\Feature\SuperAdmin;
 
 use App\Models\Platform\Organization;
+use App\Services\TenantProvisioningService;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -25,14 +27,14 @@ class OrganizationTest extends TestCase
     {
         parent::setUp();
 
-        $this->mock(\App\Services\TenantProvisioningService::class, function ($mock) {
+        $this->mock(TenantProvisioningService::class, function ($mock) {
             $mock->shouldReceive('provisionTenant')->andReturn(true);
         });
     }
 
     protected function tearDown(): void
     {
-        \Illuminate\Support\Facades\DB::connection('mysql')->table('organizations')->whereNotIn('slug', ['demo', 'test', 'ccnoirmoutier'])->delete();
+        DB::connection('mysql')->table('organizations')->whereNotIn('slug', ['demo', 'test', 'ccnoirmoutier'])->delete();
         parent::tearDown();
     }
 

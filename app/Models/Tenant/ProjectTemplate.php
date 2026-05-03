@@ -2,6 +2,7 @@
 
 namespace App\Models\Tenant;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -74,7 +75,7 @@ class ProjectTemplate extends Model
      *
      * @return array{milestones: int, tasks: int}
      */
-    public function applyTo(Project $project, \Carbon\Carbon $startDate): array
+    public function applyTo(Project $project, Carbon $startDate): array
     {
         $milestoneMap = []; // index template → id créé
         $msCount = 0;

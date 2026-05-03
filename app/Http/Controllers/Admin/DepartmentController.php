@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Department;
+use App\Models\Tenant\User;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 /**
  * Gestion des entités organisationnelles (Directions, Services, Pôles, Bureaux…)
@@ -56,19 +58,19 @@ class DepartmentController extends Controller
         $labelSuggestions = array_unique(array_merge($defaultLabels, $usedLabels));
         sort($labelSuggestions);
 
-        $allUsers = \App\Models\Tenant\User::on('tenant')
+        $allUsers = User::on('tenant')
             ->with('departments')
             ->orderBy('name')
             ->get();
 
-        $deptMembersMap = \App\Models\Tenant\Department::on('tenant')
+        $deptMembersMap = Department::on('tenant')
             ->with('members')
             ->get()
             ->mapWithKeys(fn ($d) => [
                 $d->id => $d->members->map(fn ($u) => [
                     'id' => $u->id,
                     'name' => $u->name,
-                ])->values(),
+                ])->values()->all(),
             ]);
 
         return view('admin.departments.index', compact('roots', 'allDepts', 'stats', 'labelSuggestions', 'allUsers', 'deptMembersMap'));
@@ -198,7 +200,7 @@ class DepartmentController extends Controller
         $memberIds = array_map('intval', $data['member_ids'] ?? []);
         $managerIds = array_map('intval', $data['manager_ids'] ?? []);
 
-        $department->update(\Illuminate\Support\Arr::except($data, ['member_ids', 'manager_ids']));
+        $department->update(Arr::except($data, ['member_ids', 'manager_ids']));
 
         // Synchroniser les membres avec le flag is_manager
         $sync = [];

@@ -12,6 +12,7 @@ use Illuminate\Http\Testing\File as TestingFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -263,7 +264,7 @@ class ImportWizardTest extends TestCase
             [['Soullans', '4200'], ['Saint-Jean-de-Monts', '8500']]
         );
 
-        $import = new DatagridImport();
+        $import = new DatagridImport;
         Excel::import($import, $filePath);
 
         $this->assertEquals(['Commune', 'Population'], $import->getHeaders());
@@ -283,7 +284,7 @@ class ImportWizardTest extends TestCase
 
     private function makeTempExcel(array $headers, array $rows): string
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
 
         foreach ($headers as $i => $header) {
@@ -306,9 +307,9 @@ class ImportWizardTest extends TestCase
      * Positionne le composant à l'étape 2 en simulant l'upload réel.
      *
      * @param  string[]  $headers
-     * @param  array[]   $rows
+     * @param  array[]  $rows
      */
-    private function atStep2(array $headers, array $rows): \Livewire\Features\SupportTesting\Testable
+    private function atStep2(array $headers, array $rows): Testable
     {
         $file = $this->makeExcel($headers, $rows);
 

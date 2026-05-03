@@ -3,6 +3,7 @@
 namespace App\Services\Ged;
 
 use App\Models\Tenant\GedDocument;
+use App\Models\Tenant\GedDocumentVersion;
 use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\User;
 use Illuminate\Support\Facades\Cache;
@@ -259,7 +260,7 @@ class GedSyncService
         // Les versions archivées (ged_document_versions) ont leurs propres
         // disk_path sur le NAS. Sans cette vérification, le sync les recréerait
         // comme de nouveaux documents indépendants.
-        if (\App\Models\Tenant\GedDocumentVersion::where('disk_path', $diskPath)->exists()) {
+        if (GedDocumentVersion::where('disk_path', $diskPath)->exists()) {
             $stats['files_skipped']++;
 
             return;

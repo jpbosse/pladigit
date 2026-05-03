@@ -7,6 +7,7 @@ use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\MediaShareLink;
 use App\Models\Tenant\User;
+use App\Services\Nas\NasConnectorInterface;
 use App\Services\Nas\NasManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -386,7 +387,7 @@ class MediaIntegrityController extends Controller
      *
      * @return array<int, array{name: string, path: string, size: int, mtime: int}>
      */
-    private function listNasFilesRecursive(\App\Services\Nas\NasConnectorInterface $nas, string $directory): array
+    private function listNasFilesRecursive(NasConnectorInterface $nas, string $directory): array
     {
         $results = [];
 

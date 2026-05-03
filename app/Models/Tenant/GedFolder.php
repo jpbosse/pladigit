@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 /**
  * Dossier GED d'un tenant.
@@ -202,7 +203,7 @@ class GedFolder extends Model
      */
     public static function uniqueSlug(string $name, ?int $parentId, ?int $exceptId = null): string
     {
-        $base = \Illuminate\Support\Str::slug($name) ?: 'dossier';
+        $base = Str::slug($name) ?: 'dossier';
         $slug = $base;
         $i = 2;
 

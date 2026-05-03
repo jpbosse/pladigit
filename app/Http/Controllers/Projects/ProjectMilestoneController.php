@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Projects;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMilestone;
+use App\Models\Tenant\Task;
+use App\Models\Tenant\User;
 use App\Services\AuditService;
+use App\Services\NotificationService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
@@ -175,13 +179,13 @@ class ProjectMilestoneController extends Controller
 
         // Vérifier que la nouvelle due_date ne coupe pas des tâches existantes
         if (isset($validated['due_date'])) {
-            $newDueDate = \Carbon\Carbon::parse($validated['due_date']);
+            $newDueDate = Carbon::parse($validated['due_date']);
 
             // Charger tous les descendants pour agréger leurs tâches
             $milestone->loadMissing(['children.children.children']);
             $milestoneIds = $milestone->descendantIds();
 
-            $latestTask = \App\Models\Tenant\Task::on('tenant')
+            $latestTask = Task::on('tenant')
                 ->whereIn('milestone_id', $milestoneIds)
                 ->whereNotNull('due_date')
                 ->whereNull('deleted_at')
@@ -232,9 +236,9 @@ class ProjectMilestoneController extends Controller
         }
 
         if (isset($validated['reached']) && $validated['reached'] && $milestone->isReached()) {
-            /** @var \App\Models\Tenant\User $user */
+            /** @var User $user */
             $user = auth()->user();
-            app(\App\Services\NotificationService::class)->milestoneReached($milestone->title, $project, $user);
+            app(NotificationService::class)->milestoneReached($milestone->title, $project, $user);
         }
 
         unset($validated['reached']);

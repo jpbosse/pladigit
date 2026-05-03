@@ -3,7 +3,10 @@
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSuperAdmin;
 use App\Http\Middleware\ForcePwdChange;
+use App\Http\Middleware\RequireGedPermission;
+use App\Http\Middleware\RequireModule;
 use App\Http\Middleware\ResolveTenant;
+use App\Http\Middleware\ValidateWopiRequest;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -23,9 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => CheckRole::class,
             'super-admin' => CheckSuperAdmin::class,
             'force-pwd-change' => ForcePwdChange::class,
-            'module' => \App\Http\Middleware\RequireModule::class,
-            'ged.permission' => \App\Http\Middleware\RequireGedPermission::class,
-            'wopi' => \App\Http\Middleware\ValidateWopiRequest::class,
+            'module' => RequireModule::class,
+            'ged.permission' => RequireGedPermission::class,
+            'wopi' => ValidateWopiRequest::class,
         ]);
         // Exemption CSRF pour le login cross-domaine (popup pladigit.fr → {slug}.pladigit.fr)
         // + routes WOPI : Collabora n'envoie pas de token CSRF

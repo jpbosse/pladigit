@@ -5,6 +5,7 @@
 namespace Tests\Feature\Media;
 
 use App\Models\Platform\Organization;
+use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Services\MediaService;
 use App\Services\Nas\LocalNasDriver;
@@ -59,8 +60,8 @@ class RefreshExifCommandTest extends TestCase
         $service = app(MediaService::class);
 
         // Créer un item PNG sans EXIF
-        /** @var \App\Models\Tenant\MediaAlbum $album */
-        $album = \App\Models\Tenant\MediaAlbum::factory()->create();
+        /** @var MediaAlbum $album */
+        $album = MediaAlbum::factory()->create();
 
         MediaItem::factory()->create([
             'album_id' => $album->id,
@@ -69,7 +70,7 @@ class RefreshExifCommandTest extends TestCase
         ]);
 
         // Purger les items des tests précédents pour ne garder que notre PNG
-        \App\Models\Tenant\MediaItem::on('tenant')
+        MediaItem::on('tenant')
             ->where('album_id', '!=', $album->id)
             ->forceDelete();
 
@@ -88,7 +89,7 @@ class RefreshExifCommandTest extends TestCase
         $nas = new LocalNasDriver($this->nasRoot);
         $service = app(MediaService::class);
 
-        $album = \App\Models\Tenant\MediaAlbum::factory()->create();
+        $album = MediaAlbum::factory()->create();
 
         // Item JPEG avec exif_data déjà rempli
         MediaItem::factory()->create([
@@ -112,7 +113,7 @@ class RefreshExifCommandTest extends TestCase
         $nas->method('readFile')->willThrowException(new \RuntimeException('Fichier introuvable'));
 
         $service = app(MediaService::class);
-        $album = \App\Models\Tenant\MediaAlbum::factory()->create();
+        $album = MediaAlbum::factory()->create();
 
         MediaItem::factory()->create([
             'album_id' => $album->id,
@@ -122,7 +123,7 @@ class RefreshExifCommandTest extends TestCase
         ]);
 
         // Purger les items des tests précédents pour isoler ce test
-        \App\Models\Tenant\MediaItem::on('tenant')
+        MediaItem::on('tenant')
             ->where('album_id', '!=', $album->id)
             ->forceDelete();
 

@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Platform\Organization;
 use App\Models\Tenant\MediaItem;
 use App\Services\MediaService;
+use App\Services\Nas\NasManager;
 use App\Services\TenantManager;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -42,7 +43,7 @@ class ProcessMediaUpload implements ShouldQueue
         }
 
         try {
-            $nas = app(\App\Services\Nas\NasManager::class)->driver();
+            $nas = app(NasManager::class)->driver();
             $contents = $nas->readFile($this->nasPath);
 
             if ($contents === false || $contents === null) {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
@@ -36,7 +37,7 @@ class HealthController extends Controller
         )->header('Content-Type', 'text/html');
     }
 
-    public function ping(): \Illuminate\Http\Response
+    public function ping(): Response
     {
         return response('OK', 200)->header('Content-Type', 'text/plain');
     }

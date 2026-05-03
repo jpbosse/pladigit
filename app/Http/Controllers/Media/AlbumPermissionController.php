@@ -12,6 +12,7 @@ use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\User;
 use App\Services\AlbumPermissionService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 
 /**
  * Gestion des permissions d'un album.
@@ -163,7 +164,7 @@ class AlbumPermissionController extends Controller
      * Aplatit l'arborescence des départements pour Alpine.js.
      * Retourne un tableau JSON-sérialisable.
      *
-     * @param  \Illuminate\Support\Collection  $nodes
+     * @param  Collection  $nodes
      * @return array<int, array{id: int, name: string, label: string, typeLabel: string, type: string, icon: string, depth: int, parent: string|null}>
      */
     private function flattenDeptTree($nodes, int $depth = 0, ?string $parentName = null): array
@@ -207,7 +208,7 @@ class AlbumPermissionController extends Controller
 
         foreach ($deptPerms as $subjId => $perm) {
             // Remonter les ancêtres de ce département
-            $dept = \App\Models\Tenant\Department::find($subjId);
+            $dept = Department::find($subjId);
             if (! $dept) {
                 continue;
             }

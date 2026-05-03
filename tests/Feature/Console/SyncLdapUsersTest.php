@@ -5,12 +5,14 @@ namespace Tests\Feature\Console;
 use App\Models\Platform\Organization;
 use App\Services\LdapAuthService;
 use App\Services\TenantManager;
+use PHPUnit\Framework\Attributes\Group;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
  * SyncLdapUsersTest — Tests de la commande pladigit:sync-ldap (§6.6)
  */
-#[\PHPUnit\Framework\Attributes\Group('console')]
+#[Group('console')]
 class SyncLdapUsersTest extends TestCase
 {
     private Organization $orgA;
@@ -57,7 +59,7 @@ class SyncLdapUsersTest extends TestCase
     // Sans --tenant : tous les tenants actifs sont synchronisés
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function sans_option_tenant_synchronise_tous_les_tenants_actifs(): void
     {
         $this->mockTenantManager();
@@ -76,7 +78,7 @@ class SyncLdapUsersTest extends TestCase
     // Avec --tenant=slug : seul ce tenant est synchronisé
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function avec_option_tenant_synchronise_uniquement_ce_tenant(): void
     {
         $this->mockTenantManager();
@@ -94,7 +96,7 @@ class SyncLdapUsersTest extends TestCase
     // --tenant slug inconnu → erreur + exit code 1
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function tenant_inconnu_retourne_failure(): void
     {
         $this->mockTenantManager();
@@ -112,7 +114,7 @@ class SyncLdapUsersTest extends TestCase
     // Tenant inactif ignoré quand pas d'option
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function tenant_inactif_ignore_sans_option(): void
     {
         Organization::forceCreate([
@@ -135,7 +137,7 @@ class SyncLdapUsersTest extends TestCase
     // --tenant sur un tenant inactif → erreur
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function tenant_inactif_cible_retourne_failure(): void
     {
         Organization::forceCreate([

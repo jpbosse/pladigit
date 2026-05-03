@@ -11,9 +11,12 @@ use App\Services\AuditService;
 use App\Services\MediaService;
 use App\Services\Nas\NasManager;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Gestion des albums de la photothèque.
@@ -82,7 +85,7 @@ class MediaAlbumController extends Controller
         $user = auth()->user();
 
         // Le nas_path est généré depuis le nom, imbriqué dans le parent si applicable
-        $slug = \Illuminate\Support\Str::slug($validated['name']);
+        $slug = Str::slug($validated['name']);
         $parent = isset($validated['parent_id']) ? MediaAlbum::find($validated['parent_id']) : null;
         $nasPath = $parent?->nas_path
             ? rtrim($parent->nas_path, '/').'/'.$slug
@@ -197,9 +200,9 @@ class MediaAlbumController extends Controller
         $ancestorIds = array_reverse($ancestorIds);
 
         // ── Comptage total pour le stockage ──────────────────
-        $totalItems = \App\Models\Tenant\MediaItem::count();
+        $totalItems = MediaItem::count();
 
-        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $settings = TenantSettings::firstOrCreate([]);
         $defaultCols = $settings->media_default_cols ?? 4;
         $userCols = $user->media_cols ?: $defaultCols;
 
@@ -465,7 +468,7 @@ class MediaAlbumController extends Controller
      * Accessible aux admins uniquement (canAdmin).
      * Un item null remet la couverture automatique (premier item).
      */
-    public function setCover(MediaAlbum $album, \App\Models\Tenant\MediaItem $item): \Illuminate\Http\RedirectResponse
+    public function setCover(MediaAlbum $album, MediaItem $item): RedirectResponse
     {
         $this->authorize('manage', $album);
 
@@ -477,7 +480,7 @@ class MediaAlbumController extends Controller
 
         $album->update(['cover_item_id' => $item->id]);
 
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $this->audit->log('media.album.cover_set', $user, [
             'new' => ['album_id' => $album->id, 'item_id' => $item->id, 'item_name' => $item->file_name],
@@ -489,13 +492,13 @@ class MediaAlbumController extends Controller
     /**
      * Réinitialise la couverture — repasse en mode automatique (premier item).
      */
-    public function resetCover(MediaAlbum $album): \Illuminate\Http\RedirectResponse
+    public function resetCover(MediaAlbum $album): RedirectResponse
     {
         $this->authorize('manage', $album);
 
         $album->update(['cover_item_id' => null]);
 
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $this->audit->log('media.album.cover_reset', $user, [
             'new' => ['album_id' => $album->id],
@@ -536,7 +539,7 @@ class MediaAlbumController extends Controller
 
         // ── Calcul du nouveau nas_path ────────────────────────────────────────
         $newParent = $newParentId ? MediaAlbum::find($newParentId) : null;
-        $slug = $album->nas_path ? basename($album->nas_path) : \Illuminate\Support\Str::slug($album->name);
+        $slug = $album->nas_path ? basename($album->nas_path) : Str::slug($album->name);
         $oldNasPath = $album->nas_path;
         $newNasPath = $newParent?->nas_path
             ? rtrim($newParent->nas_path, '/').'/'.$slug
@@ -643,7 +646,7 @@ class MediaAlbumController extends Controller
      * Retourne JSON [{id, name, path, items_count, url}]
      * Limité à 20 résultats — utilisé par albumSearch() dans index.blade.php.
      */
-    public function search(Request $request): \Illuminate\Http\JsonResponse
+    public function search(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = auth()->user();
@@ -687,7 +690,7 @@ class MediaAlbumController extends Controller
     {
         $this->authorize('download', $album);
 
-        $items = \App\Models\Tenant\MediaItem::where('album_id', $album->id)
+        $items = MediaItem::where('album_id', $album->id)
             ->whereNull('deleted_at')
             ->orderBy('file_name')
             ->get();
@@ -707,7 +710,7 @@ class MediaAlbumController extends Controller
         set_time_limit(300);
 
         $nas = $this->nasManager->photoDriver();
-        $slug = \Illuminate\Support\Str::slug($album->name) ?: 'album';
+        $slug = Str::slug($album->name) ?: 'album';
         $zipName = $slug.'-'.now()->format('Ymd').'.zip';
         $tmpZip = sys_get_temp_dir().'/phzip_'.uniqid().'.zip';
 
@@ -767,7 +770,7 @@ class MediaAlbumController extends Controller
     /**
      * Retourne les enfants directs d'un album (JSON) — pour l'arbre lazy-load.
      */
-    public function children(MediaAlbum $album): \Illuminate\Http\JsonResponse
+    public function children(MediaAlbum $album): JsonResponse
     {
         /** @var User $user */
         $user = auth()->user();
@@ -821,7 +824,7 @@ class MediaAlbumController extends Controller
      * Construit l'arbre des albums pour la sidebar.
      * Retourne une collection d'albums racine avec leurs enfants chargés.
      */
-    private function buildSidebarTree(User $user): \Illuminate\Support\Collection
+    private function buildSidebarTree(User $user): Collection
     {
         return MediaAlbum::visibleFor($user)
             ->whereNull('parent_id')
@@ -839,7 +842,7 @@ class MediaAlbumController extends Controller
      *
      * @param  array<int>  $excludeIds  Albums à exclure (ex: album courant + descendants)
      */
-    private function buildAlbumTree(User $user, array $excludeIds = []): \Illuminate\Support\Collection
+    private function buildAlbumTree(User $user, array $excludeIds = []): Collection
     {
         $all = MediaAlbum::visibleFor($user)
             ->whereNotIn('id', $excludeIds)
@@ -862,10 +865,10 @@ class MediaAlbumController extends Controller
      * @param  array<int>  $excludeIds
      */
     private function appendChildren(
-        \Illuminate\Support\Collection $byId,
+        Collection $byId,
         ?int $parentId,
         int $depth,
-        \Illuminate\Support\Collection &$result,
+        Collection &$result,
         array $excludeIds
     ): void {
         $children = $byId->filter(fn ($a) => $a->parent_id === $parentId);

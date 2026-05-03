@@ -5,6 +5,7 @@ namespace App\Models\Tenant;
 use App\Enums\PersonneBaseLegale;
 use App\Enums\PersonneVisibilite;
 use App\Enums\RoleTitreStatut;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -28,9 +29,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property array|null $coordonnees_priv
  * @property PersonneBaseLegale $base_legale
  * @property bool $opposition
- * @property \Carbon\Carbon|null $date_opposition
+ * @property Carbon|null $date_opposition
  * @property PersonneVisibilite $visibilite
- * @property \Carbon\Carbon|null $date_revision
+ * @property Carbon|null $date_revision
  */
 class Personne extends Model
 {

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Media;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\User;
 use Illuminate\Http\Request;
 
 /**
@@ -20,7 +21,7 @@ class MediaPreferenceController extends Controller
             'cols' => ['required', 'integer', 'min:1', 'max:12'],
         ]);
 
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $user->update(['media_cols' => (int) $request->cols]);
 

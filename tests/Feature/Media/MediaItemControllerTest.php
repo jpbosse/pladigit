@@ -4,11 +4,15 @@
 
 namespace Tests\Feature\Media;
 
+use App\Models\Platform\Organization;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
+use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\Nas\LocalNasDriver;
 use App\Services\Nas\NasManager;
+use App\Services\TenantManager;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 /**
@@ -71,12 +75,12 @@ class MediaItemControllerTest extends TestCase
         parent::tearDown();
     }
 
-    private function persistCurrentOrg(array $extra = []): \App\Models\Platform\Organization
+    private function persistCurrentOrg(array $extra = []): Organization
     {
-        $current = app(\App\Services\TenantManager::class)->current();
+        $current = app(TenantManager::class)->current();
         $slug = $current->slug ?? 'test';
 
-        $org = \App\Models\Platform\Organization::updateOrCreate(
+        $org = Organization::updateOrCreate(
             ['slug' => $slug],
             array_merge([
                 'name' => $current->name ?? 'Test Org',
@@ -88,7 +92,7 @@ class MediaItemControllerTest extends TestCase
             ], $extra)
         );
 
-        app(\App\Services\TenantManager::class)->connectTo($org);
+        app(TenantManager::class)->connectTo($org);
 
         return $org;
     }
@@ -196,7 +200,7 @@ class MediaItemControllerTest extends TestCase
     public function test_serve_bascule_sur_stream_pour_image_superieure_a_10_mo(): void
     {
         // Configurer le seuil à 10 Mo dans TenantSettings
-        \App\Models\Tenant\TenantSettings::firstOrCreate([])->update([
+        TenantSettings::firstOrCreate([])->update([
             'media_stream_threshold_mb' => 10,
         ]);
 
@@ -221,7 +225,7 @@ class MediaItemControllerTest extends TestCase
     public function test_serve_ne_bascule_pas_si_seuil_a_zero(): void
     {
         // Seuil à 0 = streaming désactivé, même pour les gros fichiers
-        \App\Models\Tenant\TenantSettings::firstOrCreate([])->update([
+        TenantSettings::firstOrCreate([])->update([
             'media_stream_threshold_mb' => 0,
         ]);
 
@@ -384,7 +388,7 @@ class MediaItemControllerTest extends TestCase
     {
         $countBefore = MediaItem::count();
 
-        $file = \Illuminate\Http\UploadedFile::fake()->create('malware.exe', 100, 'application/octet-stream');
+        $file = UploadedFile::fake()->create('malware.exe', 100, 'application/octet-stream');
 
         $this->actingAs($this->user)
             ->post(route('media.items.store', $this->album), [
@@ -404,7 +408,7 @@ class MediaItemControllerTest extends TestCase
         config(['nas.max_file_size' => 1024]); // 1 Ko max
 
         // Fake file de 10 Ko
-        $file = \Illuminate\Http\UploadedFile::fake()->create('gros.jpg', 10, 'image/jpeg');
+        $file = UploadedFile::fake()->create('gros.jpg', 10, 'image/jpeg');
 
         $this->actingAs($this->user)
             ->post(route('media.items.store', $this->album), [
@@ -428,7 +432,7 @@ class MediaItemControllerTest extends TestCase
         // Tenant avec quota = 1 Mo — on persiste et reconnecte pour que le contrôleur le voie
         $this->persistCurrentOrg(['storage_quota_mb' => 1]);
 
-        $file = \Illuminate\Http\UploadedFile::fake()->image('new.jpg', 10, 10);
+        $file = UploadedFile::fake()->image('new.jpg', 10, 10);
 
         $this->actingAs($this->user)
             ->post(route('media.items.store', $this->album), [

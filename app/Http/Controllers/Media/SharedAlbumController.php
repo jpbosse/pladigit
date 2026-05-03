@@ -7,6 +7,7 @@ use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\MediaShareLink;
 use App\Services\Nas\NasManager;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 /**
  * Accès public aux albums partagés via lien temporaire.
@@ -176,7 +177,7 @@ class SharedAlbumController extends Controller
         }
 
         $nas = $this->nasManager->photoDriver();
-        $slug = \Illuminate\Support\Str::slug($link->album->name) ?: 'album';
+        $slug = Str::slug($link->album->name) ?: 'album';
         $zipName = $slug.'-'.now()->format('Ymd').'.zip';
         $tmpZip = sys_get_temp_dir().'/phzip_'.uniqid().'.zip';
 

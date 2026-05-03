@@ -3,6 +3,7 @@
 namespace Tests\Feature\Media;
 
 use App\Enums\AlbumPermissionLevel;
+use App\Enums\UserRole;
 use App\Models\Tenant\AlbumPermission;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
@@ -146,7 +147,7 @@ class MediaAlbumTest extends TestCase
     public function test_un_album_restreint_est_visible_par_les_membres(): void
     {
         $owner = User::factory()->create();
-        $member = User::factory()->create(['role' => \App\Enums\UserRole::USER->value]);
+        $member = User::factory()->create(['role' => UserRole::USER->value]);
         $album = MediaAlbum::create([
             'name' => 'Album Restreint',
             'visibility' => 'restricted',
@@ -155,7 +156,7 @@ class MediaAlbumTest extends TestCase
         AlbumPermission::create([
             'album_id' => $album->id,
             'subject_type' => 'role',
-            'subject_role' => \App\Enums\UserRole::USER->value,
+            'subject_role' => UserRole::USER->value,
             'level' => AlbumPermissionLevel::View,
         ]);
         $this->actingAs($member);

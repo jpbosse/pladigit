@@ -3,14 +3,22 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\BackupJob;
 use App\Jobs\SyncGedJob;
 use App\Jobs\SyncNasJob;
+use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\TenantSettings;
+use App\Services\BackupService;
+use App\Services\Nas\NasManager;
+use App\Services\TenantMailer;
 use App\Services\TenantManager;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Http;
+use Illuminate\View\View;
+use LdapRecord\Connection;
 
 class SettingsController extends Controller
 {
@@ -67,7 +75,7 @@ class SettingsController extends Controller
             }
 
             $password = Crypt::decryptString($settings->ldap_bind_password_enc);
-            $conn = new \LdapRecord\Connection([
+            $conn = new Connection([
                 'hosts' => [$settings->ldap_host],
                 'port' => $settings->ldap_port ?? 636,
                 'base_dn' => $settings->ldap_base_dn,
@@ -87,7 +95,7 @@ class SettingsController extends Controller
 
     public function smtp()
     {
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
 
         return view('admin.settings.smtp', compact('org'));
     }
@@ -104,7 +112,7 @@ class SettingsController extends Controller
             'smtp_from_name' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
 
         $data = [
             'smtp_host' => $validated['smtp_host'],
@@ -129,8 +137,8 @@ class SettingsController extends Controller
         try {
             // fresh() force un rechargement depuis la base — évite de tester
             // avec une instance Eloquent chargée avant la dernière sauvegarde.
-            $org = app(\App\Services\TenantManager::class)->current()?->fresh();
-            $mailer = app(\App\Services\TenantMailer::class);
+            $org = app(TenantManager::class)->current()?->fresh();
+            $mailer = app(TenantMailer::class);
 
             if (! $org || ! $mailer->isConfigured($org)) {
                 return response()->json(['ok' => false, 'message' => 'SMTP non configuré sur cette organisation.']);
@@ -151,7 +159,7 @@ class SettingsController extends Controller
 
     public function branding()
     {
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
 
         return view('admin.settings.branding', compact('org'));
     }
@@ -164,7 +172,7 @@ class SettingsController extends Controller
             'login_bg' => ['nullable', 'file', 'mimes:png,jpg,jpeg', 'max:4096'],
         ]);
 
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
         $disk = \Storage::disk('public');
         $data = [];
 
@@ -205,9 +213,9 @@ class SettingsController extends Controller
     {
         $settings = TenantSettings::firstOrCreate([]);
 
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
         $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
-        $usedBytes = (int) \App\Models\Tenant\MediaItem::whereNull('deleted_at')->sum('file_size_bytes');
+        $usedBytes = (int) MediaItem::whereNull('deleted_at')->sum('file_size_bytes');
         $usedMb = round($usedBytes / 1048576, 1);
         $freeMb = max(0, round(($quotaMb * 1048576 - $usedBytes) / 1048576, 1));
         $usedPct = $quotaMb > 0 ? min(100, (int) round($usedMb / $quotaMb * 100)) : 0;
@@ -335,7 +343,7 @@ class SettingsController extends Controller
 
     public function visio()
     {
-        $settings = \App\Models\Tenant\TenantSettings::on('tenant')->firstOrCreate([]);
+        $settings = TenantSettings::on('tenant')->firstOrCreate([]);
 
         return view('admin.settings.visio', compact('settings'));
     }
@@ -346,7 +354,7 @@ class SettingsController extends Controller
             'jitsi_base_url' => ['required', 'url', 'max:255'],
         ]);
 
-        $settings = \App\Models\Tenant\TenantSettings::on('tenant')->firstOrCreate([]);
+        $settings = TenantSettings::on('tenant')->firstOrCreate([]);
         $settings->update($validated);
 
         return back()->with('success', 'Paramètres visio enregistrés.');
@@ -375,14 +383,14 @@ class SettingsController extends Controller
 
     // ── Stockage GED ──
 
-    public function ged(): \Illuminate\View\View
+    public function ged(): View
     {
         $settings = TenantSettings::firstOrCreate([]);
 
         return view('admin.settings.ged', compact('settings'));
     }
 
-    public function updateGed(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateGed(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'nas_ged_driver' => ['required', 'in:local,sftp,smb'],
@@ -411,14 +419,14 @@ class SettingsController extends Controller
     // Collabora Online — Configuration
     // =========================================================================
 
-    public function collabora(): \Illuminate\View\View
+    public function collabora(): View
     {
         $settings = TenantSettings::firstOrCreate([]);
 
         return view('admin.settings.collabora', compact('settings'));
     }
 
-    public function updateCollabora(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateCollabora(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'collabora_url' => ['nullable', 'url', 'max:500'],
@@ -457,14 +465,14 @@ class SettingsController extends Controller
     // Sauvegarde — Configuration + déclenchement manuel
     // =========================================================================
 
-    public function backup(): \Illuminate\View\View
+    public function backup(): View
     {
         $settings = TenantSettings::firstOrCreate([]);
 
         return view('admin.settings.backup', compact('settings'));
     }
 
-    public function updateBackup(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateBackup(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'backup_enabled' => ['boolean'],
@@ -496,7 +504,7 @@ class SettingsController extends Controller
      * Démarre une sauvegarde manuelle (AJAX POST).
      * Retourne JSON immédiatement, le job s'exécute en arrière-plan.
      */
-    public function runBackup(\App\Services\TenantManager $tenantManager): JsonResponse
+    public function runBackup(TenantManager $tenantManager): JsonResponse
     {
         $org = $tenantManager->currentOrFail();
         $settings = TenantSettings::firstOrCreate([]);
@@ -508,7 +516,7 @@ class SettingsController extends Controller
             ]);
         }
 
-        \App\Jobs\BackupJob::dispatch($org->slug);
+        BackupJob::dispatch($org->slug);
 
         return response()->json([
             'ok' => true,
@@ -534,7 +542,7 @@ class SettingsController extends Controller
     /**
      * Teste la connexion SFTP de sauvegarde (AJAX GET).
      */
-    public function testBackupSftp(\App\Services\BackupService $backupService): JsonResponse
+    public function testBackupSftp(BackupService $backupService): JsonResponse
     {
         $settings = TenantSettings::firstOrCreate([]);
 
@@ -543,9 +551,9 @@ class SettingsController extends Controller
         return response()->json($result);
     }
 
-    public function testGed(\App\Services\Nas\NasManager $nasManager): JsonResponse
+    public function testGed(NasManager $nasManager): JsonResponse
     {
-        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $settings = TenantSettings::firstOrCreate([]);
         $driver = $settings->nas_ged_driver ?? 'local';
 
         // Pour le driver local : vérifier que le chemin existe et est accessible en écriture

@@ -133,7 +133,7 @@ class ProjectTransferController extends Controller
             return back()->withErrors(['file' => 'Version du fichier incompatible (attendu v'.self::EXPORT_VERSION.').']);
         }
 
-        /** @var \App\Models\Tenant\User $currentUser */
+        /** @var User $currentUser */
         $currentUser = auth()->user();
 
         // Construire un mapping email → User pour ce tenant
@@ -328,7 +328,7 @@ class ProjectTransferController extends Controller
         ])->values()->all();
     }
 
-    /** @param \Illuminate\Support\Collection<int, ProjectMilestone> $milestones */
+    /** @param Collection<int, ProjectMilestone> $milestones */
     private function serializeMilestones($milestones): array
     {
         return $milestones->map(fn (ProjectMilestone $ms) => [
@@ -480,7 +480,7 @@ class ProjectTransferController extends Controller
      * Importe récursivement les tâches.
      *
      * @param  array<int, array<string, mixed>>  $tasks
-     * @param  \Illuminate\Support\Collection<string, User>  $usersByEmail
+     * @param  Collection<string, User>  $usersByEmail
      * @param  array<int|string, int>  &$milestoneIdMap
      * @param  array<int|string, int>  &$taskIdMap
      */

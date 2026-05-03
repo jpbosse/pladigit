@@ -30,7 +30,7 @@ class TenantProvisioningTest extends TestCase
             }
         }
 
-        \App\Models\Platform\Organization::where('slug', 'like', 'prov-test-%')->forceDelete();
+        Organization::where('slug', 'like', 'prov-test-%')->forceDelete();
 
         parent::tearDown();
     }

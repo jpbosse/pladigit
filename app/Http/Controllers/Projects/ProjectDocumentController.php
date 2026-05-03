@@ -7,6 +7,8 @@ use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectDocument;
 use App\Models\Tenant\ProjectMilestone;
 use App\Models\Tenant\Task;
+use App\Models\Tenant\User;
+use App\Services\TenantManager;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -64,12 +66,12 @@ class ProjectDocumentController extends Controller
 
         $file = $request->file('file');
         $origName = $file->getClientOriginalName();
-        $slug = app(\App\Services\TenantManager::class)->current()->slug ?? 'tenant';
+        $slug = app(TenantManager::class)->current()->slug ?? 'tenant';
         $dir = "project-docs/{$slug}/{$project->id}";
         $filename = Str::uuid().'.'.$file->getClientOriginalExtension();
         $path = $file->storeAs($dir, $filename, ['disk' => 'private']);
 
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $doc = ProjectDocument::on('tenant')->create([
@@ -107,7 +109,7 @@ class ProjectDocumentController extends Controller
             'description' => 'nullable|string|max:500',
         ]);
 
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $doc = ProjectDocument::on('tenant')->create([

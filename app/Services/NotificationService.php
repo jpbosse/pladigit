@@ -2,11 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\ProjectRole;
 use App\Models\Tenant\Event;
 use App\Models\Tenant\Notification;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
+use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 /**
  * Service de création des notifications in-app.
@@ -28,9 +31,9 @@ class NotificationService
             return;
         }
 
-        /** @var \App\Models\Tenant\Project $project */
+        /** @var Project $project */
         $project = $event->project;
-        if (! $project instanceof \App\Models\Tenant\Project) {
+        if (! $project instanceof Project) {
             return;
         }
 
@@ -56,9 +59,9 @@ class NotificationService
             return;
         }
 
-        /** @var \App\Models\Tenant\Project $project */
+        /** @var Project $project */
         $project = $event->project;
-        if (! $project instanceof \App\Models\Tenant\Project) {
+        if (! $project instanceof Project) {
             return;
         }
 
@@ -129,7 +132,7 @@ class NotificationService
         $owners = $project->projectMembers()
             ->with('user')
             ->get()
-            ->filter(fn ($pm) => $pm->role === \App\Enums\ProjectRole::OWNER->value && $pm->user_id !== $completedBy->id)
+            ->filter(fn ($pm) => $pm->role === ProjectRole::OWNER->value && $pm->user_id !== $completedBy->id)
             ->pluck('user');
 
         foreach ($owners as $owner) {
@@ -166,9 +169,9 @@ class NotificationService
     /**
      * Membres du projet (avec leur User), en excluant un utilisateur.
      *
-     * @return \Illuminate\Support\Collection<User>
+     * @return Collection<User>
      */
-    private function projectMembers(Project $project, int $exclude = 0): \Illuminate\Support\Collection
+    private function projectMembers(Project $project, int $exclude = 0): Collection
     {
         return $project->projectMembers()
             ->with('user')
@@ -209,7 +212,7 @@ class NotificationService
      */
     private function eventBody(Event $event): string
     {
-        $starts = \Carbon\Carbon::parse($event->starts_at)->translatedFormat('d M Y à H:i');
+        $starts = Carbon::parse($event->starts_at)->translatedFormat('d M Y à H:i');
         $body = $starts;
 
         if ($event->location) {

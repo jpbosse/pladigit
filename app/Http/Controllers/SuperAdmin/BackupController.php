@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Jobs\PlatformBackupJob;
 use App\Models\Platform\Organization;
 use App\Models\Platform\PlatformSettings;
+use App\Models\Tenant\TenantSettings;
 use App\Services\BackupService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -87,7 +88,7 @@ class BackupController extends Controller
         $settings = PlatformSettings::firstOrCreate([]);
 
         // Proxy vers TenantSettings pour réutiliser BackupService::testSftp()
-        $proxy = new \App\Models\Tenant\TenantSettings;
+        $proxy = new TenantSettings;
         $proxy->forceFill([
             'backup_sftp_host' => $settings->backup_sftp_host,
             'backup_sftp_port' => $settings->backup_sftp_port,

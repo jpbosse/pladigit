@@ -7,6 +7,7 @@ use App\Models\Tenant\Project;
 use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 /**
@@ -108,9 +109,9 @@ class TaskController extends Controller
 
         // Notifier l'assigné si différent du créateur
         if ($task->assigned_to && $task->assigned_to !== $user->id) {
-            $assignee = \App\Models\Tenant\User::on('tenant')->find($task->assigned_to);
+            $assignee = User::on('tenant')->find($task->assigned_to);
             if ($assignee) {
-                app(\App\Services\NotificationService::class)->taskAssigned($task, $assignee, $user);
+                app(NotificationService::class)->taskAssigned($task, $assignee, $user);
             }
         }
 
@@ -175,7 +176,7 @@ class TaskController extends Controller
             if ($validated['status'] === 'done') {
                 /** @var User $user */
                 $user = auth()->user();
-                app(\App\Services\NotificationService::class)->taskCompleted($task, $user);
+                app(NotificationService::class)->taskCompleted($task, $user);
             }
         }
 
@@ -185,9 +186,9 @@ class TaskController extends Controller
             && $validated['assigned_to'] !== $oldAssignedTo) {
             /** @var User $user */
             $user = auth()->user();
-            $assignee = \App\Models\Tenant\User::on('tenant')->find($validated['assigned_to']);
+            $assignee = User::on('tenant')->find($validated['assigned_to']);
             if ($assignee && $assignee->id !== $user->id) {
-                app(\App\Services\NotificationService::class)->taskAssigned($task, $assignee, $user);
+                app(NotificationService::class)->taskAssigned($task, $assignee, $user);
             }
         }
 

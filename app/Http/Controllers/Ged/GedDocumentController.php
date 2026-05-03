@@ -12,6 +12,7 @@ use App\Services\Ged\GedStorageInterface;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -461,7 +462,7 @@ class GedDocumentController extends Controller
         try {
             $this->storage->delete($path);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('GedDocument — suppression fichier courant échouée', [
+            Log::warning('GedDocument — suppression fichier courant échouée', [
                 'path' => $path,
                 'error' => $e->getMessage(),
             ]);
@@ -472,7 +473,7 @@ class GedDocumentController extends Controller
             try {
                 $this->storage->delete($archivedPath);
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('GedDocument — suppression fichier version archivée échouée', [
+                Log::warning('GedDocument — suppression fichier version archivée échouée', [
                     'path' => $archivedPath,
                     'error' => $e->getMessage(),
                 ]);

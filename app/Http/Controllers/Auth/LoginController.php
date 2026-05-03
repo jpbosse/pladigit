@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
 use App\Services\LdapAuthService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -135,7 +137,7 @@ class LoginController extends Controller
     /**
      * Finalise la connexion après authentification réussie (locale ou LDAP).
      */
-    private function loginUser(User $user, Request $request, bool $ldap = false): \Illuminate\Http\RedirectResponse
+    private function loginUser(User $user, Request $request, bool $ldap = false): RedirectResponse
     {
         if ($ldap) {
             $user->update([
@@ -166,7 +168,7 @@ class LoginController extends Controller
 
     private function handleFailedAttempt(User $user): void
     {
-        $settings = \App\Models\Tenant\TenantSettings::firstOrCreate([]);
+        $settings = TenantSettings::firstOrCreate([]);
         $attempts = $user->login_attempts + 1;
 
         $update = ['login_attempts' => $attempts];

@@ -2,11 +2,14 @@
 
 namespace App\Models\Tenant;
 
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -112,14 +115,14 @@ class Task extends Model
         return $this->hasMany(TaskComment::class)->orderBy('created_at');
     }
 
-    /** @return \Illuminate\Database\Eloquent\Relations\MorphMany<\App\Models\Tenant\ProjectDocument, $this> */
-    public function documents(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    /** @return MorphMany<ProjectDocument, $this> */
+    public function documents(): MorphMany
     {
-        return $this->morphMany(\App\Models\Tenant\ProjectDocument::class, 'documentable')->latest();
+        return $this->morphMany(ProjectDocument::class, 'documentable')->latest();
     }
 
-    /** @return \Illuminate\Database\Eloquent\Relations\HasMany<ProjectGedLink, $this> */
-    public function gedLinks(): \Illuminate\Database\Eloquent\Relations\HasMany
+    /** @return HasMany<ProjectGedLink, $this> */
+    public function gedLinks(): HasMany
     {
         return $this->hasMany(ProjectGedLink::class, 'documentable_id')
             ->where('documentable_type', self::class);
@@ -165,9 +168,9 @@ class Task extends Model
     // ── Scopes ────────────────────────────────────────────────────────────
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @param  Builder<static>  $query
      */
-    public function scopeByStatus(\Illuminate\Database\Eloquent\Builder $query, string $status): \Illuminate\Database\Eloquent\Builder
+    public function scopeByStatus(Builder $query, string $status): Builder
     {
         return $query->where('status', $status);
     }
@@ -175,9 +178,9 @@ class Task extends Model
     /**
      * Tâches assignées à un utilisateur précis.
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @param  Builder<static>  $query
      */
-    public function scopeAssignedTo(\Illuminate\Database\Eloquent\Builder $query, int $userId): \Illuminate\Database\Eloquent\Builder
+    public function scopeAssignedTo(Builder $query, int $userId): Builder
     {
         return $query->where('assigned_to', $userId);
     }
@@ -185,9 +188,9 @@ class Task extends Model
     /**
      * Tâches avec une start_date définie — pour le Gantt (ADR-009).
      *
-     * @param  \Illuminate\Database\Eloquent\Builder<static>  $query
+     * @param  Builder<static>  $query
      */
-    public function scopeForGantt(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
+    public function scopeForGantt(Builder $query): Builder
     {
         return $query->whereNotNull('start_date')
             ->whereNotNull('due_date')
@@ -202,7 +205,7 @@ class Task extends Model
      *
      * Algorithme : BFS depuis depends_on_task_id — si on atteint $this->id, cycle détecté.
      */
-    public function blockingTasks(): \Illuminate\Database\Eloquent\Collection
+    public function blockingTasks(): Collection
     {
         return $this->blockedBy()
             ->where('status', '!=', 'done')

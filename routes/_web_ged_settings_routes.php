@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\SettingsController;
+
 /*
 |--------------------------------------------------------------------------
 | Routes GED settings à ajouter dans routes/web.php
@@ -12,6 +14,6 @@
 |   // Ajouter ici :
 */
 
-Route::get('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'ged'])->name('settings.ged');
-Route::put('settings/ged', [\App\Http\Controllers\Admin\SettingsController::class, 'updateGed'])->name('settings.ged.update');
-Route::get('settings/ged/test', [\App\Http\Controllers\Admin\SettingsController::class, 'testGed'])->name('settings.ged.test');
+Route::get('settings/ged', [SettingsController::class, 'ged'])->name('settings.ged');
+Route::put('settings/ged', [SettingsController::class, 'updateGed'])->name('settings.ged.update');
+Route::get('settings/ged/test', [SettingsController::class, 'testGed'])->name('settings.ged.test');

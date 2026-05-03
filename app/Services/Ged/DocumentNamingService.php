@@ -4,7 +4,6 @@ namespace App\Services\Ged;
 
 use App\Enums\GedDocumentType;
 use App\Models\Tenant\Department;
-use App\Models\Tenant\GedDocumentSequence;
 use App\Models\Tenant\GedDocumentTemplate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -32,9 +31,9 @@ class DocumentNamingService
     /**
      * Génère la référence officielle du document (DEL-2026-042).
      *
-     * @param  GedDocumentType  $type    Type documentaire
-     * @param  int|null         $year    Année (null = année courante)
-     * @param  bool             $dryRun  Si true, n'incrémente pas le compteur
+     * @param  GedDocumentType  $type  Type documentaire
+     * @param  int|null  $year  Année (null = année courante)
+     * @param  bool  $dryRun  Si true, n'incrémente pas le compteur
      */
     public function generateReference(
         GedDocumentType $type,
@@ -52,12 +51,12 @@ class DocumentNamingService
     /**
      * Génère le nom de fichier complet selon le modèle ou la convention par défaut.
      *
-     * @param  GedDocumentType           $type        Type documentaire
-     * @param  string                    $reference   Référence déjà générée (DEL-2026-042)
-     * @param  string|null               $object      Objet du document (pour le slug)
-     * @param  Department|null           $department  Service émetteur
-     * @param  GedDocumentTemplate|null  $template    Modèle choisi (optionnel)
-     * @param  string                    $extension   Extension du fichier (.odt, .docx, .pdf…)
+     * @param  GedDocumentType  $type  Type documentaire
+     * @param  string  $reference  Référence déjà générée (DEL-2026-042)
+     * @param  string|null  $object  Objet du document (pour le slug)
+     * @param  Department|null  $department  Service émetteur
+     * @param  GedDocumentTemplate|null  $template  Modèle choisi (optionnel)
+     * @param  string  $extension  Extension du fichier (.odt, .docx, .pdf…)
      */
     public function generateFileName(
         GedDocumentType $type,
@@ -73,10 +72,10 @@ class DocumentNamingService
         if ($template && ! empty($template->name_pattern)) {
             $vars = [
                 'PREFIX' => $type->prefix(),
-                'YEAR'   => now()->format('Y'),
-                'SEQ'    => substr($reference, strrpos($reference, '-') + 1),
-                'DEPT'   => $department ? Str::slug($department->name) : '',
-                'SLUG'   => $object ? Str::slug($object, '-', 'fr') : '',
+                'YEAR' => now()->format('Y'),
+                'SEQ' => substr($reference, strrpos($reference, '-') + 1),
+                'DEPT' => $department ? Str::slug($department->name) : '',
+                'SLUG' => $object ? Str::slug($object, '-', 'fr') : '',
             ];
 
             $name = $template->applyPattern($vars);
@@ -117,20 +116,19 @@ class DocumentNamingService
      *   extension?: string,
      *   year?: int|null,
      * }  $params
-     *
      * @return array{reference: string, filename: string}
      */
     public function generate(array $params): array
     {
-        $type       = $params['type'];
-        $object     = $params['object'] ?? null;
+        $type = $params['type'];
+        $object = $params['object'] ?? null;
         $department = $params['department'] ?? null;
-        $template   = $params['template'] ?? null;
-        $extension  = $params['extension'] ?? 'odt';
-        $year       = $params['year'] ?? null;
+        $template = $params['template'] ?? null;
+        $extension = $params['extension'] ?? 'odt';
+        $year = $params['year'] ?? null;
 
         $reference = $this->generateReference($type, $year);
-        $filename  = $this->generateFileName($type, $reference, $object, $department, $template, $extension);
+        $filename = $this->generateFileName($type, $reference, $object, $department, $template, $extension);
 
         return compact('reference', 'filename');
     }
@@ -156,10 +154,10 @@ class DocumentNamingService
                     ->table('ged_document_sequences')
                     ->insert([
                         'document_type' => $type->value,
-                        'year'          => $year,
+                        'year' => $year,
                         'last_sequence' => 1,
-                        'created_at'    => now(),
-                        'updated_at'    => now(),
+                        'created_at' => now(),
+                        'updated_at' => now(),
                     ]);
 
                 return 1;
@@ -173,7 +171,7 @@ class DocumentNamingService
                 ->where('year', $year)
                 ->update([
                     'last_sequence' => $next,
-                    'updated_at'    => now(),
+                    'updated_at' => now(),
                 ]);
 
             return $next;

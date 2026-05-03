@@ -4,11 +4,21 @@ namespace App\Http\Controllers\Projects;
 
 use App\Enums\ProjectRole;
 use App\Http\Controllers\Controller;
+use App\Models\Tenant\Department;
 use App\Models\Tenant\Project;
+use App\Models\Tenant\ProjectBudget;
 use App\Models\Tenant\ProjectMember;
+use App\Models\Tenant\ProjectMilestone;
+use App\Models\Tenant\ProjectRisk;
+use App\Models\Tenant\Task;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
+use App\Services\JitsiService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 /**
  * Gestion des projets.
@@ -57,7 +67,7 @@ class ProjectController extends Controller
         ];
 
         // Jalons des 30 prochains jours
-        $upcomingMilestones = \App\Models\Tenant\ProjectMilestone::on('tenant')
+        $upcomingMilestones = ProjectMilestone::on('tenant')
             ->whereNull('reached_at')
             ->whereNotNull('due_date')
             ->whereBetween('due_date', [now(), now()->addDays(30)])
@@ -182,13 +192,13 @@ class ProjectController extends Controller
             ->values();
 
         // Utilisateurs du tenant pour les selects
-        $tenantUsers = \App\Models\Tenant\User::on('tenant')
+        $tenantUsers = User::on('tenant')
             ->where('status', 'active')
             ->orderBy('name')
             ->get(['id', 'name', 'role']);
 
         // Hiérarchie organisationnelle pour les selects jalons
-        $tenantDepartments = \App\Models\Tenant\Department::on('tenant')
+        $tenantDepartments = Department::on('tenant')
             ->with('children')
             ->whereNull('parent_id')
             ->orderBy('name')
@@ -208,7 +218,7 @@ class ProjectController extends Controller
         // Chaque entrée : ['milestone' => ProjectMilestone|null, 'tasks' => Collection, 'depth' => int]
         $tasksByMilestone = collect();
 
-        $buildFlat = function (\App\Models\Tenant\ProjectMilestone $ms, int $depth) use (&$buildFlat, $allRootTasks, $tasksByMilestone): void {
+        $buildFlat = function (ProjectMilestone $ms, int $depth) use (&$buildFlat, $allRootTasks, $tasksByMilestone): void {
             $directTasks = $allRootTasks->where('milestone_id', $ms->id)->values();
             $tasksByMilestone->push([
                 'milestone' => $ms,
@@ -313,7 +323,7 @@ class ProjectController extends Controller
         $onHoldProjects = $projects->where('status', 'on_hold')->count();
 
         // Tâches qui m'appartiennent (assignées) toutes urgences confondues
-        $myTasks = \App\Models\Tenant\Task::on('tenant')
+        $myTasks = Task::on('tenant')
             ->where('assigned_to', $user->id)
             ->whereIn('status', ['todo', 'in_progress', 'in_review'])
             ->with(['project:id,name,color', 'milestone:id,title'])
@@ -326,7 +336,7 @@ class ProjectController extends Controller
         $myOverdueTasks = $myTasks->filter(fn ($t) => $t->due_date && $t->due_date->isPast())->count();
 
         // ── Jalons à venir (30 jours) ───────────────────────────────────
-        $upcomingMilestones = \App\Models\Tenant\ProjectMilestone::on('tenant')
+        $upcomingMilestones = ProjectMilestone::on('tenant')
             ->whereNull('reached_at')
             ->whereBetween('due_date', [now(), now()->addDays(30)])
             ->with('project:id,name,color')
@@ -334,7 +344,7 @@ class ProjectController extends Controller
             ->get();
 
         // Jalons en retard (non atteints, date dépassée)
-        $lateMilestones = \App\Models\Tenant\ProjectMilestone::on('tenant')
+        $lateMilestones = ProjectMilestone::on('tenant')
             ->whereNull('reached_at')
             ->whereNotNull('due_date')
             ->where('due_date', '<', now())
@@ -344,13 +354,13 @@ class ProjectController extends Controller
 
         // ── Budget global (sur les projets visibles) ────────────────────
         $projectIds = $projects->pluck('id');
-        $budgetPlanned = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_planned');
-        $budgetCommitted = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_committed');
-        $budgetPaid = \App\Models\Tenant\ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_paid');
+        $budgetPlanned = ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_planned');
+        $budgetCommitted = ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_committed');
+        $budgetPaid = ProjectBudget::on('tenant')->whereIn('project_id', $projectIds)->sum('amount_paid');
         $budgetPct = $budgetPlanned > 0 ? round($budgetCommitted / $budgetPlanned * 100) : 0;
 
         // ── Risques critiques actifs ────────────────────────────────────
-        $criticalRisks = \App\Models\Tenant\ProjectRisk::on('tenant')
+        $criticalRisks = ProjectRisk::on('tenant')
             ->whereIn('project_id', $projectIds)
             ->whereNotIn('status', ['closed'])
             ->with('project:id,name,color')
@@ -404,8 +414,8 @@ class ProjectController extends Controller
     {
         $this->authorize('view', $project);
 
-        $slug = \Illuminate\Support\Str::slug($project->name);
-        $url = app(\App\Services\JitsiService::class)->roomUrl($slug);
+        $slug = Str::slug($project->name);
+        $url = app(JitsiService::class)->roomUrl($slug);
 
         return response()->json(['url' => $url]);
     }
@@ -420,10 +430,10 @@ class ProjectController extends Controller
             'status' => ['sometimes', 'in:draft,active'],
         ]);
 
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
         $startDate = isset($validated['start_date'])
-            ? \Carbon\Carbon::parse($validated['start_date'])
+            ? Carbon::parse($validated['start_date'])
             : now();
 
         // Décalage entre l'ancienne et la nouvelle date de démarrage
@@ -447,7 +457,7 @@ class ProjectController extends Controller
         ProjectMember::create([
             'project_id' => $newProject->id,
             'user_id' => $user->id,
-            'role' => \App\Enums\ProjectRole::OWNER->value,
+            'role' => ProjectRole::OWNER->value,
         ]);
 
         // 3. Phases & jalons (deux passes)
@@ -455,7 +465,7 @@ class ProjectController extends Controller
         $milestoneMap = [];
 
         foreach ($project->milestones as $ms) {
-            $newMs = \App\Models\Tenant\ProjectMilestone::on('tenant')->create([
+            $newMs = ProjectMilestone::on('tenant')->create([
                 'project_id' => $newProject->id,
                 'parent_id' => null,
                 'title' => $ms->title,
@@ -467,7 +477,7 @@ class ProjectController extends Controller
             $milestoneMap[$ms->id] = $newMs->id;
 
             foreach ($ms->children as $child) {
-                $newChild = \App\Models\Tenant\ProjectMilestone::on('tenant')->create([
+                $newChild = ProjectMilestone::on('tenant')->create([
                     'project_id' => $newProject->id,
                     'parent_id' => $newMs->id,
                     'title' => $child->title,
@@ -481,7 +491,7 @@ class ProjectController extends Controller
         }
 
         // 4. Tâches (racines d'abord, puis sous-tâches)
-        $srcTasks = \App\Models\Tenant\Task::on('tenant')
+        $srcTasks = Task::on('tenant')
             ->where('project_id', $project->id)
             ->whereNull('deleted_at')
             ->orderByRaw('ISNULL(parent_task_id), sort_order')
@@ -490,7 +500,7 @@ class ProjectController extends Controller
         $taskMap = [];
 
         foreach ($srcTasks->whereNull('parent_task_id') as $task) {
-            $newTask = \App\Models\Tenant\Task::on('tenant')->create([
+            $newTask = Task::on('tenant')->create([
                 'project_id' => $newProject->id,
                 'created_by' => $user->id,
                 'milestone_id' => $task->milestone_id ? ($milestoneMap[$task->milestone_id] ?? null) : null,
@@ -507,7 +517,7 @@ class ProjectController extends Controller
         }
 
         foreach ($srcTasks->whereNotNull('parent_task_id') as $task) {
-            $newTask = \App\Models\Tenant\Task::on('tenant')->create([
+            $newTask = Task::on('tenant')->create([
                 'project_id' => $newProject->id,
                 'created_by' => $user->id,
                 'parent_task_id' => $taskMap[$task->parent_task_id] ?? null,
@@ -554,8 +564,8 @@ class ProjectController extends Controller
         foreach ($events as $event) {
             $ical .= "BEGIN:VEVENT\r\n";
             $ical .= 'UID:'.$event->id."@pladigit\r\n";
-            $ical .= 'DTSTART:'.\Carbon\Carbon::parse($event->starts_at)->format('Ymd\THis')."\r\n";
-            $ical .= 'DTEND:'.\Carbon\Carbon::parse($event->ends_at)->format('Ymd\THis')."\r\n";
+            $ical .= 'DTSTART:'.Carbon::parse($event->starts_at)->format('Ymd\THis')."\r\n";
+            $ical .= 'DTEND:'.Carbon::parse($event->ends_at)->format('Ymd\THis')."\r\n";
             $ical .= 'SUMMARY:'.addslashes($event->title)."\r\n";
             if ($event->description) {
                 $ical .= 'DESCRIPTION:'.str_replace(["\n", "\r"], ['\n', ''], addslashes($event->description))."\r\n";
@@ -574,7 +584,7 @@ class ProjectController extends Controller
 
         $ical .= "END:VCALENDAR\r\n";
 
-        $slug = \Illuminate\Support\Str::slug($project->name);
+        $slug = Str::slug($project->name);
 
         return response($ical, 200, [
             'Content-Type' => 'text/calendar; charset=UTF-8',
@@ -599,8 +609,8 @@ class ProjectController extends Controller
             ->orderBy('due_date')
             ->get();
 
-        $now = \Carbon\Carbon::now()->format('Ymd\THis\Z');
-        $projectSlug = \Illuminate\Support\Str::slug($project->name);
+        $now = Carbon::now()->format('Ymd\THis\Z');
+        $projectSlug = Str::slug($project->name);
 
         $ical = "BEGIN:VCALENDAR\r\n";
         $ical .= "VERSION:2.0\r\n";
@@ -723,14 +733,14 @@ class ProjectController extends Controller
         );
 
         // Vérifier que DomPDF est installé
-        if (! class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
+        if (! class_exists(Pdf::class)) {
             return back()->with('error', 'DomPDF non installé. Lancez : composer require barryvdh/laravel-dompdf');
         }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('projects.pdf.elus', $data)
+        $pdf = Pdf::loadView('projects.pdf.elus', $data)
             ->setPaper('a4', 'portrait');
 
-        $slug = \Illuminate\Support\Str::slug($project->name);
+        $slug = Str::slug($project->name);
 
         return $pdf->download("tableau-bord-elus-{$slug}.pdf");
     }
@@ -761,14 +771,14 @@ class ProjectController extends Controller
         $criticalRisksCount = $activeRisks->filter(fn ($r) => $r->criticality() === 'critique')->count();
         $budgetAlerts = $project->budgets->filter(fn ($b) => $b->variance() > 0)->values();
 
-        $slug = \Illuminate\Support\Str::slug($project->name);
+        $slug = Str::slug($project->name);
         $tmpDir = storage_path("app/private/tmp/zip_exports/{$slug}_".time());
         mkdir($tmpDir, 0775, true);
 
         try {
             // 1. PDF tableau de bord
-            if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {
-                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('projects.pdf.elus', compact(
+            if (class_exists(Pdf::class)) {
+                $pdf = Pdf::loadView('projects.pdf.elus', compact(
                     'project', 'taskStats', 'progression',
                     'budgetSummary', 'activeRisks', 'criticalRisksCount', 'budgetAlerts'
                 ))->setPaper('a4', 'portrait');
@@ -786,8 +796,8 @@ class ProjectController extends Controller
             foreach ($tasks as $t) {
                 $csvTasks .= implode(',', array_map(fn ($v) => '"'.str_replace('"', '""', (string) $v).'"', [
                     $t->title,
-                    \App\Models\Tenant\Task::statusLabels()[$t->status] ?? $t->status,
-                    \App\Models\Tenant\Task::priorityLabels()[$t->priority] ?? $t->priority,
+                    Task::statusLabels()[$t->status] ?? $t->status,
+                    Task::priorityLabels()[$t->priority] ?? $t->priority,
                     ($t->assignee !== null ? $t->assignee->name : ''),
                     ($t->milestone !== null ? $t->milestone->title : ''),
                     $t->start_date ? $t->start_date->format('d/m/Y') : '',
@@ -851,7 +861,7 @@ class ProjectController extends Controller
                 array_map('unlink', glob("{$tmpDir}/*"));
                 rmdir($tmpDir);
             }
-            \Illuminate\Support\Facades\Log::error('exportZip failed', ['error' => $e->getMessage(), 'project_id' => $project->id]);
+            Log::error('exportZip failed', ['error' => $e->getMessage(), 'project_id' => $project->id]);
 
             return back()->with('error', 'Erreur lors de la génération du ZIP : '.$e->getMessage());
         }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Tenant\TenantSettings;
+use App\Models\Tenant\User;
 use Illuminate\Support\Facades\Hash;
 
 /**
@@ -41,7 +42,7 @@ class PasswordPolicyService
         return $errors;
     }
 
-    public function updatePassword(\App\Models\Tenant\User $user, string $newPassword): void
+    public function updatePassword(User $user, string $newPassword): void
     {
         $settings = TenantSettings::firstOrCreate([]);
         $history = $user->password_history ?? [];

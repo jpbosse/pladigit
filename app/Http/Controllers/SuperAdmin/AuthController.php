@@ -4,6 +4,7 @@ namespace App\Http\Controllers\SuperAdmin;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use PragmaRX\Google2FA\Google2FA;
 
 class AuthController extends Controller
@@ -22,7 +23,7 @@ class AuthController extends Controller
 
         if (
             $request->email !== config('superadmin.email') ||
-            ! \Illuminate\Support\Facades\Hash::check($request->password, config('superadmin.password_hash'))
+            ! Hash::check($request->password, config('superadmin.password_hash'))
         ) {
             return back()->withErrors(['email' => 'Identifiants incorrects.']);
         }

@@ -4,6 +4,7 @@ namespace App\Services\Ged;
 
 use App\Enums\GedPermissionLevel;
 use App\Enums\UserRole;
+use App\Models\Tenant\Department;
 use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\GedFolderPermission;
@@ -285,7 +286,7 @@ class GedPermissionService
             return [];
         }
 
-        return \App\Models\Tenant\Department::whereIn('id', $deptIds)
+        return Department::whereIn('id', $deptIds)
             ->where('type', $type)
             ->pluck('id')
             ->toArray();
@@ -325,7 +326,7 @@ class GedPermissionService
      */
     public function setDepartmentPermission(
         GedFolder $folder,
-        \App\Models\Tenant\Department $department,
+        Department $department,
         GedPermissionLevel $level
     ): GedFolderPermission {
         return GedFolderPermission::updateOrCreate(

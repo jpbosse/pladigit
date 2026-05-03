@@ -4,6 +4,7 @@ namespace App\Models\Tenant;
 
 use App\Enums\RoleTitreCategorie;
 use App\Enums\RoleTitreStatut;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,8 +24,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int|null $organisation_id
  * @property string|null $civilite_contexte
  * @property int|null $rang_protocolaire
- * @property \Carbon\Carbon|null $date_debut
- * @property \Carbon\Carbon|null $date_fin
+ * @property Carbon|null $date_debut
+ * @property Carbon|null $date_fin
  * @property RoleTitreStatut $statut
  */
 class RoleTitre extends Model

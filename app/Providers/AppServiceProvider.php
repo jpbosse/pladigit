@@ -2,11 +2,20 @@
 
 namespace App\Providers;
 
+use App\Models\Tenant\GedDocument;
+use App\Models\Tenant\GedFolder;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
+use App\Models\Tenant\Project;
+use App\Models\Tenant\Task;
 use App\Observers\MediaItemObserver;
+use App\Policies\GedFolderPolicy;
 use App\Policies\MediaAlbumPolicy;
 use App\Policies\MediaItemPolicy;
+use App\Policies\ProjectPolicy;
+use App\Policies\TaskPolicy;
+use App\Services\Ged\GedStorageInterface;
+use App\Services\Ged\GedStorageManager;
 use App\Services\TenantManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
@@ -22,8 +31,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TenantManager::class);
 
         $this->app->bind(
-            \App\Services\Ged\GedStorageInterface::class,
-            \App\Services\Ged\GedStorageManager::class,
+            GedStorageInterface::class,
+            GedStorageManager::class,
         );
     }
 
@@ -32,10 +41,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(MediaAlbum::class, MediaAlbumPolicy::class);
         MediaItem::observe(MediaItemObserver::class);
         Gate::policy(MediaItem::class, MediaItemPolicy::class);
-        Gate::policy(\App\Models\Tenant\Project::class, \App\Policies\ProjectPolicy::class);
-        Gate::policy(\App\Models\Tenant\Task::class, \App\Policies\TaskPolicy::class);
-        Gate::policy(\App\Models\Tenant\GedFolder::class, \App\Policies\GedFolderPolicy::class);
-        Gate::policy(\App\Models\Tenant\GedDocument::class, \App\Policies\GedFolderPolicy::class);
+        Gate::policy(Project::class, ProjectPolicy::class);
+        Gate::policy(Task::class, TaskPolicy::class);
+        Gate::policy(GedFolder::class, GedFolderPolicy::class);
+        Gate::policy(GedDocument::class, GedFolderPolicy::class);
 
         $this->configureRateLimiters();
 

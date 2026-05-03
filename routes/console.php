@@ -10,7 +10,7 @@ Schedule::command('pladigit:sync-ldap')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Synchronisation LDAP échouée');
+        Log::error('Synchronisation LDAP échouée');
     });
 
 // Synchronisation NAS légère (mtime) — toutes les heures
@@ -19,7 +19,7 @@ Schedule::command('nas:sync')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Synchronisation NAS (mtime) échouée');
+        Log::error('Synchronisation NAS (mtime) échouée');
     });
 
 // Synchronisation NAS complète (SHA-256) — chaque nuit à 23h30
@@ -28,7 +28,7 @@ Schedule::command('nas:sync --deep')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Synchronisation NAS (SHA-256) échouée');
+        Log::error('Synchronisation NAS (SHA-256) échouée');
     });
 
 // Correction des droits GED — 5 min avant le sync (fichiers copiés par un autre user OS)
@@ -43,7 +43,7 @@ Schedule::command('ged:sync')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Synchronisation GED échouée');
+        Log::error('Synchronisation GED échouée');
     });
 
 // Re-extraction EXIF — chaque dimanche à 02h00
@@ -52,7 +52,7 @@ Schedule::command('media:refresh-exif')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Re-extraction EXIF échouée');
+        Log::error('Re-extraction EXIF échouée');
     });
 
 // Génération des occurrences de tâches récurrentes — chaque jour à 06h00
@@ -61,7 +61,7 @@ Schedule::command('pladigit:generate-recurring-tasks')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Génération tâches récurrentes échouée');
+        Log::error('Génération tâches récurrentes échouée');
     });
 
 // Purge GED — documents soft-deleted + versions excédentaires — chaque nuit à 02h30
@@ -70,7 +70,7 @@ Schedule::command('ged:purge')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Purge GED échouée');
+        Log::error('Purge GED échouée');
     });
 
 // Remise à zéro de la démo — toutes les 2 heures
@@ -80,7 +80,7 @@ Schedule::command('demo:reset --slug=demo')
     ->runInBackground()
     ->environments(['production'])
     ->onFailure(function () {
-        \Log::error('Remise à zéro démo échouée');
+        Log::error('Remise à zéro démo échouée');
     });
 
 // Purge des données expirées — chaque nuit à 03h00
@@ -90,7 +90,7 @@ Schedule::command('pladigit:purge-expired')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Purge des données expirées échouée');
+        Log::error('Purge des données expirées échouée');
     });
 
 // Sauvegarde plateforme (toutes orgs) — pilotée par PlatformSettings.
@@ -100,5 +100,5 @@ Schedule::command('pladigit:backup')
     ->withoutOverlapping()
     ->runInBackground()
     ->onFailure(function () {
-        \Log::error('Lancement sauvegarde automatique échoué');
+        Log::error('Lancement sauvegarde automatique échoué');
     });

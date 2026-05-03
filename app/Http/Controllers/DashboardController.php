@@ -12,6 +12,7 @@ use App\Models\Tenant\Notification;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
 use App\Models\Tenant\Task;
+use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,7 @@ class DashboardController extends Controller
         if ($isAdmin) {
             $ldapConfigured = false;
             try {
-                $ldapConfigured = (bool) \App\Models\Tenant\TenantSettings::on('tenant')
+                $ldapConfigured = (bool) TenantSettings::on('tenant')
                     ->whereNotNull('ldap_host')
                     ->value('ldap_host');
             } catch (\Throwable) {

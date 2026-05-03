@@ -330,7 +330,7 @@ class LocalNasDriver implements NasConnectorInterface
     {
         // Bloquer toute tentative de traversée de répertoire
         if (str_contains($relativePath, '..')) {
-            throw new \RuntimeException("Chemin interdit (path traversal détecté) : {$relativePath}");
+            throw new RuntimeException("Chemin interdit (path traversal détecté) : {$relativePath}");
         }
 
         $safe = str_replace('\\', '/', $relativePath);

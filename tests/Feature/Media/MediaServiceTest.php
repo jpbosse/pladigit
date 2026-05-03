@@ -11,6 +11,7 @@ use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
 use App\Services\MediaService;
 use App\Services\Nas\LocalNasDriver;
+use App\Services\Nas\NasConnectorInterface;
 use App\Services\Nas\NasManager;
 use App\Services\TenantManager;
 use Illuminate\Http\UploadedFile;
@@ -43,7 +44,7 @@ class MediaServiceTest extends TestCase
         $this->app->bind(NasManager::class, function () {
             $manager = new NasManager;
             // Surcharge du driver via le conteneur
-            $this->app->bind(\App\Services\Nas\NasConnectorInterface::class, function () {
+            $this->app->bind(NasConnectorInterface::class, function () {
                 return new LocalNasDriver($this->nasRoot);
             });
 

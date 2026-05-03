@@ -4,6 +4,7 @@ namespace App\Models\Tenant;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Token WOPI pour l'ouverture d'un document GED dans Collabora Online.
@@ -12,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $document_id
  * @property int $user_id
  * @property string $token
- * @property \Illuminate\Support\Carbon $expires_at
+ * @property Carbon $expires_at
  */
 class GedWopiToken extends Model
 {

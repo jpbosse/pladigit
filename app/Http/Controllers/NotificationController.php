@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tenant\Notification;
+use App\Models\Tenant\User;
 use Illuminate\Http\Request;
 
 /**
@@ -22,7 +23,7 @@ class NotificationController extends Controller
      */
     public function index(Request $request)
     {
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         $notifications = Notification::on('tenant')
@@ -31,7 +32,7 @@ class NotificationController extends Controller
             ->limit(30)
             ->get()
             ->map(function ($n) {
-                /** @var \App\Models\Tenant\Notification $n */
+                /** @var Notification $n */
                 return array_merge($n->toArray(), [
                     'created_at_diff' => $n->created_at->locale('fr')->diffForHumans(),
                 ]);
@@ -58,7 +59,7 @@ class NotificationController extends Controller
      */
     public function markRead(Notification $notification)
     {
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_if($notification->user_id !== $user->id, 403);
@@ -73,7 +74,7 @@ class NotificationController extends Controller
      */
     public function markAllRead()
     {
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         Notification::on('tenant')
@@ -89,7 +90,7 @@ class NotificationController extends Controller
      */
     public function destroy(Notification $notification)
     {
-        /** @var \App\Models\Tenant\User $user */
+        /** @var User $user */
         $user = auth()->user();
 
         abort_if($notification->user_id !== $user->id, 403);

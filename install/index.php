@@ -297,7 +297,7 @@ function validate_database(array $p): array
                 $p['db_root_user'], $p['db_root_password'],
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_TIMEOUT => 5]
             );
-        } catch (\PDOException $ex) {
+        } catch (PDOException $ex) {
             $e[] = 'Connexion MySQL impossible : '.htmlspecialchars($ex->getMessage());
         }
     }
@@ -575,7 +575,7 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'MAIL_FROM_NAME="'.addslashes($smtp['from_name']).'"'."\n\n"
         .'SUPER_ADMIN_EMAIL='.$admin['email']."\n"
         .'SUPER_ADMIN_PASSWORD_HASH='.$hash."\n"
-	.'SUPER_ADMIN_ALLOWED_IPS='.($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')."\n";
+    .'SUPER_ADMIN_ALLOWED_IPS='.($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')."\n";
 }
 
 function redirect(string $a): void

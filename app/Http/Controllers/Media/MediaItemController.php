@@ -4,14 +4,19 @@ namespace App\Http\Controllers\Media;
 
 use App\Exceptions\DuplicateMediaException;
 use App\Http\Controllers\Controller;
+use App\Jobs\ProcessZipImport;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\MediaService;
 use App\Services\Nas\NasManager;
+use App\Services\TenantManager;
 use App\Services\WatermarkService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -27,7 +32,7 @@ class MediaItemController extends Controller
     /**
      * Formulaire d'upload vers un album.
      */
-    public function create(MediaAlbum $album): \Illuminate\View\View
+    public function create(MediaAlbum $album): View
     {
         $this->authorize('upload', $album);
 
@@ -55,10 +60,10 @@ class MediaItemController extends Controller
         $user = auth()->user();
 
         // ── Pré-vérification quota ────────────────────────────────────────────
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
         $quotaMb = $org !== null ? ($org->storage_quota_mb ?? 10240) : 10240;
         $quotaBytes = $quotaMb * 1024 * 1024;
-        $usedBytes = (int) \App\Models\Tenant\MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
+        $usedBytes = (int) MediaItem::on('tenant')->whereNull('deleted_at')->sum('file_size_bytes');
         $freeBytes = max(0, $quotaBytes - $usedBytes);
         $totalIncoming = (int) array_sum(array_map(
             fn ($f) => $f->getSize(),
@@ -138,7 +143,7 @@ class MediaItemController extends Controller
         /** @var User $user */
         $user = auth()->user();
 
-        $org = app(\App\Services\TenantManager::class)->current();
+        $org = app(TenantManager::class)->current();
         $slug = $org->slug;
 
         // Stocker le ZIP temporairement
@@ -148,7 +153,7 @@ class MediaItemController extends Controller
         $path = $request->file('zip_file')->store('tmp/zip_imports');
 
         // Dispatcher le Job
-        \App\Jobs\ProcessZipImport::dispatch($path, $album->id, $user->id, $slug);
+        ProcessZipImport::dispatch($path, $album->id, $user->id, $slug);
 
         return redirect()
             ->route('media.albums.show', $album)
@@ -199,7 +204,7 @@ class MediaItemController extends Controller
     /**
      * Rotation d'une image (90°, 180°, 270°) — réécrit le fichier sur le NAS.
      */
-    public function rotate(Request $request, MediaAlbum $album, MediaItem $item): \Illuminate\Http\JsonResponse
+    public function rotate(Request $request, MediaAlbum $album, MediaItem $item): JsonResponse
     {
         $this->authorize('manage', $album);
         $this->assertBelongsToAlbum($item, $album);
@@ -252,7 +257,7 @@ class MediaItemController extends Controller
     /**
      * Recadrage d'une image — réécrit le fichier sur le NAS.
      */
-    public function crop(Request $request, MediaAlbum $album, MediaItem $item): \Illuminate\Http\JsonResponse
+    public function crop(Request $request, MediaAlbum $album, MediaItem $item): JsonResponse
     {
         $this->authorize('manage', $album);
         $this->assertBelongsToAlbum($item, $album);
@@ -325,7 +330,7 @@ class MediaItemController extends Controller
             }
         } catch (\Throwable $e) {
             // Log mais on continue — on supprime quand même l'entrée BDD
-            \Illuminate\Support\Facades\Log::warning('MediaItemController::destroy — suppression NAS échouée', [
+            Log::warning('MediaItemController::destroy — suppression NAS échouée', [
                 'item_id' => $item->id,
                 'file_path' => $item->file_path,
                 'error' => $e->getMessage(),
@@ -534,7 +539,7 @@ class MediaItemController extends Controller
      * Déplace un lot de médias vers un autre album.
      * Met à jour album_id, file_path et thumb_path en remplaçant le préfixe NAS.
      */
-    public function moveItems(Request $request, MediaAlbum $album): \Illuminate\Http\JsonResponse
+    public function moveItems(Request $request, MediaAlbum $album): JsonResponse
     {
         $this->authorize('upload', $album);
 
@@ -576,7 +581,7 @@ class MediaItemController extends Controller
             // Vérifier AVANT le déplacement NAS si un doublon existe déjà dans l'album cible
             // pour éviter une incohérence (fichier déplacé mais DB non mise à jour).
             if (MediaItem::where('album_id', $target->id)->where('file_path', $newFilePath)->exists()) {
-                \Illuminate\Support\Facades\Log::warning('moveItems — doublon ignoré', [
+                Log::warning('moveItems — doublon ignoré', [
                     'item_id' => $item->id,
                     'file_path' => $newFilePath,
                     'target_album_id' => $target->id,
@@ -596,7 +601,7 @@ class MediaItemController extends Controller
                         $nas->moveFile($item->file_path, $newFilePath);
                         $fileToSave = $newFilePath;
                     } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::error('moveItems — échec déplacement fichier', [
+                        Log::error('moveItems — échec déplacement fichier', [
                             'item_id' => $item->id,
                             'from' => $item->file_path,
                             'to' => $newFilePath,
@@ -616,7 +621,7 @@ class MediaItemController extends Controller
                         $nas->moveFile($item->thumb_path, $newThumbPath);
                         $thumbToSave = $newThumbPath;
                     } catch (\Throwable $e) {
-                        \Illuminate\Support\Facades\Log::warning('moveItems — échec déplacement thumb', [
+                        Log::warning('moveItems — échec déplacement thumb', [
                             'item_id' => $item->id,
                             'from' => $item->thumb_path,
                             'to' => $newThumbPath,

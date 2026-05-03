@@ -4,6 +4,7 @@ use App\Http\Controllers\Projects\KanbanController;
 use App\Http\Controllers\Projects\ProjectBudgetController;
 use App\Http\Controllers\Projects\ProjectChangeController;
 use App\Http\Controllers\Projects\ProjectController;
+use App\Http\Controllers\Projects\ProjectDocumentController;
 use App\Http\Controllers\Projects\ProjectEventController;
 use App\Http\Controllers\Projects\ProjectGedLinkController;
 use App\Http\Controllers\Projects\ProjectHistoryController;
@@ -155,11 +156,11 @@ Route::prefix('projects')
         Route::delete('/{project}/observations/{observation}', [ProjectObservationController::class, 'destroy'])->name('observations.destroy');
 
         // ── Documents projet / tâche / jalon ─────────────────────────────
-        Route::get('/{project}/documents', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'index'])->name('documents.index');
-        Route::post('/{project}/documents/upload', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'store'])->name('documents.store');
-        Route::post('/{project}/documents/link', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'storeLink'])->name('documents.link');
-        Route::get('/{project}/documents/{document}/download', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'download'])->name('documents.download');
-        Route::delete('/{project}/documents/{document}', [\App\Http\Controllers\Projects\ProjectDocumentController::class, 'destroy'])->name('documents.destroy');
+        Route::get('/{project}/documents', [ProjectDocumentController::class, 'index'])->name('documents.index');
+        Route::post('/{project}/documents/upload', [ProjectDocumentController::class, 'store'])->name('documents.store');
+        Route::post('/{project}/documents/link', [ProjectDocumentController::class, 'storeLink'])->name('documents.link');
+        Route::get('/{project}/documents/{document}/download', [ProjectDocumentController::class, 'download'])->name('documents.download');
+        Route::delete('/{project}/documents/{document}', [ProjectDocumentController::class, 'destroy'])->name('documents.destroy');
 
         // ── Liens GED ↔ Projet / Tâche ───────────────────────────────────
         Route::get('/{project}/ged-links', [ProjectGedLinkController::class, 'index'])->name('ged_links.index');

@@ -21,7 +21,9 @@ return new class extends Migration
 
     public function up(): void
     {
-        if (Schema::connection('tenant')->hasTable('project_documents')) { return; }
+        if (Schema::connection('tenant')->hasTable('project_documents')) {
+            return;
+        }
         Schema::connection('tenant')->create('project_documents', function (Blueprint $table) {
             $table->id();
             $table->morphs('documentable');                          // documentable_type + documentable_id

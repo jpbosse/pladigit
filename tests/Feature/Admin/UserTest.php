@@ -2,8 +2,10 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Mail\UserInvitationMail;
 use App\Models\Tenant\Department;
 use App\Models\Tenant\User;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -138,7 +140,7 @@ class UserTest extends TestCase
         $this->assertNull($user->password_hash);
 
         // L'email d'invitation a bien été envoyé
-        Mail::assertSent(\App\Mail\UserInvitationMail::class, fn ($m) => $m->hasTo('jean.dupont@test.fr'));
+        Mail::assertSent(UserInvitationMail::class, fn ($m) => $m->hasTo('jean.dupont@test.fr'));
     }
 
     // ── Modification ───────────────────────────────────────────────────
@@ -218,7 +220,7 @@ class UserTest extends TestCase
         Mail::fake();
 
         $user = User::factory()->create([
-            'password_hash' => \Illuminate\Support\Facades\Hash::make('AncienMotDePasse!1'),
+            'password_hash' => Hash::make('AncienMotDePasse!1'),
             'status' => 'active',
         ]);
 
@@ -234,7 +236,7 @@ class UserTest extends TestCase
         // Un token d'invitation a été généré
         $this->assertNotNull($user->invitation_token);
         // Un email a été envoyé
-        Mail::assertSent(\App\Mail\UserInvitationMail::class, fn ($m) => $m->hasTo($user->email));
+        Mail::assertSent(UserInvitationMail::class, fn ($m) => $m->hasTo($user->email));
     }
 
     // ── Affectation départements ───────────────────────────────────────

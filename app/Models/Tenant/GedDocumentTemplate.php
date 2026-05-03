@@ -15,18 +15,18 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Définit le patron de nommage, le dossier cible et les métadonnées
  * obligatoires pour chaque type documentaire (délibération, arrêté, etc.).
  *
- * @property int         $id
- * @property string      $document_type
- * @property string      $name
+ * @property int $id
+ * @property string $document_type
+ * @property string $name
  * @property string|null $description
  * @property string|null $name_pattern
- * @property int|null    $default_folder_id
- * @property int|null    $default_department_id
+ * @property int|null $default_folder_id
+ * @property int|null $default_department_id
  * @property string|null $template_file_path
- * @property array|null  $required_fields
- * @property bool        $is_active
- * @property int         $sort_order
- * @property int         $created_by
+ * @property array|null $required_fields
+ * @property bool $is_active
+ * @property int $sort_order
+ * @property int $created_by
  */
 class GedDocumentTemplate extends Model
 {
@@ -50,9 +50,9 @@ class GedDocumentTemplate extends Model
 
     protected $casts = [
         'required_fields' => 'array',
-        'is_active'       => 'boolean',
-        'sort_order'      => 'integer',
-        'deleted_at'      => 'datetime',
+        'is_active' => 'boolean',
+        'sort_order' => 'integer',
+        'deleted_at' => 'datetime',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -157,6 +157,6 @@ class GedDocumentTemplate extends Model
 
         preg_match_all('/\{(\w+)\}/', $this->name_pattern, $matches);
 
-        return $matches[1] ?? [];
+        return $matches[1];
     }
 }

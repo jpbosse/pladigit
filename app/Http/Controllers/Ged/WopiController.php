@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
 use App\Models\Tenant\GedDocument;
 use App\Models\Tenant\GedDocumentVersion;
+use App\Models\Tenant\GedWopiToken;
 use App\Services\AuditService;
 use App\Services\Ged\GedPermissionService;
 use App\Services\Ged\GedStorageInterface;
@@ -308,7 +309,7 @@ class WopiController extends Controller
      *
      * Retourne null si le token est invalide, expiré ou le tenant introuvable.
      */
-    private function resolveToken(string $accessToken): ?\App\Models\Tenant\GedWopiToken
+    private function resolveToken(string $accessToken): ?GedWopiToken
     {
         // Format nouveau : tenant dans le paramètre de route {tenant}
         $slug = (string) request()->route('tenant', '');

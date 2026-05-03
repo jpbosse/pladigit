@@ -93,14 +93,14 @@ class BackupJob implements ShouldQueue
 
         $proxy = new TenantSettings;
         $proxy->forceFill([
-            'backup_driver'            => $ps->backup_driver,
-            'backup_local_path'        => $localPath,
-            'backup_sftp_host'         => $ps->backup_sftp_host,
-            'backup_sftp_port'         => $ps->backup_sftp_port,
-            'backup_sftp_user'         => $ps->backup_sftp_user,
+            'backup_driver' => $ps->backup_driver,
+            'backup_local_path' => $localPath,
+            'backup_sftp_host' => $ps->backup_sftp_host,
+            'backup_sftp_port' => $ps->backup_sftp_port,
+            'backup_sftp_user' => $ps->backup_sftp_user,
             'backup_sftp_password_enc' => $ps->backup_sftp_password_enc,
-            'backup_sftp_path'         => $ps->backup_sftp_path,
-            'backup_retention_count'   => $ps->backup_retention_count,
+            'backup_sftp_path' => $ps->backup_sftp_path,
+            'backup_retention_count' => $ps->backup_retention_count,
         ]);
 
         return $proxy;

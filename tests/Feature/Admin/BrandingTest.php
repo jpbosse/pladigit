@@ -7,6 +7,7 @@ use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
@@ -64,7 +65,7 @@ class BrandingTest extends TestCase
     // Reset logo — remove_logo supprime le fichier et vide logo_path
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function remove_logo_supprime_le_fichier_et_vide_logo_path(): void
     {
         Storage::fake('public');
@@ -91,7 +92,7 @@ class BrandingTest extends TestCase
     // Reset fond login — remove_login_bg supprime le fichier
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function remove_login_bg_supprime_le_fichier_et_vide_login_bg_path(): void
     {
         Storage::fake('public');
@@ -118,7 +119,7 @@ class BrandingTest extends TestCase
     // Upload remplace l'ancien logo (l'ancien fichier est supprimé)
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function upload_logo_remplace_lancien_et_supprime_lancien_fichier(): void
     {
         Storage::fake('public');
@@ -147,7 +148,7 @@ class BrandingTest extends TestCase
     // Couleur par défaut conservée si aucune couleur soumise
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function couleur_par_defaut_conservee_si_aucune_couleur_soumise(): void
     {
         $org = app(TenantManager::class)->current();
@@ -165,7 +166,7 @@ class BrandingTest extends TestCase
     // Isolation tenant : le branding d'un tenant n'affecte pas un autre
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function branding_dun_tenant_nisolee_pas_lautre_tenant(): void
     {
         $orgB = Organization::forceCreate([
@@ -195,7 +196,7 @@ class BrandingTest extends TestCase
     // Non-admin ne peut pas modifier le branding
     // ────────────────────────────────────────────────────────────────
 
-    #[\PHPUnit\Framework\Attributes\Test]
+    #[Test]
     public function non_admin_ne_peut_pas_modifier_le_branding(): void
     {
         $user = User::factory()->create(['role' => 'user', 'status' => 'active']);

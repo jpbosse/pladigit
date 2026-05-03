@@ -335,7 +335,7 @@ class DatagridPermissionService
     /**
      * Union la plus permissive de plusieurs règles (OR sur chaque flag).
      *
-     * @param  Collection<int, DatagridPermission|DatagridUserPermission>  $perms
+     * @param  Collection<int, DatagridPermission>|Collection<int, DatagridUserPermission>  $perms
      * @return array{can_read: bool, can_write: bool, can_delete: bool, can_export: bool}
      */
     private function mergePermissive(Collection $perms): array
@@ -377,7 +377,7 @@ class DatagridPermissionService
 
     private function cacheKey(User $user, DatagridTable $table): string
     {
-        $org = app(TenantManager::class)->current()?->slug ?? 'default';
+        $org = app(TenantManager::class)->current()->slug ?? 'default';
 
         return "datagrid_perm:{$org}:{$user->getKey()}:{$table->getKey()}";
     }
@@ -389,7 +389,7 @@ class DatagridPermissionService
      */
     private function tableCacheTags(DatagridTable $table): array
     {
-        $org = app(TenantManager::class)->current()?->slug ?? 'default';
+        $org = app(TenantManager::class)->current()->slug ?? 'default';
 
         return ["datagrid:{$org}:{$table->getKey()}"];
     }

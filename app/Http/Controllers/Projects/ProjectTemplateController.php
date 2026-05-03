@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Projects;
 
 use App\Enums\ProjectRole;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
+use App\Models\Tenant\ProjectMilestone;
 use App\Models\Tenant\ProjectTemplate;
+use App\Models\Tenant\Task;
+use App\Models\Tenant\User;
 use App\Services\AuditService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 /**
@@ -156,7 +161,7 @@ class ProjectTemplateController extends Controller
             'status' => ['required', 'in:active,on_hold,draft'],
         ]);
 
-        $startDate = \Carbon\Carbon::parse($validated['start_date']);
+        $startDate = Carbon::parse($validated['start_date']);
 
         // Créer le projet
         $project = Project::on('tenant')->create([
@@ -206,14 +211,14 @@ class ProjectTemplateController extends Controller
         ]);
 
         // Charger les jalons et tâches du projet
-        $milestones = \App\Models\Tenant\ProjectMilestone::on('tenant')
+        $milestones = ProjectMilestone::on('tenant')
             ->where('project_id', $project->id)
             ->whereNull('parent_id')
             ->with('children')
             ->orderBy('sort_order')
             ->get();
 
-        $tasks = \App\Models\Tenant\Task::on('tenant')
+        $tasks = Task::on('tenant')
             ->where('project_id', $project->id)
             ->whereNull('parent_task_id')
             ->whereNull('deleted_at')
@@ -288,9 +293,9 @@ class ProjectTemplateController extends Controller
 
     private function authorizeCreate(): void
     {
-        /** @var \App\Models\Tenant\User|null $user */
+        /** @var User|null $user */
         $user = auth()->user();
-        $role = \App\Enums\UserRole::tryFrom($user !== null ? ($user->role ?? '') : '');
-        abort_unless($role && $role->atLeast(\App\Enums\UserRole::RESP_DIRECTION), 403);
+        $role = UserRole::tryFrom($user !== null ? ($user->role ?? '') : '');
+        abort_unless($role && $role->atLeast(UserRole::RESP_DIRECTION), 403);
     }
 }

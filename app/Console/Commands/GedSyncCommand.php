@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Platform\Organization;
+use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\Ged\GedStorageInterface;
 use App\Services\Ged\GedSyncService;
@@ -107,7 +108,7 @@ class GedSyncCommand extends Command
                 $totalRemoved += $result['files_removed'];
                 $totalErrors += $result['errors'];
 
-                \App\Models\Tenant\TenantSettings::firstOrNew()->fill([
+                TenantSettings::firstOrNew()->fill([
                     'nas_ged_last_sync_at' => now(),
                     'nas_ged_last_sync_errors' => $result['error_details'],
                 ])->save();

@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Enums\UserRole;
+use App\Models\Tenant\Department;
 use App\Models\Tenant\Share;
 use App\Models\Tenant\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Collection;
 
 /**
  * Service de résolution des droits de partage.
@@ -141,7 +143,7 @@ class ShareService
         $toProcess = $parentIds;
 
         while (! empty($toProcess)) {
-            $children = \App\Models\Tenant\Department::whereIn('parent_id', $toProcess)
+            $children = Department::whereIn('parent_id', $toProcess)
                 ->pluck('id')
                 ->toArray();
 
@@ -161,7 +163,7 @@ class ShareService
     /**
      * Retourne tous les partages d'un objet, groupés par type.
      */
-    public function sharesFor(Model $object): \Illuminate\Support\Collection
+    public function sharesFor(Model $object): Collection
     {
         return Share::where('shareable_type', $this->morphType($object))
             ->where('shareable_id', $object->getKey())

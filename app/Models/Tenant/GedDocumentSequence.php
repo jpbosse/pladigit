@@ -11,10 +11,10 @@ use Illuminate\Database\Eloquent\Model;
  * Utilisé par DocumentNamingService pour générer les références
  * DEL-2026-001, DEL-2026-002, etc. de façon atomique.
  *
- * @property int    $id
+ * @property int $id
  * @property string $document_type
- * @property int    $year
- * @property int    $last_sequence
+ * @property int $year
+ * @property int $last_sequence
  */
 class GedDocumentSequence extends Model
 {
@@ -29,7 +29,7 @@ class GedDocumentSequence extends Model
     ];
 
     protected $casts = [
-        'year'          => 'integer',
+        'year' => 'integer',
         'last_sequence' => 'integer',
     ];
 

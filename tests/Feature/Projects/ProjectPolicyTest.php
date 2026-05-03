@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Projects;
 
+use App\Models\Tenant\Department;
 use App\Models\Tenant\Project;
 use App\Models\Tenant\ProjectMember;
 use App\Models\Tenant\User;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /**
@@ -210,11 +212,11 @@ class ProjectPolicyTest extends TestCase
     public function test_resp_direction_peut_voir_projet_de_sa_direction(): void
     {
         // Créer une direction, y rattacher le member comme agent et le resp comme manager
-        $direction = \App\Models\Tenant\Department::factory()->direction()->create();
+        $direction = Department::factory()->direction()->create();
         $respDir = User::factory()->create(['role' => 'resp_direction', 'status' => 'active']);
 
         // Rattacher resp comme manager de la direction
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $respDir->id,
             'department_id' => $direction->id,
             'is_manager' => true,
@@ -223,7 +225,7 @@ class ProjectPolicyTest extends TestCase
         ]);
 
         // Rattacher le member du projet à cette direction
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $this->member->id,
             'department_id' => $direction->id,
             'is_manager' => false,
@@ -238,10 +240,10 @@ class ProjectPolicyTest extends TestCase
 
     public function test_resp_direction_ne_peut_pas_modifier_projet_hors_membre(): void
     {
-        $direction = \App\Models\Tenant\Department::factory()->direction()->create();
+        $direction = Department::factory()->direction()->create();
         $respDir = User::factory()->create(['role' => 'resp_direction', 'status' => 'active']);
 
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $respDir->id,
             'department_id' => $direction->id,
             'is_manager' => true,
@@ -249,7 +251,7 @@ class ProjectPolicyTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $this->member->id,
             'department_id' => $direction->id,
             'is_manager' => false,
@@ -267,12 +269,12 @@ class ProjectPolicyTest extends TestCase
 
     public function test_resp_service_peut_voir_projet_de_son_service(): void
     {
-        $direction = \App\Models\Tenant\Department::factory()->direction()->create();
-        $service = \App\Models\Tenant\Department::factory()->service($direction->id)->create();
+        $direction = Department::factory()->direction()->create();
+        $service = Department::factory()->service($direction->id)->create();
         $respSvc = User::factory()->create(['role' => 'resp_service', 'status' => 'active']);
 
         // Resp rattaché comme manager du service
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $respSvc->id,
             'department_id' => $service->id,
             'is_manager' => true,
@@ -281,7 +283,7 @@ class ProjectPolicyTest extends TestCase
         ]);
 
         // Member du projet rattaché au même service
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $this->member->id,
             'department_id' => $service->id,
             'is_manager' => false,
@@ -296,11 +298,11 @@ class ProjectPolicyTest extends TestCase
     public function test_resp_service_hors_perimetre_ne_peut_pas_voir(): void
     {
         // Un resp_service dont aucun subordonné n'est membre du projet
-        $autreDir = \App\Models\Tenant\Department::factory()->direction()->create();
-        $autreSvc = \App\Models\Tenant\Department::factory()->service($autreDir->id)->create();
+        $autreDir = Department::factory()->direction()->create();
+        $autreSvc = Department::factory()->service($autreDir->id)->create();
         $respHors = User::factory()->create(['role' => 'resp_service', 'status' => 'active']);
 
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $respHors->id,
             'department_id' => $autreSvc->id,
             'is_manager' => true,
@@ -317,14 +319,14 @@ class ProjectPolicyTest extends TestCase
 
     public function test_projet_prive_invisible_pour_resp_direction_hors_membre(): void
     {
-        $direction = \App\Models\Tenant\Department::factory()->direction()->create();
+        $direction = Department::factory()->direction()->create();
         $respDir = User::factory()->create(['role' => 'resp_direction', 'status' => 'active']);
 
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $respDir->id, 'department_id' => $direction->id,
             'is_manager' => true, 'created_at' => now(), 'updated_at' => now(),
         ]);
-        \Illuminate\Support\Facades\DB::connection('tenant')->table('user_department')->insert([
+        DB::connection('tenant')->table('user_department')->insert([
             'user_id' => $this->member->id, 'department_id' => $direction->id,
             'is_manager' => false, 'created_at' => now(), 'updated_at' => now(),
         ]);

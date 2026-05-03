@@ -6,6 +6,7 @@ use App\Enums\AlbumPermissionLevel;
 use App\Enums\UserRole;
 use App\Models\Tenant\AlbumPermission;
 use App\Models\Tenant\AlbumUserPermission;
+use App\Models\Tenant\Department;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\User;
 use Illuminate\Support\Collection;
@@ -283,7 +284,7 @@ class AlbumPermissionService
             return [];
         }
 
-        return \App\Models\Tenant\Department::whereIn('id', $deptIds)
+        return Department::whereIn('id', $deptIds)
             ->where('type', $type)
             ->pluck('id')
             ->toArray();
@@ -329,7 +330,7 @@ class AlbumPermissionService
      */
     public function setDepartmentPermission(
         MediaAlbum $album,
-        \App\Models\Tenant\Department $department,
+        Department $department,
         AlbumPermissionLevel $level
     ): AlbumPermission {
         return AlbumPermission::updateOrCreate(

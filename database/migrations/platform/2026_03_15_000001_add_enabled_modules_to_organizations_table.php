@@ -20,7 +20,7 @@ return new class extends Migration
             });
 
         // Activer la photothèque sur toutes les orgs existantes (Phase 3 en cours)
-        \DB::connection($this->connection)
+        DB::connection($this->connection)
             ->table('organizations')
             ->update([
                 'enabled_modules' => json_encode([ModuleKey::MEDIA->value]),

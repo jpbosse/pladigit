@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
@@ -64,8 +65,8 @@ class ImportWizard extends Component
             'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:10240'],
         ], [
             'file.required' => 'Veuillez choisir un fichier.',
-            'file.mimes'    => 'Le fichier doit être au format .xlsx ou .xls.',
-            'file.max'      => 'La taille maximale est de 10 Mo.',
+            'file.mimes' => 'Le fichier doit être au format .xlsx ou .xls.',
+            'file.max' => 'La taille maximale est de 10 Mo.',
         ]);
 
         $this->tempPath = $this->file->storeAs(
@@ -74,7 +75,7 @@ class ImportWizard extends Component
             'local'
         );
 
-        $import = new DatagridImport();
+        $import = new DatagridImport;
         Excel::import($import, Storage::disk('local')->path($this->tempPath));
 
         $headers = $import->getHeaders();
@@ -83,11 +84,11 @@ class ImportWizard extends Component
             ->filter(fn ($h) => filled($h))
             ->values()
             ->map(fn ($header, int $i) => [
-                'index'    => $i,
-                'header'   => (string) $header,
-                'label'    => (string) $header,
-                'name'     => Str::snake(Str::ascii((string) $header)),
-                'type'     => DatagridColumnType::TEXT->value,
+                'index' => $i,
+                'header' => (string) $header,
+                'label' => (string) $header,
+                'name' => Str::snake(Str::ascii((string) $header)),
+                'type' => DatagridColumnType::TEXT->value,
                 'required' => false,
             ])
             ->all();
@@ -105,21 +106,21 @@ class ImportWizard extends Component
         $typeValues = implode(',', DatagridColumnType::values());
 
         $this->validate([
-            'tableLabel'         => ['required', 'string', 'max:100'],
-            'tableName'          => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'columns'            => ['required', 'array', 'min:1'],
-            'columns.*.label'    => ['required', 'string', 'max:100'],
-            'columns.*.name'     => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'columns.*.type'     => ['required', "in:{$typeValues}"],
+            'tableLabel' => ['required', 'string', 'max:100'],
+            'tableName' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'columns' => ['required', 'array', 'min:1'],
+            'columns.*.label' => ['required', 'string', 'max:100'],
+            'columns.*.name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'columns.*.type' => ['required', "in:{$typeValues}"],
             'columns.*.required' => ['boolean'],
         ], [
-            'tableLabel.required'      => 'Le libellé de la grille est obligatoire.',
-            'tableName.required'       => 'Le nom technique est obligatoire.',
-            'tableName.regex'          => 'Le nom technique doit commencer par une lettre et ne contenir que des lettres minuscules, chiffres et underscores.',
+            'tableLabel.required' => 'Le libellé de la grille est obligatoire.',
+            'tableName.required' => 'Le nom technique est obligatoire.',
+            'tableName.regex' => 'Le nom technique doit commencer par une lettre et ne contenir que des lettres minuscules, chiffres et underscores.',
             'columns.*.label.required' => 'Chaque colonne doit avoir un libellé.',
-            'columns.*.name.required'  => 'Chaque colonne doit avoir un nom technique.',
-            'columns.*.name.regex'     => 'Les noms techniques doivent commencer par une lettre et ne contenir que lettres minuscules, chiffres et underscores.',
-            'columns.*.type.in'        => 'Type de colonne invalide.',
+            'columns.*.name.required' => 'Chaque colonne doit avoir un nom technique.',
+            'columns.*.name.regex' => 'Les noms techniques doivent commencer par une lettre et ne contenir que lettres minuscules, chiffres et underscores.',
+            'columns.*.type.in' => 'Type de colonne invalide.',
         ]);
 
         $this->step = 3;
@@ -152,29 +153,29 @@ class ImportWizard extends Component
         $this->errorMessage = null;
 
         try {
-            $import = new DatagridImport();
+            $import = new DatagridImport;
             Excel::import($import, Storage::disk('local')->path($this->tempPath));
 
             DB::connection('tenant')->transaction(function () use ($import): void {
                 $dgTable = DatagridTable::create([
-                    'name'            => $this->tableName,
-                    'label'           => $this->tableLabel,
-                    'description'     => $this->tableDescription ?: null,
-                    'mysql_table'     => $this->tableName,
-                    'has_rgpd'        => $this->hasRgpd,
+                    'name' => $this->tableName,
+                    'label' => $this->tableLabel,
+                    'description' => $this->tableDescription ?: null,
+                    'mysql_table' => $this->tableName,
+                    'has_rgpd' => $this->hasRgpd,
                     'is_persons_view' => false,
-                    'created_by'      => auth()->id(),
+                    'created_by' => auth()->id(),
                 ]);
 
                 foreach ($this->columns as $i => $col) {
                     DatagridColumn::create([
-                        'datagrid_table_id'  => $dgTable->id,
-                        'name'               => $col['name'],
-                        'label'              => $col['label'],
-                        'type'               => $col['type'],
-                        'required'           => (bool) $col['required'],
+                        'datagrid_table_id' => $dgTable->id,
+                        'name' => $col['name'],
+                        'label' => $col['label'],
+                        'type' => $col['type'],
+                        'required' => (bool) $col['required'],
                         'visible_by_default' => true,
-                        'sort_order'         => $i + 1,
+                        'sort_order' => $i + 1,
                     ]);
                 }
 
@@ -227,15 +228,15 @@ class ImportWizard extends Component
         $nullable = ! ((bool) $col['required']);
 
         $column = match ($type) {
-            DatagridColumnType::NUMBER      => $table->decimal($col['name'], 15, 4),
-            DatagridColumnType::DATE        => $table->date($col['name']),
-            DatagridColumnType::BOOLEAN     => $table->boolean($col['name'])->default(false),
-            DatagridColumnType::EMAIL       => $table->string($col['name'], 255),
-            DatagridColumnType::PHONE       => $table->string($col['name'], 30),
-            DatagridColumnType::SIRET       => $table->string($col['name'], 14),
+            DatagridColumnType::NUMBER => $table->decimal($col['name'], 15, 4),
+            DatagridColumnType::DATE => $table->date($col['name']),
+            DatagridColumnType::BOOLEAN => $table->boolean($col['name'])->default(false),
+            DatagridColumnType::EMAIL => $table->string($col['name'], 255),
+            DatagridColumnType::PHONE => $table->string($col['name'], 30),
+            DatagridColumnType::SIRET => $table->string($col['name'], 14),
             DatagridColumnType::POSTAL_CODE => $table->string($col['name'], 10),
-            DatagridColumnType::SELECT      => $table->string($col['name'], 100),
-            default                         => $table->string($col['name'], 255),
+            DatagridColumnType::SELECT => $table->string($col['name'], 100),
+            default => $table->string($col['name'], 255),
         };
 
         if ($nullable) {
@@ -243,11 +244,11 @@ class ImportWizard extends Component
         }
     }
 
-    public function render(): \Illuminate\View\View
+    public function render(): View
     {
         return view('livewire.tenant.datagrid.import-wizard', [
             'columnTypes' => DatagridColumnType::options(),
         ])->extends('layouts.app', ['title' => 'Import DataGrid — ERP'])
-          ->section('content');
+            ->section('content');
     }
 }

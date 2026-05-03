@@ -2,10 +2,12 @@
 
 namespace Tests\Feature\Media;
 
+use App\Models\Platform\Organization;
 use App\Models\Tenant\MediaAlbum;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\User;
 use App\Services\MediaService;
+use App\Services\TenantManager;
 use Tests\TestCase;
 
 /**
@@ -309,12 +311,12 @@ class MediaSortTest extends TestCase
     // Helper
     // =========================================================================
 
-    private function persistCurrentOrg(array $extra = []): \App\Models\Platform\Organization
+    private function persistCurrentOrg(array $extra = []): Organization
     {
-        $current = app(\App\Services\TenantManager::class)->current();
+        $current = app(TenantManager::class)->current();
         $slug = $current->slug ?? 'test';
 
-        $org = \App\Models\Platform\Organization::updateOrCreate(
+        $org = Organization::updateOrCreate(
             ['slug' => $slug],
             array_merge([
                 'name' => $current->name ?? 'Test Org',
@@ -326,7 +328,7 @@ class MediaSortTest extends TestCase
             ], $extra)
         );
 
-        app(\App\Services\TenantManager::class)->connectTo($org);
+        app(TenantManager::class)->connectTo($org);
 
         return $org;
     }

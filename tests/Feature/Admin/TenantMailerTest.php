@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Platform\Organization;
 use App\Models\Tenant\User;
 use App\Services\TenantMailer;
+use App\Services\TenantManager;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Crypt;
 use Tests\TestCase;
@@ -136,7 +137,7 @@ class TenantMailerTest extends TestCase
             ]
         );
         // Pointer le TenantManager vers l'org persistée en base
-        app(\App\Services\TenantManager::class)->connectTo($org);
+        app(TenantManager::class)->connectTo($org);
 
         $response = $this->actingAs($this->admin)
             ->put(route('admin.settings.smtp.update'), [
@@ -175,7 +176,7 @@ class TenantMailerTest extends TestCase
             ]
         );
         // Pointer le TenantManager vers l'org persistée en base
-        app(\App\Services\TenantManager::class)->connectTo($org);
+        app(TenantManager::class)->connectTo($org);
 
         $this->actingAs($this->admin)
             ->put(route('admin.settings.smtp.update'), [

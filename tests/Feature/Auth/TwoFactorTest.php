@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\Tenant\User;
 use App\Services\TwoFactorService;
+use PragmaRX\Google2FA\Google2FA;
 use Tests\TestCase;
 
 class TwoFactorTest extends TestCase
@@ -15,7 +16,7 @@ class TwoFactorTest extends TestCase
         $setup = $service->generateSetup($user);
 
         // Simuler un code TOTP valide
-        $google2fa = app(\PragmaRX\Google2FA\Google2FA::class);
+        $google2fa = app(Google2FA::class);
         $code = $google2fa->getCurrentOtp($setup['secret']);
 
         $result = $service->enable($user, $setup['secret'], $code);

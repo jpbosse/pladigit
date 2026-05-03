@@ -4,6 +4,7 @@ namespace Tests\Feature\SuperAdmin;
 
 use App\Console\Commands\UpdateStatusCommand;
 use App\Models\Platform\PlatformSettings;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -204,7 +205,7 @@ class UpdateControllerTest extends TestCase
     {
         Http::fake([
             'api.github.com/*' => function () {
-                throw new \Illuminate\Http\Client\ConnectionException('Network error');
+                throw new ConnectionException('Network error');
             },
         ]);
 
