@@ -54,7 +54,7 @@ class MigrateTenantsCommand extends Command
         if ($slug = $this->option('slug')) {
             $query->where('slug', $slug);
         } else {
-            $query->where('status', 'active');
+            $query->whereIn('status', ['active', 'trial']);
         }
 
         $organizations = $query->get();
