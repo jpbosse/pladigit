@@ -87,7 +87,7 @@ class ImportWizard extends Component
                 'index' => $i,
                 'header' => (string) $header,
                 'label' => (string) $header,
-                'name' => Str::snake(Str::ascii((string) $header)),
+                'name' => Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', (string) $header))),
                 'type' => DatagridColumnType::TEXT->value,
                 'required' => false,
             ])
@@ -222,6 +222,9 @@ class ImportWizard extends Component
             }
 
         } catch (\Throwable $e) {
+            if (DB::connection('tenant')->transactionLevel() > 0) {
+                DB::connection('tenant')->rollBack();
+            }
             $this->errorMessage = $e->getMessage();
         }
     }
