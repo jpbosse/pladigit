@@ -14,9 +14,12 @@ class UpdateController extends Controller
 
     private const ROOT_DIR = '/var/www/pladigit';
 
-    private const LOG_DIR = '/var/www/pladigit/storage/logs/updates';
-
     private const GITHUB_TAGS_URL = 'https://api.github.com/repos/jpbosse/pladigit/tags';
+
+    private static function logDir(): string
+    {
+        return storage_path('logs/updates');
+    }
 
     public function index(): View
     {
@@ -39,7 +42,7 @@ class UpdateController extends Controller
             ]);
         }
 
-        $logFile = self::LOG_DIR.'/update_'.now()->format('Y-m-d_His').'.log';
+        $logFile = self::logDir().'/update_'.now()->format('Y-m-d_His').'.log';
 
         $settings->update([
             'update_last_status' => 'running',
@@ -98,7 +101,7 @@ class UpdateController extends Controller
         $logPath = $settings->update_log_path;
         $offset = (int) request()->query('offset', 0);
 
-        if (! $logPath || ! str_starts_with($logPath, self::LOG_DIR)) {
+        if (! $logPath || ! str_starts_with($logPath, self::logDir())) {
             return response()->json(['lines' => [], 'offset' => 0]);
         }
 
