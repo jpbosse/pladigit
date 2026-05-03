@@ -33,6 +33,7 @@ enum ModuleKey: string
     case GED = 'ged';
     case COLLABORA = 'collabora';
     case ERP = 'erp';
+    case DATAGRID = 'datagrid';
     case PROJECTS = 'projects';
     case CHAT = 'chat';
     case NEWS = 'news';
@@ -48,6 +49,7 @@ enum ModuleKey: string
             self::GED => 'GED documentaire',
             self::COLLABORA => 'Édition collaborative (Collabora)',
             self::ERP => 'ERP DataGrid',
+            self::DATAGRID => 'Annuaire DataGrid',
             self::PROJECTS => 'Gestion de projet',
             self::CHAT => 'Chat temps réel',
             self::NEWS => 'Fil d\'actualités',
@@ -65,6 +67,7 @@ enum ModuleKey: string
             self::GED => 'Arborescence documentaire, versionning, recherche plein texte',
             self::COLLABORA => 'Édition ODT/ODS/ODP en ligne — alternative à Microsoft Office',
             self::ERP => 'Tables no-code, audit trail, export CSV/Excel',
+            self::DATAGRID => 'Annuaire des personnalités, mandats, protocole, RGPD intégré',
             self::PROJECTS => 'Kanban, Gantt simplifié, agenda partagé',
             self::CHAT => 'Canaux, messagerie 1:1, WebSocket Soketi',
             self::NEWS => 'Agrégateur RSS, widget dashboard',
@@ -82,6 +85,7 @@ enum ModuleKey: string
             self::GED => 6,
             self::COLLABORA => 6,
             self::ERP => 7,
+            self::DATAGRID => 8,
             self::PROJECTS => 5,  // Phase 5bis
             self::CHAT => 9,
             self::NEWS => 10,
@@ -108,6 +112,7 @@ enum ModuleKey: string
             self::GED => 'folder-open',
             self::COLLABORA => 'document-text',
             self::ERP => 'table',
+            self::DATAGRID => 'identification',
             self::PROJECTS => 'view-boards',
             self::CHAT => 'chat-alt-2',
             self::NEWS => 'rss',
