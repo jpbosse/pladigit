@@ -188,6 +188,7 @@ class ImportWizard extends Component
                 });
 
                 $columnNames = array_column($this->columns, 'name');
+                $columnTypes = array_column($this->columns, 'type', 'name');
                 $count = 0;
 
                 foreach ($import->getDataRows() as $row) {
@@ -195,7 +196,10 @@ class ImportWizard extends Component
                     $data = [];
 
                     foreach ($columnNames as $idx => $colName) {
-                        $data[$colName] = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? $rowArr[$idx] : null;
+                        $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
+                        $data[$colName] = ($raw !== null && ($columnTypes[$colName] ?? '') === DatagridColumnType::DATE->value)
+                            ? $this->normalizeDate($raw)
+                            : $raw;
                     }
 
                     if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
@@ -220,6 +224,15 @@ class ImportWizard extends Component
         } catch (\Throwable $e) {
             $this->errorMessage = $e->getMessage();
         }
+    }
+
+    private function normalizeDate(string $value): ?string
+    {
+        if (preg_match('#^(\d{2})/(\d{2})/(\d{4})$#', $value, $m)) {
+            return "{$m[3]}-{$m[2]}-{$m[1]}";
+        }
+
+        return $value ?: null;
     }
 
     private function addDynamicColumn(Blueprint $table, array $col): void
