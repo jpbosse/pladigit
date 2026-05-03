@@ -15,6 +15,9 @@ abstract class TestCase extends BaseTestCase
 
     private static bool $dbConfigured = false;
 
+    // Ensures stale compiled Blade views are purged exactly once per test session.
+    private static bool $viewCacheCleared = false;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -25,11 +28,23 @@ abstract class TestCase extends BaseTestCase
         if (! is_dir($tmpViews)) {
             mkdir($tmpViews, 0775, true);
         }
+
+        // Purge compiled *.php files once per session so that Blade always
+        // re-compiles views with all registered directives (including @livewire).
+        // A stale compiled file lacking the @livewire directive produces a null
+        // snapshot and breaks every Livewire::test() call.
+        if (! self::$viewCacheCleared) {
+            array_map('unlink', glob($tmpViews.'/*.php') ?: []);
+            self::$viewCacheCleared = true;
+        }
+
         config(['view.compiled' => $tmpViews]);
-        // Force the BladeCompiler singleton to be re-resolved with the new path
-        $this->app->forgetInstance('blade.compiler');
-        $this->app->forgetInstance('view');
-        $this->app->forgetInstance('view.engine.resolver');
+        // Update the compiled path directly on the existing BladeCompiler so that
+        // Livewire directives (registered at boot on this instance) are preserved.
+        // forgetInstance('blade.compiler') would lose them and break Livewire::test().
+        $prop = new \ReflectionProperty(app('blade.compiler'), 'cachePath');
+        $prop->setAccessible(true);
+        $prop->setValue(app('blade.compiler'), $tmpViews);
 
         if (! self::$dbConfigured) {
             $this->configureDatabases();
