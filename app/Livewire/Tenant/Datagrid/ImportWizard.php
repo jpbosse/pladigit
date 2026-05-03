@@ -53,7 +53,7 @@ class ImportWizard extends Component
     public function updatedTableLabel(string $value): void
     {
         if ($this->tableName === '') {
-            $this->tableName = Str::snake(Str::ascii($value));
+            $this->tableName = 'dg_' . Str::snake(Str::ascii($value));
         }
     }
 
@@ -161,7 +161,7 @@ class ImportWizard extends Component
                     'name' => $this->tableName,
                     'label' => $this->tableLabel,
                     'description' => $this->tableDescription ?: null,
-                    'mysql_table' => $this->tableName,
+                    'mysql_table' => $this->mysqlTableName(),
                     'has_rgpd' => $this->hasRgpd,
                     'is_persons_view' => false,
                     'created_by' => auth()->id(),
@@ -179,7 +179,7 @@ class ImportWizard extends Component
                     ]);
                 }
 
-                Schema::connection('tenant')->create($this->tableName, function (Blueprint $table) {
+                Schema::connection('tenant')->create($this->mysqlTableName(), function (Blueprint $table) {
                     $table->id();
                     foreach ($this->columns as $col) {
                         $this->addDynamicColumn($table, $col);
@@ -208,7 +208,7 @@ class ImportWizard extends Component
 
                     $data['created_at'] = now();
                     $data['updated_at'] = now();
-                    DB::connection('tenant')->table($this->tableName)->insert($data);
+                    DB::connection('tenant')->table($this->mysqlTableName())->insert($data);
                     $count++;
                 }
 
@@ -227,6 +227,11 @@ class ImportWizard extends Component
             }
             $this->errorMessage = $e->getMessage();
         }
+    }
+
+    private function mysqlTableName(): string
+    {
+        return str_starts_with($this->tableName, 'dg_') ? $this->tableName : 'dg_'.$this->tableName;
     }
 
     private function normalizeDate(string $value): ?string

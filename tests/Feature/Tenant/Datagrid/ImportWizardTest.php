@@ -198,10 +198,10 @@ class ImportWizardTest extends TestCase
 
         $this->assertCount(3, DatagridColumn::on('tenant')->where('datagrid_table_id', $dgTable->id)->get());
 
-        $this->assertTrue(Schema::connection('tenant')->hasTable('agents'));
-        $this->assertEquals(2, DB::connection('tenant')->table('agents')->count());
+        $this->assertTrue(Schema::connection('tenant')->hasTable('dg_agents'));
+        $this->assertEquals(2, DB::connection('tenant')->table('dg_agents')->count());
 
-        Schema::connection('tenant')->dropIfExists('agents');
+        Schema::connection('tenant')->dropIfExists('dg_agents');
     }
 
     public function test_import_ignore_les_lignes_vides(): void
@@ -225,7 +225,7 @@ class ImportWizardTest extends TestCase
 
         $component->assertSet('importedRows', 2);
 
-        Schema::connection('tenant')->dropIfExists('personnes_test');
+        Schema::connection('tenant')->dropIfExists('dg_personnes_test');
     }
 
     public function test_import_avec_colonne_requise_crée_colonne_non_nullable(): void
@@ -252,7 +252,7 @@ class ImportWizardTest extends TestCase
         $this->assertNotNull($colNom);
         $this->assertTrue($colNom->required);
 
-        Schema::connection('tenant')->dropIfExists('req_test');
+        Schema::connection('tenant')->dropIfExists('dg_req_test');
     }
 
     // ── DatagridImport — isolation ─────────────────────────────────────────
