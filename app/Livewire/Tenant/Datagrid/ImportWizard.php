@@ -48,6 +48,24 @@ class ImportWizard extends Component
 
     public ?string $errorMessage = null;
 
+    /** @var array<int, array{label:string, name:string, columns_count:int}> */
+    public array $existingGrids = [];
+
+    // ── Lifecycle ──────────────────────────────────────────────────
+
+    public function mount(): void
+    {
+        $this->existingGrids = DatagridTable::withCount('columns')
+            ->orderBy('label')
+            ->get()
+            ->map(fn ($g) => [
+                'label' => $g->label,
+                'name' => $g->name,
+                'columns_count' => $g->columns_count,
+            ])
+            ->toArray();
+    }
+
     // ── Réactivité ─────────────────────────────────────────────────
 
     public function updatedTableLabel(string $value): void
