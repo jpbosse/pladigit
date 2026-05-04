@@ -48,6 +48,12 @@
             'match' => 'super-admin.stats',
         ],
         [
+            'label' => 'DataGrid',
+            'icon'  => '<svg style="width:15px;height:15px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>',
+            'route' => 'super-admin.datagrids.index',
+            'match' => 'super-admin.datagrids.*',
+        ],
+        [
             'label' => 'Sauvegarde',
             'icon'  => '<svg style="width:15px;height:15px;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>',
             'route' => 'super-admin.backup',

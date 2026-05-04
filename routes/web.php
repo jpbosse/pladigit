@@ -32,6 +32,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\AuthController;
 use App\Http\Controllers\SuperAdmin\BackupController;
+use App\Http\Controllers\SuperAdmin\DatagridController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 use App\Http\Controllers\SuperAdmin\SecurityController;
 use App\Http\Controllers\SuperAdmin\StatsController;
@@ -96,6 +97,7 @@ Route::prefix('super-admin')
     ->group(function () {
         Route::get('/', [OrganizationController::class, 'index'])->name('dashboard');
         Route::get('/stats', [StatsController::class, 'index'])->name('stats');
+        Route::get('datagrids', [DatagridController::class, 'index'])->name('datagrids.index');
         Route::resource('organizations', OrganizationController::class);
         Route::post('organizations/{organization}/suspend', [OrganizationController::class, 'suspend'])->name('organizations.suspend');
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');
