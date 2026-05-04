@@ -152,69 +152,74 @@ class ImportWizard extends Component
     {
         $this->errorMessage = null;
 
+        $dgTable = null;
+        $tableCreated = false;
+
         try {
             $import = new DatagridImport;
             Excel::import($import, Storage::disk('local')->path($this->tempPath));
 
-            DB::connection('tenant')->transaction(function () use ($import): void {
-                $dgTable = DatagridTable::create([
-                    'name' => $this->tableName,
-                    'label' => $this->tableLabel,
-                    'description' => $this->tableDescription ?: null,
-                    'mysql_table' => $this->mysqlTableName(),
-                    'has_rgpd' => $this->hasRgpd,
-                    'is_persons_view' => false,
-                    'created_by' => auth()->id(),
+            // ── 1. Métadonnées (DML) ──────────────────────────────
+            $dgTable = DatagridTable::create([
+                'name' => $this->tableName,
+                'label' => $this->tableLabel,
+                'description' => $this->tableDescription ?: null,
+                'mysql_table' => $this->mysqlTableName(),
+                'has_rgpd' => $this->hasRgpd,
+                'is_persons_view' => false,
+                'created_by' => auth()->id(),
+            ]);
+
+            foreach ($this->columns as $i => $col) {
+                DatagridColumn::create([
+                    'datagrid_table_id' => $dgTable->id,
+                    'name' => $col['name'],
+                    'label' => $col['label'],
+                    'type' => $col['type'],
+                    'required' => (bool) $col['required'],
+                    'visible_by_default' => true,
+                    'sort_order' => $i + 1,
                 ]);
+            }
 
-                foreach ($this->columns as $i => $col) {
-                    DatagridColumn::create([
-                        'datagrid_table_id' => $dgTable->id,
-                        'name' => $col['name'],
-                        'label' => $col['label'],
-                        'type' => $col['type'],
-                        'required' => (bool) $col['required'],
-                        'visible_by_default' => true,
-                        'sort_order' => $i + 1,
-                    ]);
+            // ── 2. Table physique (DDL — commit implicite MySQL) ──
+            Schema::connection('tenant')->create($this->mysqlTableName(), function (Blueprint $table) {
+                $table->id();
+                foreach ($this->columns as $col) {
+                    $this->addDynamicColumn($table, $col);
                 }
-
-                Schema::connection('tenant')->create($this->mysqlTableName(), function (Blueprint $table) {
-                    $table->id();
-                    foreach ($this->columns as $col) {
-                        $this->addDynamicColumn($table, $col);
-                    }
-                    $table->timestamps();
-                });
-
-                $columnNames = array_column($this->columns, 'name');
-                $columnTypes = array_column($this->columns, 'type', 'name');
-                $count = 0;
-
-                foreach ($import->getDataRows() as $row) {
-                    $rowArr = array_values($row->toArray());
-                    $data = [];
-
-                    foreach ($columnNames as $idx => $colName) {
-                        $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
-                        $data[$colName] = ($raw !== null && ($columnTypes[$colName] ?? '') === DatagridColumnType::DATE->value)
-                            ? $this->normalizeDate($raw)
-                            : $raw;
-                    }
-
-                    if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
-                        continue;
-                    }
-
-                    $data['created_at'] = now();
-                    $data['updated_at'] = now();
-                    DB::connection('tenant')->table($this->mysqlTableName())->insert($data);
-                    $count++;
-                }
-
-                $this->importedRows = $count;
-                $this->importedTableId = $dgTable->id;
+                $table->timestamps();
             });
+            $tableCreated = true;
+
+            // ── 3. Lignes de données ──────────────────────────────
+            $columnNames = array_column($this->columns, 'name');
+            $columnTypes = array_column($this->columns, 'type', 'name');
+            $count = 0;
+
+            foreach ($import->getDataRows() as $row) {
+                $rowArr = array_values($row->toArray());
+                $data = [];
+
+                foreach ($columnNames as $idx => $colName) {
+                    $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
+                    $data[$colName] = ($raw !== null && ($columnTypes[$colName] ?? '') === DatagridColumnType::DATE->value)
+                        ? $this->normalizeDate($raw)
+                        : $raw;
+                }
+
+                if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
+                    continue;
+                }
+
+                $data['created_at'] = now();
+                $data['updated_at'] = now();
+                DB::connection('tenant')->table($this->mysqlTableName())->insert($data);
+                $count++;
+            }
+
+            $this->importedRows = $count;
+            $this->importedTableId = $dgTable->id;
 
             if ($this->tempPath) {
                 Storage::disk('local')->delete($this->tempPath);
@@ -222,8 +227,11 @@ class ImportWizard extends Component
             }
 
         } catch (\Throwable $e) {
-            if (DB::connection('tenant')->transactionLevel() > 0) {
-                DB::connection('tenant')->rollBack();
+            if ($tableCreated) {
+                Schema::connection('tenant')->dropIfExists($this->mysqlTableName());
+            }
+            if ($dgTable) {
+                $dgTable->forceDelete();
             }
             $this->errorMessage = $e->getMessage();
         }
