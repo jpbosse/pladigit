@@ -53,7 +53,7 @@ class ImportWizard extends Component
     public function updatedTableLabel(string $value): void
     {
         if ($this->tableName === '') {
-            $this->tableName = 'dg_' . Str::snake(Str::ascii($value));
+            $this->tableName = 'dg_'.Str::snake(Str::ascii($value));
         }
     }
 
