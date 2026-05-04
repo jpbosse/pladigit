@@ -46,9 +46,18 @@
                 {{ $statusLabel }}
             </span>
         </div>
-        <span style="font-size:12px;color:var(--pd-muted);white-space:nowrap;">
-            {{ count($row['grids']) }} grille(s)
-        </span>
+        <div style="display:flex;align-items:center;gap:12px;">
+            <span style="font-size:12px;color:var(--pd-muted);white-space:nowrap;">
+                {{ count($row['grids']) }} grille(s)
+            </span>
+            @if($org->status === 'active')
+            <a href="{{ route('super-admin.datagrids.import', $org) }}"
+               style="padding:5px 12px;background:var(--pd-navy);color:#fff;border-radius:8px;
+                      font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;">
+                + Importer
+            </a>
+            @endif
+        </div>
     </div>
 
     @if($row['error'])

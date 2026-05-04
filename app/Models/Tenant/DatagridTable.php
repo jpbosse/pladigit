@@ -26,7 +26,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property bool $has_rgpd
  * @property bool $is_persons_view
  * @property array|null $role_categories
- * @property int $created_by
+ * @property int|null $created_by
  */
 class DatagridTable extends Model
 {

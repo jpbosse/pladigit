@@ -28,7 +28,7 @@ return new class extends Migration
             $table->boolean('has_rgpd')->default(false);
             $table->boolean('is_persons_view')->default(false);
             $table->json('role_categories')->nullable();
-            $table->foreignId('created_by')->constrained('users');
+            $table->foreignId('created_by')->nullable()->constrained('users');
             $table->timestamps();
             $table->softDeletes();
 

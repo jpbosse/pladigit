@@ -5,6 +5,7 @@ namespace App\Http\Controllers\SuperAdmin;
 use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
 use App\Services\TenantManager;
+use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\DB;
 
 class DatagridController extends Controller
@@ -70,5 +71,20 @@ class DatagridController extends Controller
         }
 
         return view('super-admin.datagrids.index', compact('rows'));
+    }
+
+    public function import(Organization $organization): View
+    {
+        $org = $organization;
+        $manager = app(TenantManager::class);
+
+        try {
+            $manager->connectTo($org);
+            $grids = DB::connection('tenant')->table('datagrid_tables')->get();
+        } catch (\Throwable) {
+            $grids = collect();
+        }
+
+        return view('super-admin.datagrids.import', compact('org', 'grids'));
     }
 }

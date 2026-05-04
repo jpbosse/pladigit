@@ -98,6 +98,7 @@ Route::prefix('super-admin')
         Route::get('/', [OrganizationController::class, 'index'])->name('dashboard');
         Route::get('/stats', [StatsController::class, 'index'])->name('stats');
         Route::get('datagrids', [DatagridController::class, 'index'])->name('datagrids.index');
+        Route::get('datagrids/{organization}/import', [DatagridController::class, 'import'])->name('datagrids.import');
         Route::resource('organizations', OrganizationController::class);
         Route::post('organizations/{organization}/suspend', [OrganizationController::class, 'suspend'])->name('organizations.suspend');
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');
