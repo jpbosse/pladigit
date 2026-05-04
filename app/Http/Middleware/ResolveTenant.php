@@ -26,6 +26,11 @@ class ResolveTenant
             return $next($request);
         }
 
+        // Telescope — accès super admin uniquement, pas de résolution tenant
+        if ($request->is('telescope', 'telescope/*')) {
+            return $next($request);
+        }
+
         // Routes WOPI publiques — le tenant est résolu depuis le token, pas le hostname
         if ($request->is('wopi/*')) {
             return $next($request);
