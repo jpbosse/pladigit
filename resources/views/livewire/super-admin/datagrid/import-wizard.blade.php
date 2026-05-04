@@ -121,7 +121,7 @@
                         <label class="pd-label pd-label-req">Nom technique (table MySQL)</label>
                         <input type="text" wire:model="tableName"
                                class="pd-input" placeholder="Ex : associations"
-                               style="width:100%;font-family:monospace;font-size:12px;">
+                               style="width:100%;font-family:monospace;font-size:11px;">
                         @error('tableName')
                         <div style="font-size:11px;color:#991B1B;margin-top:3px;">{{ $message }}</div>
                         @enderror
@@ -132,7 +132,7 @@
                     <label class="pd-label">Description (optionnelle)</label>
                     <input type="text" wire:model="tableDescription"
                            class="pd-input" placeholder="Description courte de cette grille"
-                           style="width:100%;">
+                           style="width:100%;font-size:11px;color:var(--pd-muted);">
                 </div>
 
                 <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">

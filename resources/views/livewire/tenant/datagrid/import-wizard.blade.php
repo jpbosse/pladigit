@@ -1,4 +1,48 @@
-<div style="max-width:860px;margin:32px auto;padding:0 20px;">
+<div style="max-width:1180px;margin:32px auto;padding:0 20px;">
+<div class="dg-import-flex" style="display:flex;gap:24px;align-items:flex-start;">
+
+{{-- ── Sidebar gauche — grilles existantes ────────────────────── --}}
+<div class="dg-import-sidebar" style="width:280px;flex-shrink:0;position:sticky;top:24px;">
+    <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);
+                border-radius:12px;overflow:hidden;">
+        <div style="padding:11px 16px;border-bottom:0.5px solid var(--pd-border);
+                    display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:11px;font-weight:600;color:var(--pd-muted);
+                         text-transform:uppercase;letter-spacing:.05em;">
+                Grilles existantes
+            </span>
+            <span style="font-size:11px;background:var(--pd-bg2);color:var(--pd-muted);
+                         padding:1px 8px;border-radius:10px;">
+                {{ count($existingGrids) }}
+            </span>
+        </div>
+        <div style="max-height:62vh;overflow-y:auto;">
+            @forelse($existingGrids as $grid)
+            <div style="padding:9px 16px;border-bottom:0.5px solid var(--pd-border);">
+                <div style="font-size:12px;font-weight:600;color:var(--pd-text);
+                             white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                    {{ $grid['label'] }}
+                </div>
+                <div style="font-size:10px;color:var(--pd-muted);font-family:monospace;
+                             margin-top:2px;">
+                    {{ $grid['name'] }}
+                </div>
+                <div style="font-size:10px;color:var(--pd-muted);margin-top:2px;">
+                    {{ $grid['columns_count'] }} col.
+                </div>
+            </div>
+            @empty
+            <div style="padding:20px;text-align:center;font-size:12px;
+                         color:var(--pd-muted);font-style:italic;">
+                Aucune grille définie
+            </div>
+            @endforelse
+        </div>
+    </div>
+</div>
+
+{{-- ── Zone wizard droite ───────────────────────────────────────── --}}
+<div style="flex:1;min-width:0;">
 
     {{-- ── Fil d'Ariane ─────────────────────────────────────────── --}}
     <div style="margin-bottom:20px;font-size:12px;color:var(--pd-muted);">
@@ -130,7 +174,7 @@
                         <label class="pd-label pd-label-req">Nom technique (table MySQL)</label>
                         <input type="text" wire:model="tableName"
                                class="pd-input" placeholder="Ex : associations"
-                               style="width:100%;font-family:monospace;font-size:12px;">
+                               style="width:100%;font-family:monospace;font-size:11px;">
                         @error('tableName')
                         <div style="font-size:11px;color:#991B1B;margin-top:3px;">{{ $message }}</div>
                         @enderror
@@ -141,7 +185,7 @@
                     <label class="pd-label">Description (optionnelle)</label>
                     <input type="text" wire:model="tableDescription"
                            class="pd-input" placeholder="Description courte de cette grille"
-                           style="width:100%;">
+                           style="width:100%;font-size:11px;color:var(--pd-muted);">
                 </div>
 
                 <div style="margin-top:12px;display:flex;align-items:center;gap:8px;">
@@ -352,4 +396,13 @@
     </div>
     @endif
 
-</div>
+</div>{{-- /zone wizard --}}
+</div>{{-- /flex --}}
+
+<style>
+@media (max-width: 800px) {
+    .dg-import-flex { flex-direction: column !important; }
+    .dg-import-sidebar { width: 100% !important; position: static !important; }
+}
+</style>
+</div>{{-- /wrapper --}}

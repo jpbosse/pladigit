@@ -46,37 +46,58 @@
     </div>
 </div>
 
-{{-- ── Grilles existantes (contexte) ──────────────────────────── --}}
-@if($grids->isNotEmpty())
-<div style="background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:14px;overflow:hidden;margin-bottom:28px;">
-    <div style="padding:12px 20px;border-bottom:1px solid var(--pd-border);display:flex;align-items:center;gap:8px;">
-        <span style="font-size:13px;font-weight:600;color:var(--pd-text);">Grilles existantes</span>
-        <span style="font-size:11px;color:var(--pd-muted);">{{ $grids->count() }} grille(s) déjà présente(s) dans ce tenant</span>
-    </div>
-    <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
-            <thead>
-                <tr style="background:var(--pd-bg);border-bottom:1px solid var(--pd-border);">
-                    <th style="text-align:left;padding:8px 16px;color:var(--pd-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Nom technique</th>
-                    <th style="text-align:left;padding:8px 16px;color:var(--pd-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Libellé</th>
-                    <th style="text-align:left;padding:8px 16px;color:var(--pd-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Table MySQL</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($grids as $grid)
-                <tr style="border-bottom:0.5px solid var(--pd-border);">
-                    <td style="padding:8px 16px;font-family:monospace;color:var(--sa-primary);font-weight:600;">{{ $grid->name }}</td>
-                    <td style="padding:8px 16px;color:var(--pd-text);">{{ $grid->label }}</td>
-                    <td style="padding:8px 16px;font-family:monospace;color:var(--pd-muted);">{{ $grid->mysql_table }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
-@endif
+{{-- ── Layout deux colonnes ───────────────────────────────────────── --}}
+<div class="dg-import-flex" style="display:flex;gap:24px;align-items:flex-start;">
 
-{{-- ── Wizard d'import ─────────────────────────────────────────── --}}
-@livewire('super-admin.datagrid.import-wizard', ['organizationId' => $org->id])
+    {{-- Sidebar gauche — grilles existantes --}}
+    <div class="dg-import-sidebar" style="width:280px;flex-shrink:0;position:sticky;top:24px;">
+        <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);
+                    border-radius:12px;overflow:hidden;">
+            <div style="padding:11px 16px;border-bottom:0.5px solid var(--pd-border);
+                        display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:11px;font-weight:600;color:var(--pd-muted);
+                             text-transform:uppercase;letter-spacing:.05em;">
+                    Grilles existantes
+                </span>
+                <span style="font-size:11px;background:var(--pd-bg2);color:var(--pd-muted);
+                             padding:1px 8px;border-radius:10px;">
+                    {{ $grids->count() }}
+                </span>
+            </div>
+            <div style="max-height:62vh;overflow-y:auto;">
+                @forelse($grids as $grid)
+                <div style="padding:9px 16px;border-bottom:0.5px solid var(--pd-border);">
+                    <div style="font-size:12px;font-weight:600;color:var(--pd-text);
+                                 white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                        {{ $grid->label }}
+                    </div>
+                    <div style="font-size:10px;color:var(--pd-muted);font-family:monospace;
+                                 margin-top:2px;">
+                        {{ $grid->name }}
+                    </div>
+                </div>
+                @empty
+                <div style="padding:20px;text-align:center;font-size:12px;
+                             color:var(--pd-muted);font-style:italic;">
+                    Aucune grille définie
+                </div>
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    {{-- Zone wizard droite --}}
+    <div style="flex:1;min-width:0;">
+        @livewire('super-admin.datagrid.import-wizard', ['organizationId' => $org->id])
+    </div>
+
+</div>
+
+<style>
+@media (max-width: 800px) {
+    .dg-import-flex { flex-direction: column !important; }
+    .dg-import-sidebar { width: 100% !important; position: static !important; }
+}
+</style>
 
 @endsection
