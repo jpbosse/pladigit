@@ -135,9 +135,8 @@ class AdminDatagridTest extends TestCase
         $column = $this->table->columns()->where('name', 'email')->first();
 
         $this->actingAs($this->admin, 'tenant')
-            ->deleteJson(route('datagrid.columns.destroy', [$this->table, $column]))
-            ->assertOk()
-            ->assertJson(['success' => true]);
+            ->delete(route('datagrid.columns.destroy', [$this->table, $column]))
+            ->assertRedirect(route('admin.datagrid.edit', $this->table));
 
         $this->assertDatabaseMissing('datagrid_columns', [
             'id' => $column->id,
