@@ -188,6 +188,13 @@
         </a>
         @endif
 
+        @if(app(\App\Services\TenantManager::class)->current()?->hasModule(\App\Enums\ModuleKey::DATAGRID))
+        <a href="{{ route('datagrid.index') }}" class="pd-nav-item {{ str_starts_with($route, 'datagrid.') ? 'active' : '' }}">
+            <span class="pd-nav-icon"><svg style="width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg></span>
+            <span class="pd-nav-label">DataGrid</span>
+            <span class="pd-nav-tip">Annuaire DataGrid</span>
+        </a>
+        @endif
 
 @if($tenant?->hasModule(\App\Enums\ModuleKey::PROJECTS))
     <a href="{{ route('projects.index') }}"
