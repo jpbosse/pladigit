@@ -95,7 +95,7 @@ enum ModuleKey: string
 
     /**
      * Indique si le module est déployé (phase livrée ou en cours).
-     * Phases 1–6 livrées → media + projects + ged disponibles.
+     * Phases 1–8 livrées → media + projects + ged + datagrid disponibles.
      */
     public function isAvailable(): bool
     {
