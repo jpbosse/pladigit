@@ -101,8 +101,30 @@
                               border-radius:8px;font-size:13px;color:var(--pd-text);
                               background:var(--pd-bg);cursor:pointer;">
                 <div style="font-size:11px;color:var(--pd-muted);margin-top:5px;">
-                    Taille maximale : 10 Mo
+                    Taille maximale : 40 Mo
                 </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:10px;">
+                    Mode d'import
+                </div>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px;">
+                    <input type="radio" wire:model="importMode" value="append"
+                           style="width:15px;height:15px;cursor:pointer;">
+                    <span>
+                        <strong>Ajouter aux données existantes</strong>
+                        <span style="font-size:12px;color:var(--pd-muted);margin-left:6px;">(import incrémental)</span>
+                    </span>
+                </label>
+                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                    <input type="radio" wire:model="importMode" value="replace"
+                           style="width:15px;height:15px;cursor:pointer;">
+                    <span>
+                        <strong>Remplacer toutes les données existantes</strong>
+                        <span style="font-size:12px;color:var(--pd-muted);margin-left:6px;">(import complet — efface les lignes actuelles)</span>
+                    </span>
+                </label>
             </div>
 
             <div style="background:var(--pd-bg2);border-radius:8px;padding:12px 14px;
@@ -373,7 +395,11 @@
                 Cette action va :<br>
                 • Créer l'entrée <strong>{{ $tableLabel }}</strong> dans le registre des grilles DataGrid<br>
                 • Créer la table MySQL <code style="font-family:monospace;">{{ $tableName }}</code> dans la base tenant<br>
-                • Importer les lignes de données depuis le fichier Excel
+                @if($importMode === 'replace')
+                • <strong>Effacer toutes les lignes existantes</strong>, puis importer les données du fichier
+                @else
+                • Ajouter les lignes du fichier aux données existantes (import incrémental)
+                @endif
             </div>
 
             <div style="display:flex;justify-content:space-between;">

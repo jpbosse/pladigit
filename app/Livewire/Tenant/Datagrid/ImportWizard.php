@@ -37,6 +37,8 @@ class ImportWizard extends Component
 
     public bool $hasRgpd = false;
 
+    public string $importMode = 'append';
+
     /** @var array<int, array{index:int, header:string, label:string, name:string, type:string, required:bool}> */
     public array $columns = [];
 
@@ -80,11 +82,11 @@ class ImportWizard extends Component
     public function uploadFile(): void
     {
         $this->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:40960'],
         ], [
             'file.required' => 'Veuillez choisir un fichier.',
             'file.mimes' => 'Le fichier doit être au format .xlsx ou .xls.',
-            'file.max' => 'La taille maximale est de 10 Mo.',
+            'file.max' => 'La taille maximale est de 40 Mo.',
         ]);
 
         $this->tempPath = $this->file->storeAs(
@@ -152,6 +154,7 @@ class ImportWizard extends Component
         $this->tableName = '';
         $this->tableDescription = '';
         $this->hasRgpd = false;
+        $this->importMode = 'append';
         if ($this->tempPath) {
             Storage::disk('local')->delete($this->tempPath);
             $this->tempPath = null;
@@ -211,6 +214,10 @@ class ImportWizard extends Component
             $tableCreated = true;
 
             // ── 3. Lignes de données ──────────────────────────────
+            if ($this->importMode === 'replace') {
+                DB::connection('tenant')->table($this->mysqlTableName())->truncate();
+            }
+
             $columnNames = array_column($this->columns, 'name');
             $columnTypes = array_column($this->columns, 'type', 'name');
             $count = 0;
