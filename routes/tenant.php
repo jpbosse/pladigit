@@ -12,4 +12,16 @@ Route::prefix('datagrid')->name('datagrid.')->middleware('module:datagrid')->gro
     Route::get('import', ImportWizard::class)
         ->name('import');
 
+    Route::get('{table}', [DatagridController::class, 'show'])
+        ->name('show');
+
+    Route::patch('{table}/columns/{column}', [DatagridController::class, 'updateColumn'])
+        ->name('columns.update');
+
+    Route::post('{table}/views', [DatagridController::class, 'storeView'])
+        ->name('views.store');
+
+    Route::delete('{table}/views/{view}', [DatagridController::class, 'destroyView'])
+        ->name('views.destroy');
+
 });
