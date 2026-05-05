@@ -121,16 +121,16 @@
                                       margin-right:6px;">
                                 Modifier
                             </a>
-                            <form method="POST"
+                            <button type="button"
+                                    onclick="showDeleteModal('{{ $grid['mysql_table'] }}', 'form-del-{{ $org->id }}-{{ $grid['id'] }}')"
+                                    style="padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;
+                                           font-size:11px;font-weight:500;color:#dc2626;background:#fef2f2;cursor:pointer;">
+                                Supprimer
+                            </button>
+                            <form id="form-del-{{ $org->id }}-{{ $grid['id'] }}" method="POST"
                                   action="{{ route('super-admin.datagrids.destroy', [$org, $grid['id']]) }}"
-                                  style="display:inline;"
-                                  onsubmit="return confirm('Supprimer la grille « {{ $grid['label'] }} » et ses données ?')">
+                                  style="display:none;">
                                 @csrf @method('DELETE')
-                                <button type="submit"
-                                        style="padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;
-                                               font-size:11px;font-weight:500;color:#dc2626;background:#fef2f2;cursor:pointer;">
-                                    Supprimer
-                                </button>
                             </form>
                             @endif
                         </td>
@@ -149,4 +149,72 @@
 </div>
 @endforelse
 
+{{-- Modale suppression grille --}}
+<div id="delete-modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;
+            align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <h3 style="font-size:15px;font-weight:700;color:var(--pd-text);margin:0 0 10px;">Supprimer la grille</h3>
+        <p style="font-size:13px;color:var(--pd-muted);margin:0 0 16px;line-height:1.5;">
+            Cette action est irréversible. Tapez le nom de la table pour confirmer :
+        </p>
+        <code id="modal-target-name"
+              style="display:block;font-size:13px;font-weight:700;color:var(--pd-text);
+                     background:#f8f9fb;border:1px solid var(--pd-border);border-radius:6px;
+                     padding:6px 10px;margin-bottom:12px;"></code>
+        <input id="modal-confirm-input" type="text" placeholder="Saisir le nom de la table…"
+               style="width:100%;padding:8px 10px;border:1px solid var(--pd-border);border-radius:7px;
+                      font-size:13px;box-sizing:border-box;margin-bottom:16px;font-family:monospace;">
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button type="button" onclick="closeDeleteModal()"
+                    style="padding:7px 16px;border:1px solid var(--pd-border);border-radius:7px;
+                           font-size:13px;color:var(--pd-text);background:#fff;cursor:pointer;">
+                Annuler
+            </button>
+            <button type="button" onclick="submitDeleteModal()"
+                    style="padding:7px 16px;background:#dc2626;color:#fff;border:none;
+                           border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">
+                Supprimer définitivement
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var _formId = null;
+
+    window.showDeleteModal = function (tableName, formId) {
+        _formId = formId;
+        document.getElementById('modal-target-name').textContent = tableName;
+        document.getElementById('modal-confirm-input').value = '';
+        document.getElementById('modal-confirm-input').style.borderColor = '';
+        document.getElementById('delete-modal').style.display = 'flex';
+        document.getElementById('modal-confirm-input').focus();
+    };
+
+    window.closeDeleteModal = function () {
+        document.getElementById('delete-modal').style.display = 'none';
+    };
+
+    window.submitDeleteModal = function () {
+        var input    = document.getElementById('modal-confirm-input');
+        var expected = document.getElementById('modal-target-name').textContent;
+        if (input.value === expected) {
+            document.getElementById(_formId).submit();
+        } else {
+            input.style.borderColor = '#dc2626';
+        }
+    };
+
+    document.getElementById('modal-confirm-input').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') window.submitDeleteModal();
+        if (e.key === 'Escape') window.closeDeleteModal();
+    });
+
+    document.getElementById('delete-modal').addEventListener('click', function (e) {
+        if (e.target === this) window.closeDeleteModal();
+    });
+}());
+</script>
 @endsection

@@ -94,7 +94,7 @@ class DatagridAdminController extends Controller
         return response()->json(['success' => true]);
     }
 
-    public function destroyColumn(DatagridTable $table, DatagridColumn $column): JsonResponse
+    public function destroyColumn(DatagridTable $table, DatagridColumn $column): RedirectResponse
     {
         DB::connection('tenant')->statement(
             "ALTER TABLE `{$table->mysql_table}` DROP COLUMN `{$column->name}`"
@@ -104,7 +104,8 @@ class DatagridAdminController extends Controller
 
         app(DatagridPermissionService::class)->invalidateCacheForTable($table);
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.edit', $table)
+            ->with('success', 'Colonne supprimée.');
     }
 
     public function editColumn(DatagridTable $table, DatagridColumn $column): View

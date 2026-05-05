@@ -63,20 +63,20 @@
                 Enregistrer
             </button>
             <span data-saved style="display:none;font-size:12px;color:#16a34a;font-weight:600;">✓ Sauvegardé</span>
-            <form method="POST"
-                  action="{{ route('super-admin.datagrids.destroy', [$org, $table->id]) }}"
-                  style="margin-left:auto;"
-                  onsubmit="return confirm('Supprimer la grille « {{ $table->label }} » et toutes ses données ?')">
-                @csrf @method('DELETE')
-                <button type="submit"
-                        style="padding:7px 14px;border:1px solid #fca5a5;border-radius:7px;
-                               font-size:13px;font-weight:600;color:#dc2626;background:#fef2f2;cursor:pointer;">
-                    Supprimer cette grille
-                </button>
-            </form>
+            <button type="button"
+                    onclick="showDeleteModal('{{ $table->mysql_table }}', 'form-delete-grid')"
+                    style="margin-left:auto;padding:7px 14px;border:1px solid #fca5a5;border-radius:7px;
+                           font-size:13px;font-weight:600;color:#dc2626;background:#fef2f2;cursor:pointer;">
+                Supprimer cette grille
+            </button>
         </div>
     </form>
 </div>
+
+<form id="form-delete-grid" method="POST"
+      action="{{ route('super-admin.datagrids.destroy', [$org, $table->id]) }}" style="display:none;">
+    @csrf @method('DELETE')
+</form>
 
 {{-- Colonnes --}}
 <div style="background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;padding:20px;">
@@ -105,7 +105,12 @@
                     <td style="padding:9px 14px;color:var(--pd-text);">{{ $col->label }}</td>
                     <td style="padding:9px 14px;color:var(--pd-muted);">{{ $col->type->value }}</td>
                     <td style="padding:9px 14px;text-align:center;">{{ $col->required ? '✓' : '' }}</td>
-                    <td style="padding:9px 14px;text-align:right;">
+                    <td style="padding:9px 14px;text-align:right;white-space:nowrap;">
+                        <a href="{{ route('super-admin.datagrids.columns.edit', [$org, $table->id, $col->id]) }}"
+                           style="padding:4px 10px;border:1px solid var(--pd-border);border-radius:5px;
+                                  font-size:11px;color:var(--pd-text);text-decoration:none;margin-right:4px;">
+                            Modifier les champs
+                        </a>
                         <form method="POST"
                               action="{{ route('super-admin.datagrids.columns.destroy', [$org, $table->id, $col->id]) }}"
                               style="display:inline;"
@@ -126,4 +131,72 @@
     @endif
 </div>
 
+{{-- Modale suppression grille --}}
+<div id="delete-modal"
+     style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;
+            align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <h3 style="font-size:15px;font-weight:700;color:var(--pd-text);margin:0 0 10px;">Supprimer la grille</h3>
+        <p style="font-size:13px;color:var(--pd-muted);margin:0 0 16px;line-height:1.5;">
+            Cette action est irréversible. Tapez le nom de la table pour confirmer :
+        </p>
+        <code id="modal-target-name"
+              style="display:block;font-size:13px;font-weight:700;color:var(--pd-text);
+                     background:#f8f9fb;border:1px solid var(--pd-border);border-radius:6px;
+                     padding:6px 10px;margin-bottom:12px;"></code>
+        <input id="modal-confirm-input" type="text" placeholder="Saisir le nom de la table…"
+               style="width:100%;padding:8px 10px;border:1px solid var(--pd-border);border-radius:7px;
+                      font-size:13px;box-sizing:border-box;margin-bottom:16px;font-family:monospace;">
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button type="button" onclick="closeDeleteModal()"
+                    style="padding:7px 16px;border:1px solid var(--pd-border);border-radius:7px;
+                           font-size:13px;color:var(--pd-text);background:#fff;cursor:pointer;">
+                Annuler
+            </button>
+            <button type="button" onclick="submitDeleteModal()"
+                    style="padding:7px 16px;background:#dc2626;color:#fff;border:none;
+                           border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">
+                Supprimer définitivement
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    var _formId = null;
+
+    window.showDeleteModal = function (tableName, formId) {
+        _formId = formId;
+        document.getElementById('modal-target-name').textContent = tableName;
+        document.getElementById('modal-confirm-input').value = '';
+        document.getElementById('modal-confirm-input').style.borderColor = '';
+        document.getElementById('delete-modal').style.display = 'flex';
+        document.getElementById('modal-confirm-input').focus();
+    };
+
+    window.closeDeleteModal = function () {
+        document.getElementById('delete-modal').style.display = 'none';
+    };
+
+    window.submitDeleteModal = function () {
+        var input    = document.getElementById('modal-confirm-input');
+        var expected = document.getElementById('modal-target-name').textContent;
+        if (input.value === expected) {
+            document.getElementById(_formId).submit();
+        } else {
+            input.style.borderColor = '#dc2626';
+        }
+    };
+
+    document.getElementById('modal-confirm-input').addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') window.submitDeleteModal();
+        if (e.key === 'Escape') window.closeDeleteModal();
+    });
+
+    document.getElementById('delete-modal').addEventListener('click', function (e) {
+        if (e.target === this) window.closeDeleteModal();
+    });
+}());
+</script>
 @endsection
