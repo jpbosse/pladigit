@@ -59,6 +59,8 @@ class ImportWizard extends Component
 
     public ?string $errorMessage = null;
 
+    public bool $fileHasHeader = true;
+
     /** @var array<int, array{id:int, label:string, name:string, columns_count:int}> */
     public array $existingGrids = [];
 
@@ -172,9 +174,10 @@ class ImportWizard extends Component
         $this->tableName    = '';
         $this->tableDescription = '';
         $this->hasRgpd      = false;
-        $this->importMode   = 'new';
-        $this->updateMode   = 'append';
+        $this->importMode    = 'new';
+        $this->updateMode    = 'append';
         $this->targetTableId = null;
+        $this->fileHasHeader = true;
         $this->errorMessage = null;
         $this->importedRows = 0;
         $this->importedTableId = null;
@@ -304,26 +307,34 @@ class ImportWizard extends Component
                 ->map(fn ($t) => $t->value)
                 ->all();
 
-            // Mapper les en-têtes Excel → colonnes existantes par name slug
-            $headerMap = [];
-            foreach ($this->columns as $col) {
-                if (array_key_exists($col['name'], $colTypeMap)) {
-                    $headerMap[$col['index']] = [
-                        'name' => $col['name'],
-                        'type' => $colTypeMap[$col['name']],
-                    ];
-                }
-            }
-
             $import = new DatagridImport;
             Excel::import($import, Storage::disk('local')->path($this->tempPath));
+
+            // Mapper les colonnes Excel → colonnes existantes
+            $headerMap = [];
+            if ($this->fileHasHeader) {
+                foreach ($this->columns as $col) {
+                    if (array_key_exists($col['name'], $colTypeMap)) {
+                        $headerMap[$col['index']] = [
+                            'name' => $col['name'],
+                            'type' => $colTypeMap[$col['name']],
+                        ];
+                    }
+                }
+                $dataRows = $import->getDataRows();
+            } else {
+                foreach ($dbCols->values() as $idx => $dbCol) {
+                    $headerMap[$idx] = ['name' => $dbCol->name, 'type' => $dbCol->type->value];
+                }
+                $dataRows = $import->getAllRows();
+            }
 
             if ($this->updateMode === 'replace') {
                 DB::connection('tenant')->table($mysqlTable)->truncate();
             }
 
             $count = 0;
-            foreach ($import->getDataRows() as $row) {
+            foreach ($dataRows as $row) {
                 $rowArr = array_values($row->toArray());
                 $data   = [];
 

@@ -48,6 +48,7 @@ class DatagridAdminController extends Controller
     public function updateColumn(DatagridTable $table, DatagridColumn $column): JsonResponse
     {
         $data = request()->validate([
+            'name'               => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
             'label'              => 'required|string|max:100',
             'visible_by_default' => 'boolean',
             'required'           => 'boolean',
@@ -57,6 +58,7 @@ class DatagridAdminController extends Controller
             'length'             => 'nullable|integer|min:1|max:65535',
         ]);
 
+        $oldName   = $column->name;
         $oldType   = $column->type;
         $newType   = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
         $oldLength = $column->length;
@@ -72,6 +74,18 @@ class DatagridAdminController extends Controller
             'length'             => $newLength,
         ]);
         $column->save();
+
+        $newName = $data['name'] ?? '';
+        if ($newName !== '' && $newName !== $oldName) {
+            if ($table->columns()->where('name', $newName)->where('id', '!=', $column->id)->exists()) {
+                return response()->json(['errors' => ['name' => ['Ce nom technique est déjà utilisé.']]], 422);
+            }
+            Schema::connection('tenant')->table($table->mysql_table, function (Blueprint $t) use ($oldName, $newName) {
+                $t->renameColumn($oldName, $newName);
+            });
+            $column->name = $newName;
+            $column->saveQuietly();
+        }
 
         if ($newType !== $oldType) {
             if (! $this->typesCompatible($oldType, $newType)) {

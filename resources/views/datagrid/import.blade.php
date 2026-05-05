@@ -1,6 +1,7 @@
-@extends('layouts.app')
+@extends('layouts.admin')
 @section('title', 'Import DataGrid — ERP')
 
-@section('content')
+@section('admin-content')
     @livewire('tenant.datagrid.import-wizard')
 @endsection
+

@@ -109,7 +109,7 @@
                 </div>
 
                 <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;margin-bottom:12px;">
-                    <input type="radio" wire:model.live="importMode" value="new"
+                    <input type="radio" wire:model.live="importMode" name="importMode" value="new"
                            style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
                     <span>
                         <strong>Créer une nouvelle grille</strong>
@@ -120,7 +120,7 @@
                 </label>
 
                 <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;">
-                    <input type="radio" wire:model.live="importMode" value="update"
+                    <input type="radio" wire:model.live="importMode" name="importMode" value="update"
                            style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
                     <span>
                         <strong>Mettre à jour une grille existante</strong>
@@ -157,6 +157,14 @@
                             @endforeach
                         </select>
                         @endif
+
+                        <div style="margin-top:10px;">
+                            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                                <input type="checkbox" wire:model="fileHasHeader"
+                                       style="width:15px;height:15px;cursor:pointer;">
+                                Mon fichier Excel contient une ligne d'en-tête (noms de colonnes)
+                            </label>
+                        </div>
                     </div>
 
                     <div>
@@ -164,7 +172,7 @@
                             Mode de mise à jour
                         </div>
                         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px;">
-                            <input type="radio" wire:model="updateMode" value="append"
+                            <input type="radio" wire:model="updateMode" name="updateMode" value="append"
                                    style="width:15px;height:15px;cursor:pointer;">
                             <span>
                                 <strong>Ajouter aux données existantes</strong>
@@ -172,7 +180,7 @@
                             </span>
                         </label>
                         <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                            <input type="radio" wire:model="updateMode" value="replace"
+                            <input type="radio" wire:model="updateMode" name="updateMode" value="replace"
                                    style="width:15px;height:15px;cursor:pointer;">
                             <span>
                                 <strong>Remplacer toutes les données</strong>

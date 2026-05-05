@@ -89,7 +89,7 @@
                         <th style="padding:8px 12px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">Type</th>
                         <th style="padding:8px 12px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">Requis</th>
                         <th style="padding:8px 12px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">RGPD</th>
-                        <th style="padding:8px 12px;border-bottom:1px solid var(--pd-border);"></th>
+                        <th style="padding:8px 12px;border-bottom:1px solid var(--pd-border);min-width:200px;white-space:nowrap;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -111,10 +111,10 @@
                                   style="display:inline;"
                                   onsubmit="return confirm('Supprimer la colonne « {{ $col->name }} » et ses données ?')">
                                 @csrf @method('DELETE')
-                                <button type="submit"
-                                        style="padding:4px 10px;border:1px solid #fca5a5;border-radius:5px;
-                                               font-size:11px;color:#dc2626;background:#fef2f2;cursor:pointer;">
-                                    Supprimer
+                                <button type="submit" title="Supprimer la colonne"
+                                        style="padding:4px 8px;border:1px solid #fca5a5;border-radius:5px;
+                                               font-size:12px;color:#dc2626;background:#fef2f2;cursor:pointer;">
+                                    🗑
                                 </button>
                             </form>
                         </td>

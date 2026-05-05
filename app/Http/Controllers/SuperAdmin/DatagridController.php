@@ -172,6 +172,7 @@ class DatagridController extends Controller
         $col  = DatagridColumn::findOrFail((int) $column);
 
         $data = request()->validate([
+            'name'               => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
             'label'              => 'required|string|max:100',
             'visible_by_default' => 'boolean',
             'required'           => 'boolean',
@@ -181,6 +182,7 @@ class DatagridController extends Controller
             'length'             => 'nullable|integer|min:1|max:65535',
         ]);
 
+        $oldName   = $col->name;
         $oldType   = $col->type;
         $newType   = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
         $oldLength = $col->length;
@@ -196,6 +198,18 @@ class DatagridController extends Controller
             'length'             => $newLength,
         ]);
         $col->save();
+
+        $newName = $data['name'] ?? '';
+        if ($newName !== '' && $newName !== $oldName) {
+            if ($grid->columns()->where('name', $newName)->where('id', '!=', $col->id)->exists()) {
+                return response()->json(['errors' => ['name' => ['Ce nom technique est déjà utilisé.']]], 422);
+            }
+            Schema::connection('tenant')->table($grid->mysql_table, function ($t) use ($oldName, $newName) {
+                $t->renameColumn($oldName, $newName);
+            });
+            $col->name = $newName;
+            $col->saveQuietly();
+        }
 
         if ($newType !== $oldType) {
             $families = [

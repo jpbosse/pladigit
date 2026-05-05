@@ -42,6 +42,19 @@
 
     <div style="background:var(--pd-bg);border:1px solid var(--pd-border);border-radius:10px;padding:20px;margin-bottom:20px;">
 
+        {{-- Nom technique --}}
+        <div style="margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:4px;">Nom technique (colonne MySQL)</label>
+            <input id="f-name" type="text" value="{{ $column->name }}"
+                   pattern="[a-z][a-z0-9_]*"
+                   style="width:100%;padding:7px 10px;border:1px solid var(--pd-border);
+                          border-radius:7px;font-size:13px;font-family:monospace;box-sizing:border-box;">
+            <div id="err-name" style="display:none;font-size:11px;color:#dc2626;margin-top:3px;"></div>
+            <div style="font-size:11px;color:var(--pd-muted);margin-top:3px;">
+                Attention : renommer la colonne MySQL est irréversible sans sauvegarde.
+            </div>
+        </div>
+
         {{-- Label --}}
         <div style="margin-bottom:16px;">
             <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:4px;">Label</label>
@@ -140,6 +153,7 @@
                 'X-CSRF-TOKEN':  token,
             },
             body: JSON.stringify({
+                name:                document.getElementById('f-name').value,
                 label:               document.getElementById('f-label').value,
                 type:                document.getElementById('f-type').value,
                 length:              length !== '' ? parseInt(length) : null,

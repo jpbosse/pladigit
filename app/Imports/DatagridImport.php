@@ -30,4 +30,10 @@ class DatagridImport implements ToCollection
     {
         return $this->rows->skip(1)->values();
     }
+
+    /** Retourne toutes les lignes sans sauter la première (quand le fichier n'a pas d'en-tête). */
+    public function getAllRows(): Collection
+    {
+        return $this->rows->values();
+    }
 }
