@@ -52,22 +52,29 @@
     </div>
 
     {{-- ── Indicateur d'étapes ───────────────────────────────────── --}}
+    @php
+        $stepLabels = $importMode === 'update'
+            ? [1 => 'Fichier', 2 => 'Import']
+            : [1 => 'Fichier', 2 => 'Colonnes', 3 => 'Import'];
+        $displayStep = $importMode === 'update' && $step === 3 ? 2 : $step;
+        $totalSteps  = $importMode === 'update' ? 2 : 3;
+    @endphp
     <div style="display:flex;align-items:center;gap:0;margin-bottom:28px;">
-        @foreach([1 => 'Fichier', 2 => 'Colonnes', 3 => 'Import'] as $n => $label)
+        @foreach($stepLabels as $n => $label)
         <div style="display:flex;align-items:center;flex:1;">
             <div style="display:flex;align-items:center;gap:8px;">
                 <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
                             font-size:12px;font-weight:700;flex-shrink:0;
-                            background:{{ $step >= $n ? 'var(--pd-navy)' : 'var(--pd-bg2)' }};
-                            color:{{ $step >= $n ? '#fff' : 'var(--pd-muted)' }};">
-                    {{ $step > $n ? '✓' : $n }}
+                            background:{{ $displayStep >= $n ? 'var(--pd-navy)' : 'var(--pd-bg2)' }};
+                            color:{{ $displayStep >= $n ? '#fff' : 'var(--pd-muted)' }};">
+                    {{ $displayStep > $n ? '✓' : $n }}
                 </div>
-                <span style="font-size:13px;font-weight:{{ $step === $n ? '600' : '400' }};
-                             color:{{ $step === $n ? 'var(--pd-text)' : 'var(--pd-muted)' }};">
+                <span style="font-size:13px;font-weight:{{ $displayStep === $n ? '600' : '400' }};
+                             color:{{ $displayStep === $n ? 'var(--pd-text)' : 'var(--pd-muted)' }};">
                     {{ $label }}
                 </span>
             </div>
-            @if($n < 3)
+            @if($n < $totalSteps)
             <div style="flex:1;height:1px;background:var(--pd-border);margin:0 12px;"></div>
             @endif
         </div>
@@ -75,7 +82,7 @@
     </div>
 
     {{-- ══════════════════════════════════════════════════════════════ --}}
-    {{-- ÉTAPE 1 — Upload                                            --}}
+    {{-- ÉTAPE 1 — Upload + choix du mode                            --}}
     {{-- ══════════════════════════════════════════════════════════════ --}}
     @if($step === 1)
     <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
@@ -94,6 +101,90 @@
             </div>
             @enderror
 
+            {{-- Mode d'import --}}
+            <div style="margin-bottom:20px;padding:16px;background:var(--pd-bg2);border-radius:10px;">
+                <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:12px;
+                            text-transform:uppercase;letter-spacing:.04em;">
+                    Que souhaitez-vous faire ?
+                </div>
+
+                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;margin-bottom:12px;">
+                    <input type="radio" wire:model.live="importMode" value="new"
+                           style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+                    <span>
+                        <strong>Créer une nouvelle grille</strong>
+                        <span style="display:block;font-size:11px;color:var(--pd-muted);margin-top:2px;">
+                            Importer un fichier Excel et créer une nouvelle table de données
+                        </span>
+                    </span>
+                </label>
+
+                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;">
+                    <input type="radio" wire:model.live="importMode" value="update"
+                           style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+                    <span>
+                        <strong>Mettre à jour une grille existante</strong>
+                        <span style="display:block;font-size:11px;color:var(--pd-muted);margin-top:2px;">
+                            Ajouter ou remplacer des données dans une grille déjà créée
+                        </span>
+                    </span>
+                </label>
+
+                @if($importMode === 'update')
+                <div style="margin-top:16px;padding-top:16px;border-top:0.5px solid var(--pd-border);">
+
+                    @error('targetTableId')
+                    <div style="padding:8px 12px;background:#FEE2E2;color:#991B1B;border-radius:6px;margin-bottom:10px;font-size:12px;">
+                        ⚠ {{ $message }}
+                    </div>
+                    @enderror
+
+                    <div style="margin-bottom:14px;">
+                        <label style="font-size:12px;font-weight:600;color:var(--pd-text);display:block;margin-bottom:6px;">
+                            Grille cible
+                        </label>
+                        @if(count($existingGrids) === 0)
+                        <div style="font-size:12px;color:var(--pd-muted);font-style:italic;">
+                            Aucune grille disponible — créez-en une d'abord.
+                        </div>
+                        @else
+                        <select wire:model="targetTableId"
+                                style="width:100%;padding:7px 10px;border:0.5px solid var(--pd-border);
+                                       border-radius:7px;font-size:13px;background:var(--pd-bg);color:var(--pd-text);">
+                            <option value="">— Choisir une grille —</option>
+                            @foreach($existingGrids as $grid)
+                            <option value="{{ $grid['id'] }}">{{ $grid['label'] }} ({{ $grid['columns_count'] }} col.)</option>
+                            @endforeach
+                        </select>
+                        @endif
+                    </div>
+
+                    <div>
+                        <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:8px;">
+                            Mode de mise à jour
+                        </div>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px;">
+                            <input type="radio" wire:model="updateMode" value="append"
+                                   style="width:15px;height:15px;cursor:pointer;">
+                            <span>
+                                <strong>Ajouter aux données existantes</strong>
+                                <span style="font-size:11px;color:var(--pd-muted);margin-left:6px;">(INSERT — lignes actuelles conservées)</span>
+                            </span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                            <input type="radio" wire:model="updateMode" value="replace"
+                                   style="width:15px;height:15px;cursor:pointer;">
+                            <span>
+                                <strong>Remplacer toutes les données</strong>
+                                <span style="font-size:11px;color:#dc2626;margin-left:6px;">(TRUNCATE + INSERT — toutes les lignes actuelles sont effacées)</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                @endif
+            </div>
+
+            {{-- Fichier --}}
             <div class="pd-form-group">
                 <label class="pd-label pd-label-req">Fichier Excel (.xlsx / .xls)</label>
                 <input type="file" wire:model="file" accept=".xlsx,.xls"
@@ -105,34 +196,16 @@
                 </div>
             </div>
 
-            <div style="margin-bottom:20px;">
-                <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:10px;">
-                    Mode d'import
-                </div>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px;">
-                    <input type="radio" wire:model="importMode" value="append"
-                           style="width:15px;height:15px;cursor:pointer;">
-                    <span>
-                        <strong>Ajouter aux données existantes</strong>
-                        <span style="font-size:12px;color:var(--pd-muted);margin-left:6px;">(import incrémental)</span>
-                    </span>
-                </label>
-                <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                    <input type="radio" wire:model="importMode" value="replace"
-                           style="width:15px;height:15px;cursor:pointer;">
-                    <span>
-                        <strong>Remplacer toutes les données existantes</strong>
-                        <span style="font-size:12px;color:var(--pd-muted);margin-left:6px;">(import complet — efface les lignes actuelles)</span>
-                    </span>
-                </label>
-            </div>
-
             <div style="background:var(--pd-bg2);border-radius:8px;padding:12px 14px;
                         font-size:12px;color:var(--pd-muted);line-height:1.7;margin-bottom:20px;">
                 <strong style="color:var(--pd-text);">Format attendu :</strong><br>
                 • La ligne 1 contient les <strong>en-têtes de colonnes</strong> (ex : Nom, Prénom, Email…).<br>
                 • Les lignes suivantes contiennent les données à importer.<br>
+                @if($importMode === 'update')
+                • Les en-têtes doivent correspondre aux noms de colonnes de la grille cible.
+                @else
                 • Les colonnes seront proposées à la configuration à l'étape suivante.
+                @endif
             </div>
 
             <div style="display:flex;justify-content:flex-end;">
@@ -148,7 +221,7 @@
     @endif
 
     {{-- ══════════════════════════════════════════════════════════════ --}}
-    {{-- ÉTAPE 2 — Configuration des colonnes                        --}}
+    {{-- ÉTAPE 2 — Configuration des colonnes (mode 'new' uniquement) --}}
     {{-- ══════════════════════════════════════════════════════════════ --}}
     @if($step === 2)
     <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
@@ -164,7 +237,6 @@
 
         <div style="padding:24px;">
 
-            {{-- Erreurs globales --}}
             @if($errors->any())
             <div style="padding:10px 14px;background:#FEE2E2;color:#991B1B;border-radius:8px;
                         margin-bottom:16px;font-size:12px;line-height:1.7;">
@@ -174,7 +246,6 @@
             </div>
             @endif
 
-            {{-- Informations de la grille --}}
             <div style="margin-bottom:20px;padding:16px;background:var(--pd-bg2);border-radius:10px;">
                 <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:12px;
                             text-transform:uppercase;letter-spacing:.04em;">
@@ -219,7 +290,6 @@
                 </div>
             </div>
 
-            {{-- Tableau des colonnes --}}
             <div style="overflow-x:auto;">
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                     <thead>
@@ -244,11 +314,9 @@
                     <tbody>
                         @foreach($columns as $i => $col)
                         <tr style="border-bottom:0.5px solid var(--pd-border);">
-
                             <td style="padding:8px 10px;color:var(--pd-muted);font-size:12px;white-space:nowrap;">
                                 {{ $col['header'] }}
                             </td>
-
                             <td style="padding:6px 10px;">
                                 <input type="text"
                                        wire:model="columns.{{ $i }}.label"
@@ -258,7 +326,6 @@
                                 <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
                                 @enderror
                             </td>
-
                             <td style="padding:6px 10px;">
                                 <input type="text"
                                        wire:model="columns.{{ $i }}.name"
@@ -269,7 +336,6 @@
                                 <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
                                 @enderror
                             </td>
-
                             <td style="padding:6px 10px;">
                                 <select wire:model="columns.{{ $i }}.type"
                                         style="width:100%;min-width:130px;padding:5px 8px;
@@ -283,13 +349,11 @@
                                 <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
                                 @enderror
                             </td>
-
                             <td style="padding:6px 10px;text-align:center;">
                                 <input type="checkbox"
                                        wire:model="columns.{{ $i }}.required"
                                        style="width:15px;height:15px;cursor:pointer;">
                             </td>
-
                         </tr>
                         @endforeach
                     </tbody>
@@ -317,6 +381,11 @@
     {{-- ÉTAPE 3 — Confirmation et lancement                         --}}
     {{-- ══════════════════════════════════════════════════════════════ --}}
     @if($step === 3)
+    @php
+        $targetGrid = $importMode === 'update' && $targetTableId
+            ? collect($existingGrids)->firstWhere('id', $targetTableId)
+            : null;
+    @endphp
     <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
 
         <div style="background:var(--pd-navy);padding:18px 24px;">
@@ -343,12 +412,16 @@
                     Import terminé avec succès
                 </div>
                 <div style="font-size:13px;color:var(--pd-muted);">
-                    {{ $importedRows }} ligne(s) importée(s) dans la grille
-                    <strong>{{ $tableLabel }}</strong>
+                    {{ $importedRows }} ligne(s) importée(s)
+                    @if($importMode === 'update' && $targetGrid)
+                    dans la grille <strong>{{ $targetGrid['label'] }}</strong>
+                    @else
+                    dans la grille <strong>{{ $tableLabel }}</strong>
+                    @endif
                 </div>
             </div>
-            @else
-            {{-- ── Récapitulatif ────────────────────────────── --}}
+            @elseif($importMode === 'new')
+            {{-- ── Récapitulatif mode 'new' ─────────────────── --}}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
                 <div style="background:var(--pd-bg2);border-radius:8px;padding:14px;">
                     <div style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
@@ -381,9 +454,7 @@
                         <div>
                             <span style="font-family:monospace;">{{ $col['name'] }}</span>
                             <span style="color:var(--pd-accent);">({{ $columnTypes[$col['type']] ?? $col['type'] }})</span>
-                            @if($col['required'])
-                            <span style="color:#991B1B;">*</span>
-                            @endif
+                            @if($col['required'])<span style="color:#991B1B;">*</span>@endif
                         </div>
                         @endforeach
                     </div>
@@ -395,11 +466,7 @@
                 Cette action va :<br>
                 • Créer l'entrée <strong>{{ $tableLabel }}</strong> dans le registre des grilles DataGrid<br>
                 • Créer la table MySQL <code style="font-family:monospace;">{{ $tableName }}</code> dans la base tenant<br>
-                @if($importMode === 'replace')
-                • <strong>Effacer toutes les lignes existantes</strong>, puis importer les données du fichier
-                @else
-                • Ajouter les lignes du fichier aux données existantes (import incrémental)
-                @endif
+                • Importer les lignes de données depuis le fichier Excel
             </div>
 
             <div style="display:flex;justify-content:space-between;">
@@ -408,6 +475,74 @@
                                border:0.5px solid var(--pd-border);border-radius:9px;
                                font-size:13px;cursor:pointer;">
                     ← Modifier les colonnes
+                </button>
+                <button wire:click="runImport" wire:loading.attr="disabled"
+                        style="padding:9px 22px;background:#16a34a;color:#fff;border:none;
+                               border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">
+                    <span wire:loading.remove wire:target="runImport">Lancer l'import</span>
+                    <span wire:loading wire:target="runImport">Import en cours…</span>
+                </button>
+            </div>
+            @else
+            {{-- ── Récapitulatif mode 'update' ─────────────────── --}}
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+                <div style="background:var(--pd-bg2);border-radius:8px;padding:14px;">
+                    <div style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
+                        Grille cible
+                    </div>
+                    @if($targetGrid)
+                    <div style="font-size:14px;font-weight:600;color:var(--pd-text);">{{ $targetGrid['label'] }}</div>
+                    <div style="font-size:11px;color:var(--pd-muted);margin-top:2px;font-family:monospace;">
+                        {{ $targetGrid['name'] }}
+                    </div>
+                    <div style="font-size:11px;color:var(--pd-muted);margin-top:2px;">
+                        {{ $targetGrid['columns_count'] }} colonne(s)
+                    </div>
+                    @endif
+                </div>
+
+                <div style="background:var(--pd-bg2);border-radius:8px;padding:14px;">
+                    <div style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
+                        Mode
+                    </div>
+                    @if($updateMode === 'replace')
+                    <div style="font-size:13px;font-weight:600;color:#dc2626;">Remplacement complet</div>
+                    <div style="font-size:11px;color:var(--pd-muted);margin-top:4px;">
+                        Toutes les lignes existantes seront effacées avant l'import.
+                    </div>
+                    @else
+                    <div style="font-size:13px;font-weight:600;color:#16a34a;">Ajout incrémental</div>
+                    <div style="font-size:11px;color:var(--pd-muted);margin-top:4px;">
+                        Les nouvelles lignes seront ajoutées aux données existantes.
+                    </div>
+                    @endif
+                    <div style="font-size:11px;color:var(--pd-muted);margin-top:6px;">
+                        {{ count($columns) }} colonne(s) détectée(s) dans le fichier
+                    </div>
+                </div>
+            </div>
+
+            @if($updateMode === 'replace')
+            <div style="background:#FEF2F2;border:0.5px solid #FECACA;border-radius:8px;
+                        padding:12px 14px;font-size:12px;color:#991B1B;margin-bottom:20px;line-height:1.7;">
+                ⚠ <strong>Attention :</strong> toutes les lignes actuelles de la grille
+                <strong>{{ $targetGrid['label'] ?? '' }}</strong> seront supprimées avant l'import.
+                Cette opération est irréversible.
+            </div>
+            @else
+            <div style="background:#EFF6FF;border:0.5px solid #BFDBFE;border-radius:8px;
+                        padding:12px 14px;font-size:12px;color:#1e40af;margin-bottom:20px;line-height:1.7;">
+                Les lignes du fichier Excel seront ajoutées aux données existantes de la grille
+                <strong>{{ $targetGrid['label'] ?? '' }}</strong>.
+            </div>
+            @endif
+
+            <div style="display:flex;justify-content:space-between;">
+                <button wire:click="backToStep1"
+                        style="padding:9px 18px;background:var(--pd-bg2);color:var(--pd-muted);
+                               border:0.5px solid var(--pd-border);border-radius:9px;
+                               font-size:13px;cursor:pointer;">
+                    ← Retour
                 </button>
                 <button wire:click="runImport" wire:loading.attr="disabled"
                         style="padding:9px 22px;background:#16a34a;color:#fff;border:none;

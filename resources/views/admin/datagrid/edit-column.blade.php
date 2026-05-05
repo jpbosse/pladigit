@@ -5,10 +5,23 @@
 <div style="padding:32px 40px;max-width:640px;">
 
     <div style="margin-bottom:24px;">
-        <a href="{{ route('admin.datagrid.edit', $table) }}"
-           style="font-size:12px;color:var(--pd-muted);text-decoration:none;">
-            ← Retour à la grille
-        </a>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+            <a href="{{ route('admin.datagrid.edit', $table) }}"
+               style="font-size:12px;color:var(--pd-muted);text-decoration:none;">
+                ← Retour à la grille
+            </a>
+            <form method="POST"
+                  action="{{ route('datagrid.columns.destroy', [$table, $column]) }}"
+                  onsubmit="return confirm('Supprimer la colonne « {{ $column->name }} » et ses données ?')">
+                @csrf @method('DELETE')
+                <button type="submit"
+                        style="padding:4px 12px;border:1px solid #fca5a5;border-radius:6px;
+                               font-size:12px;font-weight:500;color:#dc2626;background:#fef2f2;
+                               cursor:pointer;">
+                    Supprimer la colonne
+                </button>
+            </form>
+        </div>
         <h1 style="font-size:20px;font-weight:700;color:var(--pd-text);margin:8px 0 2px;">
             <span style="font-family:monospace;">{{ $column->name }}</span>
         </h1>
@@ -86,23 +99,12 @@
         </div>
 
         {{-- Actions --}}
-        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <div>
             <button onclick="saveColumn()" type="button"
                     style="padding:8px 18px;background:var(--pd-navy);color:#fff;border:none;
                            border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">
                 Enregistrer
             </button>
-            <form method="POST"
-                  action="{{ route('datagrid.columns.destroy', [$table, $column]) }}"
-                  style="margin-left:auto;"
-                  onsubmit="return confirm('Supprimer la colonne « {{ $column->name }} » et ses données ?')">
-                @csrf @method('DELETE')
-                <button type="submit"
-                        style="padding:8px 14px;border:1px solid #fca5a5;border-radius:7px;
-                               font-size:13px;font-weight:600;color:#dc2626;background:#fef2f2;cursor:pointer;">
-                    Supprimer cette colonne
-                </button>
-            </form>
         </div>
 
     </div>
