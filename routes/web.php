@@ -33,6 +33,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\AuthController;
 use App\Http\Controllers\SuperAdmin\BackupController;
 use App\Http\Controllers\SuperAdmin\DatagridController;
+use App\Http\Controllers\Tenant\Admin\DatagridAdminController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 use App\Http\Controllers\SuperAdmin\SecurityController;
 use App\Http\Controllers\SuperAdmin\StatsController;
@@ -242,6 +243,14 @@ Route::middleware('tenant')->group(function () {
             Route::post('settings/backup/run', [SettingsController::class, 'runBackup'])->name('settings.backup.run');
             Route::get('settings/backup/status', [SettingsController::class, 'backupStatus'])->name('settings.backup.status');
             Route::get('settings/backup/test-sftp', [SettingsController::class, 'testBackupSftp'])->name('settings.backup.test-sftp');
+
+            // DataGrid — gestion des grilles
+            Route::middleware('module:datagrid')->group(function () {
+                Route::get('datagrid', [DatagridAdminController::class, 'index'])->name('datagrid.index');
+                Route::get('datagrid/{table}/edit', [DatagridAdminController::class, 'edit'])->name('datagrid.edit');
+                Route::patch('datagrid/{table}', [DatagridAdminController::class, 'update'])->name('datagrid.update');
+                Route::delete('datagrid/{table}', [DatagridAdminController::class, 'destroy'])->name('datagrid.destroy');
+            });
 
             // Purge GED — réservé au module GED
             Route::middleware('module:ged')->group(function () {
