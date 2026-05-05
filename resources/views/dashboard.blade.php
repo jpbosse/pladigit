@@ -159,6 +159,9 @@
         if ($org?->hasModule(\App\Enums\ModuleKey::PROJECTS)) {
             $activeModules[] = ['icon'=>'📋','name'=>'Projets','desc'=>'Kanban, Gantt, tâches, agenda partagé','color'=>'#3B82F6','bg'=>'rgba(59,130,246,0.1)','route'=>'projects.index'];
         }
+        if ($org?->hasModule(\App\Enums\ModuleKey::DATAGRID)) {
+            $activeModules[] = ['icon'=>'📇','name'=>'DataGrid','desc'=>'Annuaire, mandats, protocole, RGPD intégré','color'=>'var(--pd-navy)','bg'=>'color-mix(in srgb, var(--pd-navy) 12%, transparent)','route'=>'datagrid.index'];
+        }
         @endphp
         @if(count($activeModules) > 0)
         <div class="pd-module-grid" style="margin-bottom:32px;">
