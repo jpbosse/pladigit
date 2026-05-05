@@ -2,5 +2,9 @@
 @section('title', $table->label)
 
 @section('content')
-    @livewire('tenant.datagrid.show-grid', ['table' => $table])
+    @livewire('tenant.datagrid.show-grid', [
+        'table'          => $table,
+        'initialFilters' => $filters,
+        'initialSort'    => $sort,
+    ])
 @endsection

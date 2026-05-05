@@ -30,13 +30,19 @@ class ShowGrid extends Component
     // États temporaires pour l'édition des colonnes (indexés par column->id)
     public array $columnEdits = [];
 
-    public function mount(DatagridTable $table): void
+    public function mount(DatagridTable $table, array $initialFilters = [], array $initialSort = []): void
     {
         if (! $table->canRead(auth()->user())) {
             abort(403);
         }
 
-        $this->table = $table;
+        $this->table   = $table;
+        $this->filters = $initialFilters;
+
+        if (! empty($initialSort['column'])) {
+            $this->sortColumn    = $initialSort['column'];
+            $this->sortDirection = $initialSort['direction'] ?? 'asc';
+        }
 
         foreach ($table->columns as $col) {
             $this->columnEdits[$col->id] = [
