@@ -308,6 +308,24 @@ class ModuleAccessTest extends TestCase
         $this->assertContains('datagrid', $available);
     }
 
+    public function test_accès_datagrid_accordé_si_module_datagrid_activé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => ['datagrid']]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('datagrid.index'))
+            ->assertOk();
+    }
+
+    public function test_accès_datagrid_refusé_si_module_datagrid_désactivé(): void
+    {
+        $this->persistCurrentOrg(['enabled_modules' => []]);
+
+        $this->actingAs($this->admin, 'tenant')
+            ->get(route('datagrid.index'))
+            ->assertForbidden();
+    }
+
     /** Crée un dossier + document ODT pour les tests Collabora. */
     private function makeGedDocument(): GedDocument
     {
