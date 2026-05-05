@@ -3,11 +3,13 @@
 namespace Tests\Feature\Tenant\Datagrid;
 
 use App\Enums\DatagridColumnType;
+use App\Enums\ModuleKey;
 use App\Imports\DatagridImport;
 use App\Livewire\Tenant\Datagrid\ImportWizard;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
 use App\Models\Tenant\User;
+use App\Services\TenantManager;
 use Illuminate\Http\Testing\File as TestingFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -26,6 +28,8 @@ class ImportWizardTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        app(TenantManager::class)->current()->enableModule(ModuleKey::DATAGRID);
 
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
 
