@@ -20,11 +20,17 @@ class ShowGrid extends Component
     use WithPagination;
 
     public DatagridTable $table;
+
     public array $filters = [];
+
     public string $sortColumn = '';
+
     public string $sortDirection = 'asc';
+
     public ?int $activeViewId = null;
+
     public string $newViewName = '';
+
     public bool $showColumnSettings = false;
 
     // États temporaires pour l'édition des colonnes (indexés par column->id)
@@ -36,23 +42,23 @@ class ShowGrid extends Component
             abort(403);
         }
 
-        $this->table   = $table;
+        $this->table = $table;
         $this->filters = $initialFilters;
 
         if (! empty($initialSort['column'])) {
-            $this->sortColumn    = $initialSort['column'];
+            $this->sortColumn = $initialSort['column'];
             $this->sortDirection = $initialSort['direction'] ?? 'asc';
         }
 
         foreach ($table->columns as $col) {
             $this->columnEdits[$col->id] = [
-                'label'              => $col->label,
-                'type'               => $col->type->value,
-                'length'             => $col->length,
-                'required'           => $col->required,
+                'label' => $col->label,
+                'type' => $col->type->value,
+                'length' => $col->length,
+                'required' => $col->required,
                 'visible_by_default' => $col->visible_by_default,
-                'is_rgpd_sensitive'  => $col->is_rgpd_sensitive,
-                'sort_order'         => $col->sort_order,
+                'is_rgpd_sensitive' => $col->is_rgpd_sensitive,
+                'sort_order' => $col->sort_order,
             ];
         }
     }
@@ -64,7 +70,7 @@ class ShowGrid extends Component
 
         foreach ($this->filters as $col => $val) {
             if ($val !== '' && $val !== null) {
-                $query->where($col, 'like', '%' . $val . '%');
+                $query->where($col, 'like', '%'.$val.'%');
             }
         }
 
@@ -92,7 +98,7 @@ class ShowGrid extends Component
         if ($this->sortColumn === $column) {
             $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
         } else {
-            $this->sortColumn    = $column;
+            $this->sortColumn = $column;
             $this->sortDirection = 'asc';
         }
 
@@ -105,7 +111,7 @@ class ShowGrid extends Component
             ->where('user_id', auth()->id())
             ->findOrFail($viewId);
 
-        $this->filters      = $view->filters ?? [];
+        $this->filters = $view->filters ?? [];
         $this->activeViewId = $viewId;
         $this->resetPage();
     }
@@ -116,13 +122,13 @@ class ShowGrid extends Component
 
         $view = DatagridSavedView::create([
             'datagrid_table_id' => $this->table->id,
-            'user_id'           => auth()->id(),
-            'name'              => $this->newViewName,
-            'filters'           => $this->filters,
+            'user_id' => auth()->id(),
+            'name' => $this->newViewName,
+            'filters' => $this->filters,
         ]);
 
         $this->activeViewId = $view->id;
-        $this->newViewName  = '';
+        $this->newViewName = '';
 
         $this->dispatch('view-saved');
     }
@@ -143,31 +149,31 @@ class ShowGrid extends Component
     public function updateColumn(int $columnId): void
     {
         $this->validate([
-            "columnEdits.{$columnId}.label"              => 'required|string|max:100',
-            "columnEdits.{$columnId}.type"               => 'required|in:' . implode(',', DatagridColumnType::values()),
-            "columnEdits.{$columnId}.length"             => 'nullable|integer|min:1|max:65535',
-            "columnEdits.{$columnId}.required"           => 'boolean',
+            "columnEdits.{$columnId}.label" => 'required|string|max:100',
+            "columnEdits.{$columnId}.type" => 'required|in:'.implode(',', DatagridColumnType::values()),
+            "columnEdits.{$columnId}.length" => 'nullable|integer|min:1|max:65535',
+            "columnEdits.{$columnId}.required" => 'boolean',
             "columnEdits.{$columnId}.visible_by_default" => 'boolean',
-            "columnEdits.{$columnId}.is_rgpd_sensitive"  => 'boolean',
-            "columnEdits.{$columnId}.sort_order"         => 'integer|min:0',
+            "columnEdits.{$columnId}.is_rgpd_sensitive" => 'boolean',
+            "columnEdits.{$columnId}.sort_order" => 'integer|min:0',
         ]);
 
-        $data   = $this->columnEdits[$columnId];
+        $data = $this->columnEdits[$columnId];
         $column = DatagridColumn::findOrFail($columnId);
 
-        $oldType   = $column->type;
-        $newType   = DatagridColumnType::from($data['type']);
+        $oldType = $column->type;
+        $newType = DatagridColumnType::from($data['type']);
         $oldLength = $column->length;
         $newLength = $data['length'] ?? null;
 
         $column->fill([
-            'label'              => $data['label'],
+            'label' => $data['label'],
             'visible_by_default' => $data['visible_by_default'],
-            'required'           => $data['required'],
-            'is_rgpd_sensitive'  => $data['is_rgpd_sensitive'],
-            'sort_order'         => $data['sort_order'],
-            'type'               => $newType,
-            'length'             => $newLength,
+            'required' => $data['required'],
+            'is_rgpd_sensitive' => $data['is_rgpd_sensitive'],
+            'sort_order' => $data['sort_order'],
+            'type' => $newType,
+            'length' => $newLength,
         ]);
         $column->save();
 
@@ -175,6 +181,7 @@ class ShowGrid extends Component
             if (! $this->typesCompatible($oldType, $newType)) {
                 $this->addError("columnEdits.{$columnId}.type", 'Type incompatible avec les données existantes');
                 $column->fill(['type' => $oldType, 'length' => $oldLength])->save();
+
                 return;
             }
 
@@ -182,7 +189,7 @@ class ShowGrid extends Component
                 $this->applySchemaChange($t, $column->name, $newType, $newLength, ! $column->required);
             });
         } elseif ($newType->hasLength() && $newLength !== $oldLength && $newLength !== null) {
-            $colName  = $column->name;
+            $colName = $column->name;
             $nullable = $column->required ? '' : ' NULL';
             DB::connection('tenant')->statement(
                 "ALTER TABLE `{$this->table->mysql_table}` MODIFY COLUMN `{$colName}` VARCHAR({$newLength}){$nullable}"
@@ -196,10 +203,10 @@ class ShowGrid extends Component
 
     private function typesCompatible(DatagridColumnType $from, DatagridColumnType $to): bool
     {
-        $stringFamily  = [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE];
+        $stringFamily = [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE];
         $numericFamily = [DatagridColumnType::NUMBER];
-        $dateFamily    = [DatagridColumnType::DATE];
-        $boolFamily    = [DatagridColumnType::BOOLEAN];
+        $dateFamily = [DatagridColumnType::DATE];
+        $boolFamily = [DatagridColumnType::BOOLEAN];
 
         foreach ([$stringFamily, $numericFamily, $dateFamily, $boolFamily] as $family) {
             if (in_array($from, $family, true) && in_array($to, $family, true)) {
@@ -213,15 +220,15 @@ class ShowGrid extends Component
     private function applySchemaChange(Blueprint $t, string $colName, DatagridColumnType $type, ?int $length, bool $nullable): void
     {
         $col = match ($type) {
-            DatagridColumnType::NUMBER      => $t->decimal($colName, 15, 4),
-            DatagridColumnType::DATE        => $t->date($colName),
-            DatagridColumnType::BOOLEAN     => $t->boolean($colName)->default(false),
-            DatagridColumnType::EMAIL       => $t->string($colName, $length ?? 255),
-            DatagridColumnType::PHONE       => $t->string($colName, $length ?? 30),
-            DatagridColumnType::SIRET       => $t->string($colName, 14),
+            DatagridColumnType::NUMBER => $t->decimal($colName, 15, 4),
+            DatagridColumnType::DATE => $t->date($colName),
+            DatagridColumnType::BOOLEAN => $t->boolean($colName)->default(false),
+            DatagridColumnType::EMAIL => $t->string($colName, $length ?? 255),
+            DatagridColumnType::PHONE => $t->string($colName, $length ?? 30),
+            DatagridColumnType::SIRET => $t->string($colName, 14),
             DatagridColumnType::POSTAL_CODE => $t->string($colName, 10),
-            DatagridColumnType::SELECT      => $t->string($colName, 100),
-            default                         => $t->string($colName, $length ?? 255),
+            DatagridColumnType::SELECT => $t->string($colName, 100),
+            default => $t->string($colName, $length ?? 255),
         };
 
         if ($nullable) {
@@ -233,12 +240,12 @@ class ShowGrid extends Component
 
     public function render()
     {
-        $columns    = $this->table->columns()->get();
+        $columns = $this->table->columns()->get();
         $savedViews = $this->table->savedViews()->where('user_id', auth()->id())->get();
 
         return view('livewire.tenant.datagrid.show-grid', [
-            'columns'     => $columns,
-            'savedViews'  => $savedViews,
+            'columns' => $columns,
+            'savedViews' => $savedViews,
             'columnTypes' => DatagridColumnType::options(),
         ]);
     }

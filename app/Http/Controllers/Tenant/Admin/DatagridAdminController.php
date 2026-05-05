@@ -35,9 +35,9 @@ class DatagridAdminController extends Controller
     public function update(DatagridTable $table): JsonResponse
     {
         $data = request()->validate([
-            'label'       => 'required|string|max:100',
+            'label' => 'required|string|max:100',
             'description' => 'nullable|string|max:500',
-            'has_rgpd'    => 'boolean',
+            'has_rgpd' => 'boolean',
         ]);
 
         $table->update($data);
@@ -48,30 +48,30 @@ class DatagridAdminController extends Controller
     public function updateColumn(DatagridTable $table, DatagridColumn $column): JsonResponse
     {
         $data = request()->validate([
-            'name'               => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'label'              => 'required|string|max:100',
+            'name' => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'label' => 'required|string|max:100',
             'visible_by_default' => 'boolean',
-            'required'           => 'boolean',
-            'is_rgpd_sensitive'  => 'boolean',
-            'sort_order'         => 'integer|min:0',
-            'type'               => 'nullable|in:' . implode(',', DatagridColumnType::values()),
-            'length'             => 'nullable|integer|min:1|max:65535',
+            'required' => 'boolean',
+            'is_rgpd_sensitive' => 'boolean',
+            'sort_order' => 'integer|min:0',
+            'type' => 'nullable|in:'.implode(',', DatagridColumnType::values()),
+            'length' => 'nullable|integer|min:1|max:65535',
         ]);
 
-        $oldName   = $column->name;
-        $oldType   = $column->type;
-        $newType   = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
+        $oldName = $column->name;
+        $oldType = $column->type;
+        $newType = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
         $oldLength = $column->length;
         $newLength = $data['length'] ?? $oldLength;
 
         $column->fill([
-            'label'              => $data['label'],
+            'label' => $data['label'],
             'visible_by_default' => $data['visible_by_default'] ?? $column->visible_by_default,
-            'required'           => $data['required'] ?? $column->required,
-            'is_rgpd_sensitive'  => $data['is_rgpd_sensitive'] ?? $column->is_rgpd_sensitive,
-            'sort_order'         => $data['sort_order'] ?? $column->sort_order,
-            'type'               => $newType,
-            'length'             => $newLength,
+            'required' => $data['required'] ?? $column->required,
+            'is_rgpd_sensitive' => $data['is_rgpd_sensitive'] ?? $column->is_rgpd_sensitive,
+            'sort_order' => $data['sort_order'] ?? $column->sort_order,
+            'type' => $newType,
+            'length' => $newLength,
         ]);
         $column->save();
 
@@ -96,7 +96,7 @@ class DatagridAdminController extends Controller
                 $this->applySchemaChange($t, $column->name, $newType, $newLength, ! $column->required);
             });
         } elseif ($newType->hasLength() && $newLength !== $oldLength && $newLength !== null) {
-            $colName  = $column->name;
+            $colName = $column->name;
             $nullable = $column->required ? '' : ' NULL';
             DB::connection('tenant')->statement(
                 "ALTER TABLE `{$table->mysql_table}` MODIFY COLUMN `{$colName}` VARCHAR({$newLength}){$nullable}"
@@ -164,15 +164,15 @@ class DatagridAdminController extends Controller
     private function applySchemaChange(Blueprint $t, string $colName, DatagridColumnType $type, ?int $length, bool $nullable): void
     {
         $col = match ($type) {
-            DatagridColumnType::NUMBER      => $t->decimal($colName, 15, 4),
-            DatagridColumnType::DATE        => $t->date($colName),
-            DatagridColumnType::BOOLEAN     => $t->boolean($colName)->default(false),
-            DatagridColumnType::EMAIL       => $t->string($colName, $length ?? 255),
-            DatagridColumnType::PHONE       => $t->string($colName, $length ?? 30),
-            DatagridColumnType::SIRET       => $t->string($colName, 14),
+            DatagridColumnType::NUMBER => $t->decimal($colName, 15, 4),
+            DatagridColumnType::DATE => $t->date($colName),
+            DatagridColumnType::BOOLEAN => $t->boolean($colName)->default(false),
+            DatagridColumnType::EMAIL => $t->string($colName, $length ?? 255),
+            DatagridColumnType::PHONE => $t->string($colName, $length ?? 30),
+            DatagridColumnType::SIRET => $t->string($colName, 14),
             DatagridColumnType::POSTAL_CODE => $t->string($colName, 10),
-            DatagridColumnType::SELECT      => $t->string($colName, 100),
-            default                         => $t->string($colName, $length ?? 255),
+            DatagridColumnType::SELECT => $t->string($colName, 100),
+            default => $t->string($colName, $length ?? 255),
         };
 
         if ($nullable) {

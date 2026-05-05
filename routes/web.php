@@ -33,11 +33,11 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SuperAdmin\AuthController;
 use App\Http\Controllers\SuperAdmin\BackupController;
 use App\Http\Controllers\SuperAdmin\DatagridController;
-use App\Http\Controllers\Tenant\Admin\DatagridAdminController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 use App\Http\Controllers\SuperAdmin\SecurityController;
 use App\Http\Controllers\SuperAdmin\StatsController;
 use App\Http\Controllers\SuperAdmin\UpdateController;
+use App\Http\Controllers\Tenant\Admin\DatagridAdminController;
 
 // ── Page d'accueil publique ───────────────────────────────
 Route::get('/health', [HealthController::class, 'check'])->name('health');

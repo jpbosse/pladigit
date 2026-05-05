@@ -16,8 +16,11 @@ use Tests\TestCase;
 class AdminDatagridTest extends TestCase
 {
     private User $admin;
+
     private User $user;
+
     private DatagridTable $table;
+
     private string $mysqlTable = 'dg_test_admin';
 
     protected function setUp(): void
@@ -27,37 +30,37 @@ class AdminDatagridTest extends TestCase
         app(TenantManager::class)->current()->enableModule(ModuleKey::DATAGRID);
 
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->user  = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->user = User::factory()->create(['role' => 'user',  'status' => 'active']);
 
         $this->table = DatagridTable::create([
-            'name'        => 'test_admin',
-            'label'       => 'Grille Admin Test',
+            'name' => 'test_admin',
+            'label' => 'Grille Admin Test',
             'mysql_table' => $this->mysqlTable,
-            'has_rgpd'    => false,
-            'created_by'  => $this->admin->id,
+            'has_rgpd' => false,
+            'created_by' => $this->admin->id,
         ]);
 
         DatagridColumn::create([
-            'datagrid_table_id'  => $this->table->id,
-            'name'               => 'nom',
-            'label'              => 'Nom',
-            'type'               => DatagridColumnType::TEXT,
-            'required'           => true,
+            'datagrid_table_id' => $this->table->id,
+            'name' => 'nom',
+            'label' => 'Nom',
+            'type' => DatagridColumnType::TEXT,
+            'required' => true,
             'visible_by_default' => true,
-            'is_rgpd_sensitive'  => false,
-            'is_role_column'     => false,
-            'sort_order'         => 0,
+            'is_rgpd_sensitive' => false,
+            'is_role_column' => false,
+            'sort_order' => 0,
         ]);
         DatagridColumn::create([
-            'datagrid_table_id'  => $this->table->id,
-            'name'               => 'email',
-            'label'              => 'Email',
-            'type'               => DatagridColumnType::EMAIL,
-            'required'           => false,
+            'datagrid_table_id' => $this->table->id,
+            'name' => 'email',
+            'label' => 'Email',
+            'type' => DatagridColumnType::EMAIL,
+            'required' => false,
             'visible_by_default' => true,
-            'is_rgpd_sensitive'  => false,
-            'is_role_column'     => false,
-            'sort_order'         => 1,
+            'is_rgpd_sensitive' => false,
+            'is_role_column' => false,
+            'sort_order' => 1,
         ]);
 
         Schema::connection('tenant')->create($this->mysqlTable, function ($t) {
@@ -116,14 +119,14 @@ class AdminDatagridTest extends TestCase
     {
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('admin.datagrid.update', $this->table), [
-                'label'    => 'Nouveau Label',
+                'label' => 'Nouveau Label',
                 'has_rgpd' => false,
             ])
             ->assertOk()
             ->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('datagrid_tables', [
-            'id'    => $this->table->id,
+            'id' => $this->table->id,
             'label' => 'Nouveau Label',
         ], 'tenant');
     }
@@ -157,13 +160,13 @@ class AdminDatagridTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('datagrid.columns.update', [$this->table, $column]), [
-                'label'              => 'Nom',
+                'label' => 'Nom',
                 'visible_by_default' => true,
-                'required'           => true,
-                'is_rgpd_sensitive'  => false,
-                'sort_order'         => 0,
-                'type'               => 'email',
-                'length'             => null,
+                'required' => true,
+                'is_rgpd_sensitive' => false,
+                'sort_order' => 0,
+                'type' => 'email',
+                'length' => null,
             ])
             ->assertOk()
             ->assertJson(['success' => true]);
@@ -178,13 +181,13 @@ class AdminDatagridTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('datagrid.columns.update', [$this->table, $column]), [
-                'label'              => 'Nom',
+                'label' => 'Nom',
                 'visible_by_default' => true,
-                'required'           => true,
-                'is_rgpd_sensitive'  => false,
-                'sort_order'         => 0,
-                'type'               => 'date',
-                'length'             => null,
+                'required' => true,
+                'is_rgpd_sensitive' => false,
+                'sort_order' => 0,
+                'type' => 'date',
+                'length' => null,
             ])
             ->assertStatus(422)
             ->assertJsonFragment(['error' => 'Type incompatible avec les données existantes']);
@@ -194,7 +197,7 @@ class AdminDatagridTest extends TestCase
 
     public function test_admin_peut_supprimer_la_grille(): void
     {
-        $tableId    = $this->table->id;
+        $tableId = $this->table->id;
         $mysqlTable = $this->mysqlTable;
 
         $this->actingAs($this->admin, 'tenant')

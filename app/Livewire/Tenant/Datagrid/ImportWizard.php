@@ -72,9 +72,9 @@ class ImportWizard extends Component
             ->orderBy('label')
             ->get()
             ->map(fn ($g) => [
-                'id'            => $g->id,
-                'label'         => $g->label,
-                'name'          => $g->name,
+                'id' => $g->id,
+                'label' => $g->label,
+                'name' => $g->name,
                 'columns_count' => $g->columns_count,
             ])
             ->toArray();
@@ -97,12 +97,13 @@ class ImportWizard extends Component
             'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:40960'],
         ], [
             'file.required' => 'Veuillez choisir un fichier.',
-            'file.mimes'    => 'Le fichier doit être au format .xlsx ou .xls.',
-            'file.max'      => 'La taille maximale est de 40 Mo.',
+            'file.mimes' => 'Le fichier doit être au format .xlsx ou .xls.',
+            'file.max' => 'La taille maximale est de 40 Mo.',
         ]);
 
         if ($this->importMode === 'update' && ! $this->targetTableId) {
             $this->addError('targetTableId', 'Veuillez sélectionner une grille cible.');
+
             return;
         }
 
@@ -121,11 +122,11 @@ class ImportWizard extends Component
             ->filter(fn ($h) => filled($h))
             ->values()
             ->map(fn ($header, int $i) => [
-                'index'    => $i,
-                'header'   => (string) $header,
-                'label'    => (string) $header,
-                'name'     => Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', (string) $header))),
-                'type'     => DatagridColumnType::TEXT->value,
+                'index' => $i,
+                'header' => (string) $header,
+                'label' => (string) $header,
+                'name' => Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', (string) $header))),
+                'type' => DatagridColumnType::TEXT->value,
                 'required' => false,
             ])
             ->all();
@@ -146,21 +147,21 @@ class ImportWizard extends Component
         $typeValues = implode(',', DatagridColumnType::values());
 
         $this->validate([
-            'tableLabel'           => ['required', 'string', 'max:100'],
-            'tableName'            => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'columns'              => ['required', 'array', 'min:1'],
-            'columns.*.label'     => ['required', 'string', 'max:100'],
-            'columns.*.name'      => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'columns.*.type'      => ['required', "in:{$typeValues}"],
-            'columns.*.required'  => ['boolean'],
+            'tableLabel' => ['required', 'string', 'max:100'],
+            'tableName' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'columns' => ['required', 'array', 'min:1'],
+            'columns.*.label' => ['required', 'string', 'max:100'],
+            'columns.*.name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'columns.*.type' => ['required', "in:{$typeValues}"],
+            'columns.*.required' => ['boolean'],
         ], [
-            'tableLabel.required'           => 'Le libellé de la grille est obligatoire.',
-            'tableName.required'            => 'Le nom technique est obligatoire.',
-            'tableName.regex'               => 'Le nom technique doit commencer par une lettre et ne contenir que des lettres minuscules, chiffres et underscores.',
-            'columns.*.label.required'     => 'Chaque colonne doit avoir un libellé.',
-            'columns.*.name.required'      => 'Chaque colonne doit avoir un nom technique.',
-            'columns.*.name.regex'         => 'Les noms techniques doivent commencer par une lettre et ne contenir que lettres minuscules, chiffres et underscores.',
-            'columns.*.type.in'            => 'Type de colonne invalide.',
+            'tableLabel.required' => 'Le libellé de la grille est obligatoire.',
+            'tableName.required' => 'Le nom technique est obligatoire.',
+            'tableName.regex' => 'Le nom technique doit commencer par une lettre et ne contenir que des lettres minuscules, chiffres et underscores.',
+            'columns.*.label.required' => 'Chaque colonne doit avoir un libellé.',
+            'columns.*.name.required' => 'Chaque colonne doit avoir un nom technique.',
+            'columns.*.name.regex' => 'Les noms techniques doivent commencer par une lettre et ne contenir que lettres minuscules, chiffres et underscores.',
+            'columns.*.type.in' => 'Type de colonne invalide.',
         ]);
 
         $this->step = 3;
@@ -168,14 +169,14 @@ class ImportWizard extends Component
 
     public function backToStep1(): void
     {
-        $this->step         = 1;
-        $this->columns      = [];
-        $this->tableLabel   = '';
-        $this->tableName    = '';
+        $this->step = 1;
+        $this->columns = [];
+        $this->tableLabel = '';
+        $this->tableName = '';
         $this->tableDescription = '';
-        $this->hasRgpd      = false;
-        $this->importMode    = 'new';
-        $this->updateMode    = 'append';
+        $this->hasRgpd = false;
+        $this->importMode = 'new';
+        $this->updateMode = 'append';
         $this->targetTableId = null;
         $this->fileHasHeader = true;
         $this->errorMessage = null;
@@ -190,7 +191,7 @@ class ImportWizard extends Component
 
     public function backToStep2(): void
     {
-        $this->step         = 2;
+        $this->step = 2;
         $this->errorMessage = null;
     }
 
@@ -202,6 +203,7 @@ class ImportWizard extends Component
 
         if ($this->importMode === 'update') {
             $this->runUpdate();
+
             return;
         }
 
@@ -210,7 +212,7 @@ class ImportWizard extends Component
 
     private function runNew(): void
     {
-        $dgTable      = null;
+        $dgTable = null;
         $tableCreated = false;
 
         try {
@@ -219,24 +221,24 @@ class ImportWizard extends Component
 
             // ── 1. Métadonnées (DML) ──────────────────────────────
             $dgTable = DatagridTable::create([
-                'name'           => $this->tableName,
-                'label'          => $this->tableLabel,
-                'description'    => $this->tableDescription ?: null,
-                'mysql_table'    => $this->mysqlTableName(),
-                'has_rgpd'       => $this->hasRgpd,
+                'name' => $this->tableName,
+                'label' => $this->tableLabel,
+                'description' => $this->tableDescription ?: null,
+                'mysql_table' => $this->mysqlTableName(),
+                'has_rgpd' => $this->hasRgpd,
                 'is_persons_view' => false,
-                'created_by'     => auth()->id(),
+                'created_by' => auth()->id(),
             ]);
 
             foreach ($this->columns as $i => $col) {
                 DatagridColumn::create([
                     'datagrid_table_id' => $dgTable->id,
-                    'name'              => $col['name'],
-                    'label'             => $col['label'],
-                    'type'              => $col['type'],
-                    'required'          => (bool) $col['required'],
+                    'name' => $col['name'],
+                    'label' => $col['label'],
+                    'type' => $col['type'],
+                    'required' => (bool) $col['required'],
                     'visible_by_default' => true,
-                    'sort_order'        => $i + 1,
+                    'sort_order' => $i + 1,
                 ]);
             }
 
@@ -253,14 +255,14 @@ class ImportWizard extends Component
             // ── 3. Lignes de données ──────────────────────────────
             $columnNames = array_column($this->columns, 'name');
             $columnTypes = array_column($this->columns, 'type', 'name');
-            $count       = 0;
+            $count = 0;
 
             foreach ($import->getDataRows() as $row) {
                 $rowArr = array_values($row->toArray());
-                $data   = [];
+                $data = [];
 
                 foreach ($columnNames as $idx => $colName) {
-                    $raw            = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
+                    $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
                     $data[$colName] = ($raw !== null && ($columnTypes[$colName] ?? '') === DatagridColumnType::DATE->value)
                         ? $this->normalizeDate($raw)
                         : $raw;
@@ -276,7 +278,7 @@ class ImportWizard extends Component
                 $count++;
             }
 
-            $this->importedRows    = $count;
+            $this->importedRows = $count;
             $this->importedTableId = $dgTable->id;
 
             if ($this->tempPath) {
@@ -298,8 +300,8 @@ class ImportWizard extends Component
     private function runUpdate(): void
     {
         try {
-            $dgTable    = DatagridTable::findOrFail($this->targetTableId);
-            $dbCols     = $dgTable->columns()->orderBy('sort_order')->get();
+            $dgTable = DatagridTable::findOrFail($this->targetTableId);
+            $dbCols = $dgTable->columns()->orderBy('sort_order')->get();
             $mysqlTable = $dgTable->mysql_table;
 
             // Construire un dictionnaire nom_colonne → type à partir des colonnes MySQL réelles
@@ -336,10 +338,10 @@ class ImportWizard extends Component
             $count = 0;
             foreach ($dataRows as $row) {
                 $rowArr = array_values($row->toArray());
-                $data   = [];
+                $data = [];
 
                 foreach ($headerMap as $idx => $colInfo) {
-                    $raw            = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
+                    $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
                     $data[$colInfo['name']] = ($raw !== null && $colInfo['type'] === DatagridColumnType::DATE->value)
                         ? $this->normalizeDate($raw)
                         : $raw;
@@ -355,7 +357,7 @@ class ImportWizard extends Component
                 $count++;
             }
 
-            $this->importedRows    = $count;
+            $this->importedRows = $count;
             $this->importedTableId = $dgTable->id;
 
             if ($this->tempPath) {
@@ -384,19 +386,19 @@ class ImportWizard extends Component
 
     private function addDynamicColumn(Blueprint $table, array $col): void
     {
-        $type     = DatagridColumnType::tryFrom($col['type']) ?? DatagridColumnType::TEXT;
+        $type = DatagridColumnType::tryFrom($col['type']) ?? DatagridColumnType::TEXT;
         $nullable = ! ((bool) $col['required']);
 
         $column = match ($type) {
-            DatagridColumnType::NUMBER      => $table->decimal($col['name'], 15, 4),
-            DatagridColumnType::DATE        => $table->date($col['name']),
-            DatagridColumnType::BOOLEAN     => $table->boolean($col['name'])->default(false),
-            DatagridColumnType::EMAIL       => $table->string($col['name'], 255),
-            DatagridColumnType::PHONE       => $table->string($col['name'], 30),
-            DatagridColumnType::SIRET       => $table->string($col['name'], 14),
+            DatagridColumnType::NUMBER => $table->decimal($col['name'], 15, 4),
+            DatagridColumnType::DATE => $table->date($col['name']),
+            DatagridColumnType::BOOLEAN => $table->boolean($col['name'])->default(false),
+            DatagridColumnType::EMAIL => $table->string($col['name'], 255),
+            DatagridColumnType::PHONE => $table->string($col['name'], 30),
+            DatagridColumnType::SIRET => $table->string($col['name'], 14),
             DatagridColumnType::POSTAL_CODE => $table->string($col['name'], 10),
-            DatagridColumnType::SELECT      => $table->string($col['name'], 100),
-            default                         => $table->string($col['name'], 255),
+            DatagridColumnType::SELECT => $table->string($col['name'], 100),
+            default => $table->string($col['name'], 255),
         };
 
         if ($nullable) {

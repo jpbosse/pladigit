@@ -29,6 +29,8 @@ class DatagridAuditLog extends Model
 
     protected $connection = 'tenant';
 
+    protected $table = 'datagrid_audit_log';
+
     /**
      * Pas de mise à jour — toutes les colonnes sont remplies à la création.
      */

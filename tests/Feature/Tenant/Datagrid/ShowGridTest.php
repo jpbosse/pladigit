@@ -16,7 +16,9 @@ use Tests\TestCase;
 class ShowGridTest extends TestCase
 {
     private User $admin;
+
     private DatagridTable $table;
+
     private string $mysqlTable = 'dg_test_show';
 
     protected function setUp(): void
@@ -30,35 +32,35 @@ class ShowGridTest extends TestCase
 
         // Créer la DatagridTable
         $this->table = DatagridTable::create([
-            'name'       => 'test_show',
-            'label'      => 'Test Grille',
+            'name' => 'test_show',
+            'label' => 'Test Grille',
             'mysql_table' => $this->mysqlTable,
-            'has_rgpd'   => false,
+            'has_rgpd' => false,
             'created_by' => $this->admin->id,
         ]);
 
         // Créer les colonnes
         DatagridColumn::create([
-            'datagrid_table_id'  => $this->table->id,
-            'name'               => 'nom',
-            'label'              => 'Nom',
-            'type'               => DatagridColumnType::TEXT,
-            'required'           => true,
+            'datagrid_table_id' => $this->table->id,
+            'name' => 'nom',
+            'label' => 'Nom',
+            'type' => DatagridColumnType::TEXT,
+            'required' => true,
             'visible_by_default' => true,
-            'is_rgpd_sensitive'  => false,
-            'is_role_column'     => false,
-            'sort_order'         => 0,
+            'is_rgpd_sensitive' => false,
+            'is_role_column' => false,
+            'sort_order' => 0,
         ]);
         DatagridColumn::create([
-            'datagrid_table_id'  => $this->table->id,
-            'name'               => 'email',
-            'label'              => 'Email',
-            'type'               => DatagridColumnType::EMAIL,
-            'required'           => false,
+            'datagrid_table_id' => $this->table->id,
+            'name' => 'email',
+            'label' => 'Email',
+            'type' => DatagridColumnType::EMAIL,
+            'required' => false,
             'visible_by_default' => true,
-            'is_rgpd_sensitive'  => false,
-            'is_role_column'     => false,
-            'sort_order'         => 1,
+            'is_rgpd_sensitive' => false,
+            'is_role_column' => false,
+            'sort_order' => 1,
         ]);
 
         // Créer la table MySQL tenant
@@ -105,7 +107,7 @@ class ShowGridTest extends TestCase
     public function test_filtre_par_colonne(): void
     {
         $this->actingAs($this->admin, 'tenant')
-            ->get(route('datagrid.show', $this->table) . '?filters[nom]=Alice')
+            ->get(route('datagrid.show', $this->table).'?filters[nom]=Alice')
             ->assertOk()
             ->assertSee('Alice')
             ->assertDontSee('Bob');
@@ -114,12 +116,12 @@ class ShowGridTest extends TestCase
     public function test_tri_par_colonne(): void
     {
         $response = $this->actingAs($this->admin, 'tenant')
-            ->get(route('datagrid.show', $this->table) . '?sort=nom&direction=asc')
+            ->get(route('datagrid.show', $this->table).'?sort=nom&direction=asc')
             ->assertOk();
 
         $content = $response->getContent();
         $posAlice = strpos($content, 'Alice');
-        $posBob   = strpos($content, 'Bob');
+        $posBob = strpos($content, 'Bob');
         $posCarla = strpos($content, 'Carla');
 
         $this->assertLessThan($posBob, $posAlice);
@@ -132,7 +134,7 @@ class ShowGridTest extends TestCase
     {
         $this->actingAs($this->admin, 'tenant')
             ->postJson(route('datagrid.views.store', $this->table), [
-                'name'    => 'Ma vue test',
+                'name' => 'Ma vue test',
                 'filters' => ['nom' => 'Ali'],
             ])
             ->assertCreated()
@@ -140,8 +142,8 @@ class ShowGridTest extends TestCase
 
         $this->assertDatabaseHas('datagrid_saved_views', [
             'datagrid_table_id' => $this->table->id,
-            'user_id'           => $this->admin->id,
-            'name'              => 'Ma vue test',
+            'user_id' => $this->admin->id,
+            'name' => 'Ma vue test',
         ], 'tenant');
     }
 
@@ -153,19 +155,19 @@ class ShowGridTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('datagrid.columns.update', [$this->table, $column]), [
-                'label'              => 'Nom complet',
+                'label' => 'Nom complet',
                 'visible_by_default' => true,
-                'required'           => true,
-                'is_rgpd_sensitive'  => false,
-                'sort_order'         => 0,
-                'type'               => 'text',
-                'length'             => null,
+                'required' => true,
+                'is_rgpd_sensitive' => false,
+                'sort_order' => 0,
+                'type' => 'text',
+                'length' => null,
             ])
             ->assertOk()
             ->assertJson(['success' => true]);
 
         $this->assertDatabaseHas('datagrid_columns', [
-            'id'    => $column->id,
+            'id' => $column->id,
             'label' => 'Nom complet',
         ], 'tenant');
     }
@@ -176,13 +178,13 @@ class ShowGridTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('datagrid.columns.update', [$this->table, $column]), [
-                'label'              => 'Nom',
+                'label' => 'Nom',
                 'visible_by_default' => true,
-                'required'           => true,
-                'is_rgpd_sensitive'  => false,
-                'sort_order'         => 0,
-                'type'               => 'email',
-                'length'             => null,
+                'required' => true,
+                'is_rgpd_sensitive' => false,
+                'sort_order' => 0,
+                'type' => 'email',
+                'length' => null,
             ])
             ->assertOk()
             ->assertJson(['success' => true]);
@@ -198,13 +200,13 @@ class ShowGridTest extends TestCase
         // TEXT → DATE est incompatible car les valeurs existantes ("Alice", etc.) ne sont pas des dates
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('datagrid.columns.update', [$this->table, $column]), [
-                'label'              => 'Nom',
+                'label' => 'Nom',
                 'visible_by_default' => true,
-                'required'           => true,
-                'is_rgpd_sensitive'  => false,
-                'sort_order'         => 0,
-                'type'               => 'date',
-                'length'             => null,
+                'required' => true,
+                'is_rgpd_sensitive' => false,
+                'sort_order' => 0,
+                'type' => 'date',
+                'length' => null,
             ])
             ->assertStatus(422)
             ->assertJsonFragment(['error' => 'Type incompatible avec les données existantes']);
