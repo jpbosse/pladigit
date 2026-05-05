@@ -27,12 +27,6 @@
         </button>
     </div>
 
-    {{-- Toggle colonnes --}}
-    <button wire:click="$toggle('showColumnSettings')"
-            style="padding:6px 14px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;font-weight:500;color:var(--pd-text);background:var(--pd-bg);cursor:pointer;">
-        Colonnes
-    </button>
-
     {{-- Effacer filtres --}}
     @if(count($filters))
     <button wire:click="clearFilters"
@@ -41,68 +35,6 @@
     </button>
     @endif
 </div>
-
-{{-- ── Panneau colonnes ─────────────────────────────────────────────────── --}}
-@if($showColumnSettings)
-<div style="background:var(--pd-bg2,#f8f9fb);border-bottom:1px solid var(--pd-border);padding:16px 32px;">
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;">
-        @foreach($columns as $col)
-        @php $edit = $columnEdits[$col->id] ?? []; @endphp
-        <div style="background:var(--pd-bg);border:1px solid var(--pd-border);border-radius:10px;padding:14px;">
-            <div style="font-size:11px;font-weight:600;color:var(--pd-muted);text-transform:uppercase;margin-bottom:10px;">
-                {{ $col->name }}
-            </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
-                <div>
-                    <label style="font-size:11px;color:var(--pd-muted);display:block;margin-bottom:3px;">Label</label>
-                    <input wire:model="columnEdits.{{ $col->id }}.label" type="text"
-                           style="width:100%;padding:5px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;box-sizing:border-box;">
-                </div>
-                <div>
-                    <label style="font-size:11px;color:var(--pd-muted);display:block;margin-bottom:3px;">Type</label>
-                    <select wire:model="columnEdits.{{ $col->id }}.type"
-                            style="width:100%;padding:5px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;box-sizing:border-box;">
-                        @foreach($columnTypes as $val => $lbl)
-                        <option value="{{ $val }}">{{ $lbl }}</option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
-
-            @if(\App\Enums\DatagridColumnType::tryFrom($edit['type'] ?? '')?->hasLength())
-            <div style="margin-bottom:8px;">
-                <label style="font-size:11px;color:var(--pd-muted);display:block;margin-bottom:3px;">Longueur max</label>
-                <input wire:model="columnEdits.{{ $col->id }}.length" type="number" min="1" max="65535"
-                       style="width:100%;padding:5px 8px;border:1px solid var(--pd-border);border-radius:6px;font-size:12px;box-sizing:border-box;">
-            </div>
-            @endif
-
-            <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap;">
-                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
-                    <input wire:model="columnEdits.{{ $col->id }}.required" type="checkbox"> Obligatoire
-                </label>
-                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
-                    <input wire:model="columnEdits.{{ $col->id }}.visible_by_default" type="checkbox"> Visible
-                </label>
-                <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;">
-                    <input wire:model="columnEdits.{{ $col->id }}.is_rgpd_sensitive" type="checkbox"> RGPD
-                </label>
-            </div>
-
-            @error("columnEdits.{$col->id}.type")
-            <div style="font-size:11px;color:#dc2626;margin-bottom:8px;">{{ $message }}</div>
-            @enderror
-
-            <button wire:click="updateColumn({{ $col->id }})"
-                    style="width:100%;padding:6px;background:var(--pd-navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;">
-                Enregistrer
-            </button>
-        </div>
-        @endforeach
-    </div>
-</div>
-@endif
 
 {{-- ── Badges filtres actifs ────────────────────────────────────────────── --}}
 @if(count(array_filter($filters, fn($v) => $v !== '')))

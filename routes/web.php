@@ -100,6 +100,10 @@ Route::prefix('super-admin')
         Route::get('/stats', [StatsController::class, 'index'])->name('stats');
         Route::get('datagrids', [DatagridController::class, 'index'])->name('datagrids.index');
         Route::get('datagrids/{organization}/import', [DatagridController::class, 'import'])->name('datagrids.import');
+        Route::get('datagrids/{organization}/{table}/edit', [DatagridController::class, 'edit'])->name('datagrids.edit');
+        Route::patch('datagrids/{organization}/{table}', [DatagridController::class, 'update'])->name('datagrids.update');
+        Route::delete('datagrids/{organization}/{table}', [DatagridController::class, 'destroy'])->name('datagrids.destroy');
+        Route::delete('datagrids/{organization}/{table}/columns/{column}', [DatagridController::class, 'destroyColumn'])->name('datagrids.columns.destroy');
         Route::resource('organizations', OrganizationController::class);
         Route::post('organizations/{organization}/suspend', [OrganizationController::class, 'suspend'])->name('organizations.suspend');
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');
@@ -250,6 +254,8 @@ Route::middleware('tenant')->group(function () {
                 Route::get('datagrid/{table}/edit', [DatagridAdminController::class, 'edit'])->name('datagrid.edit');
                 Route::patch('datagrid/{table}', [DatagridAdminController::class, 'update'])->name('datagrid.update');
                 Route::delete('datagrid/{table}', [DatagridAdminController::class, 'destroy'])->name('datagrid.destroy');
+                Route::get('datagrid/{table}/columns/{column}/edit', [DatagridAdminController::class, 'editColumn'])->name('datagrid.columns.edit');
+                Route::patch('datagrid/{table}/columns/{column}', [DatagridAdminController::class, 'updateColumn'])->name('datagrid.columns.update');
             });
 
             // Purge GED — réservé au module GED

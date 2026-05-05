@@ -107,6 +107,11 @@ class DatagridAdminController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function editColumn(DatagridTable $table, DatagridColumn $column): View
+    {
+        return view('admin.datagrid.edit-column', compact('table', 'column'));
+    }
+
     public function destroy(DatagridTable $table): RedirectResponse
     {
         DatagridAuditLog::where('datagrid_table_id', $table->id)->delete();

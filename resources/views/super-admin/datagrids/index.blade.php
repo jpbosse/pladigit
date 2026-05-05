@@ -79,6 +79,7 @@
                         <th style="text-align:right;padding:10px 16px;color:var(--pd-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Colonnes</th>
                         <th style="text-align:right;padding:10px 16px;color:var(--pd-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Lignes</th>
                         <th style="text-align:center;padding:10px 16px;color:var(--pd-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Statut</th>
+                        <th style="padding:10px 16px;border-bottom:0;"></th>
                     </tr>
                 </thead>
                 <tbody>
@@ -110,6 +111,27 @@
                                 <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;background:#d1fae5;color:#065f46;">
                                     Active
                                 </span>
+                            @endif
+                        </td>
+                        <td style="padding:12px 16px;text-align:right;white-space:nowrap;">
+                            @if(!$grid['supprimee'])
+                            <a href="{{ route('super-admin.datagrids.edit', [$org, $grid['id']]) }}"
+                               style="padding:4px 10px;border:1px solid var(--pd-border);border-radius:6px;
+                                      font-size:11px;font-weight:500;color:var(--pd-text);text-decoration:none;
+                                      margin-right:6px;">
+                                Modifier
+                            </a>
+                            <form method="POST"
+                                  action="{{ route('super-admin.datagrids.destroy', [$org, $grid['id']]) }}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Supprimer la grille « {{ $grid['label'] }} » et ses données ?')">
+                                @csrf @method('DELETE')
+                                <button type="submit"
+                                        style="padding:4px 10px;border:1px solid #fca5a5;border-radius:6px;
+                                               font-size:11px;font-weight:500;color:#dc2626;background:#fef2f2;cursor:pointer;">
+                                    Supprimer
+                                </button>
+                            </form>
                             @endif
                         </td>
                     </tr>

@@ -49,7 +49,7 @@
                                   border-radius:7px;font-size:13px;box-sizing:border-box;">
                 </div>
             </div>
-            <div style="display:flex;align-items:center;gap:16px;">
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
                 <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
                     <input name="has_rgpd" type="checkbox" {{ $table->has_rgpd ? 'checked' : '' }}>
                     Données RGPD sensibles (active le journal d'audit)
@@ -60,6 +60,17 @@
                     Enregistrer
                 </button>
                 <span data-saved style="display:none;font-size:12px;color:#16a34a;font-weight:600;">✓ Sauvegardé</span>
+                <form method="POST"
+                      action="{{ route('admin.datagrid.destroy', $table) }}"
+                      style="margin-left:auto;"
+                      onsubmit="return confirm('Supprimer la grille « {{ $table->label }} » et toutes ses données ?')">
+                    @csrf @method('DELETE')
+                    <button type="submit"
+                            style="padding:7px 14px;border:1px solid #fca5a5;border-radius:7px;
+                                   font-size:13px;font-weight:600;color:#dc2626;background:#fef2f2;cursor:pointer;">
+                        Supprimer cette grille
+                    </button>
+                </form>
             </div>
         </form>
     </div>
@@ -93,13 +104,17 @@
                         <td style="padding:8px 12px;color:var(--pd-text);">{{ $col->type->value }}</td>
                         <td style="padding:8px 12px;text-align:center;">{{ $col->required ? '✓' : '' }}</td>
                         <td style="padding:8px 12px;text-align:center;">{{ $col->is_rgpd_sensitive ? '✓' : '' }}</td>
-                        <td style="padding:8px 12px;text-align:right;">
+                        <td style="padding:8px 12px;text-align:right;white-space:nowrap;">
+                            <a href="{{ route('admin.datagrid.columns.edit', [$table, $col]) }}"
+                               style="padding:4px 10px;border:1px solid var(--pd-border);border-radius:5px;
+                                      font-size:11px;color:var(--pd-text);text-decoration:none;margin-right:4px;">
+                                Modifier les champs
+                            </a>
                             <form method="POST"
                                   action="{{ route('datagrid.columns.destroy', [$table, $col]) }}"
                                   style="display:inline;"
                                   onsubmit="return confirm('Supprimer la colonne « {{ $col->name }} » et ses données ?')">
-                                @csrf
-                                @method('DELETE')
+                                @csrf @method('DELETE')
                                 <button type="submit"
                                         style="padding:4px 10px;border:1px solid #fca5a5;border-radius:5px;
                                                font-size:11px;color:#dc2626;background:#fef2f2;cursor:pointer;">
