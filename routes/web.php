@@ -104,6 +104,8 @@ Route::prefix('super-admin')
         Route::patch('datagrids/{organization}/{table}', [DatagridController::class, 'update'])->name('datagrids.update');
         Route::delete('datagrids/{organization}/{table}', [DatagridController::class, 'destroy'])->name('datagrids.destroy');
         Route::delete('datagrids/{organization}/{table}/columns/{column}', [DatagridController::class, 'destroyColumn'])->name('datagrids.columns.destroy');
+        Route::get('datagrids/{organization}/{table}/columns/{column}/edit', [DatagridController::class, 'editColumn'])->name('datagrids.columns.edit');
+        Route::patch('datagrids/{organization}/{table}/columns/{column}', [DatagridController::class, 'updateColumn'])->name('datagrids.columns.update');
         Route::resource('organizations', OrganizationController::class);
         Route::post('organizations/{organization}/suspend', [OrganizationController::class, 'suspend'])->name('organizations.suspend');
         Route::post('organizations/{organization}/activate', [OrganizationController::class, 'activate'])->name('organizations.activate');

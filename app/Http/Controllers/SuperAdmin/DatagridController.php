@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\SuperAdmin;
 
+use App\Enums\DatagridColumnType;
 use App\Http\Controllers\Controller;
 use App\Models\Platform\Organization;
 use App\Models\Tenant\DatagridColumn;
@@ -149,5 +150,93 @@ class DatagridController extends Controller
 
         return redirect()->route('super-admin.datagrids.edit', [$organization, $grid->id])
             ->with('success', "Colonne « {$col->name} » supprimée.");
+    }
+
+    public function editColumn(Organization $organization, string $table, string $column): View
+    {
+        app(TenantManager::class)->connectTo($organization);
+        $grid   = DatagridTable::findOrFail((int) $table);
+        $col    = DatagridColumn::findOrFail((int) $column);
+
+        return view('super-admin.datagrids.edit-column', [
+            'org'    => $organization,
+            'table'  => $grid,
+            'column' => $col,
+        ]);
+    }
+
+    public function updateColumn(Organization $organization, string $table, string $column): JsonResponse
+    {
+        app(TenantManager::class)->connectTo($organization);
+        $grid = DatagridTable::findOrFail((int) $table);
+        $col  = DatagridColumn::findOrFail((int) $column);
+
+        $data = request()->validate([
+            'label'              => 'required|string|max:100',
+            'visible_by_default' => 'boolean',
+            'required'           => 'boolean',
+            'is_rgpd_sensitive'  => 'boolean',
+            'sort_order'         => 'integer|min:0',
+            'type'               => 'nullable|in:' . implode(',', DatagridColumnType::values()),
+            'length'             => 'nullable|integer|min:1|max:65535',
+        ]);
+
+        $oldType   = $col->type;
+        $newType   = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
+        $oldLength = $col->length;
+        $newLength = $data['length'] ?? $oldLength;
+
+        $col->fill([
+            'label'              => $data['label'],
+            'visible_by_default' => $data['visible_by_default'] ?? $col->visible_by_default,
+            'required'           => $data['required'] ?? $col->required,
+            'is_rgpd_sensitive'  => $data['is_rgpd_sensitive'] ?? $col->is_rgpd_sensitive,
+            'sort_order'         => $data['sort_order'] ?? $col->sort_order,
+            'type'               => $newType,
+            'length'             => $newLength,
+        ]);
+        $col->save();
+
+        if ($newType !== $oldType) {
+            $families = [
+                [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE],
+                [DatagridColumnType::NUMBER],
+                [DatagridColumnType::DATE],
+                [DatagridColumnType::BOOLEAN],
+            ];
+            $compatible = false;
+            foreach ($families as $family) {
+                if (in_array($oldType, $family, true) && in_array($newType, $family, true)) {
+                    $compatible = true;
+                    break;
+                }
+            }
+            if (! $compatible) {
+                return response()->json(['error' => 'Type incompatible avec les données existantes'], 422);
+            }
+
+            Schema::connection('tenant')->table($grid->mysql_table, function ($t) use ($col, $newType, $newLength) {
+                $nullable = ! $col->required;
+                $colObj = match ($newType) {
+                    DatagridColumnType::NUMBER      => $t->decimal($col->name, 15, 4),
+                    DatagridColumnType::DATE        => $t->date($col->name),
+                    DatagridColumnType::BOOLEAN     => $t->boolean($col->name)->default(false),
+                    DatagridColumnType::EMAIL       => $t->string($col->name, $newLength ?? 255),
+                    DatagridColumnType::PHONE       => $t->string($col->name, $newLength ?? 30),
+                    DatagridColumnType::SIRET       => $t->string($col->name, 14),
+                    DatagridColumnType::POSTAL_CODE => $t->string($col->name, 10),
+                    DatagridColumnType::SELECT      => $t->string($col->name, 100),
+                    default                         => $t->string($col->name, $newLength ?? 255),
+                };
+                $nullable ? $colObj->nullable()->change() : $colObj->change();
+            });
+        } elseif ($newType->hasLength() && $newLength !== $oldLength && $newLength !== null) {
+            $nullable = $col->required ? '' : ' NULL';
+            DB::connection('tenant')->statement(
+                "ALTER TABLE `{$grid->mysql_table}` MODIFY COLUMN `{$col->name}` VARCHAR({$newLength}){$nullable}"
+            );
+        }
+
+        return response()->json(['success' => true]);
     }
 }
