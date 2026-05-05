@@ -99,7 +99,7 @@ enum ModuleKey: string
      */
     public function isAvailable(): bool
     {
-        return in_array($this, [self::MEDIA, self::PROJECTS, self::GED], true);
+        return in_array($this, [self::MEDIA, self::PROJECTS, self::GED, self::DATAGRID], true);
     }
 
     /**

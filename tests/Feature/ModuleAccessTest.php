@@ -301,6 +301,13 @@ class ModuleAccessTest extends TestCase
             ->assertOk();
     }
 
+    public function test_datagrid_est_dans_la_liste_available(): void
+    {
+        $available = array_map(fn (ModuleKey $m) => $m->value, ModuleKey::available());
+
+        $this->assertContains('datagrid', $available);
+    }
+
     /** Crée un dossier + document ODT pour les tests Collabora. */
     private function makeGedDocument(): GedDocument
     {
