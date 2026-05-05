@@ -11,7 +11,7 @@
                 {{ $tables->count() }} grille{{ $tables->count() !== 1 ? 's' : '' }} disponible{{ $tables->count() !== 1 ? 's' : '' }}
             </p>
         </div>
-        @if(session('super_admin_logged_in'))
+        @if(auth()->user()->isAdmin())
         <a href="{{ route('datagrid.import') }}"
            style="padding:9px 18px;background:var(--pd-navy);color:#fff;border-radius:9px;
                   font-size:13px;font-weight:600;text-decoration:none;">
@@ -29,7 +29,12 @@
     @else
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
         @foreach($tables as $table)
-        <div style="background:var(--pd-bg);border:1px solid var(--pd-border);border-radius:12px;padding:20px;">
+        <a href="{{ route('datagrid.show', $table) }}"
+           style="display:block;background:var(--pd-bg);border:1px solid var(--pd-border);
+                  border-radius:12px;padding:20px;text-decoration:none;
+                  transition:border-color .15s,box-shadow .15s;"
+           onmouseover="this.style.borderColor='var(--pd-primary)';this.style.boxShadow='0 2px 8px rgba(0,0,0,.08)'"
+           onmouseout="this.style.borderColor='var(--pd-border)';this.style.boxShadow='none'">
             <div style="font-size:15px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">
                 {{ $table->label }}
             </div>
@@ -39,7 +44,7 @@
             <div style="font-size:11px;color:var(--pd-muted);">
                 {{ $table->columns_count }} colonne{{ $table->columns_count !== 1 ? 's' : '' }}
             </div>
-        </div>
+        </a>
         @endforeach
     </div>
     @endif

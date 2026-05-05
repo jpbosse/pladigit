@@ -19,6 +19,11 @@ use Illuminate\View\View;
 
 class DatagridController extends Controller
 {
+    public function import(): View
+    {
+        return view('datagrid.import');
+    }
+
     public function index(): View
     {
         $tables = DatagridTable::withCount('columns')
