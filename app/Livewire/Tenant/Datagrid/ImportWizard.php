@@ -314,15 +314,18 @@ class ImportWizard extends Component
 
             // Mapper les colonnes Excel → colonnes existantes
             $headerMap = [];
+
             if ($this->fileHasHeader) {
                 foreach ($this->columns as $col) {
-                    if (array_key_exists($col['name'], $colTypeMap)) {
+                    $normalizedName = Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', $col['name'])));
+                    if (array_key_exists($normalizedName, $colTypeMap)) {
                         $headerMap[$col['index']] = [
-                            'name' => $col['name'],
-                            'type' => $colTypeMap[$col['name']],
+                            'name' => $normalizedName,
+                            'type' => $colTypeMap[$normalizedName],
                         ];
                     }
                 }
+
                 $dataRows = $import->getDataRows();
             } else {
                 foreach ($dbCols->values() as $idx => $dbCol) {
