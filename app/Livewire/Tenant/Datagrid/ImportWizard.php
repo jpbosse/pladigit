@@ -15,7 +15,6 @@ use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ImportWizard extends Component
 {
@@ -120,10 +119,10 @@ class ImportWizard extends Component
     public function uploadFile(): void
     {
         $this->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls', 'max:40960'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,ods', 'max:40960'],
         ], [
             'file.required' => 'Veuillez choisir un fichier.',
-            'file.mimes' => 'Le fichier doit être au format .xlsx ou .xls.',
+            'file.mimes' => 'Le fichier doit être au format .xlsx, .xls, .csv ou .ods.',
             'file.max' => 'La taille maximale est de 40 Mo.',
         ]);
 
@@ -135,7 +134,7 @@ class ImportWizard extends Component
 
         $this->tempPath = $this->file->storeAs(
             'imports/datagrid',
-            Str::uuid().'.xlsx',
+            Str::uuid().'.'.$this->file->getClientOriginalExtension(),
             'local'
         );
 
@@ -457,20 +456,8 @@ class ImportWizard extends Component
 
     private function normalizeDate(string $value): ?string
     {
-        // Format dd/mm/yyyy
         if (preg_match('#^(\d{2})/(\d{2})/(\d{4})$#', $value, $m)) {
             return "{$m[3]}-{$m[2]}-{$m[1]}";
-        }
-
-        // Nombre de série Excel (ex: 45678)
-        if (ctype_digit($value)) {
-            try {
-                $dt = Date::excelToDateTimeObject((int) $value);
-
-                return $dt->format('Y-m-d');
-            } catch (\Throwable) {
-                return null;
-            }
         }
 
         return $value ?: null;

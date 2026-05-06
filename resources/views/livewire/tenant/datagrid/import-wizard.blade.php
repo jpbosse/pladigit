@@ -201,8 +201,8 @@
 
             {{-- Fichier --}}
             <div class="pd-form-group">
-                <label class="pd-label pd-label-req">Fichier Excel (.xlsx / .xls)</label>
-                <input type="file" wire:model="file" accept=".xlsx,.xls"
+                <label class="pd-label pd-label-req">Fichier (.xlsx / .xls / .csv / .ods)</label>
+                <input type="file" wire:model="file" accept=".xlsx,.xls,.csv,.ods"
                        style="display:block;width:100%;padding:8px 10px;border:0.5px solid var(--pd-border);
                               border-radius:8px;font-size:13px;color:var(--pd-text);
                               background:var(--pd-bg);cursor:pointer;">
@@ -216,6 +216,7 @@
                 <strong style="color:var(--pd-text);">Format attendu :</strong><br>
                 • La ligne 1 contient les <strong>en-têtes de colonnes</strong> (ex : Nom, Prénom, Email…).<br>
                 • Les lignes suivantes contiennent les données à importer.<br>
+                • Formats acceptés : <strong>.xlsx, .xls, .csv, .ods</strong><br>
                 @if($importMode === 'update')
                 • Les en-têtes doivent correspondre aux noms de colonnes de la grille cible.
                 @else
