@@ -27,6 +27,11 @@ class ShowGrid extends Component
 
     public string $sortDirection = 'asc';
 
+    public int $perPage = 10;
+
+    /** Valeurs distinctes par colonne pour les selects de filtre */
+    public array $distinctValues = [];
+
     public ?int $activeViewId = null;
 
     public string $newViewName = '';
@@ -61,6 +66,20 @@ class ShowGrid extends Component
                 'sort_order' => $col->sort_order,
             ];
         }
+
+        // Charger les valeurs distinctes pour BOOLEAN et SELECT
+        foreach ($table->columns as $col) {
+            if (in_array($col->type, [DatagridColumnType::BOOLEAN, DatagridColumnType::SELECT], true)) {
+                $this->distinctValues[$col->name] = DB::connection('tenant')
+                    ->table($table->mysql_table)
+                    ->select($col->name)
+                    ->whereNotNull($col->name)
+                    ->distinct()
+                    ->orderBy($col->name)
+                    ->pluck($col->name)
+                    ->toArray();
+            }
+        }
     }
 
     #[Computed]
@@ -68,17 +87,59 @@ class ShowGrid extends Component
     {
         $query = DB::connection('tenant')->table($this->table->mysql_table);
 
-        foreach ($this->filters as $col => $val) {
-            if ($val !== '' && $val !== null) {
-                $query->where($col, 'like', '%'.$val.'%');
+        foreach ($this->table->columns as $col) {
+            $name = $col->name;
+
+            if ($col->type === DatagridColumnType::DATE) {
+                $from = $this->filters[$name.'_from'] ?? '';
+                $to = $this->filters[$name.'_to'] ?? '';
+                if ($from !== '') {
+                    $query->where($name, '>=', $from);
+                }
+                if ($to !== '') {
+                    $query->where($name, '<=', $to);
+                }
+
+                continue;
             }
+
+            if ($col->type === DatagridColumnType::NUMBER) {
+                $min = $this->filters[$name.'_min'] ?? '';
+                $max = $this->filters[$name.'_max'] ?? '';
+                if ($min !== '') {
+                    $query->where($name, '>=', $min);
+                }
+                if ($max !== '') {
+                    $query->where($name, '<=', $max);
+                }
+
+                continue;
+            }
+
+            $val = $this->filters[$name] ?? '';
+            if ($val === '') {
+                continue;
+            }
+
+            if ($col->type === DatagridColumnType::BOOLEAN || $col->type === DatagridColumnType::SELECT) {
+                $query->where($name, $val);
+
+                continue;
+            }
+
+            $query->where($name, 'like', '%'.$val.'%');
         }
 
         if ($this->sortColumn !== '') {
             $query->orderBy($this->sortColumn, $this->sortDirection);
         }
 
-        return $query->paginate(50);
+        return $query->paginate($this->perPage);
+    }
+
+    public function updatedPerPage(): void
+    {
+        $this->resetPage();
     }
 
     public function applyFilter(string $column, string $value): void
@@ -90,7 +151,9 @@ class ShowGrid extends Component
     public function clearFilters(): void
     {
         $this->filters = [];
+        $this->activeViewId = null;
         $this->resetPage();
+        $this->dispatch('$refresh');
     }
 
     public function sortBy(string $column): void
@@ -105,14 +168,22 @@ class ShowGrid extends Component
         $this->resetPage();
     }
 
-    public function loadView(int $viewId): void
+    public function updatedActiveViewId(mixed $value): void
     {
+        $viewId = (int) $value;
+
+        if ($viewId === 0) {
+            $this->filters = [];
+            $this->resetPage();
+
+            return;
+        }
+
         $view = DatagridSavedView::where('datagrid_table_id', $this->table->id)
             ->where('user_id', auth()->id())
             ->findOrFail($viewId);
 
         $this->filters = $view->filters ?? [];
-        $this->activeViewId = $viewId;
         $this->resetPage();
     }
 

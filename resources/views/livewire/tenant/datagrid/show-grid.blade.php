@@ -8,7 +8,8 @@
 
     {{-- Vues sauvegardées --}}
     @if($savedViews->count())
-    <select wire:change="loadView($event.target.value)"
+
+    <select wire:model.live="activeViewId"
             style="padding:6px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);">
         <option value="">— Choisir une vue —</option>
         @foreach($savedViews as $sv)
@@ -27,8 +28,19 @@
         </button>
     </div>
 
+    {{-- Pagination --}}
+    <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:12px;color:var(--pd-muted);">Lignes :</span>
+        <select wire:model.live="perPage"
+                style="padding:5px 8px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+        </select>
+    </div>
+
     {{-- Effacer filtres --}}
-    @if(count($filters))
+    @if(count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
     <button wire:click="clearFilters"
             style="padding:6px 12px;border:1px solid #fca5a5;border-radius:7px;font-size:12px;color:#dc2626;background:#fef2f2;cursor:pointer;">
         Effacer filtres
@@ -71,10 +83,51 @@
                 <tr style="background:var(--pd-bg);">
                     @foreach($columns->where('visible_by_default', true) as $col)
                     <td style="padding:6px 8px;border-bottom:1px solid var(--pd-border);">
-                        <input wire:model.live.debounce.300ms="filters.{{ $col->name }}"
-                               type="text"
-                               placeholder="Filtrer…"
-                               style="width:100%;padding:4px 8px;border:1px solid var(--pd-border);border-radius:5px;font-size:11px;box-sizing:border-box;background:var(--pd-bg);">
+                        @if($col->type === \App\Enums\DatagridColumnType::BOOLEAN)
+                            <select wire:model.live="filters.{{ $col->name }}"
+                                    style="width:100%;padding:4px 6px;border:1px solid var(--pd-border);border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                <option value="">Tous</option>
+                                <option value="1">Oui</option>
+                                <option value="0">Non</option>
+                            </select>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::SELECT && isset($distinctValues[$col->name]) && count($distinctValues[$col->name]))
+                            <select wire:model.live="filters.{{ $col->name }}"
+                                    style="width:100%;padding:4px 6px;border:1px solid var(--pd-border);border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                <option value="">Tous</option>
+                                @foreach($distinctValues[$col->name] as $dv)
+                                <option value="{{ $dv }}">{{ $dv }}</option>
+                                @endforeach
+                            </select>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::DATE)
+                            <div style="display:flex;gap:3px;align-items:center;">
+                                <input type="date"
+                                       wire:model.live.debounce.300ms="filters.{{ $col->name }}_from"
+                                       placeholder="Du"
+                                       style="flex:1;padding:3px 5px;border:1px solid var(--pd-border);border-radius:5px;font-size:10px;background:var(--pd-bg);color:var(--pd-text);">
+                                <span style="font-size:10px;color:var(--pd-muted);">→</span>
+                                <input type="date"
+                                       wire:model.live.debounce.300ms="filters.{{ $col->name }}_to"
+                                       placeholder="Au"
+                                       style="flex:1;padding:3px 5px;border:1px solid var(--pd-border);border-radius:5px;font-size:10px;background:var(--pd-bg);color:var(--pd-text);">
+                            </div>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::NUMBER)
+                            <div style="display:flex;gap:3px;align-items:center;">
+                                <input type="number" step="any"
+                                       wire:model.live.debounce.300ms="filters.{{ $col->name }}_min"
+                                       placeholder="Min"
+                                       style="flex:1;padding:3px 5px;border:1px solid var(--pd-border);border-radius:5px;font-size:10px;background:var(--pd-bg);color:var(--pd-text);">
+                                <span style="font-size:10px;color:var(--pd-muted);">→</span>
+                                <input type="number" step="any"
+                                       wire:model.live.debounce.300ms="filters.{{ $col->name }}_max"
+                                       placeholder="Max"
+                                       style="flex:1;padding:3px 5px;border:1px solid var(--pd-border);border-radius:5px;font-size:10px;background:var(--pd-bg);color:var(--pd-text);">
+                            </div>
+                        @else
+                            <input wire:model.live.debounce.300ms="filters.{{ $col->name }}"
+                                   type="text"
+                                   placeholder="Filtrer…"
+                                   style="width:100%;padding:4px 8px;border:1px solid var(--pd-border);border-radius:5px;font-size:11px;box-sizing:border-box;background:var(--pd-bg);">
+                        @endif
                     </td>
                     @endforeach
                 </tr>
