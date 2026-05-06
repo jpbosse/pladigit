@@ -276,6 +276,158 @@ class ImportWizardTest extends TestCase
         $this->assertEquals('Soullans', $import->getDataRows()->first()[0]);
     }
 
+    // ── Mode update — mapping colonnes ────────────────────────────────────
+
+    public function test_update_append_avec_entetes_non_normalisés_insère_les_lignes(): void
+    {
+        // Créer une grille existante avec colonnes normalisées
+        $dgTable = DatagridTable::create([
+            'name' => 'agents_update',
+            'label' => 'Agents Update',
+            'mysql_table' => 'dg_agents_update',
+            'has_rgpd' => false,
+            'is_persons_view' => false,
+            'created_by' => $this->admin->id,
+        ]);
+        DatagridColumn::create([
+            'datagrid_table_id' => $dgTable->id,
+            'name' => 'nom',
+            'label' => 'Nom',
+            'type' => DatagridColumnType::TEXT,
+            'required' => false,
+            'visible_by_default' => true,
+            'sort_order' => 1,
+        ]);
+        Schema::connection('tenant')->create('dg_agents_update', function ($table) {
+            $table->id();
+            $table->string('nom', 255)->nullable();
+            $table->timestamps();
+        });
+
+        // Fichier Excel avec en-tête non normalisé ("Nom" au lieu de "nom")
+        $file = $this->makeExcel(['Nom'], [['Dupont'], ['Martin']]);
+
+        $component = Livewire::actingAs($this->admin)
+            ->test(ImportWizard::class)
+            ->set('importMode', 'update')
+            ->set('targetTableId', $dgTable->id)
+            ->set('file', $file)
+            ->call('uploadFile');
+
+        // Pas de colonnes non matchées → direct étape 3
+        $component->assertSet('step', 3)
+            ->assertSet('unmatchedColumns', []);
+
+        $component->call('runImport')
+            ->assertSet('importedRows', 2)
+            ->assertSet('errorMessage', null);
+
+        $this->assertEquals(2, DB::connection('tenant')->table('dg_agents_update')->count());
+
+        Schema::connection('tenant')->dropIfExists('dg_agents_update');
+    }
+
+    public function test_update_avec_mapping_manuel_insère_les_lignes(): void
+    {
+        $dgTable = DatagridTable::create([
+            'name' => 'contacts_map',
+            'label' => 'Contacts Map',
+            'mysql_table' => 'dg_contacts_map',
+            'has_rgpd' => false,
+            'is_persons_view' => false,
+            'created_by' => $this->admin->id,
+        ]);
+        DatagridColumn::create([
+            'datagrid_table_id' => $dgTable->id,
+            'name' => 'nom_agent',
+            'label' => 'Nom agent',
+            'type' => DatagridColumnType::TEXT,
+            'required' => false,
+            'visible_by_default' => true,
+            'sort_order' => 1,
+        ]);
+        Schema::connection('tenant')->create('dg_contacts_map', function ($table) {
+            $table->id();
+            $table->string('nom_agent', 255)->nullable();
+            $table->timestamps();
+        });
+
+        // Fichier avec en-tête complètement différent → déclenchera étape 2 mapping
+        $file = $this->makeExcel(['Libelle'], [['Dupont'], ['Martin']]);
+
+        $component = Livewire::actingAs($this->admin)
+            ->test(ImportWizard::class)
+            ->set('importMode', 'update')
+            ->set('targetTableId', $dgTable->id)
+            ->set('file', $file)
+            ->call('uploadFile');
+
+        // Doit être à l'étape 2 avec une colonne non matchée
+        $component->assertSet('step', 2);
+        $this->assertCount(1, $component->get('unmatchedColumns'));
+
+        // Mapper manuellement "Libelle" → "nom_agent"
+        $unmatchedIndex = $component->get('unmatchedColumns.0.index');
+        $component->set("columnMapping.{$unmatchedIndex}", 'nom_agent')
+            ->call('confirmMapping')
+            ->assertSet('step', 3)
+            ->call('runImport')
+            ->assertSet('importedRows', 2)
+            ->assertSet('errorMessage', null);
+
+        $this->assertEquals(2, DB::connection('tenant')->table('dg_contacts_map')->count());
+
+        Schema::connection('tenant')->dropIfExists('dg_contacts_map');
+    }
+
+    public function test_update_avec_colonne_ignorée_insère_null(): void
+    {
+        $dgTable = DatagridTable::create([
+            'name' => 'ignored_col',
+            'label' => 'Ignored Col',
+            'mysql_table' => 'dg_ignored_col',
+            'has_rgpd' => false,
+            'is_persons_view' => false,
+            'created_by' => $this->admin->id,
+        ]);
+        DatagridColumn::create([
+            'datagrid_table_id' => $dgTable->id,
+            'name' => 'nom',
+            'label' => 'Nom',
+            'type' => DatagridColumnType::TEXT,
+            'required' => false,
+            'visible_by_default' => true,
+            'sort_order' => 1,
+        ]);
+        Schema::connection('tenant')->create('dg_ignored_col', function ($table) {
+            $table->id();
+            $table->string('nom', 255)->nullable();
+            $table->timestamps();
+        });
+
+        // Fichier avec colonne inconnue → étape 2, on l'ignore ('' = ne pas importer)
+        $file = $this->makeExcel(['Inconnu'], [['Valeur1'], ['Valeur2']]);
+
+        $component = Livewire::actingAs($this->admin)
+            ->test(ImportWizard::class)
+            ->set('importMode', 'update')
+            ->set('targetTableId', $dgTable->id)
+            ->set('file', $file)
+            ->call('uploadFile')
+            ->assertSet('step', 2);
+
+        $unmatchedIndex = $component->get('unmatchedColumns.0.index');
+
+        // Laisser '' = ignorer
+        $component->set("columnMapping.{$unmatchedIndex}", '')
+            ->call('confirmMapping')
+            ->call('runImport')
+            ->assertSet('importedRows', 0) // aucune colonne mappée → lignes vides ignorées
+            ->assertSet('errorMessage', null);
+
+        Schema::connection('tenant')->dropIfExists('dg_ignored_col');
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────
 
     private function makeExcel(array $headers, array $rows): TestingFile
