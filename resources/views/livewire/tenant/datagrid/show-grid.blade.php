@@ -84,8 +84,48 @@
                 @php $row = (array) $row; @endphp
                 <tr style="border-bottom:1px solid var(--pd-border);">
                     @foreach($columns->where('visible_by_default', true) as $col)
+                    @php $val = $row[$col->name] ?? null; @endphp
                     <td style="padding:9px 12px;color:var(--pd-text);">
-                        {{ $row[$col->name] ?? '' }}
+                        @if($val === null || $val === '')
+                            <span style="color:var(--pd-muted);font-style:italic;">—</span>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::BOOLEAN)
+                            @if(in_array($val, ['1', 1, 'true', 'oui'], false))
+                                <span title="Oui" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#dcfce7;color:#16a34a;font-size:13px;">✓</span>
+                            @else
+                                <span title="Non" style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:#fee2e2;color:#dc2626;font-size:13px;">✕</span>
+                            @endif
+                        @elseif($col->type === \App\Enums\DatagridColumnType::DATE)
+                            @if(preg_match('/^(\d{4})-(\d{2})-(\d{2})/', $val, $m))
+                                {{ $m[3] }}/{{ $m[2] }}/{{ $m[1] }}
+                            @else
+                                {{ $val }}
+                            @endif
+                        @elseif($col->type === \App\Enums\DatagridColumnType::PHONE)
+                            @php
+                                $phone = preg_replace('/\D/', '', $val);
+                                $formatted = $phone;
+                                if (strlen($phone) === 10) {
+                                    $formatted = implode(' ', str_split($phone, 2));
+                                } elseif (str_starts_with($val, '+')) {
+                                    $formatted = $val;
+                                }
+                            @endphp
+                            <a href="tel:{{ $val }}" style="color:var(--pd-text);text-decoration:none;">{{ $formatted }}</a>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::SIRET)
+                            @php
+                                $s = str_pad(preg_replace('/\D/', '', $val), 14, '0', STR_PAD_LEFT);
+                                $formatted = strlen($s) === 14
+                                    ? substr($s,0,3).' '.substr($s,3,3).' '.substr($s,6,3).' '.substr($s,9,5)
+                                    : $val;
+                            @endphp
+                            <span style="font-family:monospace;font-size:11px;">{{ $formatted }}</span>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::EMAIL)
+                            <a href="mailto:{{ $val }}" style="color:var(--pd-navy);text-decoration:none;">{{ $val }}</a>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::NUMBER)
+                            <span style="font-variant-numeric:tabular-nums;">{{ rtrim(rtrim(number_format((float)$val, 4, ',', ' '), '0'), ',') }}</span>
+                        @else
+                            {{ $val }}
+                        @endif
                     </td>
                     @endforeach
                 </tr>
