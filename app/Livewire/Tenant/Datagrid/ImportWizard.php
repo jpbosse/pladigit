@@ -15,6 +15,7 @@ use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ImportWizard extends Component
 {
@@ -338,9 +339,14 @@ class ImportWizard extends Component
 
                 foreach ($columnNames as $idx => $colName) {
                     $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
-                    $data[$colName] = ($raw !== null && ($columnTypes[$colName] ?? '') === DatagridColumnType::DATE->value)
-                        ? $this->normalizeDate($raw)
-                        : $raw;
+                    $data[$colName] = match ($columnTypes[$colName] ?? '') {
+                        DatagridColumnType::DATE->value => $raw !== null ? $this->normalizeDate($raw) : null,
+                        DatagridColumnType::BOOLEAN->value => $raw !== null ? $this->normalizeBoolean($raw) : null,
+                        DatagridColumnType::POSTAL_CODE->value => $raw !== null ? $this->normalizePostalCode($raw) : null,
+                        DatagridColumnType::SIRET->value => $raw !== null ? $this->normalizeSiret($raw) : null,
+                        DatagridColumnType::PHONE->value => $raw !== null ? $this->normalizePhone($raw) : null,
+                        default => $raw,
+                    };
                 }
 
                 if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
@@ -421,9 +427,14 @@ class ImportWizard extends Component
 
                 foreach ($headerMap as $idx => $colInfo) {
                     $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
-                    $data[$colInfo['name']] = ($raw !== null && $colInfo['type'] === DatagridColumnType::DATE->value)
-                        ? $this->normalizeDate($raw)
-                        : $raw;
+                    $data[$colInfo['name']] = match ($colInfo['type']) {
+                        DatagridColumnType::DATE->value => $raw !== null ? $this->normalizeDate($raw) : null,
+                        DatagridColumnType::BOOLEAN->value => $raw !== null ? $this->normalizeBoolean($raw) : null,
+                        DatagridColumnType::POSTAL_CODE->value => $raw !== null ? $this->normalizePostalCode($raw) : null,
+                        DatagridColumnType::SIRET->value => $raw !== null ? $this->normalizeSiret($raw) : null,
+                        DatagridColumnType::PHONE->value => $raw !== null ? $this->normalizePhone($raw) : null,
+                        default => $raw,
+                    };
                 }
 
                 if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
@@ -456,11 +467,60 @@ class ImportWizard extends Component
 
     private function normalizeDate(string $value): ?string
     {
+        // Format dd/mm/yyyy
         if (preg_match('#^(\d{2})/(\d{2})/(\d{4})$#', $value, $m)) {
             return "{$m[3]}-{$m[2]}-{$m[1]}";
         }
 
+        // Nombre de série Excel (ex: 45678)
+        if (ctype_digit($value)) {
+            try {
+                $dt = Date::excelToDateTimeObject((int) $value);
+
+                return $dt->format('Y-m-d');
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
         return $value ?: null;
+    }
+
+    private function normalizeBoolean(string $value): int
+    {
+        return in_array(strtolower(trim($value)), [
+            '1', '-1', 'true', 'oui', 'yes', 'vrai', 'o', 'y', 'v',
+        ], true) ? 1 : 0;
+    }
+
+    private function normalizePostalCode(string $value): string
+    {
+        // Supprimer les décimales parasites (ex: "1200.0" → "1200")
+        $value = preg_replace('/\.0+$/', '', trim($value));
+
+        // Repadder à 5 chiffres (ex: "1200" → "01200")
+        return str_pad($value, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function normalizeSiret(string $value): string
+    {
+        // Garder uniquement les chiffres (supprime espaces, tirets, points…)
+        $value = preg_replace('/\D/', '', trim($value));
+
+        // Repadder à 14 chiffres si tronqué par Excel
+        return str_pad($value, 14, '0', STR_PAD_LEFT);
+    }
+
+    private function normalizePhone(string $value): string
+    {
+        // Conserver le + initial pour les numéros internationaux
+        $value = trim($value);
+        $prefix = str_starts_with($value, '+') ? '+' : '';
+
+        // Supprimer tout sauf les chiffres
+        $digits = preg_replace('/\D/', '', $value);
+
+        return $prefix.$digits;
     }
 
     private function addDynamicColumn(Blueprint $table, array $col): void
