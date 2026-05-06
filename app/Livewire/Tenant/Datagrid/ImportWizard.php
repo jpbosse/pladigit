@@ -38,7 +38,7 @@ class ImportWizard extends Component
     /** DatagridTable::id cible quand importMode === 'update' */
     public ?int $targetTableId = null;
 
-    // ── Étape 2 — configuration des colonnes (mode 'new' uniquement) ─
+    // ── Étape 2 — configuration des colonnes (mode 'new') ─────────
 
     public string $tableLabel = '';
 
@@ -50,6 +50,31 @@ class ImportWizard extends Component
 
     /** @var array<int, array{index:int, header:string, label:string, name:string, type:string, required:bool}> */
     public array $columns = [];
+
+    // ── Étape 2 — mapping des colonnes (mode 'update') ────────────
+
+    /**
+     * Colonnes du fichier Excel dont le nom ne correspond à aucune colonne de la grille.
+     * Format : [['index' => int, 'header' => string], ...]
+     *
+     * @var array<int, array{index:int, header:string}>
+     */
+    public array $unmatchedColumns = [];
+
+    /**
+     * Mapping manuel : index colonne Excel → nom colonne grille ('' = ignorer).
+     *
+     * @var array<int, string>
+     */
+    public array $columnMapping = [];
+
+    /**
+     * Colonnes de la grille cible disponibles pour le mapping.
+     * Format : [['name' => string, 'label' => string], ...]
+     *
+     * @var array<int, array{name:string, label:string}>
+     */
+    public array $gridColumns = [];
 
     // ── Étape 3 — résultats ────────────────────────────────────────
 
@@ -134,10 +159,57 @@ class ImportWizard extends Component
         $this->file = null;
 
         if ($this->importMode === 'update') {
-            $this->step = 3;
+            $this->buildColumnMapping();
         } else {
             $this->step = 2;
         }
+    }
+
+    // ── Mapping automatique (mode 'update') ───────────────────────
+
+    private function buildColumnMapping(): void
+    {
+        $dgTable = DatagridTable::findOrFail($this->targetTableId);
+        $dbCols = $dgTable->columns()->orderBy('sort_order')->get();
+
+        // Stocker les colonnes de la grille pour le select de l'étape 2
+        $this->gridColumns = $dbCols->map(fn ($c) => [
+            'name' => $c->name,
+            'label' => $c->label,
+        ])->toArray();
+
+        $gridColNames = $dbCols->pluck('name')->all();
+
+        $this->unmatchedColumns = [];
+        $this->columnMapping = [];
+        $needsMapping = false;
+
+        foreach ($this->columns as $col) {
+            $normalized = Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', $col['header'])));
+
+            if (in_array($normalized, $gridColNames, true)) {
+                // Correspondance automatique
+                $this->columnMapping[$col['index']] = $normalized;
+            } else {
+                // Nécessite un mapping manuel
+                $this->unmatchedColumns[] = [
+                    'index' => $col['index'],
+                    'header' => $col['header'],
+                ];
+                $this->columnMapping[$col['index']] = ''; // '' = ignorer par défaut
+                $needsMapping = true;
+            }
+        }
+
+        $this->step = $needsMapping ? 2 : 3;
+    }
+
+    // ── Étape 2 : confirmation du mapping (mode 'update') ─────────
+
+    public function confirmMapping(): void
+    {
+        // Pas de validation bloquante — '' signifie "ignorer cette colonne"
+        $this->step = 3;
     }
 
     // ── Étape 2 : confirmation des colonnes (mode 'new') ──────────
@@ -182,6 +254,9 @@ class ImportWizard extends Component
         $this->errorMessage = null;
         $this->importedRows = 0;
         $this->importedTableId = null;
+        $this->unmatchedColumns = [];
+        $this->columnMapping = [];
+        $this->gridColumns = [];
 
         if ($this->tempPath) {
             Storage::disk('local')->delete($this->tempPath);
@@ -301,33 +376,34 @@ class ImportWizard extends Component
     {
         try {
             $dgTable = DatagridTable::findOrFail($this->targetTableId);
-            $dbCols = $dgTable->columns()->orderBy('sort_order')->get();
             $mysqlTable = $dgTable->mysql_table;
 
-            // Construire un dictionnaire nom_colonne → type à partir des colonnes MySQL réelles
-            $colTypeMap = $dbCols->pluck('type', 'name')
+            // Récupérer les types des colonnes de la grille
+            $colTypeMap = $dgTable->columns()
+                ->pluck('type', 'name')
                 ->map(fn ($t) => $t->value)
                 ->all();
 
             $import = new DatagridImport;
             Excel::import($import, Storage::disk('local')->path($this->tempPath));
 
-            // Mapper les colonnes Excel → colonnes existantes
+            // Construire le headerMap à partir du columnMapping (automatique + manuel)
             $headerMap = [];
-
             if ($this->fileHasHeader) {
-                foreach ($this->columns as $col) {
-                    $normalizedName = Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', $col['name'])));
-                    if (array_key_exists($normalizedName, $colTypeMap)) {
-                        $headerMap[$col['index']] = [
-                            'name' => $normalizedName,
-                            'type' => $colTypeMap[$normalizedName],
+                foreach ($this->columnMapping as $excelIndex => $gridColName) {
+                    if ($gridColName === '') {
+                        continue; // colonne ignorée
+                    }
+                    if (isset($colTypeMap[$gridColName])) {
+                        $headerMap[(int) $excelIndex] = [
+                            'name' => $gridColName,
+                            'type' => $colTypeMap[$gridColName],
                         ];
                     }
                 }
-
                 $dataRows = $import->getDataRows();
             } else {
+                $dbCols = $dgTable->columns()->orderBy('sort_order')->get();
                 foreach ($dbCols->values() as $idx => $dbCol) {
                     $headerMap[$idx] = ['name' => $dbCol->name, 'type' => $dbCol->type->value];
                 }

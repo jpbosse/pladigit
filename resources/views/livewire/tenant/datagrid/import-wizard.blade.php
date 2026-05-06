@@ -53,11 +53,18 @@
 
     {{-- ── Indicateur d'étapes ───────────────────────────────────── --}}
     @php
-        $stepLabels = $importMode === 'update'
-            ? [1 => 'Fichier', 2 => 'Import']
-            : [1 => 'Fichier', 2 => 'Colonnes', 3 => 'Import'];
-        $displayStep = $importMode === 'update' && $step === 3 ? 2 : $step;
-        $totalSteps  = $importMode === 'update' ? 2 : 3;
+        $hasUnmatched = count($unmatchedColumns) > 0;
+        if ($importMode === 'update') {
+            $stepLabels  = $hasUnmatched
+                ? [1 => 'Fichier', 2 => 'Correspondance', 3 => 'Import']
+                : [1 => 'Fichier', 2 => 'Import'];
+            $displayStep = (! $hasUnmatched && $step === 3) ? 2 : $step;
+            $totalSteps  = $hasUnmatched ? 3 : 2;
+        } else {
+            $stepLabels  = [1 => 'Fichier', 2 => 'Colonnes', 3 => 'Import'];
+            $displayStep = $step;
+            $totalSteps  = 3;
+        }
     @endphp
     <div style="display:flex;align-items:center;gap:0;margin-bottom:28px;">
         @foreach($stepLabels as $n => $label)
@@ -229,9 +236,79 @@
     @endif
 
     {{-- ══════════════════════════════════════════════════════════════ --}}
-    {{-- ÉTAPE 2 — Configuration des colonnes (mode 'new' uniquement) --}}
+    {{-- ÉTAPE 2 — Mapping colonnes (mode 'update') ou config (mode 'new') --}}
     {{-- ══════════════════════════════════════════════════════════════ --}}
-    @if($step === 2)
+    @if($step === 2 && $importMode === 'update')
+    <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
+
+        <div style="background:var(--pd-navy);padding:18px 24px;">
+            <div style="font-size:16px;font-weight:700;color:#fff;">Correspondance des colonnes</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:3px;">
+                {{ count($unmatchedColumns) }} colonne(s) du fichier ne correspondent pas à la grille — définissez leur correspondance.
+            </div>
+        </div>
+
+        <div style="padding:24px;">
+
+            <div style="background:var(--pd-bg2);border-radius:8px;padding:12px 14px;
+                        font-size:12px;color:var(--pd-muted);line-height:1.7;margin-bottom:20px;">
+                Les colonnes dont le nom correspond exactement à la grille sont mappées automatiquement.
+                Pour les autres, choisissez la colonne de destination ou sélectionnez <strong>« — Ne pas importer —»</strong>.
+            </div>
+
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead>
+                        <tr style="border-bottom:1.5px solid var(--pd-border);">
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;white-space:nowrap;">
+                                Colonne dans le fichier Excel
+                            </th>
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;">
+                                Colonne de destination dans la grille
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($unmatchedColumns as $unmatched)
+                        <tr style="border-bottom:0.5px solid var(--pd-border);">
+                            <td style="padding:8px 10px;font-size:12px;color:var(--pd-text);font-family:monospace;white-space:nowrap;">
+                                {{ $unmatched['header'] }}
+                            </td>
+                            <td style="padding:6px 10px;">
+                                <select wire:model="columnMapping.{{ $unmatched['index'] }}"
+                                        style="width:100%;min-width:200px;padding:6px 10px;
+                                               border:0.5px solid var(--pd-border);border-radius:7px;
+                                               font-size:12px;background:var(--pd-bg);color:var(--pd-text);">
+                                    <option value="">— Ne pas importer cette colonne —</option>
+                                    @foreach($gridColumns as $gridCol)
+                                    <option value="{{ $gridCol['name'] }}">{{ $gridCol['label'] }} ({{ $gridCol['name'] }})</option>
+                                    @endforeach
+                                </select>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;margin-top:20px;">
+                <button wire:click="backToStep1"
+                        style="padding:9px 18px;background:var(--pd-bg2);color:var(--pd-muted);
+                               border:0.5px solid var(--pd-border);border-radius:9px;
+                               font-size:13px;cursor:pointer;">
+                    ← Retour
+                </button>
+                <button wire:click="confirmMapping"
+                        style="padding:9px 22px;background:var(--pd-navy);color:#fff;border:none;
+                               border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">
+                    Confirmer et continuer →
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    @if($step === 2 && $importMode === 'new')
     <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
 
         <div style="background:var(--pd-navy);padding:18px 24px;">
@@ -383,7 +460,7 @@
             </div>
         </div>
     </div>
-    @endif
+    @endif {{-- fin mode 'new' --}}
 
     {{-- ══════════════════════════════════════════════════════════════ --}}
     {{-- ÉTAPE 3 — Confirmation et lancement                         --}}
@@ -524,8 +601,15 @@
                         Les nouvelles lignes seront ajoutées aux données existantes.
                     </div>
                     @endif
+                    @php
+                        $mappedCount  = collect($columnMapping)->filter(fn ($v) => $v !== '')->count();
+                        $ignoredCount = collect($columnMapping)->filter(fn ($v) => $v === '')->count();
+                    @endphp
                     <div style="font-size:11px;color:var(--pd-muted);margin-top:6px;">
-                        {{ count($columns) }} colonne(s) détectée(s) dans le fichier
+                        {{ $mappedCount }} colonne(s) importée(s)
+                        @if($ignoredCount > 0)
+                        · <span style="color:#d97706;">{{ $ignoredCount }} ignorée(s)</span>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -546,7 +630,7 @@
             @endif
 
             <div style="display:flex;justify-content:space-between;">
-                <button wire:click="backToStep1"
+                <button wire:click="{{ count($unmatchedColumns) > 0 ? 'backToStep2' : 'backToStep1' }}"
                         style="padding:9px 18px;background:var(--pd-bg2);color:var(--pd-muted);
                                border:0.5px solid var(--pd-border);border-radius:9px;
                                font-size:13px;cursor:pointer;">
