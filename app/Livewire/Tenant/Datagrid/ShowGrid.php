@@ -2,7 +2,9 @@
 
 namespace App\Livewire\Tenant\Datagrid;
 
+use App\Enums\DatagridAuditAction;
 use App\Enums\DatagridColumnType;
+use App\Models\Tenant\DatagridAuditLog;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
@@ -40,6 +42,20 @@ class ShowGrid extends Component
 
     // États temporaires pour l'édition des colonnes (indexés par column->id)
     public array $columnEdits = [];
+
+    // ── Édition de ligne ─────────────────────────────────────────────────────
+
+    /** ID de la ligne en cours d'édition (null = modal fermée) */
+    public ?int $editingRowId = null;
+
+    /** Valeurs du formulaire d'édition */
+    public array $editForm = [];
+
+    /** Droits de l'utilisateur courant sur cette grille */
+    public array $userPerms = [
+        'can_write' => false,
+        'can_delete' => false,
+    ];
 
     public function mount(DatagridTable $table, array $initialFilters = [], array $initialSort = []): void
     {
@@ -80,6 +96,13 @@ class ShowGrid extends Component
                     ->toArray();
             }
         }
+
+        // Résoudre les droits une seule fois au mount
+        $perms = app(DatagridPermissionService::class)->effectivePermissions(auth()->user(), $table);
+        $this->userPerms = [
+            'can_write' => $perms['can_write'],
+            'can_delete' => $perms['can_delete'],
+        ];
     }
 
     #[Computed]
@@ -271,6 +294,159 @@ class ShowGrid extends Component
 
         $this->dispatch('column-updated', columnId: $columnId);
     }
+
+    // ── Édition / suppression de ligne ───────────────────────────────────────
+
+    /**
+     * Ouvre la modal d'édition pour la ligne donnée.
+     * Accessible à tous les utilisateurs ayant can_read — les boutons d'action
+     * sont conditionnés à can_write / can_delete dans la vue.
+     */
+    public function openEdit(int $rowId): void
+    {
+        $row = DB::connection('tenant')
+            ->table($this->table->mysql_table)
+            ->where('id', $rowId)
+            ->first();
+
+        if (! $row) {
+            return;
+        }
+
+        $this->editingRowId = $rowId;
+        $this->editForm = (array) $row;
+    }
+
+    /** Ferme la modal sans sauvegarder. */
+    public function closeEdit(): void
+    {
+        $this->editingRowId = null;
+        $this->editForm = [];
+        $this->resetValidation();
+    }
+
+    /**
+     * Sauvegarde les modifications de la ligne en cours d'édition.
+     * Trace chaque colonne modifiée dans l'audit log.
+     */
+    public function saveEdit(): void
+    {
+        if (! $this->userPerms['can_write']) {
+            abort(403);
+        }
+
+        if ($this->editingRowId === null) {
+            return;
+        }
+
+        // Construire les règles de validation dynamiquement
+        $rules = [];
+        foreach ($this->table->columns as $col) {
+            if ($col->name === 'id') {
+                continue;
+            }
+            $rule = $col->required ? 'required' : 'nullable';
+            $rule .= match ($col->type) {
+                DatagridColumnType::NUMBER => '|numeric',
+                DatagridColumnType::DATE => '|date',
+                DatagridColumnType::EMAIL => '|email|max:'.($col->length ?? 255),
+                DatagridColumnType::BOOLEAN => '|boolean',
+                DatagridColumnType::SIRET => '|digits:14',
+                DatagridColumnType::POSTAL_CODE => '|max:10',
+                DatagridColumnType::PHONE => '|max:'.($col->length ?? 30),
+                default => '|max:'.($col->length ?? 255),
+            };
+            $rules["editForm.{$col->name}"] = $rule;
+        }
+
+        $this->validate($rules);
+
+        // Récupérer les anciennes valeurs pour l'audit
+        $oldRow = (array) DB::connection('tenant')
+            ->table($this->table->mysql_table)
+            ->where('id', $this->editingRowId)
+            ->first();
+
+        // Construire le payload de mise à jour (sans id)
+        $updateData = collect($this->editForm)
+            ->except(['id'])
+            ->map(fn ($v) => $v === '' ? null : $v)
+            ->toArray();
+
+        DB::connection('tenant')
+            ->table($this->table->mysql_table)
+            ->where('id', $this->editingRowId)
+            ->update($updateData);
+
+        // Audit log — une entrée par colonne modifiée
+        foreach ($updateData as $colName => $newVal) {
+            $oldVal = $oldRow[$colName] ?? null;
+            $oldStr = $oldVal !== null ? (string) $oldVal : null;
+            $newStr = $newVal !== null ? (string) $newVal : null;
+
+            if ($oldStr === $newStr) {
+                continue;
+            }
+
+            DatagridAuditLog::create([
+                'datagrid_table_id' => $this->table->id,
+                'user_id' => auth()->id(),
+                'action' => DatagridAuditAction::WRITE->value,
+                'row_id' => $this->editingRowId,
+                'column_name' => $colName,
+                'old_value' => $oldStr,
+                'new_value' => $newStr,
+                'ip_address' => request()->ip(),
+            ]);
+        }
+
+        $this->closeEdit();
+        unset($this->rows);
+        $this->dispatch('row-updated');
+    }
+
+    /**
+     * Supprime la ligne en cours d'édition après confirmation.
+     * Trace la suppression dans l'audit log (ligne entière, column_name null).
+     */
+    public function deleteRow(): void
+    {
+        if (! $this->userPerms['can_delete']) {
+            abort(403);
+        }
+
+        if ($this->editingRowId === null) {
+            return;
+        }
+
+        // Snapshot de la ligne pour l'audit
+        $oldRow = (array) DB::connection('tenant')
+            ->table($this->table->mysql_table)
+            ->where('id', $this->editingRowId)
+            ->first();
+
+        DB::connection('tenant')
+            ->table($this->table->mysql_table)
+            ->where('id', $this->editingRowId)
+            ->delete();
+
+        DatagridAuditLog::create([
+            'datagrid_table_id' => $this->table->id,
+            'user_id' => auth()->id(),
+            'action' => DatagridAuditAction::DELETE->value,
+            'row_id' => $this->editingRowId,
+            'column_name' => null,
+            'old_value' => json_encode($oldRow, JSON_UNESCAPED_UNICODE),
+            'new_value' => null,
+            'ip_address' => request()->ip(),
+        ]);
+
+        $this->closeEdit();
+        unset($this->rows);
+        $this->dispatch('row-deleted');
+    }
+
+    // ── Méthodes privées ─────────────────────────────────────────────────────
 
     private function typesCompatible(DatagridColumnType $from, DatagridColumnType $to): bool
     {
