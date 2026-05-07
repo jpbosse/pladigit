@@ -395,10 +395,17 @@
                             <th style="text-align:center;padding:8px 10px;color:var(--pd-muted);font-weight:600;">
                                 Requis
                             </th>
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;white-space:nowrap;">
+                                Options
+                                <span style="font-size:10px;font-weight:400;color:var(--pd-muted);margin-left:4px;">
+                                    (booléen ou liste)
+                                </span>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($columns as $i => $col)
+                        @php $colType = $col['type'] ?? ''; @endphp
                         <tr style="border-bottom:0.5px solid var(--pd-border);">
                             <td style="padding:8px 10px;color:var(--pd-muted);font-size:12px;white-space:nowrap;">
                                 {{ $col['header'] }}
@@ -423,7 +430,7 @@
                                 @enderror
                             </td>
                             <td style="padding:6px 10px;">
-                                <select wire:model="columns.{{ $i }}.type"
+                                <select wire:model.live="columns.{{ $i }}.type"
                                         style="width:100%;min-width:130px;padding:5px 8px;
                                                border:0.5px solid var(--pd-border);border-radius:6px;
                                                font-size:12px;background:var(--pd-bg);color:var(--pd-text);">
@@ -439,6 +446,79 @@
                                 <input type="checkbox"
                                        wire:model="columns.{{ $i }}.required"
                                        style="width:15px;height:15px;cursor:pointer;">
+                            </td>
+
+                            {{-- ── Colonne Options : BOOLEAN = libellés, SELECT = valeurs ── --}}
+                            <td style="padding:6px 10px;">
+
+                                @if($colType === \App\Enums\DatagridColumnType::BOOLEAN->value)
+                                {{-- Libellés vrai/faux --}}
+                                <div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">
+                                    <div style="display:flex;align-items:center;gap:6px;">
+                                        <span style="font-size:10px;color:#16a34a;font-weight:600;width:32px;flex-shrink:0;">Vrai</span>
+                                        <input type="text"
+                                               wire:model="columns.{{ $i }}.label_true"
+                                               placeholder="ex: Occupé"
+                                               maxlength="50"
+                                               style="flex:1;padding:4px 7px;border:0.5px solid var(--pd-border);
+                                                      border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:6px;">
+                                        <span style="font-size:10px;color:#dc2626;font-weight:600;width:32px;flex-shrink:0;">Faux</span>
+                                        <input type="text"
+                                               wire:model="columns.{{ $i }}.label_false"
+                                               placeholder="ex: Libre"
+                                               maxlength="50"
+                                               style="flex:1;padding:4px 7px;border:0.5px solid var(--pd-border);
+                                                      border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                    </div>
+                                </div>
+
+                                @elseif($colType === \App\Enums\DatagridColumnType::SELECT->value)
+                                {{-- Valeurs de la liste fermée --}}
+                                <div style="min-width:180px;">
+                                    <input type="text"
+                                           wire:model="columns.{{ $i }}.options_raw"
+                                           placeholder="ex: M,F  ou  Actif,Inactif,Suspendu"
+                                           style="width:100%;padding:4px 7px;border:0.5px solid var(--pd-border);
+                                                  border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                    <div style="font-size:10px;color:var(--pd-muted);margin-top:3px;">
+                                        Valeurs séparées par des virgules.
+
+
+
+
+/*                                        @if(isset($col['options_raw']) && str_word_count(str_replace(',', ' ', $col['options_raw'] ?? '')) === 2)
+                                            <span style="color:#16a34a;">→ Affichage en toggle.</span>
+                                        @elseif(!empty($col['options_raw']))
+                                            <span style="color:var(--pd-navy);">→ Affichage en liste déroulante.</span>
+                                        @endif
+*/
+@php
+    $rawOpts = $col['options_raw'] ?? '';
+    $countOpts = $rawOpts !== '' ? count(array_filter(array_map('trim', explode(',', $rawOpts)))) : 0;
+@endphp
+@if($countOpts === 2)
+    <span style="color:#16a34a;">→ Affichage en toggle ({{ $countOpts }} valeurs).</span>
+@elseif($countOpts > 2)
+    <span style="color:var(--pd-navy);">→ Affichage en liste déroulante ({{ $countOpts }} valeurs).</span>
+@endif
+
+
+
+
+
+
+                                    </div>
+                                    @error("columns.{$i}.options_raw")
+                                    <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                @else
+                                <span style="font-size:11px;color:var(--pd-muted);padding:0 8px;">—</span>
+                                @endif
+
                             </td>
                         </tr>
                         @endforeach

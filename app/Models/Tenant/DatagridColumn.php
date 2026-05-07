@@ -14,6 +14,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * is_role_column    : à l'import Excel, colonne transposée en lignes roles_titres
  *                     (ne jamais stocker en colonne directe sur personnes).
  * options           : JSON des valeurs possibles pour type=select.
+ * label_true        : libellé affiché quand booléen = vrai  (ex: "Occupé", "M", "Actif").
+ *                     Si null → "Oui" par défaut.
+ * label_false       : libellé affiché quand booléen = faux  (ex: "Libre", "F", "Inactif").
+ *                     Si null → "Non" par défaut.
  *
  * @property int $id
  * @property int $datagrid_table_id
@@ -28,6 +32,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $default_value
  * @property array|null $options
  * @property int $sort_order
+ * @property string|null $label_true
+ * @property string|null $label_false
  */
 class DatagridColumn extends Model
 {
@@ -48,6 +54,8 @@ class DatagridColumn extends Model
         'default_value',
         'options',
         'sort_order',
+        'label_true',
+        'label_false',
     ];
 
     protected $casts = [
@@ -60,6 +68,20 @@ class DatagridColumn extends Model
         'options' => 'array',
         'sort_order' => 'int',
     ];
+
+    // ── Accesseurs ───────────────────────────────────────────
+
+    /** Libellé vrai résolu — "Oui" si non configuré. */
+    public function getLabelTrueDisplayAttribute(): string
+    {
+        return $this->label_true ?? 'Oui';
+    }
+
+    /** Libellé faux résolu — "Non" si non configuré. */
+    public function getLabelFalseDisplayAttribute(): string
+    {
+        return $this->label_false ?? 'Non';
+    }
 
     // ── Relations ────────────────────────────────────────────
 

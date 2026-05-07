@@ -314,7 +314,60 @@ class ShowGrid extends Component
         }
 
         $this->editingRowId = $rowId;
-        $this->editForm = (array) $row;
+        $rawRow = (array) $row;
+
+        // Formater les valeurs pour l'affichage dans le formulaire
+        $formatted = $rawRow;
+        foreach ($this->table->columns as $col) {
+            $val = $rawRow[$col->name] ?? null;
+            if ($val === null) {
+                continue;
+            }
+
+            $formatted[$col->name] = match ($col->type) {
+                DatagridColumnType::PHONE => $this->formatPhone((string) $val),
+                DatagridColumnType::SIRET => $this->formatSiret((string) $val),
+                DatagridColumnType::POSTAL_CODE => str_pad(preg_replace('/\D/', '', (string) $val), 5, '0', STR_PAD_LEFT),
+                DatagridColumnType::BOOLEAN => in_array($val, ['1', 1, true, 'true', 'oui'], false) ? '1' : '0',
+                // Supprimer les zéros trailing : 25.2500 → 25.25, 6254521.9900 → 6254521.99
+                DatagridColumnType::NUMBER => rtrim(rtrim((string) $val, '0'), '.') ?: '0',
+                default => $val,
+            };
+        }
+
+        $this->editForm = $formatted;
+    }
+
+    private function formatPhone(string $val): string
+    {
+        $prefix = str_starts_with($val, '+') ? '+' : '';
+        $digits = preg_replace('/\D/', '', $val);
+
+        if (! $prefix && strlen($digits) === 10) {
+            return implode(' ', str_split($digits, 2));
+        }
+
+        return $prefix.$digits;
+    }
+
+    private function denormalizePhone(string $val): string
+    {
+        $prefix = str_starts_with($val, '+') ? '+' : '';
+        $digits = preg_replace('/\D/', '', $val);
+
+        return $prefix.$digits;
+    }
+
+    private function formatSiret(string $val): string
+    {
+        $digits = preg_replace('/\D/', '', $val);
+        $padded = str_pad($digits, 14, '0', STR_PAD_LEFT);
+
+        if (strlen($padded) === 14) {
+            return substr($padded, 0, 3).' '.substr($padded, 3, 3).' '.substr($padded, 6, 3).' '.substr($padded, 9, 5);
+        }
+
+        return $val;
     }
 
     /** Ferme la modal sans sauvegarder. */
@@ -351,7 +404,7 @@ class ShowGrid extends Component
                 DatagridColumnType::DATE => '|date',
                 DatagridColumnType::EMAIL => '|email|max:'.($col->length ?? 255),
                 DatagridColumnType::BOOLEAN => '|boolean',
-                DatagridColumnType::SIRET => '|digits:14',
+                DatagridColumnType::SIRET => '|max:19', // avec espaces : 553 279 879 00672
                 DatagridColumnType::POSTAL_CODE => '|max:10',
                 DatagridColumnType::PHONE => '|max:'.($col->length ?? 30),
                 default => '|max:'.($col->length ?? 255),
@@ -367,10 +420,27 @@ class ShowGrid extends Component
             ->where('id', $this->editingRowId)
             ->first();
 
-        // Construire le payload de mise à jour (sans id)
+        // Construire le payload de mise à jour (sans id) + dénormaliser avant stockage
+        $colTypeMap = $this->table->columns->keyBy('name');
         $updateData = collect($this->editForm)
             ->except(['id'])
-            ->map(fn ($v) => $v === '' ? null : $v)
+            ->map(function ($v, $colName) use ($colTypeMap) {
+                if ($v === '' || $v === null) {
+                    return null;
+                }
+                $col = $colTypeMap->get($colName);
+                if (! $col) {
+                    return $v;
+                }
+
+                return match ($col->type) {
+                    // Retirer les espaces de formatage avant stockage
+                    DatagridColumnType::SIRET => preg_replace('/\D/', '', (string) $v),
+                    DatagridColumnType::PHONE => $this->denormalizePhone((string) $v),
+                    DatagridColumnType::POSTAL_CODE => str_pad(preg_replace('/\D/', '', (string) $v), 5, '0', STR_PAD_LEFT),
+                    default => $v,
+                };
+            })
             ->toArray();
 
         DB::connection('tenant')

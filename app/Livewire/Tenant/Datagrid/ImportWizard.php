@@ -49,7 +49,7 @@ class ImportWizard extends Component
 
     public bool $hasRgpd = false;
 
-    /** @var array<int, array{index:int, header:string, label:string, name:string, type:string, required:bool}> */
+    /** @var array<int, array{index:int, header:string, label:string, name:string, type:string, required:bool, label_true:string, label_false:string, options_raw:string}> */
     public array $columns = [];
 
     // ── Étape 2 — mapping des colonnes (mode 'update') ────────────
@@ -154,6 +154,9 @@ class ImportWizard extends Component
                 'name' => Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', (string) $header))),
                 'type' => DatagridColumnType::TEXT->value,
                 'required' => false,
+                'label_true' => '',
+                'label_false' => '',
+                'options_raw' => '',
             ])
             ->all();
 
@@ -227,6 +230,9 @@ class ImportWizard extends Component
             'columns.*.name' => ['required', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
             'columns.*.type' => ['required', "in:{$typeValues}"],
             'columns.*.required' => ['boolean'],
+            'columns.*.label_true' => ['nullable', 'string', 'max:50'],
+            'columns.*.label_false' => ['nullable', 'string', 'max:50'],
+            'columns.*.options_raw' => ['nullable', 'string', 'max:500'],
         ], [
             'tableLabel.required' => 'Le libellé de la grille est obligatoire.',
             'tableName.required' => 'Le nom technique est obligatoire.',
@@ -307,6 +313,15 @@ class ImportWizard extends Component
             ]);
 
             foreach ($this->columns as $i => $col) {
+                $options = null;
+                if (($col['type'] ?? '') === DatagridColumnType::SELECT->value && filled($col['options_raw'] ?? '')) {
+                    $options = collect(explode(',', $col['options_raw']))
+                        ->map(fn ($v) => trim($v))
+                        ->filter()
+                        ->values()
+                        ->all();
+                }
+
                 DatagridColumn::create([
                     'datagrid_table_id' => $dgTable->id,
                     'name' => $col['name'],
@@ -315,6 +330,9 @@ class ImportWizard extends Component
                     'required' => (bool) $col['required'],
                     'visible_by_default' => true,
                     'sort_order' => $i + 1,
+                    'label_true' => filled($col['label_true'] ?? '') ? $col['label_true'] : null,
+                    'label_false' => filled($col['label_false'] ?? '') ? $col['label_false'] : null,
+                    'options' => $options,
                 ]);
             }
 
