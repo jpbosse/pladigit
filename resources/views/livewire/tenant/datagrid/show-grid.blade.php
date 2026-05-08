@@ -45,6 +45,61 @@
         Effacer filtres
     </button>
     @endif
+
+    {{-- Sélecteur de colonnes --}}
+    <div style="position:relative;">
+        <button wire:click="toggleColumnPicker"
+                style="padding:6px 12px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;
+                       color:var(--pd-text);background:var(--pd-bg);cursor:pointer;display:flex;align-items:center;gap:5px;">
+            <span>⊞</span> Colonnes
+            @php $hiddenCount = $columns->whereNotIn('id', $visibleColumns)->count(); @endphp
+            @if($hiddenCount > 0)
+            <span style="background:var(--pd-navy);color:#fff;border-radius:10px;font-size:10px;
+                         padding:1px 6px;font-weight:600;">{{ $hiddenCount }}</span>
+            @endif
+        </button>
+
+        @if($showColumnPicker)
+        <div style="position:absolute;right:0;top:calc(100% + 6px);z-index:100;
+                    background:var(--pd-surface);border:0.5px solid var(--pd-border);
+                    border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);
+                    min-width:220px;overflow:hidden;">
+            <div style="padding:10px 14px;border-bottom:0.5px solid var(--pd-border);
+                        font-size:11px;font-weight:600;color:var(--pd-muted);
+                        text-transform:uppercase;letter-spacing:.04em;">
+                Colonnes affichées
+            </div>
+            @foreach($columns as $col)
+            <label style="display:flex;align-items:center;gap:10px;padding:8px 14px;
+                          cursor:pointer;font-size:12px;color:var(--pd-text);
+                          border-bottom:0.5px solid var(--pd-border);"
+                   onmouseover="this.style.background='var(--pd-bg2)'"
+                   onmouseout="this.style.background='transparent'">
+                <input type="checkbox"
+                       wire:click="toggleColumn({{ $col->id }})"
+                       {{ in_array($col->id, $visibleColumns) ? 'checked' : '' }}
+                       style="width:14px;height:14px;cursor:pointer;">
+                <span>{{ $col->label }}</span>
+                @if(! $col->visible_by_default)
+                <span style="font-size:10px;color:var(--pd-muted);margin-left:auto;font-style:italic;">masquée</span>
+                @endif
+            </label>
+            @endforeach
+            <div style="padding:8px 14px;display:flex;justify-content:space-between;gap:8px;">
+                <button wire:click="showAllColumns"
+                        style="flex:1;padding:5px 8px;font-size:11px;border:0.5px solid var(--pd-border);
+                               border-radius:6px;background:var(--pd-bg2);color:var(--pd-muted);cursor:pointer;">
+                    Tout afficher
+                </button>
+                <button wire:click="resetColumnsToDefault"
+                        style="flex:1;padding:5px 8px;font-size:11px;border:0.5px solid var(--pd-border);
+                               border-radius:6px;background:var(--pd-bg2);color:var(--pd-muted);cursor:pointer;">
+                    Par défaut
+                </button>
+            </div>
+        </div>
+        @endif
+    </div>
 </div>
 
 {{-- ── Badges filtres actifs ────────────────────────────────────────────── --}}
@@ -68,7 +123,7 @@
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
                 <tr style="background:var(--pd-bg2,#f8f9fb);">
-                    @foreach($columns->where('visible_by_default', true) as $col)
+                    @foreach($columns->whereIn('id', $visibleColumns) as $col)
                     <th wire:click="sortBy('{{ $col->name }}')"
                         style="padding:10px 12px;text-align:left;font-weight:600;color:var(--pd-text);border-bottom:1px solid var(--pd-border);cursor:pointer;white-space:nowrap;user-select:none;">
                         {{ $col->label }}
@@ -80,7 +135,7 @@
                 </tr>
                 {{-- Ligne filtres --}}
                 <tr style="background:var(--pd-bg);">
-                    @foreach($columns->where('visible_by_default', true) as $col)
+                    @foreach($columns->whereIn('id', $visibleColumns) as $col)
                     <td style="padding:6px 8px;border-bottom:1px solid var(--pd-border);">
                         @if($col->type === \App\Enums\DatagridColumnType::BOOLEAN)
                             <select wire:model.live="filters.{{ $col->name }}"
@@ -157,7 +212,7 @@
                     style="border-bottom:1px solid var(--pd-border);cursor:pointer;transition:background 0.1s;"
                     onmouseover="this.style.background='color-mix(in srgb,var(--pd-navy) 4%,transparent)'"
                     onmouseout="this.style.background=''">
-                    @foreach($columns->where('visible_by_default', true) as $col)
+                    @foreach($columns->whereIn('id', $visibleColumns) as $col)
                     @php $val = $row[$col->name] ?? null; @endphp
                     <td style="padding:9px 12px;color:var(--pd-text);">
                         @if($val === null || $val === '')
@@ -204,12 +259,10 @@
                         @elseif($col->type === \App\Enums\DatagridColumnType::NUMBER)
                             <span style="font-variant-numeric:tabular-nums;">{{ rtrim(rtrim(number_format((float)$val, 4, ',', ' '), '0'), ',') }}</span>
                         @elseif($col->type === \App\Enums\DatagridColumnType::SELECT && is_array($col->options) && count($col->options) === 2)
-                            @php
-                                $isFirst = $val === $col->options[0];
-                            @endphp
                             <span style="display:inline-flex;align-items:center;justify-content:center;
-                                padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;
-                                {{ $isFirst ? 'background:#dbeafe;color:#1d4ed8;' : 'background:#f3f4f6;color:#374151;' }}">
+                                padding:2px 10px;border-radius:20px;font-size:11px;font-weight:500;
+                                background:color-mix(in srgb,var(--pd-navy) 8%,transparent);
+                                color:var(--pd-navy);">
                                 {{ $val }}
                             </span>
                         @elseif($col->type === \App\Enums\DatagridColumnType::SELECT && is_array($col->options) && count($col->options) > 2)
@@ -227,7 +280,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="{{ $columns->where('visible_by_default', true)->count() }}"
+                    <td colspan="{{ $columns->whereIn('id', $visibleColumns)->count() }}"
                         style="padding:32px;text-align:center;color:var(--pd-muted);">
                         Aucune ligne trouvée.
                     </td>

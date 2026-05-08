@@ -13,6 +13,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -23,6 +24,7 @@ class ShowGrid extends Component
 
     public DatagridTable $table;
 
+    /** @var array<string, mixed> */
     public array $filters = [];
 
     public string $sortColumn = '';
@@ -31,7 +33,7 @@ class ShowGrid extends Component
 
     public int $perPage = 10;
 
-    /** Valeurs distinctes par colonne pour les selects de filtre */
+    /** @var array<string, array<int, mixed>> Valeurs distinctes par colonne pour les selects de filtre */
     public array $distinctValues = [];
 
     public ?int $activeViewId = null;
@@ -40,7 +42,7 @@ class ShowGrid extends Component
 
     public bool $showColumnSettings = false;
 
-    // États temporaires pour l'édition des colonnes (indexés par column->id)
+    /** @var array<int, array<string, mixed>> États temporaires pour l'édition des colonnes (indexés par column->id) */
     public array $columnEdits = [];
 
     // ── Édition de ligne ─────────────────────────────────────────────────────
@@ -48,18 +50,26 @@ class ShowGrid extends Component
     /** ID de la ligne en cours d'édition (null = modal fermée) */
     public ?int $editingRowId = null;
 
-    /** Valeurs du formulaire d'édition */
+    /** @var array<string, mixed> Valeurs du formulaire d'édition */
     public array $editForm = [];
 
-    /** Droits de l'utilisateur courant sur cette grille */
+    /** @var array{can_write: bool, can_delete: bool} Droits de l'utilisateur courant sur cette grille */
     public array $userPerms = [
         'can_write' => false,
         'can_delete' => false,
     ];
 
+    /** @var array<int, int> IDs des colonnes actuellement visibles (initialisées depuis visible_by_default) */
+    public array $visibleColumns = [];
+
+    /** Panneau de sélection des colonnes ouvert/fermé */
+    public bool $showColumnPicker = false;
+
+    /** @param array<string, mixed> $initialFilters
+     *  @param array<string, string> $initialSort */
     public function mount(DatagridTable $table, array $initialFilters = [], array $initialSort = []): void
     {
-        if (! $table->canRead(auth()->user())) {
+        if (! $table->canRead(auth()->user())) {  // @phpstan-ignore-line
             abort(403);
         }
 
@@ -98,13 +108,21 @@ class ShowGrid extends Component
         }
 
         // Résoudre les droits une seule fois au mount
-        $perms = app(DatagridPermissionService::class)->effectivePermissions(auth()->user(), $table);
+        $perms = app(DatagridPermissionService::class)->effectivePermissions(auth()->user(), $table);  // @phpstan-ignore-line
         $this->userPerms = [
             'can_write' => $perms['can_write'],
             'can_delete' => $perms['can_delete'],
         ];
+
+        // Initialiser les colonnes visibles depuis visible_by_default
+        $this->visibleColumns = $table->columns
+            ->where('visible_by_default', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
     }
 
+    /** @return LengthAwarePaginator<int, object> */
     #[Computed]
     public function rows(): LengthAwarePaginator
     {
@@ -112,6 +130,11 @@ class ShowGrid extends Component
 
         foreach ($this->table->columns as $col) {
             $name = $col->name;
+
+            // Ne pas appliquer les filtres des colonnes masquées
+            if (! in_array($col->id, $this->visibleColumns, true)) {
+                continue;
+            }
 
             if ($col->type === DatagridColumnType::DATE) {
                 $from = $this->filters[$name.'_from'] ?? '';
@@ -327,7 +350,7 @@ class ShowGrid extends Component
             $formatted[$col->name] = match ($col->type) {
                 DatagridColumnType::PHONE => $this->formatPhone((string) $val),
                 DatagridColumnType::SIRET => $this->formatSiret((string) $val),
-                DatagridColumnType::POSTAL_CODE => str_pad(preg_replace('/\D/', '', (string) $val), 5, '0', STR_PAD_LEFT),
+                DatagridColumnType::POSTAL_CODE => str_pad((string) preg_replace('/\D/', '', (string) $val), 5, '0', STR_PAD_LEFT),
                 DatagridColumnType::BOOLEAN => in_array($val, ['1', 1, true, 'true', 'oui'], false) ? '1' : '0',
                 // Supprimer les zéros trailing : 25.2500 → 25.25, 6254521.9900 → 6254521.99
                 DatagridColumnType::NUMBER => rtrim(rtrim((string) $val, '0'), '.') ?: '0',
@@ -341,7 +364,7 @@ class ShowGrid extends Component
     private function formatPhone(string $val): string
     {
         $prefix = str_starts_with($val, '+') ? '+' : '';
-        $digits = preg_replace('/\D/', '', $val);
+        $digits = (string) preg_replace('/\D/', '', $val);
 
         if (! $prefix && strlen($digits) === 10) {
             return implode(' ', str_split($digits, 2));
@@ -353,14 +376,14 @@ class ShowGrid extends Component
     private function denormalizePhone(string $val): string
     {
         $prefix = str_starts_with($val, '+') ? '+' : '';
-        $digits = preg_replace('/\D/', '', $val);
+        $digits = (string) preg_replace('/\D/', '', $val);
 
         return $prefix.$digits;
     }
 
     private function formatSiret(string $val): string
     {
-        $digits = preg_replace('/\D/', '', $val);
+        $digits = (string) preg_replace('/\D/', '', $val);
         $padded = str_pad($digits, 14, '0', STR_PAD_LEFT);
 
         if (strlen($padded) === 14) {
@@ -437,7 +460,7 @@ class ShowGrid extends Component
                     // Retirer les espaces de formatage avant stockage
                     DatagridColumnType::SIRET => preg_replace('/\D/', '', (string) $v),
                     DatagridColumnType::PHONE => $this->denormalizePhone((string) $v),
-                    DatagridColumnType::POSTAL_CODE => str_pad(preg_replace('/\D/', '', (string) $v), 5, '0', STR_PAD_LEFT),
+                    DatagridColumnType::POSTAL_CODE => str_pad((string) preg_replace('/\D/', '', (string) $v), 5, '0', STR_PAD_LEFT),
                     default => $v,
                 };
             })
@@ -555,7 +578,67 @@ class ShowGrid extends Component
         }
     }
 
-    public function render()
+    public function showAllColumns(): void
+    {
+        $this->visibleColumns = $this->table->columns
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+    }
+
+    public function resetColumnsToDefault(): void
+    {
+        $defaultIds = $this->table->columns
+            ->where('visible_by_default', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        // Effacer les filtres des colonnes qui vont être masquées
+        $toHide = $this->table->columns->whereNotIn('id', $defaultIds);
+        foreach ($toHide as $col) {
+            unset(
+                $this->filters[$col->name],
+                $this->filters[$col->name.'_from'],
+                $this->filters[$col->name.'_to'],
+                $this->filters[$col->name.'_min'],
+                $this->filters[$col->name.'_max'],
+            );
+        }
+
+        $this->visibleColumns = $defaultIds;
+        $this->resetPage();
+    }
+
+    public function toggleColumnPicker(): void
+    {
+        $this->showColumnPicker = ! $this->showColumnPicker;
+    }
+
+    public function toggleColumn(int $colId): void
+    {
+        if (in_array($colId, $this->visibleColumns, true)) {
+            $this->visibleColumns = array_values(
+                array_filter($this->visibleColumns, fn ($id) => $id !== $colId)
+            );
+            // Effacer les filtres de la colonne masquée
+            $col = $this->table->columns->firstWhere('id', $colId);
+            if ($col) {
+                unset(
+                    $this->filters[$col->name],
+                    $this->filters[$col->name.'_from'],
+                    $this->filters[$col->name.'_to'],
+                    $this->filters[$col->name.'_min'],
+                    $this->filters[$col->name.'_max'],
+                );
+                $this->resetPage();
+            }
+        } else {
+            $this->visibleColumns[] = $colId;
+        }
+    }
+
+    public function render(): View
     {
         $columns = $this->table->columns()->get();
         $savedViews = $this->table->savedViews()->where('user_id', auth()->id())->get();
@@ -564,6 +647,7 @@ class ShowGrid extends Component
             'columns' => $columns,
             'savedViews' => $savedViews,
             'columnTypes' => DatagridColumnType::options(),
+            'visibleColumns' => $this->visibleColumns,
         ]);
     }
 }
