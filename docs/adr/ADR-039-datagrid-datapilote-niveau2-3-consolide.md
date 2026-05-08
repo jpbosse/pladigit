@@ -49,6 +49,20 @@ Le développement suit trois blocs séquentiels :
 
 #### 2.1 Qualité des données et recherche
 
+**Nouveau type de colonne : `NOM_PERSONNE`**
+Sous-type de `TEXT`, déclaré dans l'enum `DatagridColumnType` comme valeur
+distincte. Se comporte comme un champ texte standard pour la saisie et
+l'affichage, mais active des comportements spécifiques :
+- Recherche floue (distance de Levenshtein) activée automatiquement
+- Détection de doublons à l'import activée automatiquement
+- Normalisation à la saisie : suppression des espaces multiples, trim
+
+Stocké en base comme `VARCHAR` standard. La distinction est portée
+uniquement par les métadonnées de la colonne (`datagrid_columns.type`).
+
+Exemple d'usage : colonne `nom` d'une table Élus, colonne `contact`
+d'une table Associations.
+
 **Recherche globale multicolonne**
 Un seul champ "Rechercher…" en haut de la grille effectue une recherche
 simultanée sur toutes les colonnes de type texte visibles. Résultats

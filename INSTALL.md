@@ -227,6 +227,19 @@ sudo -u www-data composer install --no-dev --optimize-autoloader
 sudo npm ci && sudo npm run build
 ```
 
+> **⚠ Droits sur le `.env` (critique)**
+> Le `.env` est créé à l'étape suivante. Une fois créé, les workers Supervisor
+> (qui tournent sous `www-data`) doivent pouvoir le lire. Sans cela, les workers
+> crashent silencieusement et les sauvegardes automatiques ne fonctionnent pas.
+>
+> Après création du `.env`, appliquer systématiquement :
+> ```bash
+> sudo chown $USER:www-data /var/www/pladigit/.env
+> sudo chmod 640 /var/www/pladigit/.env
+> ```
+> Remplacer `$USER` par l'utilisateur système propriétaire du dépôt
+> (ex: `ubuntu` sur OVH, `deploy` sur un serveur dédié).
+
 ### 10. Configuration de l'environnement
 
 ```bash

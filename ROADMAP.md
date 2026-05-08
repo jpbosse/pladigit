@@ -32,7 +32,7 @@ Les modules sont dans l'ordre de priorité révisé. Les dates sont indicatives.
 | **DataPilot** — tableaux croisés dynamiques sur DataGrid | Synthèses Excel manuelles | Été–Automne 2026 |
 | Chat temps réel — canaux par service/projet, 1:1, WebSocket | Microsoft Teams | Automne 2026 |
 | Agenda global — CalDAV, récurrence, synchronisation Thunderbird | Outlook Calendrier | Fin 2026 |
-| Pladigit comme source de vérité documentaire — modèles, nommage automatique, circuits de validation | — | 2026–2027 |
+| **Source de vérité documentaire** — classification des actes officiels (délibérations, arrêtés, PV), référence normalisée DEL-2026-042, nommage automatique, modèles Collabora — socle posé (ADR-038 accepté, migrations créées), UI à construire en parallèle du DataGrid | SharePoint / registres papier | Été–Automne 2026 |
 | Signature électronique — RGS ** (Yousign/Docaposte) pour les élus | — | 2027 |
 | Sondages et questionnaires | Microsoft Forms | 2027 |
 

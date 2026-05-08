@@ -80,6 +80,12 @@ Fiche de décision architecturale : document qui enregistre un choix technique i
 **Alpine.js**
 Framework JavaScript léger utilisé pour les interactions frontend (modales, drag & drop, upload progressif). Complémentaire à Livewire — Alpine.js gère les interactions purement côté client, Livewire gère les composants réactifs côté serveur.
 
+**Apache ECharts**
+Bibliothèque JavaScript de visualisation de données (licence Apache 2.0 / MIT), retenue pour le module DataPilote. Produit des graphiques interactifs (barres, courbes, secteurs, combinés) avec un rendu de qualité professionnelle. Choisie pour sa licence open source compatible AGPL-3.0, son absence de dépendances et la richesse de son API.
+
+**DataGrid Relationnel**
+Extension du module DataGrid permettant de définir des relations entre plusieurs tables d'un même tenant. Exemple : une table Élus reliée à une table Commissions via une colonne de type `RELATION`. Transforme le DataGrid en véritable applicatif métier no-code, comparable à Airtable ou NocoDB mais souverain. Développement prévu dans le bloc Extensions (ADR-039).
+
 **Artisan**
 Interface en ligne de commande de Laravel. Permet d'exécuter des commandes de maintenance, migrations, tests, synchronisations NAS, etc. Exemple : `php artisan ged:sync`.
 
@@ -156,6 +162,9 @@ Outil de formatage PHP de Laravel. Applique automatiquement le standard PSR-12 (
 
 **Redis**
 Base de données en mémoire utilisée pour le cache, les sessions et la file de tâches. Plus rapide que MySQL pour ces usages. Requis en production.
+
+**Tabulator**
+Bibliothèque JavaScript de grilles de données (licence MIT), retenue pour le module DataGrid (ADR-036). Fournit nativement le tri multi-colonnes, la virtualisation des lignes pour les grands volumes, le mode server-side, le Master/Détail et les en-têtes groupés. Choisie pour sa licence open source, l'absence de jQuery, et la richesse fonctionnelle de sa version Community (contrairement à AG Grid dont les fonctionnalités avancées sont réservées à la licence Enterprise payante).
 
 **ResolveTenant**
 Middleware qui s'exécute en premier sur chaque requête. Extrait l'identifiant de l'organisation depuis le sous-domaine (exemple : `mairie-soullans.pladigit.fr` → slug `mairie-soullans`), charge l'organisation depuis la base platform, puis établit la connexion à la base de données de l'organisation.
