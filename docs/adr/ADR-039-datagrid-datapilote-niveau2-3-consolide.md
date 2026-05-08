@@ -2,6 +2,7 @@
 
 ## Statut
 Proposé — 2026-05-08
+Remplace [ADR-036](ADR-036-datagrid-datapilote-droits-hierarchiques.md)
 
 ## Contexte
 
@@ -126,6 +127,62 @@ Depuis la popup d'édition : bouton "Imprimer" qui génère une vue HTML
 propre de la fiche, optimisée pour l'impression (`@media print`).
 
 #### 2.4 Gestion des données — fonctionnalités manquantes
+
+**Organisation des grilles en dossiers**
+Une collectivité peut rapidement atteindre 20 à 30 grilles. Sans organisation,
+la barre latérale devient illisible. Un système de dossiers hiérarchiques
+est introduit :
+
+```
+📁 Ressources humaines
+   └── Agents
+   └── Formations
+📁 Vie municipale
+   └── Élus
+   └── Commissions
+   └── Arrêtés
+📁 Associations
+   └── Registre
+   └── Subventions
+```
+
+Table dédiée avec autoréférence (même principe que `departments`) :
+
+```sql
+datagrid_folders
+    id
+    label
+    parent_id        -- NULL = dossier racine
+    sort_order
+    tenant_id
+    timestamps
+```
+
+`datagrid_tables.folder_id` est ajouté en FK nullable.
+La barre latérale affiche les dossiers avec collapse/expand.
+Les dossiers imbriqués (sous-dossiers) sont supportés sans limite de profondeur.
+Une grille peut exister hors dossier (niveau racine).
+L'admin tenant gère les dossiers ; le Super Admin peut en créer depuis son interface.
+
+**Nouveau type de colonne : `CHEMIN_FICHIER`**
+Cas fréquent dans les collectivités : une table d'arrêtés ou de délibérations
+avec une colonne contenant un chemin vers un PDF stocké sur le NAS
+(`\\NAS\Arretes\2026\ARR-2026-015.pdf` ou `/mnt/archives/2026/del-042.pdf`).
+
+Comportement dans la grille :
+- Si le chemin se termine par `.pdf` → icône PDF cliquable (📄)
+- Si le chemin se termine par `.jpg`, `.png`, `.jpeg` → icône image cliquable (🖼)
+- Autres extensions → icône fichier générique cliquable (📎)
+- Le clic tente d'ouvrir le fichier via le navigateur (lien `href` direct)
+  ou via la GED Pladigit si le chemin correspond à un document GED
+
+Dans la popup d'édition : champ texte libre pour saisir le chemin,
+avec bouton "Parcourir la GED" pour sélectionner un document Pladigit
+(qui renseigne automatiquement le chemin GED interne).
+
+Note : Pladigit ne gère pas l'accès au NAS réseau de la collectivité —
+il affiche le chemin et tente l'ouverture. L'accessibilité du fichier
+dépend de la configuration réseau de la collectivité.
 
 **Ajout manuel d'une ligne**
 Bouton "Ajouter une ligne" dans la barre d'outils.
@@ -431,40 +488,42 @@ Socle
 ├── 2. Compteur contextuel X/Y (trivial)
 ├── 3. Gestion des dates Excel à l'import
 ├── 4. Ajout manuel d'une ligne
-├── 5. Export Excel (PhpSpreadsheet)
-├── 6. Persistance préférences utilisateur (table + mount)
-├── 7. Popup onglets + onglet Historique UI
-├── 8. Droits UI admin tenant (droits par département et utilisateur)
-├── 9. Cache Redis droits résolus
-├── 10. Droits au niveau colonne
-├── 11. Export PDF + impression fiche
-├── 12. Recherche floue sur les noms (fuzzy)
-├── 13. Détection doublons à l'import
-└── 14. Fusion de doublons UI
+├── 5. Organisation des grilles en dossiers (table + barre latérale)
+├── 6. Type de colonne CHEMIN_FICHIER avec icône cliquable
+├── 7. Export Excel (PhpSpreadsheet)
+├── 8. Persistance préférences utilisateur (table + mount)
+├── 9. Popup onglets + onglet Historique UI
+├── 10. Droits UI admin tenant (droits par département et utilisateur)
+├── 11. Cache Redis droits résolus
+├── 12. Droits au niveau colonne
+├── 13. Export PDF + impression fiche
+├── 14. Recherche floue sur les noms (fuzzy)
+├── 15. Détection doublons à l'import
+└── 16. Fusion de doublons UI
 
 Extensions
-├── 15. ADR-040 — Relations entre tables (rédaction avant code)
-├── 16. Type de colonne RELATION + UI
-├── 17. Master / Détail
-├── 18. Recherche cross-tables
-├── 19. Champs conditionnels (niveau simple)
-├── 20. Pièces jointes — intégration GED
-├── 21. Workflow statuts + transitions
-├── 22. Commentaires internes
-├── 23. Widgets tableaux de bord
-├── 24. Virtualisation grands volumes (server-side Tabulator)
-├── 25. Tri multi-colonnes UI
-├── 26. En-têtes groupés
-├── 27. Verrouillage optimiste
-├── 28. Champs calculés
-├── 29. Assignation + notifications (dépend du module Chat)
-└── 30. QR code par fiche
+├── 17. ADR-040 — Relations entre tables (rédaction avant code)
+├── 18. Type de colonne RELATION + UI
+├── 19. Master / Détail
+├── 20. Recherche cross-tables
+├── 21. Champs conditionnels (niveau simple)
+├── 22. Pièces jointes — intégration GED
+├── 23. Workflow statuts + transitions
+├── 24. Commentaires internes
+├── 25. Widgets tableaux de bord
+├── 26. Virtualisation grands volumes (server-side Tabulator)
+├── 27. Tri multi-colonnes UI
+├── 28. En-têtes groupés
+├── 29. Verrouillage optimiste
+├── 30. Champs calculés
+├── 31. Assignation + notifications (dépend du module Chat)
+└── 32. QR code par fiche
 
 DataPilote
-├── 31. Tableau croisé dynamique (MVP)
-├── 32. Graphiques ECharts
-├── 33. Export DataPilote
-└── 34. Sauvegarde configurations DataPilote
+├── 33. Tableau croisé dynamique (MVP)
+├── 34. Graphiques ECharts
+├── 35. Export DataPilote
+└── 36. Sauvegarde configurations DataPilote
 ```
 
 ---

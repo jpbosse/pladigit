@@ -1,7 +1,11 @@
 # ADR-036 — Modules DataGrid, DataPilote et modèle de droits hiérarchiques
 
 ## Statut
-Proposé — 2026-04-29
+Superseded — remplacé par [ADR-039](ADR-039-datagrid-datapilote-niveau2-3-consolide.md) — 2026-05-08
+
+> Cet ADR posait les fondations architecturales (modèle de droits hiérarchiques,
+> choix de Tabulator, DataPilote sur mesure). Ces décisions restent en vigueur.
+> La feuille de route complète niveaux 2 et 3 est définie dans l'ADR-039.
 
 ## Contexte
 

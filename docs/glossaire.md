@@ -92,6 +92,27 @@ Base MySQL dédiée à une organisation (`pladigit_{slug}`). Contient toutes les
 **CI/CD (Continuous Integration / Continuous Deployment — Intégration Continue / Déploiement Continu)**
 Pipeline automatisé déclenché à chaque mise à jour du code sur GitHub. Exécute 4 vérifications : PHPUnit (tests), Pint (style de code), PHPStan (analyse statique), Composer audit (sécurité des dépendances). Aucun merge sur `main` si une vérification échoue.
 
+**DataGrid**
+Module Pladigit permettant aux agents d'une collectivité de consulter, saisir, filtrer et exporter des données structurées sous forme de grille, sans écrire de SQL ni de code. Équivalent souverain des tableurs Excel collaboratifs. La structure (colonnes, types) est définie par le Super Admin ; les données sont gérées par l'admin tenant et les agents.
+
+**DataPilote**
+Module analytique de Pladigit, accessible depuis le DataGrid via un bouton "Analyser". Permet de construire des tableaux croisés dynamiques et des graphiques à partir des données d'une grille, par simple configuration (drag & drop). Lecture seule — aucune modification de données depuis le DataPilote.
+
+**DDL (Data Definition Language — Langage de Définition des Données)**
+Sous-ensemble du langage SQL qui définit ou modifie la *structure* d'une base de données. Les instructions DDL sont : `CREATE TABLE` (créer une table), `ALTER TABLE` (ajouter ou modifier une colonne), `DROP TABLE` (supprimer une table). Dans Pladigit, le DDL est réservé exclusivement au Super Admin — aucun utilisateur ni admin tenant ne peut exécuter du DDL directement. Une erreur de DDL peut corrompre toute une base de données de façon irréversible.
+
+**DML (Data Manipulation Language — Langage de Manipulation des Données)**
+Sous-ensemble du SQL qui agit sur les *données* (et non la structure). Les instructions DML sont : `SELECT` (lire), `INSERT` (ajouter), `UPDATE` (modifier), `DELETE` (supprimer). Les agents Pladigit exécutent du DML à travers l'interface — sans jamais l'écrire directement.
+
+**Distance de Levenshtein**
+Mesure de la différence entre deux chaînes de caractères, exprimée en nombre minimal d'opérations (insertion, suppression, substitution) nécessaires pour passer de l'une à l'autre. Exemple : la distance entre "Dupont" et "Dupond" est 1 (une substitution). Utilisée dans Pladigit pour la recherche floue sur les noms de personnes — permet de retrouver "Dupont" même si saisi "Dupond" ou "Dupon".
+
+**Fuzzy search (recherche floue)**
+Technique de recherche qui accepte des variantes orthographiques du terme cherché. Contrairement à une recherche exacte, la recherche floue retrouve "Jean Dupont" si l'utilisateur tape "Dupond" ou "J. Dupont". Dans Pladigit DataGrid, activée sur les colonnes explicitement marquées `fuzzy_search = true` par le Super Admin.
+
+**Numéro sériel Excel**
+Représentation interne des dates dans Microsoft Excel : un nombre entier comptant les jours depuis le 1er janvier 1900 (avec un bug historique sur l'année 1900 conservé par compatibilité). Exemple : le nombre 46000 correspond au 26 mars 2025. Lors de l'import d'un fichier Excel dans DataGrid, Pladigit détecte et convertit automatiquement ces nombres en dates lisibles pour les colonnes déclarées de type `DATE`.
+
 **Circuit breaker LDAP**
 Mécanisme de protection qui coupe temporairement les tentatives de connexion à l'annuaire après un certain nombre d'échecs consécutifs. Évite qu'une panne de l'annuaire ne bloque tous les utilisateurs — le basculement sur l'authentification locale prend le relais.
 
