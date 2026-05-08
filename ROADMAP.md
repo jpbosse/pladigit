@@ -49,10 +49,16 @@ DataGrid remplace ces tableurs par des listes collaboratives intégrées à Plad
 Ces fonctionnalités sont identifiées mais sans date planifiée. Elles pourront émerger des retours terrain ou de contributions de la communauté.
 
 - **Intelligence artificielle locale** — catégorisation automatique des photos (Ollama + LLaVA), recherche sémantique dans les documents. Prévu sur la configuration AMD 3800x / 32 Go RAM avec modèle Mistral 7B Q4.
-- **Applications mobiles / PWA** — accès terrain pour les agents de voirie, culture, technique
-- **API REST publique** — connecteurs SIG (Système d'Information Géographique), SIRH, logiciels métiers collectivités
-- **Accessibilité RGAA 4.1** — référentiel général d'amélioration de l'accessibilité — audit complet et mise en conformité
-- **Fil d'actualités RSS** — agrégateur de veille informationnelle pour les organisations
+
+- **DataGrid Assistant IA** — interface en langage naturel pour configurer et utiliser le DataGrid sans compétence technique. Un agent tape "j'ai un fichier Excel de suivi des associations, je veux une présentation avec recherche et filtres" — l'IA analyse le fichier, propose la structure de la grille, les colonnes, les types et génère une vue personnalisée. S'appuie sur la même infrastructure Ollama/Mistral. Pensé dès la conception du socle DataGrid pour que l'architecture soit compatible (API de configuration des grilles, schéma de colonnes introspectable, génération de vues paramétrables). Répond à l'évolution des usages : aujourd'hui n'importe quel agent peut demander à une IA de lui construire un outil sur mesure — Pladigit doit être ce terrain d'accueil natif et souverain.
+
+- **Applications mobiles / PWA** — accès terrain pour les agents de voirie, culture, technique.
+
+- **API REST publique** — connecteurs SIG (Système d'Information Géographique), SIRH, logiciels métiers collectivités.
+
+- **Accessibilité RGAA 4.1** — référentiel général d'amélioration de l'accessibilité — audit complet et mise en conformité.
+
+- **Fil d'actualités RSS** — agrégateur de veille informationnelle pour les organisations.
 
 ---
 
