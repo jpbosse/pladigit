@@ -18,7 +18,7 @@
 | Sécurité production — CSP, HSTS, X-Frame-Options, headers Nginx, ressources locales | — | Mai 2026 |
 | Mise à jour Super Admin — `update.sh`, log temps réel, `pladigit:update-status` | — | Mai 2026 |
 
-**En chiffres :** 781 tests verts · PHPStan niveau 5 · 35 décisions architecturales documentées · CI/CD GitHub Actions
+**En chiffres :** 828 tests verts · PHPStan niveau 8 · 41 décisions architecturales documentées · CI/CD GitHub Actions
 
 ---
 
@@ -28,19 +28,27 @@ Les modules sont dans l'ordre de priorité révisé. Les dates sont indicatives.
 
 | Module | Ce que ça remplace | Période visée |
 |--------|-------------------|---------------|
-| **DataGrid** — listes collaboratives sans programmation | Tableurs Excel éparpillés | Été 2026 |
-| **DataPilot** — tableaux croisés dynamiques sur DataGrid | Synthèses Excel manuelles | Été–Automne 2026 |
-| Chat temps réel — canaux par service/projet, 1:1, WebSocket | Microsoft Teams | Automne 2026 |
-| Agenda global — CalDAV, récurrence, synchronisation Thunderbird | Outlook Calendrier | Fin 2026 |
-| **Source de vérité documentaire** — classification des actes officiels (délibérations, arrêtés, PV), référence normalisée DEL-2026-042, nommage automatique, modèles Collabora — socle posé (ADR-038 accepté, migrations créées), UI à construire en parallèle du DataGrid | SharePoint / registres papier | Été–Automne 2026 |
-| Signature électronique — RGS ** (Yousign/Docaposte) pour les élus | — | 2027 |
+| **DataGrid — Socle** — listes collaboratives sans programmation, droits hiérarchiques, export Excel/PDF, recherche multicolonne et floue, détection et fusion des doublons, assistant de normalisation des fichiers complexes | Tableurs Excel éparpillés | Été 2026 |
+| **Sécurité renforcée** — chiffrement MySQL TDE au repos, sauvegardes GPG chiffrées, procédures de restauration testées (complète / partielle / fichier GED), plan de réponse à incident, rotation des secrets | — | Été 2026 |
+| **Source de vérité documentaire** — classification des actes officiels (délibérations DEL-2026-042, arrêtés, PV), nommage automatique, modèles Collabora — socle architectural posé (ADR-038), UI à construire | SharePoint / registres papier | Été–Automne 2026 |
+| **DataGrid — Extensions** — relations entre tables (N-1 / 1-N / N-N), vues métier transparentes (l'utilisateur ne voit pas les tables techniques), colonnes calculées et agrégées, workflow statuts, commentaires, pièces jointes GED | Airtable / NocoDB propriétaires | Automne 2026 |
+| **DataPilote** — tableaux croisés dynamiques par drag & drop, graphiques Apache ECharts, export Excel/PDF, lecture seule | Synthèses Excel manuelles | Automne–Hiver 2026 |
+| Chat temps réel — canaux par service/projet, 1:1, WebSocket | Microsoft Teams | Fin 2026 |
+| Agenda global — CalDAV, récurrence, synchronisation Thunderbird | Outlook Calendrier | Fin 2026 – 2027 |
+| Signature électronique — RGS \*\* (Yousign/Docaposte) pour les élus | — | 2027 |
 | Sondages et questionnaires | Microsoft Forms | 2027 |
 
-### Pourquoi DataGrid et DataPilot avant le Chat et l'Agenda
+### Pourquoi DataGrid avant le Chat et l'Agenda
 
 Le Chat et l'Agenda sont des modules visibles et attendus, mais ils ne résolvent pas le problème le plus fréquent constaté dans les petites collectivités : les dizaines de tableurs Excel éparpillés — listes d'élus, registres d'associations, suivi d'équipements, tableaux de bord — chacun dans son coin, sans lien entre eux, sans traçabilité.
 
-DataGrid remplace ces tableurs par des listes collaboratives intégrées à Pladigit, accessibles selon les droits de chaque agent. DataPilot permet d'en extraire des synthèses croisées à la demande. Ces deux modules constituent un argument commercial fort et différenciant, notamment face à Nextcloud, et ils sont réalisables par un développeur solo dans un délai raisonnable.
+DataGrid remplace ces tableurs par des listes collaboratives intégrées à Pladigit, accessibles selon les droits de chaque agent. Le module est conçu pour que même une responsable de communication sans compétence informatique puisse migrer ses fichiers Excel complexes — y compris les fichiers "tout en un" avec 60 à 90 colonnes — vers des données propres, relationnelles et cohérentes, sans jamais voir les tables techniques. DataPilote permet ensuite d'en extraire des synthèses croisées à la demande.
+
+Ces modules constituent un argument commercial fort et différenciant, notamment face à Nextcloud, et ils sont réalisables par un développeur solo dans un délai raisonnable.
+
+### Pourquoi la sécurité renforcée en priorité haute
+
+Les sauvegardes automatiques sont en place mais les archives ne sont pas chiffrées. Si un attaquant accède au serveur ou vole une sauvegarde, il obtient l'intégralité des données de toutes les collectivités hébergées. Par ailleurs, une sauvegarde sans procédure de restauration testée ne vaut rien. Le chiffrement MySQL TDE, le chiffrement GPG des archives et les procédures de restauration documentées et testées constituent le filet de sécurité indispensable avant tout déploiement chez des collectivités réelles.
 
 ---
 
@@ -50,7 +58,9 @@ Ces fonctionnalités sont identifiées mais sans date planifiée. Elles pourront
 
 - **Intelligence artificielle locale** — catégorisation automatique des photos (Ollama + LLaVA), recherche sémantique dans les documents. Prévu sur la configuration AMD 3800x / 32 Go RAM avec modèle Mistral 7B Q4.
 
-- **DataGrid Assistant IA** — interface en langage naturel pour configurer et utiliser le DataGrid sans compétence technique. Un agent tape "j'ai un fichier Excel de suivi des associations, je veux une présentation avec recherche et filtres" — l'IA analyse le fichier, propose la structure de la grille, les colonnes, les types et génère une vue personnalisée. S'appuie sur la même infrastructure Ollama/Mistral. Pensé dès la conception du socle DataGrid pour que l'architecture soit compatible (API de configuration des grilles, schéma de colonnes introspectable, génération de vues paramétrables). Répond à l'évolution des usages : aujourd'hui n'importe quel agent peut demander à une IA de lui construire un outil sur mesure — Pladigit doit être ce terrain d'accueil natif et souverain.
+- **DataGrid Assistant IA** — interface en langage naturel pour configurer et utiliser le DataGrid sans compétence technique. Un agent tape "j'ai un fichier Excel de suivi des associations, je veux une présentation avec recherche et filtres" — l'IA analyse le fichier, propose la structure de la grille, les colonnes, les types et génère une vue personnalisée. S'appuie sur la même infrastructure Ollama/Mistral et sur le `DatagridNormalizationService` posé dans le socle DataGrid. Pensé dès la conception pour que l'architecture soit compatible — API de configuration des grilles introspectable, génération de vues paramétrables. Répond à l'évolution des usages : aujourd'hui n'importe quel agent peut demander à une IA de lui construire un outil sur mesure — Pladigit doit être ce terrain d'accueil natif et souverain.
+
+- **Recherche cross-tables** — un seul champ de recherche global qui cherche simultanément dans toutes les grilles du tenant, avec résultats groupés par table. Retrouver "Jean Dupont" qu'il soit dans Élus, Contacts ou Prestataires en une seule recherche, avec tolérance aux variations orthographiques.
 
 - **Applications mobiles / PWA** — accès terrain pour les agents de voirie, culture, technique.
 
@@ -59,6 +69,28 @@ Ces fonctionnalités sont identifiées mais sans date planifiée. Elles pourront
 - **Accessibilité RGAA 4.1** — référentiel général d'amélioration de l'accessibilité — audit complet et mise en conformité.
 
 - **Fil d'actualités RSS** — agrégateur de veille informationnelle pour les organisations.
+
+- **Audit de sécurité externe** — audit par un prestataire spécialisé avant communication officielle vers les collectivités. Indispensable pour la crédibilité auprès des DSI et des CDG.
+
+---
+
+## Architecture et décisions documentées 📐
+
+Pladigit documente ses choix techniques sous forme d'ADR (Architecture Decision Records) dans `docs/adr/`. Chaque ADR explique pourquoi une décision a été prise, les alternatives considérées et les conséquences. Cette documentation est publique et auditables par toute collectivité ou contributeur.
+
+| ADR | Sujet |
+|-----|-------|
+| ADR-001 à 025 | Socle technique, GED, sécurité, performances |
+| ADR-026 | Déploiement production VPS |
+| ADR-027 | Restriction IP Super Admin |
+| ADR-028 à 031 | Installation automatique et Collabora |
+| ADR-032 à 035 | Sécurité applicative et CSP |
+| ADR-036 | DataGrid et DataPilote — fondations *(remplacé par ADR-039)* |
+| ADR-037 | Gouvernance RGPD et annuaire des personnalités |
+| ADR-038 | Source de vérité documentaire |
+| ADR-039 | DataGrid et DataPilote — feuille de route consolidée niveaux 2 et 3 |
+| ADR-040 | DataGrid Relationnel — relations entre tables, assistant de normalisation, expérience utilisateur transparente |
+| ADR-041 | Sécurité des données au repos, sauvegardes chiffrées GPG, plan de restauration et réponse à incident |
 
 ---
 
@@ -70,6 +102,8 @@ Ces éléments ont été explicitement écartés pour des raisons de souverainet
 - Hébergement cloud AWS / Google / Azure — même raison
 - ONLYOFFICE — origine et défendabilité dans le secteur public écartées (voir ADR-022)
 - Portail citoyen — périmètre différent, peut faire l'objet d'un projet distinct
+- Formules entre colonnes type Excel dans DataGrid — complexité excessive, hors usage collectivités
+- Relations entre tenants dans DataGrid — risque de fuite de données entre organisations
 
 ---
 
