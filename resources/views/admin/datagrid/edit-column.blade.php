@@ -87,6 +87,42 @@
                           border-radius:7px;font-size:13px;box-sizing:border-box;">
         </div>
 
+        {{-- Labels Oui/Non pour BOOLEAN --}}
+        <div id="block-boolean"
+             style="margin-bottom:16px;display:{{ $column->type === \App\Enums\DatagridColumnType::BOOLEAN ? 'block' : 'none' }};">
+            <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:8px;">Labels Vrai / Faux</label>
+            <div style="display:flex;gap:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:11px;color:var(--pd-muted);display:block;margin-bottom:3px;">Libellé Vrai</label>
+                    <input id="f-label-true" type="text" value="{{ $column->label_true ?? 'Oui' }}"
+                           placeholder="Oui"
+                           style="width:100%;padding:7px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:13px;box-sizing:border-box;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:11px;color:var(--pd-muted);display:block;margin-bottom:3px;">Libellé Faux</label>
+                    <input id="f-label-false" type="text" value="{{ $column->label_false ?? 'Non' }}"
+                           placeholder="Non"
+                           style="width:100%;padding:7px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:13px;box-sizing:border-box;">
+                </div>
+            </div>
+        </div>
+
+        {{-- Options pour SELECT --}}
+        <div id="block-options"
+             style="margin-bottom:16px;display:{{ $column->type === \App\Enums\DatagridColumnType::SELECT ? 'block' : 'none' }};">
+            <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:4px;">
+                Valeurs possibles
+                <span style="font-weight:normal;"> — une par ligne. Laisser vide = saisie libre.</span>
+            </label>
+            <textarea id="f-options" rows="5"
+                      placeholder="Valeur 1&#10;Valeur 2&#10;Valeur 3"
+                      style="width:100%;padding:7px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:13px;font-family:monospace;box-sizing:border-box;resize:vertical;">{{ is_array($column->options) ? implode("
+", $column->options) : '' }}</textarea>
+            <span style="display:block;margin-top:3px;font-size:11px;color:var(--pd-muted);">
+                2 valeurs = toggle, 3+ = dropdown. Vide = champ texte libre avec suggestions.
+            </span>
+        </div>
+
         {{-- Ordre --}}
         <div style="margin-bottom:16px;">
             <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:4px;">Ordre d'affichage</label>
@@ -137,6 +173,10 @@
         var t = document.getElementById('f-type').value;
         document.getElementById('block-length').style.display =
             hasLengthTypes.includes(t) ? 'block' : 'none';
+        document.getElementById('block-boolean').style.display =
+            t === 'boolean' ? 'block' : 'none';
+        document.getElementById('block-options').style.display =
+            t === 'select' ? 'block' : 'none';
     };
 
     window.saveColumn = function () {
@@ -157,6 +197,13 @@
                 label:               document.getElementById('f-label').value,
                 type:                document.getElementById('f-type').value,
                 length:              length !== '' ? parseInt(length) : null,
+                label_true:          document.getElementById('f-label-true').value || null,
+                label_false:         document.getElementById('f-label-false').value || null,
+                options:             (function() {
+                    var raw = document.getElementById('f-options').value.trim();
+                    if (!raw) return null;
+                    return raw.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+                })(),
                 sort_order:          parseInt(document.getElementById('f-sort').value) || 0,
                 required:            document.getElementById('f-required').checked,
                 visible_by_default:  document.getElementById('f-visible').checked,

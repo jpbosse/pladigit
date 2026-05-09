@@ -282,6 +282,26 @@
                                 color:var(--pd-navy);">
                                 {{ $val }}
                             </span>
+                        @elseif($col->type === \App\Enums\DatagridColumnType::CHEMIN_FICHIER)
+                            @php
+                                $ext = strtolower(pathinfo($val, PATHINFO_EXTENSION));
+                                $icon = match(true) {
+                                    in_array($ext, ['pdf'])                               => '📄',
+                                    in_array($ext, ['jpg','jpeg','png','gif','webp','svg']) => '🖼️',
+                                    in_array($ext, ['doc','docx','odt'])                  => '📝',
+                                    in_array($ext, ['xls','xlsx','ods','csv'])            => '📊',
+                                    in_array($ext, ['zip','tar','gz','7z','rar'])         => '🗜️',
+                                    in_array($ext, ['mp4','avi','mov','mkv'])             => '🎬',
+                                    in_array($ext, ['mp3','wav','ogg','flac'])            => '🎵',
+                                    default                                               => '📎',
+                                };
+                                $filename = basename($val);
+                            @endphp
+                            <span title="{{ $val }}"
+                                  style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--pd-text);">
+                                <span>{{ $icon }}</span>
+                                <span style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace;font-size:11px;color:var(--pd-muted);">{{ $filename }}</span>
+                            </span>
                         @else
                             {{ $val }}
                         @endif
@@ -510,6 +530,34 @@
                            @if(!$userPerms['can_write']) disabled @endif
                            style="{{ $baseStyle }}font-family:monospace;max-width:120px;">
 
+                @elseif($col->type === \App\Enums\DatagridColumnType::CHEMIN_FICHIER)
+                    @php
+                        $chVal = $editForm[$col->name] ?? '';
+                        $chExt = strtolower(pathinfo($chVal, PATHINFO_EXTENSION));
+                        $chIcon = match(true) {
+                            in_array($chExt, ['pdf'])                               => '📄',
+                            in_array($chExt, ['jpg','jpeg','png','gif','webp','svg']) => '🖼️',
+                            in_array($chExt, ['doc','docx','odt'])                  => '📝',
+                            in_array($chExt, ['xls','xlsx','ods','csv'])            => '📊',
+                            in_array($chExt, ['zip','tar','gz','7z','rar'])         => '🗜️',
+                            in_array($chExt, ['mp4','avi','mov','mkv'])             => '🎬',
+                            in_array($chExt, ['mp3','wav','ogg','flac'])            => '🎵',
+                            default                                                 => '📎',
+                        };
+                    @endphp
+                    @if($chVal)
+                    <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--pd-bg2);border:1px solid var(--pd-border);border-radius:7px;margin-bottom:6px;">
+                        <span style="font-size:18px;">{{ $chIcon }}</span>
+                        <span style="font-size:12px;font-family:monospace;color:var(--pd-text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;" title="{{ $chVal }}">{{ basename($chVal) }}</span>
+                    </div>
+                    @endif
+                    <input type="text"
+                           wire:model="editForm.{{ $col->name }}"
+                           @if(!$userPerms['can_write']) disabled @endif
+                           placeholder="/chemin/vers/fichier.pdf"
+                           style="{{ $baseStyle }}font-family:monospace;font-size:11px;">
+                    <span style="display:block;margin-top:3px;font-size:10px;color:var(--pd-muted);">Chemin complet du fichier sur le serveur ou réseau.</span>
+
                 @else
                     <input type="text"
                            wire:model="editForm.{{ $col->name }}"
@@ -681,6 +729,12 @@
                 @elseif($col->type === \App\Enums\DatagridColumnType::POSTAL_CODE)
                     <input type="text" wire:model="addForm.{{ $col->name }}" placeholder="85300"
                            maxlength="10" style="{{ $baseStyle }}font-family:monospace;max-width:120px;">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::CHEMIN_FICHIER)
+                    <input type="text" wire:model="addForm.{{ $col->name }}"
+                           placeholder="/chemin/vers/fichier.pdf"
+                           style="{{ $baseStyle }}font-family:monospace;font-size:11px;">
+                    <span style="display:block;margin-top:3px;font-size:10px;color:var(--pd-muted);">Chemin complet du fichier sur le serveur ou réseau.</span>
 
                 @else
                     <input type="text" wire:model="addForm.{{ $col->name }}"

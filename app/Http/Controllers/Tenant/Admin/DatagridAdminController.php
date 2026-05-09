@@ -56,6 +56,10 @@ class DatagridAdminController extends Controller
             'sort_order' => 'integer|min:0',
             'type' => 'nullable|in:'.implode(',', DatagridColumnType::values()),
             'length' => 'nullable|integer|min:1|max:65535',
+            'label_true' => 'nullable|string|max:50',
+            'label_false' => 'nullable|string|max:50',
+            'options' => 'nullable|array',
+            'options.*' => 'string|max:255',
         ]);
 
         $oldName = $column->name;
