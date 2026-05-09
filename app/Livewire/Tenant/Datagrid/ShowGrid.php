@@ -33,9 +33,6 @@ class ShowGrid extends Component
 
     public int $perPage = 10;
 
-    /** Recherche globale multicolonne */
-    public string $search = '';
-
     /** @var array<string, array<int, mixed>> Valeurs distinctes par colonne pour les selects de filtre */
     public array $distinctValues = [];
 
@@ -55,6 +52,12 @@ class ShowGrid extends Component
 
     /** @var array<string, mixed> Valeurs du formulaire d'édition */
     public array $editForm = [];
+
+    /** Modal d'ajout ouverte/fermée */
+    public bool $addingRow = false;
+
+    /** @var array<string, mixed> Valeurs du formulaire d'ajout */
+    public array $addForm = [];
 
     /** @var array{can_write: bool, can_delete: bool} Droits de l'utilisateur courant sur cette grille */
     public array $userPerms = [
@@ -179,26 +182,6 @@ class ShowGrid extends Component
             $query->where($name, 'like', '%'.$val.'%');
         }
 
-        // Recherche globale multicolonne
-        if ($this->search !== '') {
-            $searchableTypes = [
-                DatagridColumnType::TEXT, DatagridColumnType::EMAIL,
-                DatagridColumnType::PHONE, DatagridColumnType::SELECT,
-                DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE,
-            ];
-            $term = $this->search;
-            $query->where(function ($q) use ($term, $searchableTypes) {
-                foreach ($this->table->columns as $col) {
-                    if (! in_array($col->id, $this->visibleColumns, true)) {
-                        continue;
-                    }
-                    if (in_array($col->type, $searchableTypes, true)) {
-                        $q->orWhere($col->name, 'like', '%'.$term.'%');
-                    }
-                }
-            });
-        }
-
         if ($this->sortColumn !== '') {
             $query->orderBy($this->sortColumn, $this->sortDirection);
         }
@@ -206,19 +189,7 @@ class ShowGrid extends Component
         return $query->paginate($this->perPage);
     }
 
-    /** @return int Nombre total de lignes sans aucun filtre */
-    #[Computed]
-    public function totalCount(): int
-    {
-        return DB::connection('tenant')->table($this->table->mysql_table)->count();
-    }
-
     public function updatedPerPage(): void
-    {
-        $this->resetPage();
-    }
-
-    public function updatedSearch(): void
     {
         $this->resetPage();
     }
@@ -232,7 +203,6 @@ class ShowGrid extends Component
     public function clearFilters(): void
     {
         $this->filters = [];
-        $this->search = '';
         $this->activeViewId = null;
         $this->resetPage();
         $this->dispatch('$refresh');
@@ -352,6 +322,105 @@ class ShowGrid extends Component
         app(DatagridPermissionService::class)->invalidateCacheForTable($this->table);
 
         $this->dispatch('column-updated', columnId: $columnId);
+    }
+
+    // ── Ajout de ligne ──────────────────────────────────────────────────────────
+
+    public function openAdd(): void
+    {
+        if (! $this->userPerms['can_write']) {
+            abort(403);
+        }
+
+        $this->addForm = [];
+        foreach ($this->table->columns as $col) {
+            if ($col->name === 'id') {
+                continue;
+            }
+            $this->addForm[$col->name] = match ($col->type) {
+                DatagridColumnType::BOOLEAN => '0',
+                default => '',
+            };
+        }
+
+        $this->addingRow = true;
+    }
+
+    public function closeAdd(): void
+    {
+        $this->addingRow = false;
+        $this->addForm = [];
+        $this->resetErrorBag();
+    }
+
+    public function saveAdd(): void
+    {
+        if (! $this->userPerms['can_write']) {
+            abort(403);
+        }
+
+        $rules = [];
+        foreach ($this->table->columns as $col) {
+            if ($col->name === 'id') {
+                continue;
+            }
+            $rule = $col->required ? 'required' : 'nullable';
+            $rule .= match ($col->type) {
+                DatagridColumnType::NUMBER => '|numeric',
+                DatagridColumnType::DATE => '|date',
+                DatagridColumnType::EMAIL => '|email|max:'.($col->length ?? 255),
+                DatagridColumnType::BOOLEAN => '|boolean',
+                DatagridColumnType::SIRET => '|max:19',
+                DatagridColumnType::POSTAL_CODE => '|max:10',
+                DatagridColumnType::PHONE => '|max:'.($col->length ?? 30),
+                default => '|max:'.($col->length ?? 255),
+            };
+            $rules["addForm.{$col->name}"] = $rule;
+        }
+
+        $this->validate($rules);
+
+        $colTypeMap = $this->table->columns->keyBy('name');
+        $insertData = collect($this->addForm)
+            ->map(function ($v, $colName) use ($colTypeMap) {
+                if ($v === '' || $v === null) {
+                    return null;
+                }
+                $col = $colTypeMap->get($colName);
+                if (! $col) {
+                    return $v;
+                }
+
+                return match ($col->type) {
+                    DatagridColumnType::SIRET => preg_replace('/\D/', '', (string) $v),
+                    DatagridColumnType::PHONE => $this->denormalizePhone((string) $v),
+                    DatagridColumnType::POSTAL_CODE => str_pad((string) preg_replace('/\D/', '', (string) $v), 5, '0', STR_PAD_LEFT),
+                    default => $v,
+                };
+            })
+            ->toArray();
+
+        $insertData['created_at'] = now();
+        $insertData['updated_at'] = now();
+
+        $newId = DB::connection('tenant')
+            ->table($this->table->mysql_table)
+            ->insertGetId($insertData);
+
+        DatagridAuditLog::create([
+            'datagrid_table_id' => $this->table->id,
+            'user_id' => auth()->id(),
+            'action' => DatagridAuditAction::WRITE->value,
+            'row_id' => $newId,
+            'column_name' => null,
+            'old_value' => null,
+            'new_value' => json_encode($insertData, JSON_UNESCAPED_UNICODE),
+            'ip_address' => request()->ip(),
+        ]);
+
+        $this->closeAdd();
+        unset($this->rows);
+        $this->dispatch('row-added');
     }
 
     // ── Édition / suppression de ligne ───────────────────────────────────────

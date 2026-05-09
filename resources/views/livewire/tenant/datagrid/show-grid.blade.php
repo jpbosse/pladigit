@@ -6,21 +6,6 @@
         {{ $table->label }}
     </h1>
 
-    {{-- Recherche globale --}}
-    <div style="display:flex;align-items:center;gap:6px;flex:2;min-width:200px;max-width:360px;">
-        <div style="position:relative;width:100%;">
-            <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--pd-muted);font-size:13px;pointer-events:none;">🔍</span>
-            <input wire:model.live.debounce.300ms="search"
-                   type="text"
-                   placeholder="Rechercher dans toutes les colonnes…"
-                   style="width:100%;padding:6px 10px 6px 30px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);box-sizing:border-box;">
-            @if($search !== '')
-            <button wire:click="$set('search', '')"
-                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:14px;line-height:1;padding:0;">×</button>
-            @endif
-        </div>
-    </div>
-
     {{-- Vues sauvegardées --}}
     @if($savedViews->count())
     <select wire:model.live="activeViewId"
@@ -52,6 +37,14 @@
             <option value="50">50</option>
         </select>
     </div>
+
+    {{-- Nouvelle ligne --}}
+    @if($userPerms['can_write'])
+    <button wire:click="openAdd"
+            style="padding:6px 14px;background:var(--pd-navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+        <span style="font-size:15px;line-height:1;">+</span> Nouvelle ligne
+    </button>
+    @endif
 
     {{-- Effacer filtres --}}
     @if(count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
@@ -147,6 +140,7 @@
                         @endif
                     </th>
                     @endforeach
+                    <th style="padding:10px 8px;width:48px;min-width:48px;max-width:48px;border-bottom:1px solid var(--pd-border);position:sticky;right:0;background:var(--pd-bg2,#f8f9fb);z-index:2;"></th>
                 </tr>
                 {{-- Ligne filtres --}}
                 <tr style="background:var(--pd-bg);">
@@ -218,13 +212,14 @@
                         @endif
                     </td>
                     @endforeach
+                    <td style="padding:6px 8px;width:48px;min-width:48px;max-width:48px;border-bottom:1px solid var(--pd-border);position:sticky;right:0;background:var(--pd-bg);z-index:2;"></td>
                 </tr>
             </thead>
             <tbody>
                 @forelse($this->rows as $row)
                 @php $row = (array) $row; @endphp
-                <tr wire:click="openEdit({{ $row['id'] ?? 0 }})"
-                    style="border-bottom:1px solid var(--pd-border);cursor:pointer;transition:background 0.1s;"
+                <tr wire:key="row-{{ $row['id'] ?? 0 }}"
+                    style="border-bottom:1px solid var(--pd-border);transition:background 0.1s;"
                     onmouseover="this.style.background='color-mix(in srgb,var(--pd-navy) 4%,transparent)'"
                     onmouseout="this.style.background=''">
                     @foreach($columns->whereIn('id', $visibleColumns) as $col)
@@ -292,6 +287,15 @@
                         @endif
                     </td>
                     @endforeach
+                    <td style="padding:6px 8px;text-align:center;width:48px;min-width:48px;max-width:48px;position:sticky;right:0;background:var(--pd-bg);z-index:1;">
+                        <button wire:click="openEdit({{ $row['id'] ?? 0 }})"
+                                title="Modifier"
+                                style="padding:4px 6px;background:none;border:none;cursor:pointer;font-size:15px;line-height:1;color:var(--pd-muted);border-radius:5px;"
+                                onmouseover="this.style.background='var(--pd-bg2)'"
+                                onmouseout="this.style.background='none'">
+                            ✏️
+                        </button>
+                    </td>
                 </tr>
                 @empty
                 <tr>
@@ -305,17 +309,9 @@
         </table>
     </div>
 
-    {{-- Pagination + Compteur --}}
-    <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-        <div>{{ $this->rows->links() }}</div>
-        <span style="font-size:11px;color:var(--pd-muted);">
-            @if($search !== '' || count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
-                {{ number_format($this->rows->total(), 0, ',', ' ') }} résultat{{ $this->rows->total() > 1 ? 's' : '' }}
-                sur {{ number_format($this->totalCount, 0, ',', ' ') }} ligne{{ $this->totalCount > 1 ? 's' : '' }}
-            @else
-                {{ number_format($this->totalCount, 0, ',', ' ') }} ligne{{ $this->totalCount > 1 ? 's' : '' }} au total
-            @endif
-        </span>
+    {{-- Pagination --}}
+    <div style="margin-top:16px;">
+        {{ $this->rows->links() }}
     </div>
 </div>
 
@@ -563,6 +559,154 @@
                 </button>
                 @endif
             </div>
+        </div>
+    </div>
+</div>
+@endif
+
+{{-- ── Modal ajout ──────────────────────────────────────────────────────────── --}}
+@if($addingRow)
+<div wire:click.self="closeAdd"
+     style="position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px;">
+    <div style="background:var(--pd-bg);border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.25);width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;">
+
+        {{-- En-tête --}}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--pd-border);">
+            <h2 style="margin:0;font-size:15px;font-weight:700;color:var(--pd-text);">
+                Nouvelle ligne
+            </h2>
+            <button wire:click="closeAdd"
+                    style="background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:20px;line-height:1;padding:0;">×</button>
+        </div>
+
+        {{-- Corps : champs dynamiques --}}
+        <div style="overflow-y:auto;padding:20px 24px;display:flex;flex-direction:column;gap:14px;">
+            @foreach($columns as $col)
+            @if($col->name === 'id')
+                @continue
+            @endif
+            <div>
+                <label style="display:block;font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:4px;">
+                    {{ $col->label }}
+                    @if($col->required)
+                        <span style="color:#dc2626;">*</span>
+                    @endif
+                    @if($col->is_rgpd_sensitive)
+                        <span title="Donnée RGPD sensible"
+                              style="display:inline-block;margin-left:4px;padding:1px 5px;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;font-size:10px;color:#92400e;font-weight:500;">RGPD</span>
+                    @endif
+                </label>
+
+                @php
+                    $hasError = $errors->has("addForm.{$col->name}");
+                    $fieldBorder = $hasError ? 'border:2px solid #dc2626;' : 'border:1px solid var(--pd-border);';
+                    $baseStyle = "width:100%;padding:7px 10px;{$fieldBorder}border-radius:7px;font-size:13px;background:var(--pd-bg);color:var(--pd-text);box-sizing:border-box;";
+                @endphp
+
+                @if($col->type === \App\Enums\DatagridColumnType::BOOLEAN)
+                    @php
+                        $currentVal = $addForm[$col->name] ?? '0';
+                        $isTrue = in_array($currentVal, ['1', 1, true, 'true', 'oui'], false);
+                        $labelTrue  = $col->label_true  ?? 'Oui';
+                        $labelFalse = $col->label_false ?? 'Non';
+                    @endphp
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <button type="button" wire:click="$set('addForm.{{ $col->name }}', '0')"
+                                style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
+                                       {{ ! $isTrue ? 'background:#fee2e2;color:#dc2626;border:2px solid #fca5a5;' : 'background:var(--pd-bg2);color:var(--pd-muted);border:1px solid var(--pd-border);' }}">
+                            {{ $labelFalse }}
+                        </button>
+                        <div wire:click="$set('addForm.{{ $col->name }}', '{{ $isTrue ? '0' : '1' }}')"
+                             style="position:relative;width:44px;height:24px;border-radius:12px;cursor:pointer;transition:background .2s;background:{{ $isTrue ? '#16a34a' : '#d1d5db' }};">
+                            <div style="position:absolute;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .2s;left:{{ $isTrue ? '23px' : '3px' }};"></div>
+                        </div>
+                        <button type="button" wire:click="$set('addForm.{{ $col->name }}', '1')"
+                                style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
+                                       {{ $isTrue ? 'background:#dcfce7;color:#16a34a;border:2px solid #86efac;' : 'background:var(--pd-bg2);color:var(--pd-muted);border:1px solid var(--pd-border);' }}">
+                            {{ $labelTrue }}
+                        </button>
+                    </div>
+                    <input type="hidden" wire:model="addForm.{{ $col->name }}">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::SELECT)
+                    @php $opts = is_array($col->options) && count($col->options) ? $col->options : null; @endphp
+                    @if($opts && count($opts) === 2)
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            @foreach($opts as $optVal)
+                            @php $isSelected = ($addForm[$col->name] ?? '') === $optVal; @endphp
+                            <button type="button" wire:click="$set('addForm.{{ $col->name }}', '{{ $optVal }}')"
+                                    style="padding:7px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;
+                                           {{ $isSelected ? 'background:#dbeafe;color:#1d4ed8;border:2px solid #93c5fd;' : 'background:var(--pd-bg2);color:var(--pd-muted);border:1px solid var(--pd-border);' }}">
+                                {{ $optVal }}
+                            </button>
+                            @endforeach
+                        </div>
+                        <input type="hidden" wire:model="addForm.{{ $col->name }}">
+                    @elseif($opts && count($opts) > 2)
+                        <select wire:model="addForm.{{ $col->name }}" style="{{ $baseStyle }}">
+                            <option value="">— Choisir —</option>
+                            @foreach($opts as $optVal)
+                            <option value="{{ $optVal }}">{{ $optVal }}</option>
+                            @endforeach
+                        </select>
+                    @else
+                        <input type="text" wire:model="addForm.{{ $col->name }}" list="adl_{{ $col->name }}"
+                               placeholder="Saisir ou choisir…" style="{{ $baseStyle }}">
+                        @if(isset($distinctValues[$col->name]) && count($distinctValues[$col->name]))
+                        <datalist id="adl_{{ $col->name }}">
+                            @foreach($distinctValues[$col->name] as $dv)
+                            <option value="{{ $dv }}">
+                            @endforeach
+                        </datalist>
+                        @endif
+                    @endif
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::DATE)
+                    <input type="date" wire:model="addForm.{{ $col->name }}" style="{{ $baseStyle }}">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::NUMBER)
+                    <input type="number" step="any" wire:model="addForm.{{ $col->name }}" placeholder="0" style="{{ $baseStyle }}">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::EMAIL)
+                    <input type="email" wire:model="addForm.{{ $col->name }}" placeholder="exemple@domaine.fr" style="{{ $baseStyle }}">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::PHONE)
+                    <input type="tel" wire:model="addForm.{{ $col->name }}" placeholder="06 12 34 56 78"
+                           maxlength="{{ $col->length ?? 30 }}" style="{{ $baseStyle }}">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::SIRET)
+                    <input type="text" wire:model="addForm.{{ $col->name }}" placeholder="123 456 789 01234"
+                           maxlength="14" style="{{ $baseStyle }}font-family:monospace;">
+
+                @elseif($col->type === \App\Enums\DatagridColumnType::POSTAL_CODE)
+                    <input type="text" wire:model="addForm.{{ $col->name }}" placeholder="85300"
+                           maxlength="10" style="{{ $baseStyle }}font-family:monospace;max-width:120px;">
+
+                @else
+                    <input type="text" wire:model="addForm.{{ $col->name }}"
+                           @if($col->length) maxlength="{{ $col->length }}" @endif
+                           style="{{ $baseStyle }}">
+                @endif
+
+                @error("addForm.{$col->name}")
+                    <span style="display:flex;align-items:center;gap:4px;margin-top:4px;font-size:11px;color:#dc2626;">
+                        <span>⚠</span> {{ $message }}
+                    </span>
+                @enderror
+            </div>
+            @endforeach
+        </div>
+
+        {{-- Pied modal --}}
+        <div style="display:flex;align-items:center;justify-content:flex-end;padding:16px 24px;border-top:1px solid var(--pd-border);gap:8px;">
+            <button wire:click="closeAdd"
+                    style="padding:8px 16px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;font-weight:600;color:var(--pd-text);background:var(--pd-bg);cursor:pointer;">
+                Annuler
+            </button>
+            <button wire:click="saveAdd"
+                    style="padding:8px 16px;background:var(--pd-navy);color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;">
+                Enregistrer
+            </button>
         </div>
     </div>
 </div>
