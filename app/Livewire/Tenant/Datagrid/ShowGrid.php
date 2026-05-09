@@ -69,7 +69,7 @@ class ShowGrid extends Component
      *  @param array<string, string> $initialSort */
     public function mount(DatagridTable $table, array $initialFilters = [], array $initialSort = []): void
     {
-        if (! $table->canRead(auth()->user())) {  // @phpstan-ignore-line
+        if (! $table->canRead(auth()->user())) {
             abort(403);
         }
 
@@ -108,7 +108,7 @@ class ShowGrid extends Component
         }
 
         // Résoudre les droits une seule fois au mount
-        $perms = app(DatagridPermissionService::class)->effectivePermissions(auth()->user(), $table);  // @phpstan-ignore-line
+        $perms = app(DatagridPermissionService::class)->effectivePermissions(auth()->user(), $table);
         $this->userPerms = [
             'can_write' => $perms['can_write'],
             'can_delete' => $perms['can_delete'],

@@ -35,6 +35,11 @@ class ResolveTenant
         if ($request->is('wopi/*')) {
             return $next($request);
         }
+
+        // Routes super-admin — pas de résolution tenant
+        if ($request->is('super-admin', 'super-admin/*')) {
+            return $next($request);
+        }
         // En test, le tenant est pré-résolu par TestCase::setUp()
         if (app()->environment('testing') && $this->tenantManager->hasTenant()) {
             return $next($request);

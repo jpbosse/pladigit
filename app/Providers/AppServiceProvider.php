@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Telescope\TelescopeApplicationServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -34,6 +35,10 @@ class AppServiceProvider extends ServiceProvider
             GedStorageInterface::class,
             GedStorageManager::class,
         );
+
+        if (config('telescope.enabled', true) && class_exists(TelescopeApplicationServiceProvider::class)) {
+            $this->app->register(TelescopeServiceProvider::class);
+        }
     }
 
     public function boot(): void

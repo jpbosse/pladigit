@@ -32,6 +32,8 @@ return new class extends Migration
             $table->string('backup_last_status', 20)->nullable();
             $table->text('backup_last_message')->nullable();
             $table->unsignedBigInteger('backup_last_size_bytes')->nullable();
+
+            $table->timestamps();
         });
     }
 
