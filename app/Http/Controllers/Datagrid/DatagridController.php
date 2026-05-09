@@ -7,6 +7,7 @@ use App\Enums\DatagridColumnType;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\DatagridAuditLog;
 use App\Models\Tenant\DatagridColumn;
+use App\Models\Tenant\DatagridFolder;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
 use App\Services\DatagridPermissionService;
@@ -25,11 +26,22 @@ class DatagridController extends Controller
 
     public function index(): View
     {
-        $tables = DatagridTable::withCount('columns')
+        $folders = DatagridFolder::with(['tables' => fn ($q) => $q->withCount('columns')])
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
             ->orderBy('label')
             ->get();
 
-        return view('datagrid.index', compact('tables'));
+        $unfoldered = DatagridTable::withCount('columns')
+            ->whereNull('folder_id')
+            ->orderBy('label')
+            ->get();
+
+        $allFolders = DatagridFolder::orderBy('label')->get();
+
+        $totalCount = DatagridTable::count();
+
+        return view('datagrid.index', compact('folders', 'unfoldered', 'allFolders', 'totalCount'));
     }
 
     public function show(DatagridTable $table): View

@@ -43,6 +43,7 @@ class DatagridTable extends Model
         'is_persons_view',
         'role_categories',
         'created_by',
+        'folder_id',
     ];
 
     protected $casts = [
