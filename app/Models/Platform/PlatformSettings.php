@@ -70,6 +70,7 @@ class PlatformSettings extends Model
             $bytes /= 1024;
             $i++;
         }
+
         return round($bytes, 1).' '.$units[$i];
     }
 
