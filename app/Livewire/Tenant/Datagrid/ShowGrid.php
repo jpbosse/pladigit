@@ -33,6 +33,9 @@ class ShowGrid extends Component
 
     public int $perPage = 10;
 
+    /** Recherche globale multicolonne */
+    public string $search = '';
+
     /** @var array<string, array<int, mixed>> Valeurs distinctes par colonne pour les selects de filtre */
     public array $distinctValues = [];
 
@@ -176,6 +179,26 @@ class ShowGrid extends Component
             $query->where($name, 'like', '%'.$val.'%');
         }
 
+        // Recherche globale multicolonne
+        if ($this->search !== '') {
+            $searchableTypes = [
+                DatagridColumnType::TEXT, DatagridColumnType::EMAIL,
+                DatagridColumnType::PHONE, DatagridColumnType::SELECT,
+                DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE,
+            ];
+            $term = $this->search;
+            $query->where(function ($q) use ($term, $searchableTypes) {
+                foreach ($this->table->columns as $col) {
+                    if (! in_array($col->id, $this->visibleColumns, true)) {
+                        continue;
+                    }
+                    if (in_array($col->type, $searchableTypes, true)) {
+                        $q->orWhere($col->name, 'like', '%'.$term.'%');
+                    }
+                }
+            });
+        }
+
         if ($this->sortColumn !== '') {
             $query->orderBy($this->sortColumn, $this->sortDirection);
         }
@@ -183,7 +206,19 @@ class ShowGrid extends Component
         return $query->paginate($this->perPage);
     }
 
+    /** @return int Nombre total de lignes sans aucun filtre */
+    #[Computed]
+    public function totalCount(): int
+    {
+        return DB::connection('tenant')->table($this->table->mysql_table)->count();
+    }
+
     public function updatedPerPage(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatedSearch(): void
     {
         $this->resetPage();
     }
@@ -197,6 +232,7 @@ class ShowGrid extends Component
     public function clearFilters(): void
     {
         $this->filters = [];
+        $this->search = '';
         $this->activeViewId = null;
         $this->resetPage();
         $this->dispatch('$refresh');

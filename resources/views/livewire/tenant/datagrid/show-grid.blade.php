@@ -6,6 +6,21 @@
         {{ $table->label }}
     </h1>
 
+    {{-- Recherche globale --}}
+    <div style="display:flex;align-items:center;gap:6px;flex:2;min-width:200px;max-width:360px;">
+        <div style="position:relative;width:100%;">
+            <span style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:var(--pd-muted);font-size:13px;pointer-events:none;">🔍</span>
+            <input wire:model.live.debounce.300ms="search"
+                   type="text"
+                   placeholder="Rechercher dans toutes les colonnes…"
+                   style="width:100%;padding:6px 10px 6px 30px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);box-sizing:border-box;">
+            @if($search !== '')
+            <button wire:click="$set('search', '')"
+                    style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--pd-muted);font-size:14px;line-height:1;padding:0;">×</button>
+            @endif
+        </div>
+    </div>
+
     {{-- Vues sauvegardées --}}
     @if($savedViews->count())
     <select wire:model.live="activeViewId"
@@ -290,9 +305,17 @@
         </table>
     </div>
 
-    {{-- Pagination --}}
-    <div style="margin-top:16px;">
-        {{ $this->rows->links() }}
+    {{-- Pagination + Compteur --}}
+    <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <div>{{ $this->rows->links() }}</div>
+        <span style="font-size:11px;color:var(--pd-muted);">
+            @if($search !== '' || count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
+                {{ number_format($this->rows->total(), 0, ',', ' ') }} résultat{{ $this->rows->total() > 1 ? 's' : '' }}
+                sur {{ number_format($this->totalCount, 0, ',', ' ') }} ligne{{ $this->totalCount > 1 ? 's' : '' }}
+            @else
+                {{ number_format($this->totalCount, 0, ',', ' ') }} ligne{{ $this->totalCount > 1 ? 's' : '' }} au total
+            @endif
+        </span>
     </div>
 </div>
 
