@@ -27,17 +27,6 @@
         </button>
     </div>
 
-    {{-- Pagination --}}
-    <div style="display:flex;align-items:center;gap:6px;">
-        <span style="font-size:12px;color:var(--pd-muted);">Lignes :</span>
-        <select wire:model.live="perPage"
-                style="padding:5px 8px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);">
-            <option value="10">10</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-        </select>
-    </div>
-
     {{-- Nouvelle ligne --}}
     @if($userPerms['can_write'])
     <button wire:click="openAdd"

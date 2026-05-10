@@ -27,9 +27,26 @@ if ($cur <= 3) {
 }
 @endphp
 
-<div>
+<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+
+    {{-- Sélecteur nombre de lignes (gauche) --}}
+    <div style="display:flex;align-items:center;gap:6px;">
+        <span style="font-size:12px;color:var(--pd-muted);">Lignes :</span>
+        <select wire:model.live="perPage"
+                style="padding:3px 6px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+        </select>
+    </div>
+
     @if ($paginator->hasPages())
-        <nav role="navigation" aria-label="Pagination Navigation">
+        {{-- Navigation (droite) --}}
+        <nav role="navigation" aria-label="Pagination Navigation" style="display:flex;align-items:center;gap:8px;">
+
+            {{-- Total pages --}}
+            <span style="font-size:12px;color:var(--pd-muted);white-space:nowrap;">{{ $last }} pages</span>
+
             <span class="relative z-0 inline-flex rtl:flex-row-reverse rounded-md shadow-sm flex-wrap gap-px">
 
                 {{-- « Première page --}}
@@ -82,7 +99,7 @@ if ($cur <= 3) {
                 {{-- » Dernière page --}}
                 @if ($paginator->hasMorePages())
                     <button type="button"
-                            wire:click="gotoPage({{ $last }}, '{{ $paginator->getPageName() }}')"
+                            wire:click="gotoPage({{ $paginator->lastPage() }}, '{{ $paginator->getPageName() }}')"
                             x-on:click="{{ $scrollIntoViewJsSnippet }}"
                             class="{{ $btnBase }} rounded-r-md">&raquo;</button>
                 @else
@@ -92,4 +109,5 @@ if ($cur <= 3) {
             </span>
         </nav>
     @endif
+
 </div>
