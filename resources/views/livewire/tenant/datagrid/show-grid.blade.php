@@ -51,7 +51,7 @@
     <a href="{{ route('datagrid.pdf.liste', ['table' => $table->id, 'cols' => implode(',', $visibleColumns), 'filters' => json_encode($filters)]) }}"
        target="_blank"
        style="padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;text-decoration:none;">
-        <span style="font-size:13px;">↓</span> PDF liste
+        <span style="font-size:13px;">↓</span> PDF liste (100 lignes max)
     </a>
 
     {{-- Effacer filtres --}}

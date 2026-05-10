@@ -30,7 +30,7 @@ sous différents formats : PDF pour l'impression, Excel/ODS pour la manipulation
 - **Décision** : limiter le PDF liste à 100 lignes maximum
 - Pour exporter un volume complet, l'utilisateur doit utiliser l'export Excel ou ODS
   (pas de limite, streaming natif)
-- Cette limite est documentée dans l'interface via le libellé du bouton si nécessaire
+- Cette limite est affichée dans le libellé du bouton : "PDF liste (100 lignes max)"
 
 ### Encodage UTF-8
 - Les données MySQL sont en `utf8mb4` mais DomPDF peut échouer sur certains caractères
