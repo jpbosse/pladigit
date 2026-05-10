@@ -197,6 +197,15 @@ class ShowGrid extends Component
         $this->resetPage();
     }
 
+    public function exportOds(): BinaryFileResponse
+    {
+        return Excel::download(
+            new DatagridExport($this->table, $this->visibleColumns, $this->filters),
+            $this->table->label.'.ods',
+            \Maatwebsite\Excel\Excel::ODS
+        );
+    }
+
     public function updatedFilters(): void
     {
         $this->resetPage();

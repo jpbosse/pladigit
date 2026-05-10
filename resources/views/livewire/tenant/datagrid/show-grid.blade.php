@@ -52,6 +52,12 @@
         <span style="font-size:13px;">↓</span> Export Excel
     </button>
 
+    {{-- Export ODS --}}
+    <button wire:click="exportOds"
+            style="padding:6px 14px;background:#0891b2;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
+        <span style="font-size:13px;">↓</span> Export ODS
+    </button>
+
     {{-- Effacer filtres --}}
     @if(count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
     <button wire:click="clearFilters"
