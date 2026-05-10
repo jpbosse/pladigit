@@ -47,6 +47,13 @@
         <span style="font-size:13px;">↓</span> Export ODS
     </button>
 
+    {{-- Export PDF liste --}}
+    <a href="{{ route('datagrid.pdf.liste', ['table' => $table->id, 'cols' => implode(',', $visibleColumns), 'filters' => json_encode($filters)]) }}"
+       target="_blank"
+       style="padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;text-decoration:none;">
+        <span style="font-size:13px;">↓</span> PDF liste
+    </a>
+
     {{-- Effacer filtres --}}
     @if(count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
     <button wire:click="clearFilters"
@@ -600,6 +607,11 @@
             @endif
 
             {{-- Annuler + Enregistrer (droite) --}}
+            <a href="{{ route('datagrid.pdf.fiche', ['table' => $table->id, 'rowId' => $editingRowId, 'cols' => implode(',', $visibleColumns)]) }}"
+               target="_blank"
+               style="padding:8px 16px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px;text-decoration:none;">
+                ↓ PDF fiche
+            </a>
             <div style="display:flex;gap:8px;">
                 <button wire:click="closeEdit"
                         style="padding:8px 16px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;font-weight:600;color:var(--pd-text);background:var(--pd-bg);cursor:pointer;">
