@@ -330,8 +330,12 @@
     </div>
 
     {{-- Pagination --}}
-    <div style="margin-top:16px;">
-        {{ $this->rows->links() }}
+    <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+        <span style="font-size:12px;color:var(--pd-muted);">
+            Affichage de {{ $this->rows->firstItem() ?? 0 }} à {{ $this->rows->lastItem() ?? 0 }}
+            sur {{ $this->rows->total() }} résultat{{ $this->rows->total() > 1 ? 's' : '' }}
+        </span>
+        <div>{{ $this->rows->links() }}</div>
     </div>
 </div>
 

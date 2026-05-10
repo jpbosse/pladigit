@@ -20,6 +20,7 @@ use App\Services\TenantManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -43,6 +44,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Paginator::defaultView('vendor.pagination.bootstrap-5');
         Gate::policy(MediaAlbum::class, MediaAlbumPolicy::class);
         MediaItem::observe(MediaItemObserver::class);
         Gate::policy(MediaItem::class, MediaItemPolicy::class);
