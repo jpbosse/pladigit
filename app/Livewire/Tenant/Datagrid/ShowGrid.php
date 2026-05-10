@@ -4,6 +4,7 @@ namespace App\Livewire\Tenant\Datagrid;
 
 use App\Enums\DatagridAuditAction;
 use App\Enums\DatagridColumnType;
+use App\Exports\DatagridExport;
 use App\Models\Tenant\DatagridAuditLog;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridSavedView;
@@ -17,6 +18,8 @@ use Illuminate\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ShowGrid extends Component
 {
@@ -194,10 +197,23 @@ class ShowGrid extends Component
         $this->resetPage();
     }
 
+    public function updatedFilters(): void
+    {
+        $this->resetPage();
+    }
+
     public function applyFilter(string $column, string $value): void
     {
         $this->filters[$column] = $value;
         $this->resetPage();
+    }
+
+    public function exportExcel(): BinaryFileResponse
+    {
+        return Excel::download(
+            new DatagridExport($this->table, $this->visibleColumns, $this->filters),
+            $this->table->label.'.xlsx'
+        );
     }
 
     public function clearFilters(): void
