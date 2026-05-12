@@ -131,6 +131,39 @@
                           border-radius:7px;font-size:13px;box-sizing:border-box;">
         </div>
 
+        {{-- Onglet dans la fiche --}}
+        <div style="margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:8px;">Onglet dans la fiche</label>
+            <div style="display:flex;gap:10px;">
+                <label id="card-main"
+                       style="flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px;
+                              border:2px solid {{ ($column->tab ?? 'main') === 'main' ? 'var(--pd-navy)' : 'var(--pd-border)' }};
+                              border-radius:8px;cursor:pointer;">
+                    <input type="radio" name="tab" id="tab-main" value="main"
+                           {{ ($column->tab ?? 'main') === 'main' ? 'checked' : '' }}
+                           onchange="selectTab('main')"
+                           style="accent-color:var(--pd-navy);">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--pd-text);">Données principales</div>
+                        <div style="font-size:11px;color:var(--pd-muted);">Premier onglet, toujours visible</div>
+                    </div>
+                </label>
+                <label id="card-extra"
+                       style="flex:1;display:flex;align-items:center;gap:10px;padding:10px 14px;
+                              border:2px solid {{ ($column->tab ?? 'main') === 'extra' ? '#7c3aed' : 'var(--pd-border)' }};
+                              border-radius:8px;cursor:pointer;">
+                    <input type="radio" name="tab" id="tab-extra" value="extra"
+                           {{ ($column->tab ?? 'main') === 'extra' ? 'checked' : '' }}
+                           onchange="selectTab('extra')"
+                           style="accent-color:#7c3aed;">
+                    <div>
+                        <div style="font-size:13px;font-weight:600;color:var(--pd-text);">Complémentaires</div>
+                        <div style="font-size:11px;color:var(--pd-muted);">Affiché si au moins une colonne</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
         {{-- Cases à cocher --}}
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
@@ -179,6 +212,13 @@
             t === 'select' ? 'block' : 'none';
     };
 
+    window.selectTab = function (val) {
+        document.getElementById('card-main').style.borderColor  =
+            val === 'main'  ? 'var(--pd-navy)' : 'var(--pd-border)';
+        document.getElementById('card-extra').style.borderColor =
+            val === 'extra' ? '#7c3aed' : 'var(--pd-border)';
+    };
+
     window.saveColumn = function () {
         clearErrors();
         var url    = '{{ route('admin.datagrid.columns.update', [$table, $column]) }}';
@@ -208,6 +248,7 @@
                 required:            document.getElementById('f-required').checked,
                 visible_by_default:  document.getElementById('f-visible').checked,
                 is_rgpd_sensitive:   document.getElementById('f-rgpd').checked,
+                tab:                 document.querySelector('input[name="tab"]:checked')?.value || 'main',
             }),
         })
         .then(function (r) {

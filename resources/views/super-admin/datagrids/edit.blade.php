@@ -91,25 +91,55 @@
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
                 <tr style="background:var(--pd-bg,#f8f9fb);">
-                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">Nom</th>
-                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">Label</th>
-                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">Type</th>
-                    <th style="padding:9px 14px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);">Requis</th>
+                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">#</th>
+                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Nom technique</th>
+                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Label</th>
+                    <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Type</th>
+                    <th style="padding:9px 14px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Onglet</th>
+                    <th style="padding:9px 14px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Requis</th>
+                    <th style="padding:9px 14px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);font-size:11px;text-transform:uppercase;letter-spacing:.4px;">Visible</th>
                     <th style="padding:9px 14px;border-bottom:1px solid var(--pd-border);"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($columns as $col)
-                <tr style="border-bottom:1px solid var(--pd-border);">
-                    <td style="padding:9px 14px;font-family:monospace;color:var(--sa-primary,#1e3a5f);font-weight:600;">{{ $col->name }}</td>
-                    <td style="padding:9px 14px;color:var(--pd-text);">{{ $col->label }}</td>
-                    <td style="padding:9px 14px;color:var(--pd-muted);">{{ $col->type->value }}</td>
-                    <td style="padding:9px 14px;text-align:center;">{{ $col->required ? '✓' : '' }}</td>
+                @php $tab = $col->tab ?? 'main'; @endphp
+                <tr style="border-bottom:1px solid var(--pd-border);transition:background .12s;"
+                    onmouseover="this.style.background='var(--pd-bg)'"
+                    onmouseout="this.style.background=''">
+                    <td style="padding:9px 14px;color:var(--pd-muted);font-size:11px;">{{ $col->sort_order }}</td>
+                    <td style="padding:9px 14px;font-family:monospace;color:var(--sa-primary,#1e3a5f);font-weight:600;font-size:12px;">{{ $col->name }}</td>
+                    <td style="padding:9px 14px;color:var(--pd-text);font-weight:500;">{{ $col->label }}</td>
+                    <td style="padding:9px 14px;">
+                        <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;
+                                     font-size:11px;font-weight:500;background:var(--pd-bg2);color:var(--pd-muted);">
+                            {{ $col->type->label() }}
+                        </span>
+                    </td>
+                    <td style="padding:9px 14px;text-align:center;">
+                        @if($tab === 'extra')
+                            <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;
+                                         font-size:11px;font-weight:600;background:#ede9fe;color:#7c3aed;">
+                                Complémentaires
+                            </span>
+                        @else
+                            <span style="display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;
+                                         font-size:11px;font-weight:500;background:#f0f9ff;color:#0369a1;">
+                                Données
+                            </span>
+                        @endif
+                    </td>
+                    <td style="padding:9px 14px;text-align:center;color:{{ $col->required ? '#16a34a' : 'var(--pd-muted)' }};font-size:13px;">
+                        {{ $col->required ? '✓' : '—' }}
+                    </td>
+                    <td style="padding:9px 14px;text-align:center;color:{{ $col->visible_by_default ? '#16a34a' : 'var(--pd-muted)' }};font-size:13px;">
+                        {{ $col->visible_by_default ? '✓' : '—' }}
+                    </td>
                     <td style="padding:9px 14px;text-align:right;white-space:nowrap;">
                         <a href="{{ route('super-admin.datagrids.columns.edit', [$org, $table->id, $col->id]) }}"
-                           style="padding:4px 10px;border:1px solid var(--pd-border);border-radius:5px;
-                                  font-size:11px;color:var(--pd-text);text-decoration:none;margin-right:4px;">
-                            Modifier les champs
+                           style="padding:5px 12px;background:var(--sa-primary,#1e3a5f);color:#fff;border-radius:6px;
+                                  font-size:11px;font-weight:600;text-decoration:none;margin-right:4px;">
+                            ✎ Modifier
                         </a>
                         <form method="POST"
                               action="{{ route('super-admin.datagrids.columns.destroy', [$org, $table->id, $col->id]) }}"
@@ -117,8 +147,8 @@
                               onsubmit="return confirm('Supprimer la colonne « {{ $col->name }} » ?')">
                             @csrf @method('DELETE')
                             <button type="submit"
-                                    style="padding:4px 10px;border:1px solid #fca5a5;border-radius:5px;
-                                           font-size:11px;color:#dc2626;background:#fef2f2;cursor:pointer;">
+                                    style="padding:5px 10px;border:1px solid #fca5a5;border-radius:6px;
+                                           font-size:11px;font-weight:500;color:#dc2626;background:#fef2f2;cursor:pointer;">
                                 Supprimer
                             </button>
                         </form>

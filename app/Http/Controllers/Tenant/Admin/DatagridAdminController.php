@@ -60,6 +60,7 @@ class DatagridAdminController extends Controller
             'label_false' => 'nullable|string|max:50',
             'options' => 'nullable|array',
             'options.*' => 'string|max:255',
+            'tab' => 'nullable|in:main,extra',
         ]);
 
         $oldName = $column->name;
@@ -76,6 +77,7 @@ class DatagridAdminController extends Controller
             'sort_order' => $data['sort_order'] ?? $column->sort_order,
             'type' => $newType,
             'length' => $newLength,
+            'tab' => $data['tab'] ?? $column->tab ?? 'main',
         ]);
         $column->save();
 
