@@ -259,6 +259,13 @@ Route::middleware('tenant')->group(function () {
                 Route::delete('datagrid/{table}', [DatagridAdminController::class, 'destroy'])->name('datagrid.destroy');
                 Route::get('datagrid/{table}/columns/{column}/edit', [DatagridAdminController::class, 'editColumn'])->name('datagrid.columns.edit');
                 Route::patch('datagrid/{table}/columns/{column}', [DatagridAdminController::class, 'updateColumn'])->name('datagrid.columns.update');
+                // Droits d'accès (2.12)
+                Route::post('datagrid/{table}/permissions/role', [DatagridAdminController::class, 'storeRolePermission'])->name('datagrid.permissions.role.store');
+                Route::delete('datagrid/{table}/permissions/role/{permission}', [DatagridAdminController::class, 'destroyRolePermission'])->name('datagrid.permissions.role.destroy');
+                Route::post('datagrid/{table}/permissions/department', [DatagridAdminController::class, 'storeDeptPermission'])->name('datagrid.permissions.dept.store');
+                Route::delete('datagrid/{table}/permissions/department/{permission}', [DatagridAdminController::class, 'destroyDeptPermission'])->name('datagrid.permissions.dept.destroy');
+                Route::post('datagrid/{table}/permissions/user', [DatagridAdminController::class, 'storeUserPermission'])->name('datagrid.permissions.user.store');
+                Route::delete('datagrid/{table}/permissions/user/{permission}', [DatagridAdminController::class, 'destroyUserPermission'])->name('datagrid.permissions.user.destroy');
             });
 
             // Purge GED — réservé au module GED

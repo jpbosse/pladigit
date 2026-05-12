@@ -3,11 +3,16 @@
 namespace App\Http\Controllers\Tenant\Admin;
 
 use App\Enums\DatagridColumnType;
+use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\DatagridAuditLog;
 use App\Models\Tenant\DatagridColumn;
+use App\Models\Tenant\DatagridPermission;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
+use App\Models\Tenant\DatagridUserPermission;
+use App\Models\Tenant\Department;
+use App\Models\Tenant\User;
 use App\Services\DatagridPermissionService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +34,14 @@ class DatagridAdminController extends Controller
     {
         $columns = $table->columns()->orderBy('sort_order')->get();
 
-        return view('admin.datagrid.edit', compact('table', 'columns'));
+        $perms = app(DatagridPermissionService::class)->permissionsFor($table);
+        $departments = Department::orderBy('name')->get();
+        $users = User::where('status', 'active')->orderBy('name')->get();
+        $roles = UserRole::cases();
+
+        return view('admin.datagrid.edit', compact(
+            'table', 'columns', 'perms', 'departments', 'users', 'roles'
+        ));
     }
 
     public function update(DatagridTable $table): JsonResponse
@@ -44,6 +56,126 @@ class DatagridAdminController extends Controller
 
         return response()->json(['success' => true]);
     }
+
+    // ── Droits par rôle ───────────────────────────────────────────────────────
+
+    public function storeRolePermission(DatagridTable $table): JsonResponse
+    {
+        $data = request()->validate([
+            'role' => 'required|in:'.implode(',', array_column(UserRole::cases(), 'value')),
+            'can_read' => 'boolean',
+            'can_write' => 'boolean',
+            'can_delete' => 'boolean',
+            'can_export' => 'boolean',
+            'denied' => 'boolean',
+        ]);
+
+        app(DatagridPermissionService::class)->setRolePermission(
+            $table,
+            $data['role'],
+            $data['can_read'] ?? false,
+            $data['can_write'] ?? false,
+            $data['can_delete'] ?? false,
+            $data['can_export'] ?? false,
+            $data['denied'] ?? false,
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyRolePermission(DatagridTable $table, DatagridPermission $permission): JsonResponse
+    {
+        abort_unless($permission->datagrid_table_id === $table->id, 404);
+        abort_unless($permission->subject_type === 'role', 404);
+
+        $permission->delete();
+        app(DatagridPermissionService::class)->invalidateCacheForTable($table);
+
+        return response()->json(['success' => true]);
+    }
+
+    // ── Droits par département ────────────────────────────────────────────────
+
+    public function storeDeptPermission(DatagridTable $table): JsonResponse
+    {
+        $data = request()->validate([
+            'department_id' => 'required|integer|exists:departments,id',
+            'can_read' => 'boolean',
+            'can_write' => 'boolean',
+            'can_delete' => 'boolean',
+            'can_export' => 'boolean',
+            'denied' => 'boolean',
+        ]);
+
+        $dept = Department::findOrFail($data['department_id']);
+
+        app(DatagridPermissionService::class)->setDepartmentPermission(
+            $table,
+            $dept,
+            $data['can_read'] ?? false,
+            $data['can_write'] ?? false,
+            $data['can_delete'] ?? false,
+            $data['can_export'] ?? false,
+            $data['denied'] ?? false,
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyDeptPermission(DatagridTable $table, DatagridPermission $permission): JsonResponse
+    {
+        abort_unless($permission->datagrid_table_id === $table->id, 404);
+        abort_unless($permission->subject_type === 'department', 404);
+
+        $permission->delete();
+        app(DatagridPermissionService::class)->invalidateCacheForTable($table);
+
+        return response()->json(['success' => true]);
+    }
+
+    // ── Droits par utilisateur ────────────────────────────────────────────────
+
+    public function storeUserPermission(DatagridTable $table): JsonResponse
+    {
+        $data = request()->validate([
+            'user_id' => 'required|integer|exists:users,id',
+            'can_read' => 'boolean',
+            'can_write' => 'boolean',
+            'can_delete' => 'boolean',
+            'can_export' => 'boolean',
+            'denied' => 'boolean',
+        ]);
+
+        $user = User::findOrFail($data['user_id']);
+
+        app(DatagridPermissionService::class)->setUserPermission(
+            $table,
+            $user,
+            $data['can_read'] ?? false,
+            $data['can_write'] ?? false,
+            $data['can_delete'] ?? false,
+            $data['can_export'] ?? false,
+            $data['denied'] ?? false,
+        );
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroyUserPermission(DatagridTable $table, DatagridUserPermission $permission): JsonResponse
+    {
+        abort_unless($permission->datagrid_table_id === $table->id, 404);
+
+        $user = User::find($permission->user_id);
+        $permission->delete();
+
+        if ($user) {
+            app(DatagridPermissionService::class)->invalidateCacheForUser($user, $table);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
+    // ── Colonnes ──────────────────────────────────────────────────────────────
 
     public function updateColumn(DatagridTable $table, DatagridColumn $column): JsonResponse
     {
