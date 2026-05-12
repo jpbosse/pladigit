@@ -315,6 +315,10 @@
 ], key('edit-modal-'.$table->id))
 
 {{-- Modal ajout — stub prêt (AddRowModal à créer, Bloc 2.4 migré) --}}
-{{-- @livewire('tenant.datagrid.add-row-modal', [...], key('add-modal-'.$table->id)) --}}
+@livewire('tenant.datagrid.add-row-modal', [
+    'table'          => $table,
+    'userPerms'      => $userPerms,
+    'distinctValues' => $distinctValues,
+], key('add-modal-'.$table->id))
 
 </div>
