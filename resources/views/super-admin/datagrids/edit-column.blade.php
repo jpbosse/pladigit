@@ -82,6 +82,20 @@
                           border-radius:7px;font-size:13px;box-sizing:border-box;">
         </div>
 
+        {{-- Onglet de la modal --}}
+        <div style="margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:4px;">Onglet dans la fiche</label>
+            <select id="f-tab"
+                    style="width:100%;padding:7px 10px;border:1px solid var(--pd-border);
+                           border-radius:7px;font-size:13px;box-sizing:border-box;">
+                <option value="main"  {{ ($column->tab ?? 'main') === 'main'  ? 'selected' : '' }}>Données principales</option>
+                <option value="extra" {{ ($column->tab ?? 'main') === 'extra' ? 'selected' : '' }}>Informations complémentaires</option>
+            </select>
+            <div style="font-size:11px;color:var(--pd-muted);margin-top:3px;">
+                L'onglet "Informations complémentaires" n'apparaît que si au moins une colonne y est affectée.
+            </div>
+        </div>
+
         {{-- Cases à cocher --}}
         <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px;">
             <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
@@ -159,6 +173,7 @@
                 required:            document.getElementById('f-required').checked,
                 visible_by_default:  document.getElementById('f-visible').checked,
                 is_rgpd_sensitive:   document.getElementById('f-rgpd').checked,
+                tab:                 document.getElementById('f-tab').value,
             }),
         })
         .then(function (r) {

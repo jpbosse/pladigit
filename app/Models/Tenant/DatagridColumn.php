@@ -56,6 +56,7 @@ class DatagridColumn extends Model
         'sort_order',
         'label_true',
         'label_false',
+        'tab',
     ];
 
     protected $casts = [

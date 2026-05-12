@@ -180,6 +180,7 @@ class DatagridController extends Controller
             'sort_order' => 'integer|min:0',
             'type' => 'nullable|in:'.implode(',', DatagridColumnType::values()),
             'length' => 'nullable|integer|min:1|max:65535',
+            'tab' => 'nullable|in:main,extra',
         ]);
 
         $oldName = $col->name;
@@ -196,6 +197,7 @@ class DatagridController extends Controller
             'sort_order' => $data['sort_order'] ?? $col->sort_order,
             'type' => $newType,
             'length' => $newLength,
+            'tab' => $data['tab'] ?? $col->tab ?? 'main',
         ]);
         $col->save();
 
