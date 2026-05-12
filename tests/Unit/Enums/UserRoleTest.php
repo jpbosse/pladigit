@@ -110,7 +110,7 @@ class UserRoleTest extends TestCase
     public function test_labels_en_francais(): void
     {
         $this->assertEquals('Administrateur', UserRole::ADMIN->label());
-        $this->assertEquals('Président', UserRole::PRESIDENT->label());
+        $this->assertEquals('Président / Maire', UserRole::PRESIDENT->label());
         $this->assertEquals('Utilisateur', UserRole::USER->label());
     }
 }
