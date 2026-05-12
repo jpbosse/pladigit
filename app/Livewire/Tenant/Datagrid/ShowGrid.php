@@ -72,6 +72,9 @@ class ShowGrid extends Component
     /** Panneau de sélection des colonnes ouvert/fermé */
     public bool $showColumnPicker = false;
 
+    /** @var array<int, int> IDs des colonnes masquées par les droits (2.14) — non modifiable par l'utilisateur */
+    public array $forbiddenColumns = [];
+
     // ── Listeners (événements remontés par les composants enfants) ────────────
 
     /** @return array<string, string> */
@@ -141,9 +144,22 @@ class ShowGrid extends Component
             'can_export' => $perms['can_export'],
         ];
 
-        // Colonnes visibles par défaut
+        // Colonnes autorisées par les droits (2.14)
+        $allColNames = $table->columns->pluck('name')->toArray();
+        $allowedColNames = app(DatagridPermissionService::class)
+            ->visibleColumns(auth()->user(), $table, $allColNames);
+
+        // Colonnes visibles par défaut — intersectées avec les colonnes autorisées
         $this->visibleColumns = $table->columns
+            ->whereIn('name', $allowedColNames)
             ->where('visible_by_default', true)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->toArray();
+
+        // Colonnes interdites — ne peuvent jamais être affichées
+        $this->forbiddenColumns = $table->columns
+            ->whereNotIn('name', $allowedColNames)
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->toArray();
@@ -383,6 +399,8 @@ class ShowGrid extends Component
         $this->visibleColumns = $this->table->columns
             ->pluck('id')
             ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => ! in_array($id, $this->forbiddenColumns, true))
+            ->values()
             ->toArray();
     }
 
@@ -416,6 +434,11 @@ class ShowGrid extends Component
 
     public function toggleColumn(int $colId): void
     {
+        // Empêcher d'afficher une colonne interdite par les droits
+        if (in_array($colId, $this->forbiddenColumns, true)) {
+            return;
+        }
+
         if (in_array($colId, $this->visibleColumns, true)) {
             $this->visibleColumns = array_values(
                 array_filter($this->visibleColumns, fn ($id) => $id !== $colId)
@@ -471,10 +494,11 @@ class ShowGrid extends Component
         $savedViews = $this->table->savedViews()->where('user_id', auth()->id())->get();
 
         return view('livewire.tenant.datagrid.show-grid', [
-            'columns' => $columns,
+            'columns' => $columns->whereNotIn('id', $this->forbiddenColumns),
             'savedViews' => $savedViews,
             'columnTypes' => DatagridColumnType::options(),
             'visibleColumns' => $this->visibleColumns,
+            'forbiddenColumns' => $this->forbiddenColumns,
         ]);
     }
 

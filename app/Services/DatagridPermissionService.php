@@ -207,7 +207,141 @@ class DatagridPermissionService
         ];
     }
 
+    // ── Droits par colonne ──────────────────────────────────────────────────────
+
+    /**
+     * Retourne les noms de colonnes visibles pour un utilisateur donné.
+     * Utilise le même algorithme de priorité que les droits table.
+     * Résultat mis en cache Redis (même TTL, même tags).
+     *
+     * @param  array<string>  $allColumnNames  Toutes les colonnes de la grille
+     * @return array<string>  Colonnes visibles
+     */
+    public function visibleColumns(User $user, DatagridTable $table, array $allColumnNames): array
+    {
+        $key = $this->columnCacheKey($user, $table);
+
+        /** @var array<string, bool> $colPerms */
+        $colPerms = Cache::tags($this->tableCacheTags($table))
+            ->remember($key, self::CACHE_TTL, fn () => $this->resolveColumnPerms($user, $table, $allColumnNames));
+
+        return array_values(array_filter(
+            $allColumnNames,
+            fn (string $col) => $colPerms[$col] ?? true  // par défaut visible
+        ));
+    }
+
+    /**
+     * Toutes les règles colonne définies sur une table, pour l'UI admin.
+     *
+     * @return array{role: Collection, department: Collection, user: Collection}
+     */
+    public function columnPermissionsFor(DatagridTable $table): array
+    {
+        return [
+            'role' => DatagridPermission::forTable($table->getKey())
+                ->where('subject_type', 'role')
+                ->whereNotNull('column_name')
+                ->get(),
+            'department' => DatagridPermission::forTable($table->getKey())
+                ->where('subject_type', 'department')
+                ->whereNotNull('column_name')
+                ->with('department')
+                ->get(),
+            'user' => DatagridUserPermission::forTable($table->getKey())
+                ->whereNotNull('column_name')
+                ->with('user')
+                ->get(),
+        ];
+    }
+
+    /**
+     * Résout les droits colonne sans cache.
+     * Pour chaque colonne : true = visible, false = masquée.
+     *
+     * @param  array<string>  $allColumnNames
+     * @return array<string, bool>
+     */
+    private function resolveColumnPerms(User $user, DatagridTable $table, array $allColumnNames): array
+    {
+        // Admin/Président/DGS voient tout
+        if (UserRole::tryFrom($user->role ?? '')?->atLeast(UserRole::DGS)) {
+            return array_fill_keys($allColumnNames, true);
+        }
+
+        $tableId  = $table->getKey();
+        $result   = [];
+        $deptIds  = null; // lazy — chargé une seule fois si besoin
+        $ancestorIds = null;
+
+        foreach ($allColumnNames as $colName) {
+
+            // ── 1. Permission individuelle utilisateur ──────────────────────
+            $userPerm = DatagridUserPermission::forTable($tableId)
+                ->forUser($user->getKey())
+                ->forColumn($colName)
+                ->first();
+
+            if ($userPerm !== null) {
+                $result[$colName] = $userPerm->denied ? false : (bool) $userPerm->can_read;
+                continue;
+            }
+
+            // ── 2. Permission départementale ────────────────────────────────
+            if ($deptIds === null) {
+                $deptIds     = $user->departments()->pluck('departments.id')->toArray();
+                $ancestorIds = empty($deptIds) ? [] : $this->buildDeptAncestorIds($deptIds);
+            }
+
+            if (! empty($ancestorIds)) {
+                $deptPerms = DatagridPermission::forTable($tableId)
+                    ->forColumn($colName)
+                    ->where('subject_type', 'department')
+                    ->whereIn('subject_id', $ancestorIds)
+                    ->get();
+
+                if ($deptPerms->isNotEmpty()) {
+                    if ($deptPerms->contains('denied', true)) {
+                        $result[$colName] = false;
+                        continue;
+                    }
+                    $result[$colName] = $deptPerms->contains('can_read', true);
+                    continue;
+                }
+            }
+
+            // ── 3. Permission par rôle ──────────────────────────────────────
+            $userRoleLevel = UserRole::tryFrom($user->role ?? '')?->level() ?? 99;
+
+            $allRolePerms = DatagridPermission::forTable($tableId)
+                ->forColumn($colName)
+                ->where('subject_type', 'role')
+                ->whereNotNull('subject_role')
+                ->get();
+
+            $rolePerms = $allRolePerms->filter(function (DatagridPermission $perm) use ($userRoleLevel) {
+                $pivotLevel = UserRole::tryFrom($perm->subject_role ?? '')?->level() ?? 0;
+                return $userRoleLevel <= $pivotLevel;
+            });
+
+            if ($rolePerms->isNotEmpty()) {
+                if ($rolePerms->contains('denied', true)) {
+                    $result[$colName] = false;
+                    continue;
+                }
+                $result[$colName] = $rolePerms->contains('can_read', true);
+                continue;
+            }
+
+            // Aucune règle → visible par défaut
+            $result[$colName] = true;
+        }
+
+        return $result;
+    }
+
     // ── Invalidation du cache ────────────────────────────────────────────────
+
 
     /** Invalide le cache d'un utilisateur précis sur une table. */
     public function invalidateCacheForUser(User $user, DatagridTable $table): void
@@ -383,10 +517,17 @@ class DatagridPermissionService
     }
 
     /**
-     * Tags Redis pour la table — permet d'invalider tous les utilisateurs d'un coup.
+     * Clé de cache Redis pour les droits colonne d'un utilisateur.
      *
-     * @return array<string>
+     * @return string
      */
+    private function columnCacheKey(User $user, DatagridTable $table): string
+    {
+        $org = app(TenantManager::class)->current()->slug ?? 'default';
+
+        return "datagrid_col_perm:{$org}:{$user->getKey()}:{$table->getKey()}";
+    }
+
     private function tableCacheTags(DatagridTable $table): array
     {
         $org = app(TenantManager::class)->current()->slug ?? 'default';

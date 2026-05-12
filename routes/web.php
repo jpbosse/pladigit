@@ -267,6 +267,9 @@ Route::middleware('tenant')->group(function () {
                 Route::delete('datagrid/{table}/permissions/department/{permission}', [DatagridAdminController::class, 'destroyDeptPermission'])->name('datagrid.permissions.dept.destroy');
                 Route::post('datagrid/{table}/permissions/user', [DatagridAdminController::class, 'storeUserPermission'])->name('datagrid.permissions.user.store');
                 Route::delete('datagrid/{table}/permissions/user/{permission}', [DatagridAdminController::class, 'destroyUserPermission'])->name('datagrid.permissions.user.destroy');
+                // Droits par colonne (2.14)
+                Route::post('datagrid/{table}/permissions/column', [DatagridAdminController::class, 'storeColumnPermission'])->name('datagrid.permissions.column.store');
+                Route::delete('datagrid/{table}/permissions/column/{type}/{permId}', [DatagridAdminController::class, 'destroyColumnPermission'])->name('datagrid.permissions.column.destroy');
             });
 
             // Purge GED — réservé au module GED
