@@ -59,10 +59,11 @@ class ShowGrid extends Component
     /** @var array<int, array<string, mixed>> États temporaires pour l'édition des colonnes (indexés par column->id) */
     public array $columnEdits = [];
 
-    /** @var array{can_write: bool, can_delete: bool} Droits de l'utilisateur courant sur cette grille */
+    /** @var array{can_write: bool, can_delete: bool, can_export: bool} Droits de l'utilisateur courant sur cette grille */
     public array $userPerms = [
         'can_write' => false,
         'can_delete' => false,
+        'can_export' => false,
     ];
 
     /** @var array<int, int> IDs des colonnes actuellement visibles */
@@ -137,6 +138,7 @@ class ShowGrid extends Component
         $this->userPerms = [
             'can_write' => $perms['can_write'],
             'can_delete' => $perms['can_delete'],
+            'can_export' => $perms['can_export'],
         ];
 
         // Colonnes visibles par défaut
@@ -438,6 +440,10 @@ class ShowGrid extends Component
 
     public function exportExcel(): BinaryFileResponse
     {
+        if (! $this->userPerms['can_export']) {
+            abort(403);
+        }
+
         return Excel::download(
             new DatagridExport($this->table, $this->visibleColumns, $this->filters),
             $this->table->label.'.xlsx'
@@ -446,6 +452,10 @@ class ShowGrid extends Component
 
     public function exportOds(): BinaryFileResponse
     {
+        if (! $this->userPerms['can_export']) {
+            abort(403);
+        }
+
         return Excel::download(
             new DatagridExport($this->table, $this->visibleColumns, $this->filters),
             $this->table->label.'.ods',

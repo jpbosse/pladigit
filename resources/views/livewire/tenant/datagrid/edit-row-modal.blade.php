@@ -181,6 +181,7 @@
 
             {{-- Actions droite --}}
             <div style="display:flex;align-items:center;gap:8px;">
+                @if($userPerms['can_export'] ?? false)
                 <a href="{{ route('datagrid.pdf.fiche', ['table' => $table->id, 'rowId' => $rowId, 'cols' => '']) }}"
                    target="_blank"
                    style="padding:8px 16px;background:#dc2626;color:#fff;border:none;border-radius:7px;
@@ -188,6 +189,7 @@
                           align-items:center;gap:5px;text-decoration:none;">
                     ↓ PDF fiche
                 </a>
+                @endif
                 <button wire:click="closeEdit"
                         style="padding:8px 16px;border:1px solid var(--pd-border);border-radius:7px;
                                font-size:12px;font-weight:600;color:var(--pd-text);

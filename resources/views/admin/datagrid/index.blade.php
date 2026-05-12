@@ -71,8 +71,14 @@
                         <a href="{{ route('admin.datagrid.edit', $table) }}"
                            style="padding:5px 12px;border:1px solid var(--pd-border);border-radius:6px;
                                   font-size:12px;font-weight:500;color:var(--pd-text);text-decoration:none;
-                                  margin-right:6px;">
+                                  margin-right:4px;">
                             Modifier
+                        </a>
+                        <a href="{{ route('admin.datagrid.permissions', $table) }}"
+                           style="padding:5px 12px;border:1px solid var(--pd-border);border-radius:6px;
+                                  font-size:12px;font-weight:500;color:var(--pd-text);text-decoration:none;
+                                  margin-right:6px;display:inline-flex;align-items:center;gap:4px;">
+                            🔐 Droits
                         </a>
                         <button type="button"
                                 onclick="openDeleteModal('{{ $table->mysql_table }}', '{{ route('admin.datagrid.destroy', $table) }}')"

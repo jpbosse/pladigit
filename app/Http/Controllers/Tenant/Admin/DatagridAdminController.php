@@ -44,6 +44,18 @@ class DatagridAdminController extends Controller
         ));
     }
 
+    public function permissions(DatagridTable $table): View
+    {
+        $perms = app(DatagridPermissionService::class)->permissionsFor($table);
+        $departments = Department::orderBy('name')->get();
+        $users = User::where('status', 'active')->orderBy('name')->get();
+        $roles = UserRole::cases();
+
+        return view('admin.datagrid.permissions', compact(
+            'table', 'perms', 'departments', 'users', 'roles'
+        ));
+    }
+
     public function update(DatagridTable $table): JsonResponse
     {
         $data = request()->validate([
@@ -59,7 +71,7 @@ class DatagridAdminController extends Controller
 
     // ── Droits par rôle ───────────────────────────────────────────────────────
 
-    public function storeRolePermission(DatagridTable $table): JsonResponse
+    public function storeRolePermission(DatagridTable $table): RedirectResponse
     {
         $data = request()->validate([
             'role' => 'required|in:'.implode(',', array_column(UserRole::cases(), 'value')),
@@ -73,17 +85,18 @@ class DatagridAdminController extends Controller
         app(DatagridPermissionService::class)->setRolePermission(
             $table,
             $data['role'],
-            $data['can_read'] ?? false,
-            $data['can_write'] ?? false,
-            $data['can_delete'] ?? false,
-            $data['can_export'] ?? false,
-            $data['denied'] ?? false,
+            (bool) ($data['can_read'] ?? false),
+            (bool) ($data['can_write'] ?? false),
+            (bool) ($data['can_delete'] ?? false),
+            (bool) ($data['can_export'] ?? false),
+            (bool) ($data['denied'] ?? false),
         );
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.permissions', $table)
+            ->with('success', 'Règle par rôle enregistrée.');
     }
 
-    public function destroyRolePermission(DatagridTable $table, DatagridPermission $permission): JsonResponse
+    public function destroyRolePermission(DatagridTable $table, DatagridPermission $permission): RedirectResponse
     {
         abort_unless($permission->datagrid_table_id === $table->id, 404);
         abort_unless($permission->subject_type === 'role', 404);
@@ -91,12 +104,13 @@ class DatagridAdminController extends Controller
         $permission->delete();
         app(DatagridPermissionService::class)->invalidateCacheForTable($table);
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.permissions', $table)
+            ->with('success', 'Règle supprimée.');
     }
 
     // ── Droits par département ────────────────────────────────────────────────
 
-    public function storeDeptPermission(DatagridTable $table): JsonResponse
+    public function storeDeptPermission(DatagridTable $table): RedirectResponse
     {
         $data = request()->validate([
             'department_id' => 'required|integer|exists:departments,id',
@@ -112,17 +126,18 @@ class DatagridAdminController extends Controller
         app(DatagridPermissionService::class)->setDepartmentPermission(
             $table,
             $dept,
-            $data['can_read'] ?? false,
-            $data['can_write'] ?? false,
-            $data['can_delete'] ?? false,
-            $data['can_export'] ?? false,
-            $data['denied'] ?? false,
+            (bool) ($data['can_read'] ?? false),
+            (bool) ($data['can_write'] ?? false),
+            (bool) ($data['can_delete'] ?? false),
+            (bool) ($data['can_export'] ?? false),
+            (bool) ($data['denied'] ?? false),
         );
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.permissions', $table)
+            ->with('success', 'Règle par département enregistrée.');
     }
 
-    public function destroyDeptPermission(DatagridTable $table, DatagridPermission $permission): JsonResponse
+    public function destroyDeptPermission(DatagridTable $table, DatagridPermission $permission): RedirectResponse
     {
         abort_unless($permission->datagrid_table_id === $table->id, 404);
         abort_unless($permission->subject_type === 'department', 404);
@@ -130,12 +145,13 @@ class DatagridAdminController extends Controller
         $permission->delete();
         app(DatagridPermissionService::class)->invalidateCacheForTable($table);
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.permissions', $table)
+            ->with('success', 'Règle supprimée.');
     }
 
     // ── Droits par utilisateur ────────────────────────────────────────────────
 
-    public function storeUserPermission(DatagridTable $table): JsonResponse
+    public function storeUserPermission(DatagridTable $table): RedirectResponse
     {
         $data = request()->validate([
             'user_id' => 'required|integer|exists:users,id',
@@ -151,17 +167,18 @@ class DatagridAdminController extends Controller
         app(DatagridPermissionService::class)->setUserPermission(
             $table,
             $user,
-            $data['can_read'] ?? false,
-            $data['can_write'] ?? false,
-            $data['can_delete'] ?? false,
-            $data['can_export'] ?? false,
-            $data['denied'] ?? false,
+            (bool) ($data['can_read'] ?? false),
+            (bool) ($data['can_write'] ?? false),
+            (bool) ($data['can_delete'] ?? false),
+            (bool) ($data['can_export'] ?? false),
+            (bool) ($data['denied'] ?? false),
         );
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.permissions', $table)
+            ->with('success', 'Règle individuelle enregistrée.');
     }
 
-    public function destroyUserPermission(DatagridTable $table, DatagridUserPermission $permission): JsonResponse
+    public function destroyUserPermission(DatagridTable $table, DatagridUserPermission $permission): RedirectResponse
     {
         abort_unless($permission->datagrid_table_id === $table->id, 404);
 
@@ -172,7 +189,8 @@ class DatagridAdminController extends Controller
             app(DatagridPermissionService::class)->invalidateCacheForUser($user, $table);
         }
 
-        return response()->json(['success' => true]);
+        return redirect()->route('admin.datagrid.permissions', $table)
+            ->with('success', 'Règle supprimée.');
     }
 
     // ── Colonnes ──────────────────────────────────────────────────────────────

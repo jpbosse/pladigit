@@ -44,10 +44,11 @@ class EditRowModal extends Component
     /** Onglet actif : 'main' | 'extra' | 'history' | 'docs' */
     public string $activeTab = 'main';
 
-    /** @var array{can_write: bool, can_delete: bool} Droits injectés par ShowGrid au montage */
+    /** @var array{can_write: bool, can_delete: bool, can_export: bool} Droits injectés par ShowGrid au montage */
     public array $userPerms = [
-        'can_write' => false,
+        'can_write'  => false,
         'can_delete' => false,
+        'can_export' => false,
     ];
 
     /** @var array<string, array<int, mixed>> Valeurs distinctes pour les selects (injectées par ShowGrid) */
@@ -94,12 +95,12 @@ class EditRowModal extends Component
             }
 
             $formatted[$col->name] = match ($col->type) {
-                DatagridColumnType::PHONE => $this->formatPhone((string) $val),
-                DatagridColumnType::SIRET => $this->formatSiret((string) $val),
+                DatagridColumnType::PHONE       => $this->formatPhone((string) $val),
+                DatagridColumnType::SIRET       => $this->formatSiret((string) $val),
                 DatagridColumnType::POSTAL_CODE => str_pad((string) preg_replace('/\D/', '', (string) $val), 5, '0', STR_PAD_LEFT),
-                DatagridColumnType::BOOLEAN => in_array($val, ['1', 1, true, 'true', 'oui'], false) ? '1' : '0',
-                DatagridColumnType::NUMBER => rtrim(rtrim((string) $val, '0'), '.') ?: '0',
-                default => $val,
+                DatagridColumnType::BOOLEAN     => in_array($val, ['1', 1, true, 'true', 'oui'], false) ? '1' : '0',
+                DatagridColumnType::NUMBER      => rtrim(rtrim((string) $val, '0'), '.') ?: '0',
+                default                         => $val,
             };
         }
 
@@ -138,13 +139,13 @@ class EditRowModal extends Component
             ->limit(100)
             ->get()
             ->map(fn ($entry) => [
-                'id' => $entry->id,
-                'date' => $entry->created_at?->format('d/m/Y H:i'),
-                'user' => $entry->user->name ?? '—',
-                'action' => $entry->action->value,
+                'id'          => $entry->id,
+                'date'        => $entry->created_at?->format('d/m/Y H:i'),
+                'user'        => $entry->user->name ?? '—',
+                'action'      => $entry->action->value,
                 'column_name' => $entry->column_name,
-                'old_value' => $entry->old_value,
-                'new_value' => $entry->new_value,
+                'old_value'   => $entry->old_value,
+                'new_value'   => $entry->new_value,
             ])
             ->toArray();
     }
@@ -182,10 +183,10 @@ class EditRowModal extends Component
                 }
 
                 return match ($col->type) {
-                    DatagridColumnType::SIRET => preg_replace('/\D/', '', (string) $v),
-                    DatagridColumnType::PHONE => $this->denormalizePhone((string) $v),
+                    DatagridColumnType::SIRET       => preg_replace('/\D/', '', (string) $v),
+                    DatagridColumnType::PHONE       => $this->denormalizePhone((string) $v),
                     DatagridColumnType::POSTAL_CODE => str_pad((string) preg_replace('/\D/', '', (string) $v), 5, '0', STR_PAD_LEFT),
-                    default => $v,
+                    default                         => $v,
                 };
             })
             ->toArray();
@@ -207,13 +208,13 @@ class EditRowModal extends Component
 
             DatagridAuditLog::create([
                 'datagrid_table_id' => $this->table->id,
-                'user_id' => auth()->id(),
-                'action' => DatagridAuditAction::WRITE->value,
-                'row_id' => $this->rowId,
-                'column_name' => $colName,
-                'old_value' => $oldStr,
-                'new_value' => $newStr,
-                'ip_address' => request()->ip(),
+                'user_id'           => auth()->id(),
+                'action'            => DatagridAuditAction::WRITE->value,
+                'row_id'            => $this->rowId,
+                'column_name'       => $colName,
+                'old_value'         => $oldStr,
+                'new_value'         => $newStr,
+                'ip_address'        => request()->ip(),
             ]);
         }
 
@@ -245,13 +246,13 @@ class EditRowModal extends Component
 
         DatagridAuditLog::create([
             'datagrid_table_id' => $this->table->id,
-            'user_id' => auth()->id(),
-            'action' => DatagridAuditAction::DELETE->value,
-            'row_id' => $this->rowId,
-            'column_name' => null,
-            'old_value' => json_encode($oldRow, JSON_UNESCAPED_UNICODE),
-            'new_value' => null,
-            'ip_address' => request()->ip(),
+            'user_id'           => auth()->id(),
+            'action'            => DatagridAuditAction::DELETE->value,
+            'row_id'            => $this->rowId,
+            'column_name'       => null,
+            'old_value'         => json_encode($oldRow, JSON_UNESCAPED_UNICODE),
+            'new_value'         => null,
+            'ip_address'        => request()->ip(),
         ]);
 
         $this->closeEdit();
@@ -267,7 +268,7 @@ class EditRowModal extends Component
         // Répartition des colonnes par onglet
         // Par défaut toutes les colonnes sont dans 'main'.
         // Le Super Admin pourra définir tab='extra' sur certaines colonnes (Bloc 2.15).
-        $mainColumns = $columns->where('name', '!=', 'id')
+        $mainColumns  = $columns->where('name', '!=', 'id')
             ->filter(fn ($col) => ($col->tab ?? 'main') === 'main');
         $extraColumns = $columns->where('name', '!=', 'id')
             ->filter(fn ($col) => ($col->tab ?? 'main') === 'extra');
@@ -275,10 +276,10 @@ class EditRowModal extends Component
         $hasExtra = $extraColumns->isNotEmpty();
 
         return view('livewire.tenant.datagrid.edit-row-modal', [
-            'columns' => $columns,
-            'mainColumns' => $mainColumns,
+            'columns'      => $columns,
+            'mainColumns'  => $mainColumns,
             'extraColumns' => $extraColumns,
-            'hasExtra' => $hasExtra,
+            'hasExtra'     => $hasExtra,
         ]);
     }
 
@@ -300,14 +301,14 @@ class EditRowModal extends Component
 
             $rule = $col->required ? 'required' : 'nullable';
             $rule .= match ($col->type) {
-                DatagridColumnType::NUMBER => '|numeric',
-                DatagridColumnType::DATE => '|date',
-                DatagridColumnType::EMAIL => '|email|max:'.($col->length ?? 255),
-                DatagridColumnType::BOOLEAN => '|boolean',
-                DatagridColumnType::SIRET => '|max:19',
+                DatagridColumnType::NUMBER      => '|numeric',
+                DatagridColumnType::DATE        => '|date',
+                DatagridColumnType::EMAIL       => '|email|max:'.($col->length ?? 255),
+                DatagridColumnType::BOOLEAN     => '|boolean',
+                DatagridColumnType::SIRET       => '|max:19',
                 DatagridColumnType::POSTAL_CODE => '|max:10',
-                DatagridColumnType::PHONE => '|max:'.($col->length ?? 30),
-                default => '|max:'.($col->length ?? 255),
+                DatagridColumnType::PHONE       => '|max:'.($col->length ?? 30),
+                default                         => '|max:'.($col->length ?? 255),
             };
 
             $rules["{$prefix}.{$col->name}"] = $rule;

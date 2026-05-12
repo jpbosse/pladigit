@@ -35,24 +35,22 @@
     </button>
     @endif
 
-    {{-- Export Excel --}}
+    {{-- Exports — conditionnés à can_export --}}
+    @if($userPerms['can_export'])
     <button wire:click="exportExcel"
             style="padding:6px 14px;background:#16a34a;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
         <span style="font-size:13px;">↓</span> Export Excel
     </button>
-
-    {{-- Export ODS --}}
     <button wire:click="exportOds"
             style="padding:6px 14px;background:#0891b2;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">
         <span style="font-size:13px;">↓</span> Export ODS
     </button>
-
-    {{-- Export PDF liste --}}
     <a href="{{ route('datagrid.pdf.liste', ['table' => $table->id, 'cols' => implode(',', $visibleColumns), 'filters' => json_encode($filters)]) }}"
        target="_blank"
        style="padding:6px 14px;background:#dc2626;color:#fff;border:none;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;text-decoration:none;">
         <span style="font-size:13px;">↓</span> PDF liste (100 lignes max)
     </a>
+    @endif
 
     {{-- Effacer filtres --}}
     @if(count(array_filter($filters, fn($v) => $v !== '' && $v !== null)))
@@ -314,11 +312,9 @@
     'distinctValues' => $distinctValues,
 ], key('edit-modal-'.$table->id))
 
+{{-- Note: userPerms contient can_write, can_delete, can_export --}}
+
 {{-- Modal ajout — stub prêt (AddRowModal à créer, Bloc 2.4 migré) --}}
-@livewire('tenant.datagrid.add-row-modal', [
-    'table'          => $table,
-    'userPerms'      => $userPerms,
-    'distinctValues' => $distinctValues,
-], key('add-modal-'.$table->id))
+{{-- @livewire('tenant.datagrid.add-row-modal', [...], key('add-modal-'.$table->id)) --}}
 
 </div>
