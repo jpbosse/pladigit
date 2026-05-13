@@ -215,7 +215,7 @@ class DatagridPermissionService
      * Résultat mis en cache Redis (même TTL, même tags).
      *
      * @param  array<string>  $allColumnNames  Toutes les colonnes de la grille
-     * @return array<string>  Colonnes visibles
+     * @return array<string> Colonnes visibles
      */
     public function visibleColumns(User $user, DatagridTable $table, array $allColumnNames): array
     {
@@ -269,9 +269,9 @@ class DatagridPermissionService
             return array_fill_keys($allColumnNames, true);
         }
 
-        $tableId  = $table->getKey();
-        $result   = [];
-        $deptIds  = null; // lazy — chargé une seule fois si besoin
+        $tableId = $table->getKey();
+        $result = [];
+        $deptIds = null; // lazy — chargé une seule fois si besoin
         $ancestorIds = null;
 
         foreach ($allColumnNames as $colName) {
@@ -284,12 +284,13 @@ class DatagridPermissionService
 
             if ($userPerm !== null) {
                 $result[$colName] = $userPerm->denied ? false : (bool) $userPerm->can_read;
+
                 continue;
             }
 
             // ── 2. Permission départementale ────────────────────────────────
             if ($deptIds === null) {
-                $deptIds     = $user->departments()->pluck('departments.id')->toArray();
+                $deptIds = $user->departments()->pluck('departments.id')->toArray();
                 $ancestorIds = empty($deptIds) ? [] : $this->buildDeptAncestorIds($deptIds);
             }
 
@@ -303,9 +304,11 @@ class DatagridPermissionService
                 if ($deptPerms->isNotEmpty()) {
                     if ($deptPerms->contains('denied', true)) {
                         $result[$colName] = false;
+
                         continue;
                     }
                     $result[$colName] = $deptPerms->contains('can_read', true);
+
                     continue;
                 }
             }
@@ -321,15 +324,18 @@ class DatagridPermissionService
 
             $rolePerms = $allRolePerms->filter(function (DatagridPermission $perm) use ($userRoleLevel) {
                 $pivotLevel = UserRole::tryFrom($perm->subject_role ?? '')?->level() ?? 0;
+
                 return $userRoleLevel <= $pivotLevel;
             });
 
             if ($rolePerms->isNotEmpty()) {
                 if ($rolePerms->contains('denied', true)) {
                     $result[$colName] = false;
+
                     continue;
                 }
                 $result[$colName] = $rolePerms->contains('can_read', true);
+
                 continue;
             }
 
@@ -341,7 +347,6 @@ class DatagridPermissionService
     }
 
     // ── Invalidation du cache ────────────────────────────────────────────────
-
 
     /** Invalide le cache d'un utilisateur précis sur une table. */
     public function invalidateCacheForUser(User $user, DatagridTable $table): void
@@ -518,8 +523,6 @@ class DatagridPermissionService
 
     /**
      * Clé de cache Redis pour les droits colonne d'un utilisateur.
-     *
-     * @return string
      */
     private function columnCacheKey(User $user, DatagridTable $table): string
     {

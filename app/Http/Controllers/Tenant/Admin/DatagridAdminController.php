@@ -34,10 +34,10 @@ class DatagridAdminController extends Controller
     {
         $columns = $table->columns()->orderBy('sort_order')->get();
 
-        $perms       = app(DatagridPermissionService::class)->permissionsFor($table);
+        $perms = app(DatagridPermissionService::class)->permissionsFor($table);
         $departments = Department::orderBy('name')->get();
-        $users       = User::where('status', 'active')->orderBy('name')->get();
-        $roles       = UserRole::cases();
+        $users = User::where('status', 'active')->orderBy('name')->get();
+        $roles = UserRole::cases();
 
         return view('admin.datagrid.edit', compact(
             'table', 'columns', 'perms', 'departments', 'users', 'roles'
@@ -46,12 +46,12 @@ class DatagridAdminController extends Controller
 
     public function permissions(DatagridTable $table): View
     {
-        $perms       = app(DatagridPermissionService::class)->permissionsFor($table);
-        $colPerms    = app(DatagridPermissionService::class)->columnPermissionsFor($table);
+        $perms = app(DatagridPermissionService::class)->permissionsFor($table);
+        $colPerms = app(DatagridPermissionService::class)->columnPermissionsFor($table);
         $departments = Department::orderBy('name')->get();
-        $users       = User::where('status', 'active')->orderBy('name')->get();
-        $roles       = UserRole::cases();
-        $columns     = $table->columns()->orderBy('sort_order')->get();
+        $users = User::where('status', 'active')->orderBy('name')->get();
+        $roles = UserRole::cases();
+        $columns = $table->columns()->orderBy('sort_order')->get();
 
         return view('admin.datagrid.permissions', compact(
             'table', 'perms', 'colPerms', 'departments', 'users', 'roles', 'columns'
@@ -61,9 +61,9 @@ class DatagridAdminController extends Controller
     public function update(DatagridTable $table): JsonResponse
     {
         $data = request()->validate([
-            'label'       => 'required|string|max:100',
+            'label' => 'required|string|max:100',
             'description' => 'nullable|string|max:500',
-            'has_rgpd'    => 'boolean',
+            'has_rgpd' => 'boolean',
         ]);
 
         $table->update($data);
@@ -76,22 +76,22 @@ class DatagridAdminController extends Controller
     public function storeRolePermission(DatagridTable $table): RedirectResponse
     {
         $data = request()->validate([
-            'role'       => 'required|in:'.implode(',', array_column(UserRole::cases(), 'value')),
-            'can_read'   => 'boolean',
-            'can_write'  => 'boolean',
+            'role' => 'required|in:'.implode(',', array_column(UserRole::cases(), 'value')),
+            'can_read' => 'boolean',
+            'can_write' => 'boolean',
             'can_delete' => 'boolean',
             'can_export' => 'boolean',
-            'denied'     => 'boolean',
+            'denied' => 'boolean',
         ]);
 
         app(DatagridPermissionService::class)->setRolePermission(
             $table,
             $data['role'],
-            (bool) ($data['can_read']   ?? false),
-            (bool) ($data['can_write']  ?? false),
+            (bool) ($data['can_read'] ?? false),
+            (bool) ($data['can_write'] ?? false),
             (bool) ($data['can_delete'] ?? false),
             (bool) ($data['can_export'] ?? false),
-            (bool) ($data['denied']     ?? false),
+            (bool) ($data['denied'] ?? false),
         );
 
         return redirect()->route('admin.datagrid.permissions', $table)
@@ -116,11 +116,11 @@ class DatagridAdminController extends Controller
     {
         $data = request()->validate([
             'department_id' => 'required|integer|exists:departments,id',
-            'can_read'      => 'boolean',
-            'can_write'     => 'boolean',
-            'can_delete'    => 'boolean',
-            'can_export'    => 'boolean',
-            'denied'        => 'boolean',
+            'can_read' => 'boolean',
+            'can_write' => 'boolean',
+            'can_delete' => 'boolean',
+            'can_export' => 'boolean',
+            'denied' => 'boolean',
         ]);
 
         $dept = Department::findOrFail($data['department_id']);
@@ -128,11 +128,11 @@ class DatagridAdminController extends Controller
         app(DatagridPermissionService::class)->setDepartmentPermission(
             $table,
             $dept,
-            (bool) ($data['can_read']   ?? false),
-            (bool) ($data['can_write']  ?? false),
+            (bool) ($data['can_read'] ?? false),
+            (bool) ($data['can_write'] ?? false),
             (bool) ($data['can_delete'] ?? false),
             (bool) ($data['can_export'] ?? false),
-            (bool) ($data['denied']     ?? false),
+            (bool) ($data['denied'] ?? false),
         );
 
         return redirect()->route('admin.datagrid.permissions', $table)
@@ -156,12 +156,12 @@ class DatagridAdminController extends Controller
     public function storeUserPermission(DatagridTable $table): RedirectResponse
     {
         $data = request()->validate([
-            'user_id'    => 'required|integer|exists:users,id',
-            'can_read'   => 'boolean',
-            'can_write'  => 'boolean',
+            'user_id' => 'required|integer|exists:users,id',
+            'can_read' => 'boolean',
+            'can_write' => 'boolean',
             'can_delete' => 'boolean',
             'can_export' => 'boolean',
-            'denied'     => 'boolean',
+            'denied' => 'boolean',
         ]);
 
         $user = User::findOrFail($data['user_id']);
@@ -169,11 +169,11 @@ class DatagridAdminController extends Controller
         app(DatagridPermissionService::class)->setUserPermission(
             $table,
             $user,
-            (bool) ($data['can_read']   ?? false),
-            (bool) ($data['can_write']  ?? false),
+            (bool) ($data['can_read'] ?? false),
+            (bool) ($data['can_write'] ?? false),
             (bool) ($data['can_delete'] ?? false),
             (bool) ($data['can_export'] ?? false),
-            (bool) ($data['denied']     ?? false),
+            (bool) ($data['denied'] ?? false),
         );
 
         return redirect()->route('admin.datagrid.permissions', $table)
@@ -200,13 +200,13 @@ class DatagridAdminController extends Controller
     public function storeColumnPermission(DatagridTable $table): RedirectResponse
     {
         $data = request()->validate([
-            'column_name'   => 'required|string|max:64',
-            'subject_type'  => 'required|in:role,department,user',
-            'role'          => 'required_if:subject_type,role|nullable|in:'.implode(',', array_column(UserRole::cases(), 'value')),
+            'column_name' => 'required|string|max:64',
+            'subject_type' => 'required|in:role,department,user',
+            'role' => 'required_if:subject_type,role|nullable|in:'.implode(',', array_column(UserRole::cases(), 'value')),
             'department_id' => 'required_if:subject_type,department|nullable|integer|exists:departments,id',
-            'user_id'       => 'required_if:subject_type,user|nullable|integer|exists:users,id',
-            'can_read'      => 'boolean',
-            'denied'        => 'boolean',
+            'user_id' => 'required_if:subject_type,user|nullable|integer|exists:users,id',
+            'can_read' => 'boolean',
+            'denied' => 'boolean',
         ]);
 
         $svc = app(DatagridPermissionService::class);
@@ -267,36 +267,36 @@ class DatagridAdminController extends Controller
     public function updateColumn(DatagridTable $table, DatagridColumn $column): JsonResponse
     {
         $data = request()->validate([
-            'name'               => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
-            'label'              => 'required|string|max:100',
+            'name' => ['nullable', 'string', 'max:64', 'regex:/^[a-z][a-z0-9_]*$/'],
+            'label' => 'required|string|max:100',
             'visible_by_default' => 'boolean',
-            'required'           => 'boolean',
-            'is_rgpd_sensitive'  => 'boolean',
-            'sort_order'         => 'integer|min:0',
-            'type'               => 'nullable|in:'.implode(',', DatagridColumnType::values()),
-            'length'             => 'nullable|integer|min:1|max:65535',
-            'label_true'         => 'nullable|string|max:50',
-            'label_false'        => 'nullable|string|max:50',
-            'options'            => 'nullable|array',
-            'options.*'          => 'string|max:255',
-            'tab'                => 'nullable|in:main,extra',
+            'required' => 'boolean',
+            'is_rgpd_sensitive' => 'boolean',
+            'sort_order' => 'integer|min:0',
+            'type' => 'nullable|in:'.implode(',', DatagridColumnType::values()),
+            'length' => 'nullable|integer|min:1|max:65535',
+            'label_true' => 'nullable|string|max:50',
+            'label_false' => 'nullable|string|max:50',
+            'options' => 'nullable|array',
+            'options.*' => 'string|max:255',
+            'tab' => 'nullable|in:main,extra',
         ]);
 
-        $oldName   = $column->name;
-        $oldType   = $column->type;
-        $newType   = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
+        $oldName = $column->name;
+        $oldType = $column->type;
+        $newType = isset($data['type']) ? DatagridColumnType::from($data['type']) : $oldType;
         $oldLength = $column->length;
         $newLength = $data['length'] ?? $oldLength;
 
         $column->fill([
-            'label'              => $data['label'],
+            'label' => $data['label'],
             'visible_by_default' => $data['visible_by_default'] ?? $column->visible_by_default,
-            'required'           => $data['required'] ?? $column->required,
-            'is_rgpd_sensitive'  => $data['is_rgpd_sensitive'] ?? $column->is_rgpd_sensitive,
-            'sort_order'         => $data['sort_order'] ?? $column->sort_order,
-            'type'               => $newType,
-            'length'             => $newLength,
-            'tab'                => $data['tab'] ?? $column->tab ?? 'main',
+            'required' => $data['required'] ?? $column->required,
+            'is_rgpd_sensitive' => $data['is_rgpd_sensitive'] ?? $column->is_rgpd_sensitive,
+            'sort_order' => $data['sort_order'] ?? $column->sort_order,
+            'type' => $newType,
+            'length' => $newLength,
+            'tab' => $data['tab'] ?? $column->tab ?? 'main',
         ]);
         $column->save();
 
@@ -314,14 +314,26 @@ class DatagridAdminController extends Controller
 
         if ($newType !== $oldType) {
             if (! $this->typesCompatible($oldType, $newType)) {
-                return response()->json(['error' => 'Type incompatible avec les données existantes'], 422);
+                // Conversions depuis TEXT autorisées avec avertissement (force=true requis)
+                $forceAllowed = $this->typesForceable($oldType, $newType);
+                $force = filter_var($data['force'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                if (! $forceAllowed || ! $force) {
+                    return response()->json([
+                        'error' => 'Type incompatible avec les données existantes',
+                        'forceable' => $forceAllowed,
+                        'warning' => $forceAllowed
+                            ? 'Cette conversion peut corrompre des valeurs non conformes au format '.$newType->label().'. Confirmez-vous la modification ?'
+                            : null,
+                    ], 422);
+                }
             }
 
             Schema::connection('tenant')->table($table->mysql_table, function (Blueprint $t) use ($column, $newType, $newLength) {
                 $this->applySchemaChange($t, $column->name, $newType, $newLength, ! $column->required);
             });
         } elseif ($newType->hasLength() && $newLength !== $oldLength && $newLength !== null) {
-            $colName  = $column->name;
+            $colName = $column->name;
             $nullable = $column->required ? '' : ' NULL';
             DB::connection('tenant')->statement(
                 "ALTER TABLE `{$table->mysql_table}` MODIFY COLUMN `{$colName}` VARCHAR({$newLength}){$nullable}"
@@ -386,18 +398,40 @@ class DatagridAdminController extends Controller
         return false;
     }
 
+    /**
+     * Conversions autorisées avec avertissement (depuis TEXT vers un type structuré).
+     * L'admin doit confirmer explicitement (force=true).
+     */
+    private function typesForceable(DatagridColumnType $from, DatagridColumnType $to): bool
+    {
+        if ($from !== DatagridColumnType::TEXT) {
+            return false;
+        }
+
+        return in_array($to, [
+            DatagridColumnType::DATE,
+            DatagridColumnType::NUMBER,
+            DatagridColumnType::BOOLEAN,
+            DatagridColumnType::EMAIL,
+            DatagridColumnType::PHONE,
+            DatagridColumnType::POSTAL_CODE,
+            DatagridColumnType::SIRET,
+            DatagridColumnType::SELECT,
+        ], true);
+    }
+
     private function applySchemaChange(Blueprint $t, string $colName, DatagridColumnType $type, ?int $length, bool $nullable): void
     {
         $col = match ($type) {
-            DatagridColumnType::NUMBER      => $t->decimal($colName, 15, 4),
-            DatagridColumnType::DATE        => $t->date($colName),
-            DatagridColumnType::BOOLEAN     => $t->boolean($colName)->default(false),
-            DatagridColumnType::EMAIL       => $t->string($colName, $length ?? 255),
-            DatagridColumnType::PHONE       => $t->string($colName, $length ?? 30),
-            DatagridColumnType::SIRET       => $t->string($colName, 14),
+            DatagridColumnType::NUMBER => $t->decimal($colName, 15, 4),
+            DatagridColumnType::DATE => $t->date($colName),
+            DatagridColumnType::BOOLEAN => $t->boolean($colName)->default(false),
+            DatagridColumnType::EMAIL => $t->string($colName, $length ?? 255),
+            DatagridColumnType::PHONE => $t->string($colName, $length ?? 30),
+            DatagridColumnType::SIRET => $t->string($colName, 14),
             DatagridColumnType::POSTAL_CODE => $t->string($colName, 10),
-            DatagridColumnType::SELECT      => $t->string($colName, 100),
-            default                         => $t->string($colName, $length ?? 255),
+            DatagridColumnType::SELECT => $t->string($colName, 100),
+            default => $t->string($colName, $length ?? 255),
         };
 
         if ($nullable) {

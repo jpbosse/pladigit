@@ -40,6 +40,25 @@
                 border-radius:8px;color:#dc2626;font-size:13px;margin-bottom:16px;">
     </div>
 
+    {{-- Bandeau de confirmation conversion forcée --}}
+    <div id="badge-warn"
+         style="display:none;padding:14px 16px;background:#fffbeb;border:1px solid #fcd34d;
+                border-radius:8px;color:#92400e;font-size:13px;margin-bottom:16px;line-height:1.6;">
+        <div id="badge-warn-msg" style="margin-bottom:10px;"></div>
+        <div style="display:flex;gap:8px;">
+            <button onclick="saveColumn(true)" type="button"
+                    style="padding:6px 14px;background:#d97706;color:#fff;border:none;
+                           border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
+                Confirmer la conversion
+            </button>
+            <button onclick="document.getElementById('badge-warn').style.display='none'" type="button"
+                    style="padding:6px 14px;background:#f3f4f6;color:#374151;border:1px solid #d1d5db;
+                           border-radius:6px;font-size:12px;cursor:pointer;">
+                Annuler
+            </button>
+        </div>
+    </div>
+
     <div style="background:var(--pd-bg);border:1px solid var(--pd-border);border-radius:10px;padding:20px;margin-bottom:20px;">
 
         {{-- Nom technique --}}
@@ -219,7 +238,7 @@
             val === 'extra' ? '#7c3aed' : 'var(--pd-border)';
     };
 
-    window.saveColumn = function () {
+    window.saveColumn = function (force) {
         clearErrors();
         var url    = '{{ route('admin.datagrid.columns.update', [$table, $column]) }}';
         var token  = '{{ csrf_token() }}';
@@ -249,14 +268,21 @@
                 visible_by_default:  document.getElementById('f-visible').checked,
                 is_rgpd_sensitive:   document.getElementById('f-rgpd').checked,
                 tab:                 document.querySelector('input[name="tab"]:checked')?.value || 'main',
+                force:               force === true,
             }),
         })
         .then(function (r) {
             if (r.ok) {
+                document.getElementById('badge-warn').style.display = 'none';
                 showBadge('ok');
             } else {
                 r.json().then(function (e) {
-                    if (e.errors) {
+                    if (e.forceable && e.warning) {
+                        // Conversion possible mais nécessite confirmation
+                        document.getElementById('badge-warn-msg').textContent = '⚠ ' + e.warning;
+                        document.getElementById('badge-warn').style.display = 'block';
+                        document.getElementById('badge-err').style.display  = 'none';
+                    } else if (e.errors) {
                         Object.entries(e.errors).forEach(function ([field, msgs]) {
                             var el = document.getElementById('err-' + field.replace('_', '-'));
                             if (el) { el.textContent = msgs[0]; el.style.display = 'block'; }

@@ -156,12 +156,17 @@
         if ($org?->hasModule(\App\Enums\ModuleKey::MEDIA)) {
             $activeModules[] = ['icon'=>'📷','name'=>'Photothèque','desc'=>'Albums, médias NAS, watermark, partage','color'=>'#2ECC71','bg'=>'rgba(46,204,113,0.1)','route'=>'media.albums.index'];
         }
-        if ($org?->hasModule(\App\Enums\ModuleKey::PROJECTS)) {
-            $activeModules[] = ['icon'=>'📋','name'=>'Projets','desc'=>'Kanban, Gantt, tâches, agenda partagé','color'=>'#3B82F6','bg'=>'rgba(59,130,246,0.1)','route'=>'projects.index'];
+	if ($org?->hasModule(\App\Enums\ModuleKey::GED)) {
+            $activeModules[] = ['icon'=>'📁','name'=>'GED','desc'=>'Arborescence documentaire, versionning, recherche plein texte','color'=>'#F59E0B','bg'=>'rgba(245,158,11,0.1)','route'=>'admin.ged.index'];
         }
         if ($org?->hasModule(\App\Enums\ModuleKey::DATAGRID)) {
             $activeModules[] = ['icon'=>'📇','name'=>'DataGrid','desc'=>'Annuaire, mandats, protocole, RGPD intégré','color'=>'var(--pd-navy)','bg'=>'color-mix(in srgb, var(--pd-navy) 12%, transparent)','route'=>'datagrid.index'];
         }
+        if ($org?->hasModule(\App\Enums\ModuleKey::PROJECTS)) {
+            $activeModules[] = ['icon'=>'📋','name'=>'Projets','desc'=>'Kanban, Gantt, tâches, agenda partagé','color'=>'#3B82F6','bg'=>'rgba(59,130,246,0.1)','route'=>'projects.index'];
+        }
+
+
         @endphp
         @if(count($activeModules) > 0)
         <div class="pd-module-grid" style="margin-bottom:32px;">

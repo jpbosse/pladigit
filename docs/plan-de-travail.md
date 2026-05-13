@@ -18,7 +18,7 @@
 
 ---
 
-## Bloc 0 — Fondations architecturales
+## Bloc 0 — Fondations architecturales - TERMINE
 *À poser maintenant, avant tout développement fonctionnel.
 Ces migrations sont additives — elles n'impactent pas l'existant.*
 
@@ -31,9 +31,11 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | 0.5 | Enum `DatagridColumnType::RELATION` + `NOM_PERSONNE` + `CHEMIN_FICHIER` | 🔴 | ADR-039/040 | Nouveaux types — ne génèrent aucun comportement seuls |
 | 0.6 | Service `DatagridNormalizationService` (squelette + détection colonnes répétées/inutiles) | 🔴 | ADR-040 | Réutilisé par l'assistant IA futur |
 
+
 ---
 
 ## Bloc 1 — Sécurité et infrastructure
+
 *À implémenter avant tout déploiement chez une collectivité réelle.*
 
 | # | Tâche | Priorité | ADR | Remarque |
@@ -56,20 +58,20 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 
 | # | Tâche | Priorité | ADR | Remarque |
 |---|-------|----------|-----|----------|
-| 2.1 | Compteur contextuel "X résultats sur Y total" | 🟠 | ADR-039 §2.4 | Trivial — 1h de travail |
-| 2.2 | Recherche globale multicolonne (1 champ → toutes colonnes texte visibles) | 🟠 | ADR-039 §2.1 | Impact immédiat pour l'utilisateur |
-| 2.3 | Gestion des dates Excel (numéros sériels → dates ISO) à l'import | 🟠 | ADR-039 §2.4 | Fréquent dans les fichiers collectivités |
-| 2.4 | Ajout manuel d'une ligne (bouton + popup vide) | 🟠 | ADR-039 §2.4 | Valeurs par défaut par colonne |
-| 2.5 | Organisation des grilles en dossiers — sidebar collapse/expand | 🟠 | ADR-039 §2.4 | Utilise migration 0.3 |
-| 2.6 | Type de colonne `CHEMIN_FICHIER` — icône PDF/image/fichier cliquable | 🟡 | ADR-039 §2.4 | Cas arrêtés sur NAS |
-| 2.7 | Persistance préférences utilisateur (colonnes visibles, per_page) | 🟡 | ADR-039 §2.4 | Utilise migration 0.4 |
-| 2.8 | Export Excel (PhpSpreadsheet) avec avertissement RGPD | 🟠 | ADR-039 §2.3 | — |
-| 2.9 | Export PDF + impression d'une fiche | 🟡 | ADR-039 §2.3 | dompdf |
-| 2.10 | Popup onglets (Données / Complémentaires / Historique) | 🟠 | ADR-039 §2.5 | — |
-| 2.11 | Onglet Historique UI — qui a changé quoi dans la fiche | 🟠 | ADR-039 §2.5 | Données dans `datagrid_audit_logs` — UI manque |
-| 2.12 | Droits UI admin tenant — par département et utilisateur | 🟠 | ADR-039 §2.2 | — |
-| 2.13 | Cache Redis des droits résolus (`datagrid_perm:{tenant}:{user}:{table}`) | 🟠 | ADR-039 §2.2 | Invalidation sur modif hiérarchie |
-| 2.14 | Droits au niveau colonne (masquer colonne selon service) | 🟡 | ADR-039 §2.2 | Ex : colonne Salaire → RH uniquement |
+| 2.1 | Compteur contextuel "X résultats sur Y total" - TERMINE| 🟠 | ADR-039 §2.4 | 1h de travail |
+| 2.2 | Recherche globale multicolonne (1 champ → toutes colonnes texte visibles) - TERMINE | 🟠 | ADR-039 §2.1 | Impact immédiat pour l'utilisateur |
+| 2.3 | Gestion des dates Excel (numéros sériels → dates ISO) à l'import - TERMINE | 🟠 | ADR-039 §2.4 | Fréquent dans les fichiers collectivités |
+| 2.4 | Ajout manuel d'une ligne (bouton + popup vide) - TERMINE| 🟠 | ADR-039 §2.4 | Valeurs par défaut par colonne |
+| 2.5 | Organisation des grilles en dossiers — sidebar collapse/expand - TERMINE | 🟠 | ADR-039 §2.4 | Utilise migration 0.3 |
+| 2.6 | Type de colonne `CHEMIN_FICHIER` — icône PDF/image/fichier cliquable - TERMINE| 🟡 | ADR-039 §2.4 | Cas arrêtés sur NAS |
+| 2.7 | Persistance préférences utilisateur (colonnes visibles, per_page) - TERMINE | 🟡 | ADR-039 §2.4 | Utilise migration 0.4 |
+| 2.8 | Export Excel (PhpSpreadsheet) avec avertissement RGPD - TERMINE| 🟠 | ADR-039 §2.3 | — |
+| 2.9 | Export PDF + impression d'une fiche - TERMINE | 🟡 | ADR-039 §2.3 | dompdf |
+| 2.10 | Popup onglets (Données / Complémentaires / Historique) - TERMINE | 🟠 | ADR-039 §2.5 | — |
+| 2.11 | Onglet Historique UI — qui a changé quoi dans la fiche - TERMINE| 🟠 | ADR-039 §2.5 | Données dans `datagrid_audit_logs` — UI manque |
+| 2.12 | Droits UI admin tenant — par département et utilisateur - TERMINE| 🟠 | ADR-039 §2.2 | — |
+| 2.13 | Cache Redis des droits résolus (`datagrid_perm:{tenant}:{user}:{table}`) - TERMINE | 🟠 | ADR-039 §2.2 | Invalidation sur modif hiérarchie |
+| 2.14 | Droits au niveau colonne (masquer colonne selon service) - TERMINE | 🟡 | ADR-039 §2.2 | Ex : colonne Salaire → RH uniquement |
 | 2.15 | Création/modification de structure de grille par l'admin tenant | 🟡 | ADR-039 §2.4 | Renommer, réordonner — DDL réservé Super Admin |
 | 2.16 | Tri par défaut configurable par grille | 🟡 | ADR-039 | — |
 | 2.17 | Colonne numéro de ligne (optionnelle) | 🟡 | ADR-039 | Utile registres officiels |
@@ -191,6 +193,9 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | 9.10 | Checklist sécurité mensuelle (ADR-041 §11) — à planifier dans l'agenda | ⚪ | — |
 | 9.11 | Test de restauration mensuel (ADR-041 §8) — à planifier dans l'agenda | ⚪ | — |
 | 9.12 | `SUPER_ADMIN_ALLOWED_IPS` variable d'environnement (évolution `CheckSuperAdmin.php`) | ⚪ | ADR-027 |
+| 9.13 | Guide datagrid pour les utilisateurs - ne pas oublier que l'historique apparaît pour tout le monde --> tracabilité | ⚪ | ADR-027 |
+| 9.14 | SEO-Visibility : maximiser les mots-clés pour que Pladigit soit mieux référencé et visible sur le net : Google, GitHub, ADULLACT, Hacker News ("Show HN"), etc. | ⚪ | ADR-027 |
+
 
 ---
 

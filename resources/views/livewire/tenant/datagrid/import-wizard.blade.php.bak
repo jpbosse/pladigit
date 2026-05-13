@@ -332,7 +332,6 @@
             </div>
             @endif
 
-            {{-- Informations de la grille --}}
             <div style="margin-bottom:20px;padding:16px;background:var(--pd-bg2);border-radius:10px;">
                 <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:12px;
                             text-transform:uppercase;letter-spacing:.04em;">
@@ -377,179 +376,155 @@
                 </div>
             </div>
 
-            {{-- Cartes colonnes --}}
-            <div style="display:flex;flex-direction:column;gap:10px;">
-                @foreach($columns as $i => $col)
-                @php $colType = $col['type'] ?? ''; @endphp
-                <div style="border:0.5px solid var(--pd-border);border-radius:10px;overflow:hidden;">
-
-                    {{-- En-tête de la carte --}}
-                    <div style="display:flex;align-items:center;justify-content:space-between;
-                                padding:8px 14px;background:var(--pd-bg2);
-                                border-bottom:0.5px solid var(--pd-border);">
-                        <span style="font-size:11px;font-family:monospace;color:var(--pd-muted);font-weight:600;">
-                            {{ $col['header'] }}
-                        </span>
-                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:var(--pd-muted);">
-                            <input type="checkbox"
-                                   wire:model="columns.{{ $i }}.required"
-                                   style="width:13px;height:13px;cursor:pointer;">
-                            Obligatoire
-                        </label>
-                    </div>
-
-                    {{-- Corps de la carte --}}
-                    <div style="padding:12px 14px;display:flex;flex-direction:column;gap:10px;">
-
-                        {{-- Ligne 1 : Libellé + Nom technique --}}
-                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;align-items:start;">
-
-                            {{-- Libellé --}}
-                            <div>
-                                <div style="font-size:10px;font-weight:600;color:var(--pd-muted);
-                                            text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-                                    Libellé affiché
-                                </div>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                    <thead>
+                        <tr style="border-bottom:1.5px solid var(--pd-border);">
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;white-space:nowrap;">
+                                En-tête Excel
+                            </th>
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;">
+                                Libellé affiché
+                            </th>
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;white-space:nowrap;">
+                                Nom technique
+                            </th>
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;">
+                                Type
+                            </th>
+                            <th style="text-align:center;padding:8px 10px;color:var(--pd-muted);font-weight:600;">
+                                Requis
+                            </th>
+                            <th style="text-align:left;padding:8px 10px;color:var(--pd-muted);font-weight:600;white-space:nowrap;">
+                                Options
+                                <span style="font-size:10px;font-weight:400;color:var(--pd-muted);margin-left:4px;">
+                                    (booléen ou liste)
+                                </span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($columns as $i => $col)
+                        @php $colType = $col['type'] ?? ''; @endphp
+                        <tr style="border-bottom:0.5px solid var(--pd-border);">
+                            <td style="padding:8px 10px;color:var(--pd-muted);font-size:12px;white-space:nowrap;">
+                                {{ $col['header'] }}
+                            </td>
+                            <td style="padding:6px 10px;">
                                 <input type="text"
                                        wire:model="columns.{{ $i }}.label"
                                        class="pd-input"
-                                       style="width:100%;padding:5px 8px;font-size:12px;">
+                                       style="width:100%;min-width:120px;padding:5px 8px;font-size:12px;">
                                 @error("columns.{$i}.label")
-                                <div style="font-size:10px;color:#991B1B;margin-top:2px;">{{ $message }}</div>
+                                <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
                                 @enderror
-                            </div>
-
-                            {{-- Nom technique --}}
-                            <div>
-                                <div style="font-size:10px;font-weight:600;color:var(--pd-muted);
-                                            text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-                                    Nom technique
-                                </div>
+                            </td>
+                            <td style="padding:6px 10px;">
                                 <input type="text"
                                        wire:model="columns.{{ $i }}.name"
                                        class="pd-input"
-                                       style="width:100%;padding:5px 8px;font-size:11px;font-family:monospace;">
+                                       style="width:100%;min-width:100px;padding:5px 8px;
+                                              font-size:11px;font-family:monospace;">
                                 @error("columns.{$i}.name")
-                                <div style="font-size:10px;color:#991B1B;margin-top:2px;">{{ $message }}</div>
+                                <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
                                 @enderror
-                            </div>
-                        </div>
-
-                        {{-- Ligne 2 : Type + Options --}}
-                        <div style="display:grid;grid-template-columns:160px 1fr;gap:12px;align-items:start;">
-
-                        {{-- Type --}}
-                        <div>
-                            <div style="font-size:10px;font-weight:600;color:var(--pd-muted);
-                                        text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-                                Type
-                            </div>
-                            <select wire:model.live="columns.{{ $i }}.type"
-                                    style="width:100%;padding:5px 8px;border:0.5px solid var(--pd-border);
-                                           border-radius:6px;font-size:12px;
-                                           background:var(--pd-bg);color:var(--pd-text);">
-                                @foreach($columnTypes as $value => $label)
-                                <option value="{{ $value }}">{{ $label }}</option>
-                                @endforeach
-                            </select>
-                            @error("columns.{$i}.type")
-                            <div style="font-size:10px;color:#991B1B;margin-top:2px;">{{ $message }}</div>
-                            @enderror
-                        </div>
-
-                        {{-- Options (booléen ou select) --}}
-                        <div>
-                            <div style="font-size:10px;font-weight:600;color:var(--pd-muted);
-                                        text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">
-                                Options
-                            </div>
-
-                            @if($colType === \App\Enums\DatagridColumnType::BOOLEAN->value)
-                            {{-- Aperçu des valeurs détectées --}}
-                            @php $samples = $sampleValues[$col['index']] ?? []; @endphp
-                            @if(count($samples) > 0)
-                            <div style="margin-bottom:6px;padding:5px 8px;background:#FEF3C7;
-                                        border-radius:6px;font-size:10px;color:#92400e;line-height:1.6;">
-                                Valeurs détectées dans le fichier :
-                                @foreach($samples as $sv)
-                                <code style="background:#FDE68A;padding:1px 4px;border-radius:3px;margin-left:3px;">{{ $sv }}</code>
-                                @endforeach
-                                <span style="display:block;margin-top:2px;color:#b45309;">
-                                    → Indiquez ci-dessous quelle valeur correspond à <strong>Vrai</strong> et laquelle à <strong>Faux</strong>.
-                                    Si ce n'est pas une valeur binaire, préférez le type <strong>Liste</strong>.
-                                </span>
-                            </div>
-                            @endif
-                            <div style="display:flex;flex-direction:column;gap:4px;">
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <span style="font-size:10px;color:#16a34a;font-weight:600;width:32px;flex-shrink:0;">Vrai</span>
-                                    <input type="text"
-                                           wire:model="columns.{{ $i }}.label_true"
-                                           placeholder="ex: Occupé"
-                                           maxlength="50"
-                                           style="flex:1;padding:4px 7px;border:0.5px solid var(--pd-border);
-                                                  border-radius:5px;font-size:11px;
-                                                  background:var(--pd-bg);color:var(--pd-text);">
-                                </div>
-                                <div style="display:flex;align-items:center;gap:6px;">
-                                    <span style="font-size:10px;color:#dc2626;font-weight:600;width:32px;flex-shrink:0;">Faux</span>
-                                    <input type="text"
-                                           wire:model="columns.{{ $i }}.label_false"
-                                           placeholder="ex: Libre"
-                                           maxlength="50"
-                                           style="flex:1;padding:4px 7px;border:0.5px solid var(--pd-border);
-                                                  border-radius:5px;font-size:11px;
-                                                  background:var(--pd-bg);color:var(--pd-text);">
-                                </div>
-                            </div>
-
-                            @elseif($colType === \App\Enums\DatagridColumnType::SELECT->value)
-                            <div>
-                                @php
-                                    $samples   = $sampleValues[$col['index']] ?? [];
-                                    $rawOpts   = $col['options_raw'] ?? '';
-                                    $countOpts = $rawOpts !== ''
-                                        ? count(array_filter(array_map('trim', explode(',', $rawOpts))))
-                                        : 0;
-                                @endphp
-                                @if(count($samples) > 0 && $rawOpts === '')
-                                <div style="margin-bottom:6px;padding:5px 8px;background:#EFF6FF;
-                                            border-radius:6px;font-size:10px;color:#1e40af;line-height:1.6;">
-                                    Valeurs détectées :
-                                    @foreach($samples as $sv)
-                                    <code style="background:#DBEAFE;padding:1px 4px;border-radius:3px;margin-left:3px;">{{ $sv }}</code>
+                            </td>
+                            <td style="padding:6px 10px;">
+                                <select wire:model.live="columns.{{ $i }}.type"
+                                        style="width:100%;min-width:130px;padding:5px 8px;
+                                               border:0.5px solid var(--pd-border);border-radius:6px;
+                                               font-size:12px;background:var(--pd-bg);color:var(--pd-text);">
+                                    @foreach($columnTypes as $value => $label)
+                                    <option value="{{ $value }}">{{ $label }}</option>
                                     @endforeach
-                                </div>
-                                @endif
-                                <input type="text"
-                                       wire:model="columns.{{ $i }}.options_raw"
-                                       placeholder="ex: M,F  ou  Actif,Inactif,Suspendu"
-                                       style="width:100%;padding:4px 7px;border:0.5px solid var(--pd-border);
-                                              border-radius:5px;font-size:11px;
-                                              background:var(--pd-bg);color:var(--pd-text);">
-                                <div style="font-size:10px;color:var(--pd-muted);margin-top:3px;">
-                                    Valeurs séparées par des virgules — ou <strong style="color:var(--pd-text);">laisser vide</strong> pour récupérer automatiquement toutes les valeurs distinctes présentes dans les enregistrements.
-                                    @if($countOpts === 2)
-                                    <span style="color:#16a34a;">→ Toggle ({{ $countOpts }} valeurs).</span>
-                                    @elseif($countOpts > 2)
-                                    <span style="color:var(--pd-navy);">→ Liste déroulante ({{ $countOpts }} valeurs).</span>
-                                    @endif
-                                </div>
-                                @error("columns.{$i}.options_raw")
-                                <div style="font-size:10px;color:#991B1B;margin-top:2px;">{{ $message }}</div>
+                                </select>
+                                @error("columns.{$i}.type")
+                                <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
                                 @enderror
-                            </div>
+                            </td>
+                            <td style="padding:6px 10px;text-align:center;">
+                                <input type="checkbox"
+                                       wire:model="columns.{{ $i }}.required"
+                                       style="width:15px;height:15px;cursor:pointer;">
+                            </td>
 
-                            @else
-                            <span style="font-size:11px;color:var(--pd-muted);">—</span>
-                            @endif
-                        </div>
+                            {{-- ── Colonne Options : BOOLEAN = libellés, SELECT = valeurs ── --}}
+                            <td style="padding:6px 10px;">
 
-                        </div>{{-- /ligne 2 --}}
-                    </div>{{-- /corps --}}
-                </div>{{-- /carte --}}
-                @endforeach
-            </div>{{-- /cartes --}}
+                                @if($colType === \App\Enums\DatagridColumnType::BOOLEAN->value)
+                                {{-- Libellés vrai/faux --}}
+                                <div style="display:flex;flex-direction:column;gap:4px;min-width:160px;">
+                                    <div style="display:flex;align-items:center;gap:6px;">
+                                        <span style="font-size:10px;color:#16a34a;font-weight:600;width:32px;flex-shrink:0;">Vrai</span>
+                                        <input type="text"
+                                               wire:model="columns.{{ $i }}.label_true"
+                                               placeholder="ex: Occupé"
+                                               maxlength="50"
+                                               style="flex:1;padding:4px 7px;border:0.5px solid var(--pd-border);
+                                                      border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:6px;">
+                                        <span style="font-size:10px;color:#dc2626;font-weight:600;width:32px;flex-shrink:0;">Faux</span>
+                                        <input type="text"
+                                               wire:model="columns.{{ $i }}.label_false"
+                                               placeholder="ex: Libre"
+                                               maxlength="50"
+                                               style="flex:1;padding:4px 7px;border:0.5px solid var(--pd-border);
+                                                      border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                    </div>
+                                </div>
+
+                                @elseif($colType === \App\Enums\DatagridColumnType::SELECT->value)
+                                {{-- Valeurs de la liste fermée --}}
+                                <div style="min-width:180px;">
+                                    <input type="text"
+                                           wire:model="columns.{{ $i }}.options_raw"
+                                           placeholder="ex: M,F  ou  Actif,Inactif,Suspendu"
+                                           style="width:100%;padding:4px 7px;border:0.5px solid var(--pd-border);
+                                                  border-radius:5px;font-size:11px;background:var(--pd-bg);color:var(--pd-text);">
+                                    <div style="font-size:10px;color:var(--pd-muted);margin-top:3px;">
+                                        Valeurs séparées par des virgules.
+
+
+
+
+/*                                        @if(isset($col['options_raw']) && str_word_count(str_replace(',', ' ', $col['options_raw'] ?? '')) === 2)
+                                            <span style="color:#16a34a;">→ Affichage en toggle.</span>
+                                        @elseif(!empty($col['options_raw']))
+                                            <span style="color:var(--pd-navy);">→ Affichage en liste déroulante.</span>
+                                        @endif
+*/
+@php
+    $rawOpts = $col['options_raw'] ?? '';
+    $countOpts = $rawOpts !== '' ? count(array_filter(array_map('trim', explode(',', $rawOpts)))) : 0;
+@endphp
+@if($countOpts === 2)
+    <span style="color:#16a34a;">→ Affichage en toggle ({{ $countOpts }} valeurs).</span>
+@elseif($countOpts > 2)
+    <span style="color:var(--pd-navy);">→ Affichage en liste déroulante ({{ $countOpts }} valeurs).</span>
+@endif
+
+
+
+
+
+
+                                    </div>
+                                    @error("columns.{$i}.options_raw")
+                                    <div style="font-size:10px;color:#991B1B;">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                @else
+                                <span style="font-size:11px;color:var(--pd-muted);padding:0 8px;">—</span>
+                                @endif
+
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
 
             <div style="display:flex;justify-content:space-between;margin-top:20px;">
                 <button wire:click="backToStep1"
@@ -573,111 +548,46 @@
     {{-- ══════════════════════════════════════════════════════════════ --}}
     @if($step === 3)
     @php
-        $targetGrid  = $importMode === 'update' && $targetTableId
+        $targetGrid = $importMode === 'update' && $targetTableId
             ? collect($existingGrids)->firstWhere('id', $targetTableId)
             : null;
-        $jobRunning  = in_array($jobStatus, ['pending', 'running']);
-        $jobDone     = $jobStatus === 'done' || $importedTableId;
-        $jobError    = $jobStatus === 'error';
-        $jobProgress = $jobTotal > 0 ? round($jobProcessed / $jobTotal * 100) : 0;
     @endphp
-
-    {{-- Polling actif uniquement quand le job tourne --}}
-    @if($jobRunning)
-    <div wire:poll.2000ms="pollProgress"></div>
-    @endif
-
     <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
 
         <div style="background:var(--pd-navy);padding:18px 24px;">
-            <div style="font-size:16px;font-weight:700;color:#fff;">
-                @if($jobDone) Import terminé
-                @elseif($jobRunning) Import en cours…
-                @else Confirmation de l'import
-                @endif
-            </div>
+            <div style="font-size:16px;font-weight:700;color:#fff;">Confirmation de l'import</div>
             <div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:3px;">
-                @if($jobDone) Les données sont disponibles dans la grille.
-                @elseif($jobRunning) Vous pouvez naviguer — l'import continue en arrière-plan.
-                @else Vérifiez les paramètres avant de lancer l'import.
-                @endif
+                Vérifiez les paramètres avant de lancer l'import.
             </div>
         </div>
 
         <div style="padding:24px;">
 
-            @if($errorMessage || $jobError)
+            @if($errorMessage)
             <div style="padding:12px 14px;background:#FEE2E2;color:#991B1B;border-radius:8px;
                         margin-bottom:16px;font-size:12px;line-height:1.6;">
                 ⚠ <strong>Erreur lors de l'import :</strong><br>{{ $errorMessage }}
             </div>
             @endif
 
-            {{-- ── Succès ──────────────────────────────────────── --}}
-            @if($jobDone)
+            @if($importedTableId)
+            {{-- ── Succès ──────────────────────────────────── --}}
             <div style="text-align:center;padding:24px 0;">
                 <div style="font-size:40px;margin-bottom:12px;">✅</div>
                 <div style="font-size:17px;font-weight:700;color:var(--pd-text);margin-bottom:6px;">
                     Import terminé avec succès
                 </div>
                 <div style="font-size:13px;color:var(--pd-muted);">
-                    {{ number_format($importedRows, 0, ',', ' ') }} ligne(s) importée(s)
+                    {{ $importedRows }} ligne(s) importée(s)
                     @if($importMode === 'update' && $targetGrid)
                     dans la grille <strong>{{ $targetGrid['label'] }}</strong>
                     @else
                     dans la grille <strong>{{ $tableLabel }}</strong>
                     @endif
                 </div>
-                @if($importedTableId)
-                <div style="margin-top:20px;">
-                    <a href="{{ route('datagrid.show', $importedTableId) }}"
-                       style="padding:9px 22px;background:var(--pd-navy);color:#fff;text-decoration:none;
-                              border-radius:9px;font-size:13px;font-weight:600;">
-                        Voir la grille →
-                    </a>
-                </div>
-                @endif
             </div>
-
-            {{-- ── Import en cours — barre de progression ─────── --}}
-            @elseif($jobRunning)
-            <div style="padding:16px 0;">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                    <span style="font-size:13px;font-weight:600;color:var(--pd-text);">
-                        Traitement en cours…
-                    </span>
-                    <span style="font-size:12px;color:var(--pd-muted);">
-                        @if($jobTotal > 0)
-                        {{ number_format($jobProcessed, 0, ',', ' ') }} / {{ number_format($jobTotal, 0, ',', ' ') }} lignes
-                        @else
-                        Initialisation…
-                        @endif
-                    </span>
-                </div>
-
-                {{-- Barre de progression --}}
-                <div style="background:var(--pd-bg2);border-radius:99px;height:10px;overflow:hidden;">
-                    <div style="height:100%;border-radius:99px;background:var(--pd-navy);
-                                transition:width .4s ease;width:{{ $jobTotal > 0 ? $jobProgress : 0 }}%;">
-                    </div>
-                </div>
-
-                @if($jobTotal > 0)
-                <div style="font-size:11px;color:var(--pd-muted);margin-top:6px;text-align:right;">
-                    {{ $jobProgress }} %
-                </div>
-                @endif
-
-                <div style="margin-top:20px;padding:12px 14px;background:var(--pd-bg2);border-radius:8px;
-                            font-size:12px;color:var(--pd-muted);line-height:1.6;">
-                    💡 L'import tourne en arrière-plan. Vous pouvez naviguer dans l'application
-                    et revenir consulter cette page pour voir l'avancement.
-                </div>
-            </div>
-
-            {{-- ── Récapitulatif avant lancement ──────────────── --}}
             @elseif($importMode === 'new')
-
+            {{-- ── Récapitulatif mode 'new' ─────────────────── --}}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
                 <div style="background:var(--pd-bg2);border-radius:8px;padding:14px;">
                     <div style="font-size:11px;color:var(--pd-muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">
@@ -722,48 +632,7 @@
                 Cette action va :<br>
                 • Créer l'entrée <strong>{{ $tableLabel }}</strong> dans le registre des grilles DataGrid<br>
                 • Créer la table MySQL <code style="font-family:monospace;">{{ $tableName }}</code> dans la base tenant<br>
-                • Importer les lignes de données en arrière-plan (progression visible en temps réel)
-            </div>
-
-            {{-- Visibilité par défaut --}}
-            <div style="margin-bottom:20px;padding:16px;background:var(--pd-bg2);border-radius:10px;">
-                <div style="font-size:12px;font-weight:600;color:var(--pd-text);margin-bottom:12px;
-                            text-transform:uppercase;letter-spacing:.04em;">
-                    Visibilité initiale de la grille
-                </div>
-
-                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;margin-bottom:10px;">
-                    <input type="radio" wire:model="defaultVisibility" name="defaultVisibility" value="public"
-                           style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
-                    <span>
-                        <strong>Publique</strong>
-                        <span style="display:block;font-size:11px;color:var(--pd-muted);margin-top:2px;">
-                            Tous les agents peuvent consulter et exporter la grille
-                        </span>
-                    </span>
-                </label>
-
-                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;margin-bottom:10px;">
-                    <input type="radio" wire:model="defaultVisibility" name="defaultVisibility" value="restricted"
-                           style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
-                    <span>
-                        <strong>Restreinte</strong>
-                        <span style="display:block;font-size:11px;color:var(--pd-muted);margin-top:2px;">
-                            Aucun droit par défaut — l'administrateur configure les accès manuellement
-                        </span>
-                    </span>
-                </label>
-
-                <label style="display:flex;align-items:flex-start;gap:10px;font-size:13px;cursor:pointer;">
-                    <input type="radio" wire:model="defaultVisibility" name="defaultVisibility" value="private"
-                           style="margin-top:2px;width:15px;height:15px;cursor:pointer;flex-shrink:0;">
-                    <span>
-                        <strong>Privée</strong>
-                        <span style="display:block;font-size:11px;color:var(--pd-muted);margin-top:2px;">
-                            Accès explicitement refusé aux agents — visible uniquement par les administrateurs
-                        </span>
-                    </span>
-                </label>
+                • Importer les lignes de données depuis le fichier Excel
             </div>
 
             <div style="display:flex;justify-content:space-between;">
@@ -777,10 +646,9 @@
                         style="padding:9px 22px;background:#16a34a;color:#fff;border:none;
                                border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">
                     <span wire:loading.remove wire:target="runImport">Lancer l'import</span>
-                    <span wire:loading wire:target="runImport">Préparation…</span>
+                    <span wire:loading wire:target="runImport">Import en cours…</span>
                 </button>
             </div>
-
             @else
             {{-- ── Récapitulatif mode 'update' ─────────────────── --}}
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
@@ -853,7 +721,7 @@
                         style="padding:9px 22px;background:#16a34a;color:#fff;border:none;
                                border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">
                     <span wire:loading.remove wire:target="runImport">Lancer l'import</span>
-                    <span wire:loading wire:target="runImport">Préparation…</span>
+                    <span wire:loading wire:target="runImport">Import en cours…</span>
                 </button>
             </div>
             @endif

@@ -2,7 +2,7 @@
 @section('title', 'Modifier — ' . $table->label)
 
 @section('admin-content')
-<div style="padding:32px 40px;max-width:960px;">
+<div style="padding:32px 40px;max-width:1200px;">
 
     {{-- ── En-tête ──────────────────────────────────────────────────────── --}}
     <div style="margin-bottom:24px;">

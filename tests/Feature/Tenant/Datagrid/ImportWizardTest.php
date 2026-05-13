@@ -5,6 +5,7 @@ namespace Tests\Feature\Tenant\Datagrid;
 use App\Enums\DatagridColumnType;
 use App\Enums\ModuleKey;
 use App\Imports\DatagridImport;
+use App\Jobs\ImportDatagridJob;
 use App\Livewire\Tenant\Datagrid\ImportWizard;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
@@ -12,6 +13,7 @@ use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Http\Testing\File as TestingFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
@@ -175,6 +177,8 @@ class ImportWizardTest extends TestCase
 
     public function test_import_complet_crée_datagrid_table_et_colonnes(): void
     {
+        Queue::fake();
+
         $rows = [
             ['Dupont', 'Jean', 'jean@example.com'],
             ['Martin', 'Marie', 'marie@example.com'],
@@ -192,16 +196,22 @@ class ImportWizardTest extends TestCase
             ->call('confirmColumns')
             ->call('runImport');
 
-        $component->assertSet('importedRows', 2)
-            ->assertNotSet('importedTableId', null)
-            ->assertSet('errorMessage', null);
+        // Vérifier que le job a bien été dispatché
+        Queue::assertPushed(ImportDatagridJob::class);
+
+        // Exécuter le job de façon synchrone pour vérifier le résultat
+        Queue::assertPushed(ImportDatagridJob::class, function ($job) {
+            $job->handle(app(TenantManager::class));
+
+            return true;
+        });
+
+        $component->assertSet('errorMessage', null);
 
         $dgTable = DatagridTable::on('tenant')->where('name', 'agents')->first();
         $this->assertNotNull($dgTable);
         $this->assertEquals('Agents', $dgTable->label);
-
         $this->assertCount(3, DatagridColumn::on('tenant')->where('datagrid_table_id', $dgTable->id)->get());
-
         $this->assertTrue(Schema::connection('tenant')->hasTable('dg_agents'));
         $this->assertEquals(2, DB::connection('tenant')->table('dg_agents')->count());
 
@@ -210,6 +220,8 @@ class ImportWizardTest extends TestCase
 
     public function test_import_ignore_les_lignes_vides(): void
     {
+        Queue::fake();
+
         $rows = [
             ['Dupont', 'Jean'],
             ['', ''],
@@ -227,7 +239,15 @@ class ImportWizardTest extends TestCase
             ->call('confirmColumns')
             ->call('runImport');
 
-        $component->assertSet('importedRows', 2);
+        $component->assertSet('errorMessage', null);
+
+        Queue::assertPushed(ImportDatagridJob::class, function ($job) {
+            $job->handle(app(TenantManager::class));
+
+            return true;
+        });
+
+        $this->assertEquals(2, DB::connection('tenant')->table('dg_personnes_test')->count());
 
         Schema::connection('tenant')->dropIfExists('dg_personnes_test');
     }
@@ -280,6 +300,8 @@ class ImportWizardTest extends TestCase
 
     public function test_update_append_avec_entetes_non_normalisés_insère_les_lignes(): void
     {
+        Queue::fake();
+
         // Créer une grille existante avec colonnes normalisées
         $dgTable = DatagridTable::create([
             'name' => 'agents_update',
@@ -319,8 +341,13 @@ class ImportWizardTest extends TestCase
             ->assertSet('unmatchedColumns', []);
 
         $component->call('runImport')
-            ->assertSet('importedRows', 2)
             ->assertSet('errorMessage', null);
+
+        Queue::assertPushed(ImportDatagridJob::class, function ($job) {
+            $job->handle(app(TenantManager::class));
+
+            return true;
+        });
 
         $this->assertEquals(2, DB::connection('tenant')->table('dg_agents_update')->count());
 
@@ -329,6 +356,8 @@ class ImportWizardTest extends TestCase
 
     public function test_update_avec_mapping_manuel_insère_les_lignes(): void
     {
+        Queue::fake();
+
         $dgTable = DatagridTable::create([
             'name' => 'contacts_map',
             'label' => 'Contacts Map',
@@ -372,8 +401,13 @@ class ImportWizardTest extends TestCase
             ->call('confirmMapping')
             ->assertSet('step', 3)
             ->call('runImport')
-            ->assertSet('importedRows', 2)
             ->assertSet('errorMessage', null);
+
+        Queue::assertPushed(ImportDatagridJob::class, function ($job) {
+            $job->handle(app(TenantManager::class));
+
+            return true;
+        });
 
         $this->assertEquals(2, DB::connection('tenant')->table('dg_contacts_map')->count());
 

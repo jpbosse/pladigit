@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Platform\Organization;
+use App\Models\Platform\PlatformSettings;
 use App\Models\Tenant\TenantSettings;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Log;
@@ -20,6 +21,8 @@ use Illuminate\Support\Facades\Log;
  * Destinations supportées : local (chemin serveur), SFTP (NAS distant).
  *
  * La sauvegarde est créée sous forme d'archive tar.gz horodatée.
+ * Si GPG est activé, l'archive est chiffrée (AES-256) et un fichier
+ * SHA-256 est généré pour vérification d'intégrité.
  * La rotation supprime les archives anciennes au-delà du compte de rétention.
  */
 class BackupService
@@ -55,9 +58,8 @@ class BackupService
                 $this->copyDirectory($nasPath, $tmpDir.'/nas');
             }
 
-            // ── 4. Fichier .env (sans les mots de passe chiffrés) ─────
-            $envDest = $tmpDir.'/env.txt';
-            copy(base_path('.env'), $envDest);
+            // ── 4. Fichier .env ───────────────────────────────────────
+            copy(base_path('.env'), $tmpDir.'/env.txt');
 
             // ── 5. Créer l'archive tar.gz ─────────────────────────────
             $archiveName = "backup_{$label}.tar.gz";
@@ -66,10 +68,20 @@ class BackupService
 
             $sizeBytes = (int) filesize($archivePath);
 
-            // ── 6. Envoyer à destination ──────────────────────────────
+            // ── 6. Chiffrement GPG (si activé) ───────────────────────
+            if ($this->gpgEnabled()) {
+                $archivePath = $this->encryptArchive($archivePath);
+                $archiveName = basename($archivePath);
+                $sizeBytes = (int) filesize($archivePath);
+            }
+
+            // ── 7. Somme de contrôle SHA-256 ──────────────────────────
+            $this->writeChecksum($archivePath);
+
+            // ── 8. Envoyer à destination ──────────────────────────────
             $this->sendToDestination($archivePath, $archiveName, $settings);
 
-            // ── 7. Rotation des anciennes sauvegardes ─────────────────
+            // ── 9. Rotation des anciennes sauvegardes ─────────────────
             $this->cleanOldBackups($settings, $org->slug);
 
             return [
@@ -86,6 +98,89 @@ class BackupService
             if (isset($archivePath) && file_exists($archivePath)) {
                 @unlink($archivePath);
             }
+            if (isset($archivePath) && file_exists($archivePath.'.sha256')) {
+                @unlink($archivePath.'.sha256');
+            }
+        }
+    }
+
+    // =========================================================================
+    // Chiffrement GPG et intégrité SHA-256
+    // =========================================================================
+
+    /**
+     * Indique si le chiffrement GPG est activé et configuré.
+     */
+    private function gpgEnabled(): bool
+    {
+        $ps = PlatformSettings::first();
+
+        return $ps !== null
+            && $ps->backup_gpg_enabled
+            && ! empty($ps->backup_gpg_passphrase_enc);
+    }
+
+    /**
+     * Chiffre l'archive avec GPG (AES-256, passphrase symétrique).
+     *
+     * Supprime l'archive non chiffrée après chiffrement réussi.
+     *
+     * @throws \RuntimeException si GPG n'est pas disponible ou si le chiffrement échoue
+     */
+    private function encryptArchive(string $archivePath): string
+    {
+        exec('which gpg 2>/dev/null', $out, $code);
+        if ($code !== 0) {
+            throw new \RuntimeException(
+                "gpg n'est pas installé. Exécutez : sudo apt install gnupg"
+            );
+        }
+
+        $ps = PlatformSettings::firstOrFail();
+        $passphrase = Crypt::decryptString((string) $ps->backup_gpg_passphrase_enc);
+
+        $encryptedPath = $archivePath.'.gpg';
+
+        $cmd = sprintf(
+            'gpg --batch --yes --symmetric --cipher-algo AES256 '
+            .'--passphrase %s --output %s %s 2>/dev/null',
+            escapeshellarg($passphrase),
+            escapeshellarg($encryptedPath),
+            escapeshellarg($archivePath)
+        );
+
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0 || ! file_exists($encryptedPath)) {
+            throw new \RuntimeException('Chiffrement GPG de l\'archive échoué (code '.$exitCode.').');
+        }
+
+        // Supprimer l'archive non chiffrée
+        @unlink($archivePath);
+
+        return $encryptedPath;
+    }
+
+    /**
+     * Génère un fichier de somme de contrôle SHA-256 à côté de l'archive.
+     *
+     * Exemple : backup_2026-05-08_demo.tar.gz.gpg
+     *        → backup_2026-05-08_demo.tar.gz.gpg.sha256
+     *
+     * @throws \RuntimeException si le hash ne peut pas être calculé
+     */
+    private function writeChecksum(string $archivePath): void
+    {
+        $hash = hash_file('sha256', $archivePath);
+
+        if ($hash === false) {
+            throw new \RuntimeException("Impossible de calculer le SHA-256 de {$archivePath}.");
+        }
+
+        $content = $hash.'  '.basename($archivePath).PHP_EOL;
+
+        if (file_put_contents($archivePath.'.sha256', $content) === false) {
+            throw new \RuntimeException("Impossible d'écrire le fichier de somme de contrôle.");
         }
     }
 
@@ -114,10 +209,6 @@ class BackupService
         $pass = $cfg['password'] ?? '';
         $db = $cfg['database'];
 
-        $destFile = $destDir.'/'.$fileName;
-
-        // --no-tablespaces évite l'erreur "Access denied; you need PROCESS privilege"
-        // --single-transaction garantit la cohérence sans verrou (InnoDB)
         $cmd = sprintf(
             'mysqldump --no-tablespaces --single-transaction --routines --events'
             .' -h %s -P %d -u %s %s %s 2>/dev/null | gzip > %s',
@@ -126,7 +217,7 @@ class BackupService
             escapeshellarg($user),
             empty($pass) ? '' : '-p'.escapeshellarg($pass),
             escapeshellarg($db),
-            escapeshellarg($destFile)
+            escapeshellarg($destDir.'/'.$fileName)
         );
 
         exec($cmd, $output, $exitCode);
@@ -142,9 +233,6 @@ class BackupService
 
     /**
      * Crée une archive tar.gz du répertoire source vers archivePath.
-     *
-     * Utilise tar(1) si disponible (plus rapide, streaming),
-     * sinon ZipArchive en fallback.
      *
      * @throws \RuntimeException si la création échoue
      */
@@ -164,8 +252,6 @@ class BackupService
 
         // Fallback : ZipArchive
         $zip = new \ZipArchive;
-
-        // Remplace .tar.gz par .zip pour le fallback
         $archivePath = preg_replace('/\.tar\.gz$/', '.zip', $archivePath) ?? $archivePath;
 
         if ($zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== true) {
@@ -198,7 +284,7 @@ class BackupService
     // =========================================================================
 
     /**
-     * Envoie l'archive vers la destination configurée (local ou SFTP).
+     * Envoie l'archive et son fichier SHA-256 vers la destination configurée.
      *
      * @throws \RuntimeException si l'envoi échoue
      */
@@ -214,7 +300,7 @@ class BackupService
     }
 
     /**
-     * Copie l'archive dans un répertoire local.
+     * Copie l'archive et son fichier SHA-256 dans un répertoire local.
      */
     private function sendLocal(string $archivePath, string $archiveName, TenantSettings $settings): void
     {
@@ -231,12 +317,16 @@ class BackupService
         if (! copy($archivePath, $destDir.'/'.$archiveName)) {
             throw new \RuntimeException("Copie vers {$destDir} échouée.");
         }
+
+        // Copier aussi le fichier SHA-256
+        $checksumPath = $archivePath.'.sha256';
+        if (file_exists($checksumPath)) {
+            copy($checksumPath, $destDir.'/'.$archiveName.'.sha256');
+        }
     }
 
     /**
      * Envoie l'archive sur un serveur SFTP via l'extension PHP ssh2.
-     *
-     * Nécessite : sudo apt install php8.4-ssh2
      */
     private function sendSftp(string $archivePath, string $archiveName, TenantSettings $settings): void
     {
@@ -281,7 +371,6 @@ class BackupService
             throw new \RuntimeException('SFTP : impossible d\'initialiser le sous-système SFTP.');
         }
 
-        // Créer le répertoire distant si nécessaire
         @ssh2_sftp_mkdir($sftp, $remotePath, 0750, true);
 
         $remoteFile = $remotePath.'/'.$archiveName;
@@ -313,7 +402,7 @@ class BackupService
 
     /**
      * Supprime les archives les plus anciennes au-delà du compte de rétention.
-     * Ne s'applique qu'au driver local (les fichiers distants SFTP ne sont pas listés).
+     * Supprime aussi les fichiers .sha256 associés.
      */
     private function cleanOldBackups(TenantSettings $settings, string $orgSlug): void
     {
@@ -329,15 +418,18 @@ class BackupService
 
         $retention = max(1, (int) ($settings->backup_retention_count ?? 7));
 
-        $archives = glob($destDir."/backup_*_{$orgSlug}.tar.gz") ?: [];
+        $archives = array_merge(
+            glob($destDir."/backup_*_{$orgSlug}.tar.gz") ?: [],
+            glob($destDir."/backup_*_{$orgSlug}.tar.gz.gpg") ?: []
+        );
 
-        // Trier par date (le nom commence par backup_YYYY-MM-DD_HHmmss_)
         sort($archives);
 
         $toDelete = array_slice($archives, 0, max(0, count($archives) - $retention));
 
         foreach ($toDelete as $file) {
             @unlink($file);
+            @unlink($file.'.sha256');
         }
     }
 
@@ -394,10 +486,6 @@ class BackupService
     // Helpers fichiers
     // =========================================================================
 
-    /**
-     * Copie récursivement un répertoire source vers destination.
-     * Crée la destination si elle n'existe pas.
-     */
     private function copyDirectory(string $src, string $dst): void
     {
         if (! is_dir($src)) {
@@ -427,9 +515,6 @@ class BackupService
         }
     }
 
-    /**
-     * Supprime récursivement un répertoire.
-     */
     private function removeDirectory(string $dir): void
     {
         if (! is_dir($dir)) {

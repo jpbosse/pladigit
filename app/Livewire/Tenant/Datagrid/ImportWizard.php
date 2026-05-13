@@ -4,10 +4,12 @@ namespace App\Livewire\Tenant\Datagrid;
 
 use App\Enums\DatagridColumnType;
 use App\Imports\DatagridImport;
+use App\Jobs\ImportDatagridJob;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
+use App\Services\TenantManager;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -15,7 +17,6 @@ use Illuminate\View\View;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Shared\Date;
 
 class ImportWizard extends Component
 {
@@ -49,35 +50,38 @@ class ImportWizard extends Component
 
     public bool $hasRgpd = false;
 
+    /** 'public' = lecture pour tous | 'restricted' = admin configure | 'private' = refus explicite pour 'user' */
+    public string $defaultVisibility = 'restricted';
+
+    /**
+     * Valeurs distinctes détectées par colonne (5 premières lignes du fichier).
+     * Format : [columnIndex => ['val1', 'val2', ...]]
+     *
+     * @var array<int, string[]>
+     */
+    public array $sampleValues = [];
+
     /** @var array<int, array{index:int, header:string, label:string, name:string, type:string, required:bool, label_true:string, label_false:string, options_raw:string}> */
     public array $columns = [];
 
     // ── Étape 2 — mapping des colonnes (mode 'update') ────────────
 
     /**
-     * Colonnes du fichier Excel dont le nom ne correspond à aucune colonne de la grille.
-     * Format : [['index' => int, 'header' => string], ...]
-     *
      * @var array<int, array{index:int, header:string}>
      */
     public array $unmatchedColumns = [];
 
     /**
-     * Mapping manuel : index colonne Excel → nom colonne grille ('' = ignorer).
-     *
      * @var array<int, string>
      */
     public array $columnMapping = [];
 
     /**
-     * Colonnes de la grille cible disponibles pour le mapping.
-     * Format : [['name' => string, 'label' => string], ...]
-     *
      * @var array<int, array{name:string, label:string}>
      */
     public array $gridColumns = [];
 
-    // ── Étape 3 — résultats ────────────────────────────────────────
+    // ── Étape 3 — job / progression ───────────────────────────────
 
     public int $importedRows = 0;
 
@@ -86,6 +90,18 @@ class ImportWizard extends Component
     public ?string $errorMessage = null;
 
     public bool $fileHasHeader = true;
+
+    /** UUID du job en cours — null si pas encore lancé */
+    public ?string $importId = null;
+
+    /** Statut renvoyé par Redis : pending|running|done|error */
+    public string $jobStatus = '';
+
+    /** Nombre de lignes traitées (polling) */
+    public int $jobProcessed = 0;
+
+    /** Nombre total de lignes (polling) */
+    public int $jobTotal = 0;
 
     /** @var array<int, array{id:int, label:string, name:string, columns_count:int}> */
     public array $existingGrids = [];
@@ -115,16 +131,59 @@ class ImportWizard extends Component
         }
     }
 
+    // ── Polling progression ────────────────────────────────────────
+
+    /**
+     * Appelé par wire:poll toutes les 2 secondes quand un import est en cours.
+     * Met à jour les propriétés de progression depuis Redis.
+     */
+    public function pollProgress(): void
+    {
+        if (! $this->importId) {
+            return;
+        }
+
+        $data = Cache::get('datagrid_import:'.$this->importId);
+
+        if (! $data) {
+            return;
+        }
+
+        $this->jobStatus = $data['status'] ?? '';
+        $this->jobProcessed = $data['processed'] ?? 0;
+        $this->jobTotal = $data['total'] ?? 0;
+
+        if ($this->jobStatus === 'done') {
+            $this->importedRows = $this->jobProcessed;
+            $this->importedTableId = $this->resolveImportedTableId();
+            Cache::forget('datagrid_import:'.$this->importId);
+        }
+
+        if ($this->jobStatus === 'error') {
+            $this->errorMessage = $data['error'] ?? 'Erreur inconnue.';
+            Cache::forget('datagrid_import:'.$this->importId);
+        }
+    }
+
+    private function resolveImportedTableId(): ?int
+    {
+        if ($this->importMode === 'update') {
+            return $this->targetTableId;
+        }
+
+        return DatagridTable::where('name', $this->tableName)->value('id');
+    }
+
     // ── Étape 1 : upload ──────────────────────────────────────────
 
     public function uploadFile(): void
     {
         $this->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,ods', 'max:40960'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,ods', 'max:102400'],
         ], [
             'file.required' => 'Veuillez choisir un fichier.',
             'file.mimes' => 'Le fichier doit être au format .xlsx, .xls, .csv ou .ods.',
-            'file.max' => 'La taille maximale est de 40 Mo.',
+            'file.max' => 'La taille maximale est de 100 Mo.',
         ]);
 
         if ($this->importMode === 'update' && ! $this->targetTableId) {
@@ -143,6 +202,7 @@ class ImportWizard extends Component
         Excel::import($import, Storage::disk('local')->path($this->tempPath));
 
         $headers = $import->getHeaders();
+        $this->sampleValues = $import->getSampleValues();
 
         $this->columns = collect($headers)
             ->filter(fn ($h) => filled($h))
@@ -176,7 +236,6 @@ class ImportWizard extends Component
         $dgTable = DatagridTable::findOrFail($this->targetTableId);
         $dbCols = $dgTable->columns()->orderBy('sort_order')->get();
 
-        // Stocker les colonnes de la grille pour le select de l'étape 2
         $this->gridColumns = $dbCols->map(fn ($c) => [
             'name' => $c->name,
             'label' => $c->label,
@@ -192,15 +251,10 @@ class ImportWizard extends Component
             $normalized = Str::snake(Str::ascii(str_replace(["'", "\u{2019}", '`'], '_', $col['header'])));
 
             if (in_array($normalized, $gridColNames, true)) {
-                // Correspondance automatique
                 $this->columnMapping[$col['index']] = $normalized;
             } else {
-                // Nécessite un mapping manuel
-                $this->unmatchedColumns[] = [
-                    'index' => $col['index'],
-                    'header' => $col['header'],
-                ];
-                $this->columnMapping[$col['index']] = ''; // '' = ignorer par défaut
+                $this->unmatchedColumns[] = ['index' => $col['index'], 'header' => $col['header']];
+                $this->columnMapping[$col['index']] = '';
                 $needsMapping = true;
             }
         }
@@ -212,7 +266,6 @@ class ImportWizard extends Component
 
     public function confirmMapping(): void
     {
-        // Pas de validation bloquante — '' signifie "ignorer cette colonne"
         $this->step = 3;
     }
 
@@ -254,6 +307,8 @@ class ImportWizard extends Component
         $this->tableName = '';
         $this->tableDescription = '';
         $this->hasRgpd = false;
+        $this->defaultVisibility = 'restricted';
+        $this->sampleValues = [];
         $this->importMode = 'new';
         $this->updateMode = 'append';
         $this->targetTableId = null;
@@ -264,6 +319,10 @@ class ImportWizard extends Component
         $this->unmatchedColumns = [];
         $this->columnMapping = [];
         $this->gridColumns = [];
+        $this->importId = null;
+        $this->jobStatus = '';
+        $this->jobProcessed = 0;
+        $this->jobTotal = 0;
 
         if ($this->tempPath) {
             Storage::disk('local')->delete($this->tempPath);
@@ -275,21 +334,23 @@ class ImportWizard extends Component
     {
         $this->step = 2;
         $this->errorMessage = null;
+        $this->importId = null;
+        $this->jobStatus = '';
+        $this->jobProcessed = 0;
+        $this->jobTotal = 0;
     }
 
-    // ── Étape 3 : import ──────────────────────────────────────────
+    // ── Étape 3 : dispatch du job ─────────────────────────────────
 
     public function runImport(): void
     {
         $this->errorMessage = null;
 
-        if ($this->importMode === 'update') {
+        if ($this->importMode === 'new') {
+            $this->runNew();
+        } else {
             $this->runUpdate();
-
-            return;
         }
-
-        $this->runNew();
     }
 
     private function runNew(): void
@@ -298,9 +359,6 @@ class ImportWizard extends Component
         $tableCreated = false;
 
         try {
-            $import = new DatagridImport;
-            Excel::import($import, Storage::disk('local')->path($this->tempPath));
-
             // ── 1. Métadonnées (DML) ──────────────────────────────
             $dgTable = DatagridTable::create([
                 'name' => $this->tableName,
@@ -336,7 +394,7 @@ class ImportWizard extends Component
                 ]);
             }
 
-            // ── 2. Table physique (DDL — commit implicite MySQL) ──
+            // ── 2. Table physique (DDL) ───────────────────────────
             Schema::connection('tenant')->create($this->mysqlTableName(), function (Blueprint $table) {
                 $table->id();
                 foreach ($this->columns as $col) {
@@ -346,44 +404,33 @@ class ImportWizard extends Component
             });
             $tableCreated = true;
 
-            // ── 3. Lignes de données ──────────────────────────────
-            $columnNames = array_column($this->columns, 'name');
-            $columnTypes = array_column($this->columns, 'type', 'name');
-            $count = 0;
+            // ── 3. Dispatch job ───────────────────────────────────
+            $this->importId = (string) Str::uuid();
+            $columnDefs = array_map(fn ($col) => ['name' => $col['name'], 'type' => $col['type']], $this->columns);
 
-            foreach ($import->getDataRows() as $row) {
-                $rowArr = array_values($row->toArray());
-                $data = [];
+            Cache::put('datagrid_import:'.$this->importId, [
+                'status' => 'pending',
+                'processed' => 0,
+                'total' => 0,
+                'error' => '',
+            ], 7200);
 
-                foreach ($columnNames as $idx => $colName) {
-                    $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
-                    $data[$colName] = match ($columnTypes[$colName] ?? '') {
-                        DatagridColumnType::DATE->value => $raw !== null ? $this->normalizeDate($raw) : null,
-                        DatagridColumnType::BOOLEAN->value => $raw !== null ? $this->normalizeBoolean($raw) : null,
-                        DatagridColumnType::POSTAL_CODE->value => $raw !== null ? $this->normalizePostalCode($raw) : null,
-                        DatagridColumnType::SIRET->value => $raw !== null ? $this->normalizeSiret($raw) : null,
-                        DatagridColumnType::PHONE->value => $raw !== null ? $this->normalizePhone($raw) : null,
-                        default => $raw,
-                    };
-                }
+            ImportDatagridJob::dispatch(
+                orgSlug: $this->resolveOrgSlug(),
+                importId: $this->importId,
+                tempStoragePath: $this->tempPath,
+                mode: 'new',
+                mysqlTable: $this->mysqlTableName(),
+                datagridTableId: $dgTable->id,
+                columnDefs: $columnDefs,
+                updateMode: 'append',
+                fileHasHeader: $this->fileHasHeader,
+                columnMapping: [],
+                defaultVisibility: $this->defaultVisibility,
+            );
 
-                if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
-                    continue;
-                }
-
-                $data['created_at'] = now();
-                $data['updated_at'] = now();
-                DB::connection('tenant')->table($this->mysqlTableName())->insert($data);
-                $count++;
-            }
-
-            $this->importedRows = $count;
-            $this->importedTableId = $dgTable->id;
-
-            if ($this->tempPath) {
-                Storage::disk('local')->delete($this->tempPath);
-                $this->tempPath = null;
-            }
+            $this->tempPath = null; // le job gère la suppression
+            $this->jobStatus = 'pending';
 
         } catch (\Throwable $e) {
             if ($tableCreated) {
@@ -400,145 +447,63 @@ class ImportWizard extends Component
     {
         try {
             $dgTable = DatagridTable::findOrFail($this->targetTableId);
-            $mysqlTable = $dgTable->mysql_table;
 
-            // Récupérer les types des colonnes de la grille
-            $colTypeMap = $dgTable->columns()
-                ->pluck('type', 'name')
-                ->map(fn ($t) => $t->value)
-                ->all();
+            // Construire columnDefs à partir du mapping
+            $colTypeMap = $dgTable->columns()->pluck('type', 'name')
+                ->map(fn ($t) => $t->value)->all();
 
-            $import = new DatagridImport;
-            Excel::import($import, Storage::disk('local')->path($this->tempPath));
-
-            // Construire le headerMap à partir du columnMapping (automatique + manuel)
-            $headerMap = [];
-            if ($this->fileHasHeader) {
-                foreach ($this->columnMapping as $excelIndex => $gridColName) {
-                    if ($gridColName === '') {
-                        continue; // colonne ignorée
-                    }
-                    if (isset($colTypeMap[$gridColName])) {
-                        $headerMap[(int) $excelIndex] = [
-                            'name' => $gridColName,
-                            'type' => $colTypeMap[$gridColName],
-                        ];
-                    }
-                }
-                $dataRows = $import->getDataRows();
-            } else {
-                $dbCols = $dgTable->columns()->orderBy('sort_order')->get();
-                foreach ($dbCols->values() as $idx => $dbCol) {
-                    $headerMap[$idx] = ['name' => $dbCol->name, 'type' => $dbCol->type->value];
-                }
-                $dataRows = $import->getAllRows();
-            }
-
-            if ($this->updateMode === 'replace') {
-                DB::connection('tenant')->table($mysqlTable)->truncate();
-            }
-
-            $count = 0;
-            foreach ($dataRows as $row) {
-                $rowArr = array_values($row->toArray());
-                $data = [];
-
-                foreach ($headerMap as $idx => $colInfo) {
-                    $raw = isset($rowArr[$idx]) && $rowArr[$idx] !== '' ? (string) $rowArr[$idx] : null;
-                    $data[$colInfo['name']] = match ($colInfo['type']) {
-                        DatagridColumnType::DATE->value => $raw !== null ? $this->normalizeDate($raw) : null,
-                        DatagridColumnType::BOOLEAN->value => $raw !== null ? $this->normalizeBoolean($raw) : null,
-                        DatagridColumnType::POSTAL_CODE->value => $raw !== null ? $this->normalizePostalCode($raw) : null,
-                        DatagridColumnType::SIRET->value => $raw !== null ? $this->normalizeSiret($raw) : null,
-                        DatagridColumnType::PHONE->value => $raw !== null ? $this->normalizePhone($raw) : null,
-                        default => $raw,
-                    };
-                }
-
-                if (collect($data)->filter(fn ($v) => $v !== null)->isEmpty()) {
+            $columnDefs = [];
+            foreach ($this->columnMapping as $excelIndex => $gridColName) {
+                if ($gridColName === '') {
                     continue;
                 }
-
-                $data['created_at'] = now();
-                $data['updated_at'] = now();
-                DB::connection('tenant')->table($mysqlTable)->insert($data);
-                $count++;
+                $columnDefs[(int) $excelIndex] = [
+                    'name' => $gridColName,
+                    'type' => $colTypeMap[$gridColName] ?? DatagridColumnType::TEXT->value,
+                ];
             }
 
-            $this->importedRows = $count;
-            $this->importedTableId = $dgTable->id;
+            $this->importId = (string) Str::uuid();
 
-            if ($this->tempPath) {
-                Storage::disk('local')->delete($this->tempPath);
-                $this->tempPath = null;
-            }
+            Cache::put('datagrid_import:'.$this->importId, [
+                'status' => 'pending',
+                'processed' => 0,
+                'total' => 0,
+                'error' => '',
+            ], 7200);
+
+            ImportDatagridJob::dispatch(
+                orgSlug: $this->resolveOrgSlug(),
+                importId: $this->importId,
+                tempStoragePath: $this->tempPath,
+                mode: 'update',
+                mysqlTable: $dgTable->mysql_table,
+                datagridTableId: $dgTable->id,
+                columnDefs: $columnDefs,
+                updateMode: $this->updateMode,
+                fileHasHeader: $this->fileHasHeader,
+                columnMapping: $this->columnMapping,
+                defaultVisibility: 'restricted',
+            );
+
+            $this->tempPath = null;
+            $this->jobStatus = 'pending';
 
         } catch (\Throwable $e) {
             $this->errorMessage = $e->getMessage();
         }
     }
 
+    // ── Helpers ────────────────────────────────────────────────────
+
+    private function resolveOrgSlug(): string
+    {
+        return app(TenantManager::class)->current()->slug;
+    }
+
     private function mysqlTableName(): string
     {
         return str_starts_with($this->tableName, 'dg_') ? $this->tableName : 'dg_'.$this->tableName;
-    }
-
-    private function normalizeDate(string $value): ?string
-    {
-        // Format dd/mm/yyyy
-        if (preg_match('#^(\d{2})/(\d{2})/(\d{4})$#', $value, $m)) {
-            return "{$m[3]}-{$m[2]}-{$m[1]}";
-        }
-
-        // Nombre de série Excel (ex: 45678)
-        if (ctype_digit($value)) {
-            try {
-                $dt = Date::excelToDateTimeObject((int) $value);
-
-                return $dt->format('Y-m-d');
-            } catch (\Throwable) {
-                return null;
-            }
-        }
-
-        return $value ?: null;
-    }
-
-    private function normalizeBoolean(string $value): int
-    {
-        return in_array(strtolower(trim($value)), [
-            '1', '-1', 'true', 'oui', 'yes', 'vrai', 'o', 'y', 'v',
-        ], true) ? 1 : 0;
-    }
-
-    private function normalizePostalCode(string $value): string
-    {
-        // Supprimer les décimales parasites (ex: "1200.0" → "1200")
-        $value = preg_replace('/\.0+$/', '', trim($value));
-
-        // Repadder à 5 chiffres (ex: "1200" → "01200")
-        return str_pad($value, 5, '0', STR_PAD_LEFT);
-    }
-
-    private function normalizeSiret(string $value): string
-    {
-        // Garder uniquement les chiffres (supprime espaces, tirets, points…)
-        $value = preg_replace('/\D/', '', trim($value));
-
-        // Repadder à 14 chiffres si tronqué par Excel
-        return str_pad($value, 14, '0', STR_PAD_LEFT);
-    }
-
-    private function normalizePhone(string $value): string
-    {
-        // Conserver le + initial pour les numéros internationaux
-        $value = trim($value);
-        $prefix = str_starts_with($value, '+') ? '+' : '';
-
-        // Supprimer tout sauf les chiffres
-        $digits = preg_replace('/\D/', '', $value);
-
-        return $prefix.$digits;
     }
 
     private function addDynamicColumn(Blueprint $table, array $col): void
@@ -567,6 +532,7 @@ class ImportWizard extends Component
     {
         return view('livewire.tenant.datagrid.import-wizard', [
             'columnTypes' => DatagridColumnType::options(),
+            'sampleValues' => $this->sampleValues,
         ]);
     }
 }
