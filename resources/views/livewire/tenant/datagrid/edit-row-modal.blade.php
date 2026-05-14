@@ -17,7 +17,7 @@
         <div style="display:flex;align-items:center;justify-content:space-between;
                     padding:18px 24px;border-bottom:1px solid var(--pd-border);">
             <h2 style="margin:0;font-size:15px;font-weight:700;color:var(--pd-text);">
-                Modifier la ligne #{{ $rowId }}
+                Modifier la fiche
             </h2>
             <button wire:click="closeEdit"
                     style="background:none;border:none;cursor:pointer;color:var(--pd-muted);
