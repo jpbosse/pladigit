@@ -43,8 +43,6 @@ class ImportDatagridJob implements ShouldQueue
         /** @phpstan-ignore property.onlyWritten */
         private readonly array $columnMapping,    // réservé pour usage futur (mode update étendu)
         private readonly string $defaultVisibility, // 'public'|'restricted'|'private' (mode new)
-        /** @var array<int, int> Indices de lignes (0-based) à ignorer suite à la détection doublons */
-        private readonly array $skipRows = [],
     ) {}
 
     public function handle(TenantManager $tenantManager): void
@@ -77,11 +75,6 @@ class ImportDatagridJob implements ShouldQueue
             foreach ($this->readRows($filePath) as $lineNumber => $line) {
                 // Ignorer la ligne d'en-tête
                 if ($lineNumber === 0 && $this->fileHasHeader) {
-                    continue;
-                }
-
-                // Ignorer les lignes marquées comme doublons à exclure (3.3)
-                if (! empty($this->skipRows) && in_array($lineNumber, $this->skipRows, true)) {
                     continue;
                 }
 

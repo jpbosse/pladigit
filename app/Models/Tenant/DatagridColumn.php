@@ -71,15 +71,15 @@ class DatagridColumn extends Model
     ];
 
     protected $casts = [
-        'type'             => DatagridColumnType::class,
-        'length'           => 'int',
-        'required'         => 'bool',
+        'type' => DatagridColumnType::class,
+        'length' => 'int',
+        'required' => 'bool',
         'visible_by_default' => 'bool',
         'is_rgpd_sensitive' => 'bool',
-        'is_role_column'   => 'bool',
-        'options'          => 'array',
-        'sort_order'       => 'int',
-        'fuzzy_search'     => 'bool',
+        'is_role_column' => 'bool',
+        'options' => 'array',
+        'sort_order' => 'int',
+        'fuzzy_search' => 'bool',
     ];
 
     // ── Accesseurs ───────────────────────────────────────────
@@ -87,12 +87,14 @@ class DatagridColumn extends Model
     /** Libellé vrai résolu — "Oui" si non configuré. */
     public function getLabelTrueDisplayAttribute(): string
     {
+
         return $this->label_true ?? 'Oui';
     }
 
     /** Libellé faux résolu — "Non" si non configuré. */
     public function getLabelFalseDisplayAttribute(): string
     {
+
         return $this->label_false ?? 'Non';
     }
 
@@ -101,6 +103,7 @@ class DatagridColumn extends Model
     /** @return BelongsTo<DatagridTable, $this> */
     public function datagridTable(): BelongsTo
     {
+
         return $this->belongsTo(DatagridTable::class, 'datagrid_table_id');
     }
 
@@ -108,26 +111,31 @@ class DatagridColumn extends Model
 
     public function scopeVisible($query)
     {
+
         return $query->where('visible_by_default', true);
     }
 
     public function scopeRgpd($query)
     {
+
         return $query->where('is_rgpd_sensitive', true);
     }
 
     public function scopeRoleColumns($query)
     {
+
         return $query->where('is_role_column', true);
     }
 
     public function scopeRequired($query)
     {
+
         return $query->where('required', true);
     }
 
     public function scopeFuzzy($query)
     {
+
         return $query->where('fuzzy_search', true);
     }
 }

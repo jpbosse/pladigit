@@ -37,6 +37,7 @@ class DatagridFuzzySearch
         int $maxDistance = 2
     ): array {
         if (trim($searchValue) === '') {
+
             return [];
         }
 
@@ -61,6 +62,7 @@ class DatagridFuzzySearch
             // Correspondance exacte (après normalisation)
             if ($hay === $needle) {
                 $matchedIds[] = (int) $row->id;
+
                 continue;
             }
 
@@ -87,10 +89,10 @@ class DatagridFuzzySearch
                 ->map(fn ($id) => (int) $id)
                 ->toArray();
 
-            return array_values(array_unique($soundsLikeIds));
+            return array_unique($soundsLikeIds);
         }
 
-        return array_values($matchedIds);
+        return $matchedIds;
     }
 
     /**
@@ -100,11 +102,11 @@ class DatagridFuzzySearch
      * Retourne un tableau de correspondances probables :
      * [
      *   [
-     *     'import_value'   => 'Jean Dupond',
-     *     'import_index'   => 3,          // index de la ligne dans le fichier
-     *     'existing_id'    => 42,
+     *     'import_value' => 'Jean Dupond',
+     *     'import_index' => 3,          // index de la ligne dans le fichier
+     *     'existing_id' => 42,
      *     'existing_value' => 'Jean Dupont',
-     *     'distance'       => 1,
+     *     'distance' => 1,
      *   ],
      *   ...
      * ]
@@ -128,10 +130,10 @@ class DatagridFuzzySearch
             $needle = self::normalize($needleRaw);
 
             $bestMatch = null;
-            $bestDist  = PHP_INT_MAX;
+            $bestDist = PHP_INT_MAX;
 
             foreach ($existingValues as $existing) {
-                $hay  = self::normalize((string) $existing['value']);
+                $hay = self::normalize((string) $existing['value']);
                 if ($hay === '') {
                     continue;
                 }
@@ -148,19 +150,121 @@ class DatagridFuzzySearch
 
                 $dist = levenshtein($needle, $hay);
                 if ($dist <= $maxDistance && $dist < $bestDist) {
-                    $bestDist  = $dist;
+                    $bestDist = $dist;
                     $bestMatch = $existing;
                 }
             }
 
             if ($bestMatch !== null) {
                 $duplicates[] = [
-                    'import_value'   => $needleRaw,
-                    'import_index'   => $importIndex,
-                    'existing_id'    => $bestMatch['id'],
+                    'import_value' => $needleRaw,
+                    'import_index' => $importIndex,
+                    'existing_id' => $bestMatch['id'],
                     'existing_value' => $bestMatch['value'],
-                    'distance'       => $bestDist,
+                    'distance' => $bestDist,
                 ];
+            }
+        }
+
+        return $duplicates;
+    }
+
+    /**
+     * Détecte les doublons internes à un tableau de valeurs.
+     * Compare chaque valeur contre toutes les autres du même tableau.
+     *
+     * Retourne des paires :
+     * [
+     *   [
+     *     'value_a' => 'Aubert Jean',
+     *     'index_a' => 2,
+     *     'value_b' => 'Auberd Jean',
+     *     'index_b' => 5,
+     *     'distance' => 1,
+     *     'column_label' => 'Nom',
+     *   ],
+     *   ...
+     * ]
+     *
+     * Chaque paire n'est retournée qu'une fois (index_a < index_b).
+     *
+     * @param  array<int, string>  $values  Tableau indexé par position dans le fichier
+     * @return array<int, array{value_a:string, index_a:int, value_b:string, index_b:int, distance:int}>
+     */
+    public static function detectInternalDuplicates(
+        array $values,
+        int $maxDistance = 2,
+        string $columnLabel = ''
+    ): array {
+        $duplicates = [];
+        $indices = array_keys($values);
+        $count = count($indices);
+
+        for ($i = 0; $i < $count; $i++) {
+            $idxA = $indices[$i];
+            $rawA = (string) $values[$idxA];
+            if (trim($rawA) === '') {
+                continue;
+            }
+            $normA = self::normalize($rawA);
+
+            for ($j = $i + 1; $j < $count; $j++) {
+                $idxB = $indices[$j];
+                $rawB = (string) $values[$idxB];
+                if (trim($rawB) === '') {
+                    continue;
+                }
+                $normB = self::normalize($rawB);
+
+                // Correspondance exacte → doublon certain, distance 0
+                if ($normA === $normB) {
+                    $duplicates[] = [
+                        'value_a' => $rawA,
+                        'index_a' => $idxA,
+                        'value_b' => $rawB,
+                        'index_b' => $idxB,
+                        'distance' => 0,
+                        'column_label' => $columnLabel,
+                    ];
+
+                    continue;
+                }
+
+                // Seuil adaptatif selon la longueur du nom le plus court :
+                //   < 4 chars  → pas de fuzzy (trop court, trop de faux positifs)
+                //   4-8 chars  → distance max 1 (ex: AUBERT/AUBERD ✓, AUGERO/AUGEREAU ✗)
+                //   ≥ 9 chars  → distance max 2 (noms longs tolèrent plus de variations)
+                //
+                // Conséquence connue : AUGERO (6 chars) vs AUGEREAU (8 chars) ne sera
+                // pas détecté car la distance est 2, au-delà du seuil de 1 pour 6 chars.
+                // Choix délibéré : éviter les faux positifs sur les noms courts.
+                $minLen = min(strlen($normA), strlen($normB));
+                $effectiveMax = match (true) {
+                    $minLen < 4 => 0,  // pas de fuzzy
+                    $minLen <= 8 => 1,
+                    default => $maxDistance,
+                };
+
+                if ($effectiveMax === 0) {
+                    continue;
+                }
+
+                // Filtre rapide sur la longueur
+                if (abs(strlen($normA) - strlen($normB)) > $effectiveMax + 1) {
+                    continue;
+                }
+
+                $dist = levenshtein($normA, $normB);
+                if ($dist <= $effectiveMax) {
+                    $duplicates[] = [
+                        'value_a' => $rawA,
+                        'index_a' => $idxA,
+                        'value_b' => $rawB,
+                        'index_b' => $idxB,
+                        'distance' => $dist,
+                        'column_label' => $columnLabel,
+                    ];
+                }
             }
         }
 
@@ -176,6 +280,7 @@ class DatagridFuzzySearch
         $value = mb_strtolower(trim($value));
         $value = Str::ascii($value);            // supprime les accents
         $value = preg_replace('/\s+/', ' ', $value) ?? $value; // espaces multiples
+
         return $value;
     }
 }

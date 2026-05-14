@@ -83,10 +83,11 @@ class ShowGrid extends Component
     /** @return array<string, string> */
     protected function getListeners(): array
     {
+
         return [
             'row-updated' => 'resetRows',
             'row-deleted' => 'resetRows',
-            'row-added'   => 'resetRows',
+            'row-added' => 'resetRows',
         ];
     }
 
@@ -110,11 +111,11 @@ class ShowGrid extends Component
 
         if (! empty($initialSort['column'])) {
             // Tri explicite passé en paramètre (vue sauvegardée, lien direct)
-            $this->sortColumn    = $initialSort['column'];
+            $this->sortColumn = $initialSort['column'];
             $this->sortDirection = $initialSort['direction'] ?? 'asc';
         } elseif ($table->default_sort_column !== null && $table->default_sort_column !== '') {
             // Tri par défaut configuré sur la grille par l'admin (2.16)
-            $this->sortColumn    = $table->default_sort_column;
+            $this->sortColumn = $table->default_sort_column;
             $this->sortDirection = $table->default_sort_direction ?? 'asc';
         }
 
@@ -280,9 +281,9 @@ class ShowGrid extends Component
 
         if ($viewId === 0) {
             // Réinitialiser à la visibilité par défaut
-            $this->filters        = [];
-            $this->sortColumn     = $this->table->default_sort_column ?? '';
-            $this->sortDirection  = $this->table->default_sort_direction ?? 'asc';
+            $this->filters = [];
+            $this->sortColumn = $this->table->default_sort_column ?? '';
+            $this->sortDirection = $this->table->default_sort_direction ?? 'asc';
             $this->visibleColumns = $this->table->columns
                 ->whereNotIn('id', $this->forbiddenColumns)
                 ->where('visible_by_default', true)
@@ -313,7 +314,7 @@ class ShowGrid extends Component
 
         // Restaurer le tri sauvegardé
         if (! empty($view->sort_column)) {
-            $this->sortColumn    = $view->sort_column;
+            $this->sortColumn = $view->sort_column;
             $this->sortDirection = $view->sort_direction ?? 'asc';
         }
 
@@ -326,12 +327,12 @@ class ShowGrid extends Component
 
         $view = DatagridSavedView::create([
             'datagrid_table_id' => $this->table->id,
-            'user_id'           => auth()->id(),
-            'name'              => $this->newViewName,
-            'filters'           => $this->filters,
-            'visible_columns'   => $this->visibleColumns,
-            'sort_column'       => $this->sortColumn !== '' ? $this->sortColumn : null,
-            'sort_direction'    => $this->sortDirection,
+            'user_id' => auth()->id(),
+            'name' => $this->newViewName,
+            'filters' => $this->filters,
+            'visible_columns' => $this->visibleColumns,
+            'sort_column' => $this->sortColumn !== '' ? $this->sortColumn : null,
+            'sort_direction' => $this->sortDirection,
         ]);
 
         $this->activeViewId = $view->id;
@@ -357,7 +358,7 @@ class ShowGrid extends Component
 
         $view->delete();
 
-        $this->activeViewId         = null;
+        $this->activeViewId = null;
         $this->confirmingDeleteView = false;
         unset($this->rows);
     }
@@ -541,9 +542,9 @@ class ShowGrid extends Component
         $savedViews = $this->table->savedViews()->where('user_id', auth()->id())->get();
 
         return view('livewire.tenant.datagrid.show-grid', [
-            'columns'        => $columns->whereNotIn('id', $this->forbiddenColumns),
-            'savedViews'     => $savedViews,
-            'columnTypes'    => DatagridColumnType::options(),
+            'columns' => $columns->whereNotIn('id', $this->forbiddenColumns),
+            'savedViews' => $savedViews,
+            'columnTypes' => DatagridColumnType::options(),
             'visibleColumns' => $this->visibleColumns,
             'forbiddenColumns' => $this->forbiddenColumns,
         ]);
@@ -560,6 +561,7 @@ class ShowGrid extends Component
 
         foreach ([$stringFamily, $numericFamily, $dateFamily, $boolFamily] as $family) {
             if (in_array($from, $family, true) && in_array($to, $family, true)) {
+
                 return true;
             }
         }

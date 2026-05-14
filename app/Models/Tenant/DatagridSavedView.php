@@ -43,9 +43,9 @@ class DatagridSavedView extends Model
     ];
 
     protected $casts = [
-        'filters'         => 'array',
+        'filters' => 'array',
         'visible_columns' => 'array',
-        'is_default'      => 'bool',
+        'is_default' => 'bool',
     ];
 
     // ── Relations ────────────────────────────────────────────
@@ -53,18 +53,21 @@ class DatagridSavedView extends Model
     /** @return BelongsTo<DatagridTable, $this> */
     public function datagridTable(): BelongsTo
     {
+
         return $this->belongsTo(DatagridTable::class, 'datagrid_table_id');
     }
 
     /** @return BelongsTo<User, $this> */
     public function user(): BelongsTo
     {
+
         return $this->belongsTo(User::class, 'user_id');
     }
 
     /** @return BelongsTo<Department, $this> */
     public function department(): BelongsTo
     {
+
         return $this->belongsTo(Department::class, 'department_id');
     }
 
@@ -72,21 +75,25 @@ class DatagridSavedView extends Model
 
     public function scopeForTable($query, int $tableId)
     {
+
         return $query->where('datagrid_table_id', $tableId);
     }
 
     public function scopeForUser($query, int $userId)
     {
+
         return $query->where('user_id', $userId);
     }
 
     public function scopeForDepartment($query, int $deptId)
     {
+
         return $query->where('department_id', $deptId);
     }
 
     public function scopeDefault($query)
     {
+
         return $query->where('is_default', true);
     }
 }

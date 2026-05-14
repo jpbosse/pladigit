@@ -4,13 +4,14 @@ namespace App\Livewire\Tenant\Datagrid;
 
 use App\Enums\DatagridColumnType;
 use App\Imports\DatagridImport;
-use App\Services\DatagridFuzzySearch;
 use App\Jobs\ImportDatagridJob;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
+use App\Services\DatagridFuzzySearch;
 use App\Services\TenantManager;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -93,13 +94,22 @@ class ImportWizard extends Component
     public array $duplicates = [];
 
     /**
-     * Décision par ligne suspecte : 'skip' | 'import' (indexé par import_index)
+     * Doublons internes au fichier (fichier → fichier).
+     * Format : [{value_a, index_a, value_b, index_b, distance, column_label}, ...]
      *
-     * @var array<int, string>
+     * @var array<int, array{value_a:string, index_a:int, value_b:string, index_b:int, distance:int, column_label:string}>
      */
-    public array $duplicateDecisions = [];
+    public array $internalDuplicates = [];
 
-    /** true quand l'étape doublons est active (step 3 avec doublons détectés) */
+    /**
+     * Doublons fichier → base (mode update).
+     * Format : [{import_value, import_index, existing_id, existing_value, distance, column_label}, ...]
+     *
+     * @var array<int, array{import_value:string, import_index:int, existing_id:int, existing_value:string, distance:int, column_label:string}>
+     */
+    public array $externalDuplicates = [];
+
+    /** true quand l'étape d'avertissement doublons est active */
     public bool $showDuplicateStep = false;
 
     // ── Étape 3 — job / progression ───────────────────────────────
@@ -189,6 +199,7 @@ class ImportWizard extends Component
     private function resolveImportedTableId(): ?int
     {
         if ($this->importMode === 'update') {
+
             return $this->targetTableId;
         }
 
@@ -317,9 +328,7 @@ class ImportWizard extends Component
             'columns.*.type.in' => 'Type de colonne invalide.',
         ]);
 
-        // Analyser les doublons si la grille cible a des colonnes NOM_PERSONNE fuzzy
-        // Pour le mode 'new', pas de grille existante → pas de détection
-        $this->step = 3;
+        $this->analyzeDuplicates();
     }
 
     public function backToStep1(): void
@@ -346,6 +355,9 @@ class ImportWizard extends Component
         $this->jobStatus = '';
         $this->jobProcessed = 0;
         $this->jobTotal = 0;
+        $this->internalDuplicates = [];
+        $this->externalDuplicates = [];
+        $this->showDuplicateStep = false;
 
         if ($this->tempPath) {
             Storage::disk('local')->delete($this->tempPath);
@@ -366,87 +378,162 @@ class ImportWizard extends Component
     // ── Étape 3b : analyse doublons (mode 'update' avec colonnes fuzzy) ────────
 
     /**
-     * Analyse les doublons potentiels dans le fichier avant import.
-     * Appelé depuis confirmMapping() en mode 'update'.
-     * Si des doublons sont détectés, affiche l'étape intermédiaire.
-     * Sinon, passe directement à step 3 (lancement du job).
+     * Analyse les doublons pot    /**
+     * Analyse les doublons avant import — modes new ET update.
+     *
+     * Niveau 1 : doublons internes au fichier (new + update)
+     * Niveau 2 : doublons fichier → base (update uniquement)
      */
     public function analyzeDuplicates(): void
     {
-        if ($this->importMode !== 'update' || ! $this->targetTableId) {
+        $this->internalDuplicates = [];
+        $this->externalDuplicates = [];
+
+        // ── Colonnes fuzzy et leurs index Excel ───────────────────────────────
+        $fuzzyCols = [];
+
+        if ($this->importMode === 'update' && $this->targetTableId) {
+            $dgTable = DatagridTable::find($this->targetTableId);
+            if (! $dgTable) {
+                $this->step = 3;
+
+                return;
+            }
+            foreach ($dgTable->columns()->where('fuzzy_search', true)->whereIn('type', ['nom_personne'])->get() as $col) {
+                foreach ($this->columnMapping as $idx => $gridColName) {
+                    if ($gridColName === $col->name) {
+                        $fuzzyCols[] = ['excelIndex' => (int) $idx, 'label' => $col->label, 'name' => $col->name];
+                        break;
+                    }
+                }
+            }
+        } else {
+            foreach ($this->columns as $col) {
+                if (($col['type'] ?? '') === 'nom_personne') {
+                    $fuzzyCols[] = ['excelIndex' => (int) $col['index'], 'label' => $col['label'], 'name' => $col['name']];
+                }
+            }
+        }
+
+        if (empty($fuzzyCols)) {
             $this->step = 3;
+
             return;
         }
 
-        $dgTable = DatagridTable::find($this->targetTableId);
-        if (! $dgTable) {
-            $this->step = 3;
-            return;
-        }
-
-        // Colonnes NOM_PERSONNE avec fuzzy_search activé
-        $fuzzyCols = $dgTable->columns()
-            ->where('fuzzy_search', true)
-            ->whereIn('type', ['nom_personne'])
-            ->get();
-
-        if ($fuzzyCols->isEmpty()) {
-            $this->step = 3;
-            return;
-        }
-
-        // Lire les valeurs du fichier pour les colonnes fuzzy
-        $import = new \App\Imports\DatagridImport(fullRead: true);
-        \Maatwebsite\Excel\Facades\Excel::import($import, \Illuminate\Support\Facades\Storage::disk('local')->path($this->tempPath));
+        // ── Lire le fichier ───────────────────────────────────────────────────
+        $import = new DatagridImport(fullRead: true);
+        Excel::import($import, Storage::disk('local')->path($this->tempPath));
         $rows = $import->getData();
 
-        $this->duplicates = [];
-        $this->duplicateDecisions = [];
+        // Construire le dictionnaire index → libellé pour le contexte
+        // Priorité : colonnes dont le nom/label contient prénom ou ville/commune
+        // Fallback : les 3 premières colonnes hors colonne fuzzy
+        $headerLabels = [];
+        foreach ($this->columns as $col) {
+            $headerLabels[(int) $col['index']] = $col['label'];
+        }
 
-        foreach ($fuzzyCols as $col) {
-            // Trouver l'index Excel de cette colonne via le mapping
-            $excelIndex = null;
-            foreach ($this->columnMapping as $idx => $gridColName) {
-                if ($gridColName === $col->name) {
-                    $excelIndex = (int) $idx;
+        // Mots-clés prioritaires pour le contexte différenciant
+        $priorityKeywords = ['prénom', 'prenom', 'firstname', 'first_name',
+            'ville', 'commune', 'city', 'localité', 'localite'];
+        $priorityIndices = [];
+        $fallbackIndices = [];
+        foreach ($this->columns as $col) {
+            $lowerLabel = mb_strtolower($col['label']);
+            $lowerName = mb_strtolower($col['name'] ?? '');
+            $isPriority = false;
+            foreach ($priorityKeywords as $kw) {
+                if (str_contains($lowerLabel, $kw) || str_contains($lowerName, $kw)) {
+                    $isPriority = true;
                     break;
                 }
             }
-            if ($excelIndex === null) {
+            if ($isPriority) {
+                $priorityIndices[] = (int) $col['index'];
+            } else {
+                $fallbackIndices[] = (int) $col['index'];
+            }
+        }
+        // Prioritaires d'abord, puis fallback, max 4 colonnes
+        $contextIndices = array_slice(
+            array_merge($priorityIndices, $fallbackIndices),
+            0, 4
+        );
+
+        // Pré-indexer les lignes du fichier par rowIndex pour accès rapide
+        $rowsByIndex = [];
+        foreach ($rows as $rowIndex => $row) {
+            if ($rowIndex === 0 && $this->fileHasHeader) {
                 continue;
             }
+            $rowsByIndex[$rowIndex] = $row;
+        }
 
-            // Valeurs existantes en base
-            $existingValues = \Illuminate\Support\Facades\DB::connection('tenant')
-                ->table($dgTable->mysql_table)
-                ->select('id', $col->name)
-                ->whereNotNull($col->name)
-                ->get()
-                ->map(fn ($r) => ['id' => (int) $r->id, 'value' => (string) ($r->{$col->name} ?? '')])
-                ->toArray();
-
-            // Valeurs du fichier (en sautant l'en-tête)
-            $importValues = [];
-            foreach ($rows as $rowIndex => $row) {
-                if ($rowIndex === 0 && $this->fileHasHeader) {
-                    continue;
+        /** Retourne les valeurs de contexte d'une ligne (max 5 colonnes). */
+        $rowContext = function (int $rowIndex) use ($rowsByIndex, $contextIndices, $headerLabels): array {
+            $row = $rowsByIndex[$rowIndex] ?? [];
+            $ctx = [];
+            foreach ($contextIndices as $idx) {
+                $val = $row[$idx] ?? null;
+                if ($val !== null && trim((string) $val) !== '') {
+                    $ctx[] = ['label' => $headerLabels[$idx] ?? "col{$idx}", 'value' => (string) $val];
                 }
+            }
+
+            return $ctx;
+        };
+
+        foreach ($fuzzyCols as $colDef) {
+            $excelIndex = $colDef['excelIndex'];
+            $colLabel = $colDef['label'];
+
+            $importValues = [];
+            foreach ($rowsByIndex as $rowIndex => $row) {
                 $val = $row[$excelIndex] ?? null;
                 if ($val !== null && trim((string) $val) !== '') {
                     $importValues[$rowIndex] = (string) $val;
                 }
             }
 
-            $detected = DatagridFuzzySearch::detectDuplicates($importValues, $existingValues);
+            // Niveau 1 : doublons internes au fichier
+            foreach (DatagridFuzzySearch::detectInternalDuplicates($importValues, 2, $colLabel) as $d) {
+                $ctxA = $rowContext($d['index_a']);
+                $ctxB = $rowContext($d['index_b']);
 
-            foreach ($detected as $d) {
-                $d['column_label'] = $col->label;
-                $this->duplicates[] = $d;
-                $this->duplicateDecisions[$d['import_index']] = 'skip'; // décision par défaut : ignorer
+                // Si un champ différenciant (prénom, ville…) diffère entre les deux lignes
+                // → ce ne sont pas des doublons, on exclut la paire
+                if ($this->hasDifferentContext($ctxA, $ctxB)) {
+                    continue;
+                }
+
+                $d['row_a_context'] = $ctxA;
+                $d['row_b_context'] = $ctxB;
+                $this->internalDuplicates[] = $d;
+            }
+
+            // Niveau 2 : doublons fichier → base (update uniquement)
+            if ($this->importMode === 'update' && $this->targetTableId) {
+                $dgTable = DatagridTable::find($this->targetTableId);
+                if ($dgTable) {
+                    $existingValues = DB::connection('tenant')
+                        ->table($dgTable->mysql_table)
+                        ->select('id', $colDef['name'])
+                        ->whereNotNull($colDef['name'])
+                        ->get()
+                        ->map(fn ($r) => ['id' => (int) $r->id, 'value' => (string) ($r->{$colDef['name']} ?? '')])
+                        ->toArray();
+
+                    foreach (DatagridFuzzySearch::detectDuplicates($importValues, $existingValues) as $d) {
+                        $d['column_label'] = $colLabel;
+                        $d['import_row_context'] = $rowContext($d['import_index']);
+                        $this->externalDuplicates[] = $d;
+                    }
+                }
             }
         }
 
-        if (! empty($this->duplicates)) {
+        if (! empty($this->internalDuplicates) || ! empty($this->externalDuplicates)) {
             $this->showDuplicateStep = true;
         } else {
             $this->step = 3;
@@ -454,22 +541,60 @@ class ImportWizard extends Component
     }
 
     /**
-     * Valider les décisions sur les doublons et passer au lancement du job.
-     * Les lignes marquées 'skip' seront exclues de l'import.
+     * Compare deux contextes de ligne et retourne true si au moins un champ
+     * différenciant (prénom, ville…) est présent dans les deux et a des valeurs distinctes.
+     *
+     * @param  array<int, array{label:string, value:string}>  $ctxA
+     * @param  array<int, array{label:string, value:string}>  $ctxB
      */
-    public function confirmDuplicateDecisions(): void
+    private function hasDifferentContext(array $ctxA, array $ctxB): bool
+    {
+        // Indexer par label normalisé
+        $indexA = [];
+        foreach ($ctxA as $item) {
+            $indexA[mb_strtolower(trim($item['label']))] = mb_strtolower(trim($item['value']));
+        }
+        foreach ($ctxB as $item) {
+            $labelKey = mb_strtolower(trim($item['label']));
+            $valB = mb_strtolower(trim($item['value']));
+            if (isset($indexA[$labelKey]) && $indexA[$labelKey] !== '' && $valB !== '') {
+                $valA = $indexA[$labelKey];
+                if ($valA === $valB) {
+                    continue; // identiques → pas différenciant
+                }
+                // Ne pas exclure si l'une des valeurs est une abréviation
+                // (≤ 2 chars, ou se termine par un point, ou l'une est le début de l'autre)
+                $isAbrevA = mb_strlen($valA) <= 2 || str_ends_with($valA, '.');
+                $isAbrevB = mb_strlen($valB) <= 2 || str_ends_with($valB, '.');
+                $isPrefixAB = str_starts_with($valB, $valA) || str_starts_with($valA, $valB);
+                if ($isAbrevA || $isAbrevB || $isPrefixAB) {
+                    continue; // ambigu → on garde la paire comme avertissement
+                }
+
+                return true; // même champ, valeurs différentes et non ambiguës → pas un doublon
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * L'utilisateur choisit d'importer malgré les avertissements.
+     * Toutes les lignes sont importées — c'est lui qui a vérifié.
+     */
+    public function importDespiteDuplicates(): void
     {
         $this->showDuplicateStep = false;
         $this->step = 3;
     }
 
-    /** Annuler l'analyse doublons et revenir à l'étape 2. */
+    /** Retour pour corriger le fichier — revenir à l'étape 1. */
     public function backFromDuplicates(): void
     {
         $this->showDuplicateStep = false;
-        $this->duplicates = [];
-        $this->duplicateDecisions = [];
-        $this->step = 2;
+        $this->internalDuplicates = [];
+        $this->externalDuplicates = [];
+        $this->step = 1;
     }
 
     // ── Étape 3 : dispatch du job ─────────────────────────────────
@@ -604,12 +729,6 @@ class ImportWizard extends Component
                 'error' => '',
             ], 7200);
 
-            // Lignes à ignorer suite à l'analyse doublons
-            $skipRows = array_keys(array_filter(
-                $this->duplicateDecisions,
-                fn ($d) => $d === 'skip'
-            ));
-
             ImportDatagridJob::dispatch(
                 orgSlug: $this->resolveOrgSlug(),
                 importId: $this->importId,
@@ -622,7 +741,6 @@ class ImportWizard extends Component
                 fileHasHeader: $this->fileHasHeader,
                 columnMapping: $this->columnMapping,
                 defaultVisibility: 'restricted',
-                skipRows: $skipRows,
             );
 
             $this->tempPath = null;
@@ -637,11 +755,13 @@ class ImportWizard extends Component
 
     private function resolveOrgSlug(): string
     {
+
         return app(TenantManager::class)->current()->slug;
     }
 
     private function mysqlTableName(): string
     {
+
         return str_starts_with($this->tableName, 'dg_') ? $this->tableName : 'dg_'.$this->tableName;
     }
 
@@ -683,8 +803,8 @@ class ImportWizard extends Component
         }
 
         return view('livewire.tenant.datagrid.import-wizard', [
-            'columnTypes'       => DatagridColumnType::options(),
-            'sampleValues'      => $this->sampleValues,
+            'columnTypes' => DatagridColumnType::options(),
+            'sampleValues' => $this->sampleValues,
             'fuzzyColumnLabels' => $fuzzyColumnLabels,
         ]);
     }

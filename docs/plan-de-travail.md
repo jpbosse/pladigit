@@ -90,8 +90,8 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 
 | # | Tâche | Priorité | ADR | Remarque |
 |---|-------|----------|-----|----------|
-| 3.1 | Type de colonne `NOM_PERSONNE` dans l'enum et l'UI | 🟠 | ADR-039 §2.1 | Sous-type de TEXT |
-| 3.2 | Recherche floue (Levenshtein ≤ 2 + SOUNDS LIKE) sur colonnes `NOM_PERSONNE` | 🟠 | ADR-039 §2.1 | Activé sur `fuzzy_search = true` uniquement |
+| 3.1 | Type de colonne `NOM_PERSONNE` dans l'enum et l'UI -TERMINE | 🟠 | ADR-039 §2.1 | Sous-type de TEXT |
+| 3.2 | Recherche floue (Levenshtein ≤ 2 + SOUNDS LIKE) sur colonnes `NOM_PERSONNE` - TERMINE | 🟠 | ADR-039 §2.1 | Activé sur `fuzzy_search = true` uniquement |
 | 3.3 | Détection de doublons à l'import — présentation et choix (ignorer/fusionner/importer) | 🟠 | ADR-039 §2.1 | Étape 3 de l'assistant RGPD (ADR-037) |
 | 3.4 | Interface de fusion de doublons — comparaison côte à côte champ par champ | 🟡 | ADR-039 §2.1 | Mécanisme destructif — confirmation stricte + audit log |
 | 3.5 | Import depuis un fichier GED existant (bouton "Parcourir la GED" dans le wizard) | 🟡 | ADR-039 | Évite re-téléchargement |
