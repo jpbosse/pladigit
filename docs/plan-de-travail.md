@@ -21,6 +21,8 @@
 |--------------------|
 | Bloc 0 |
 | Bloc 2 |
+| Bloc 3 |
+
 ---
 
 
@@ -81,20 +83,21 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | 2.14 | Droits au niveau colonne (masquer colonne selon service) - TERMINE | 🟡 | ADR-039 §2.2 | Ex : colonne Salaire → RH uniquement |
 | 2.15 | Création/modification de structure de grille par l'admin tenant - TERMINE| 🟡 | ADR-039 §2.4 | Renommer, réordonner — DDL réservé Super Admin |
 | 2.16 | Tri par défaut configurable par grille - TERMINE | 🟡 | ADR-039 | — |
-| 2.17 | Colonne numéro de ligne (optionnelle) - NE SERT A RIEN | 🟡 | ADR-039 | Utile registres officiels |
+| ~~2.17~~ | ~~Colonne numéro de ligne (optionnelle)~~ — *supprimé : colonne ordinaire TEXT ou NUMBER créée par le Super Admin selon le format de la collectivité* | ~~🟡~~ | ADR-039 | — |
 
 ---
 
-## Bloc 3 — DataGrid Qualité des données
+## Bloc 3 — DataGrid Qualité des données - TERMINE
 *Recherche floue et gestion des doublons — différenciant fort.*
 
 | # | Tâche | Priorité | ADR | Remarque |
 |---|-------|----------|-----|----------|
 | 3.1 | Type de colonne `NOM_PERSONNE` dans l'enum et l'UI -TERMINE | 🟠 | ADR-039 §2.1 | Sous-type de TEXT |
 | 3.2 | Recherche floue (Levenshtein ≤ 2 + SOUNDS LIKE) sur colonnes `NOM_PERSONNE` - TERMINE | 🟠 | ADR-039 §2.1 | Activé sur `fuzzy_search = true` uniquement |
-| 3.3 | Détection de doublons à l'import — présentation et choix (ignorer/fusionner/importer) | 🟠 | ADR-039 §2.1 | Étape 3 de l'assistant RGPD (ADR-037) |
-| 3.4 | Interface de fusion de doublons — comparaison côte à côte champ par champ | 🟡 | ADR-039 §2.1 | Mécanisme destructif — confirmation stricte + audit log |
-| 3.5 | Import depuis un fichier GED existant (bouton "Parcourir la GED" dans le wizard) | 🟡 | ADR-039 | Évite re-téléchargement |
+| 3.3 | Détection de doublons à l'import — avertissement avec contexte prénom/ville, seuil adaptatif Levenshtein, filtre abréviations — TERMINÉ | ✅ | ADR-039 §2.1 | Approche : avertir et laisser l'utilisateur corriger son fichier source |
+| ~~3.4~~ | ~~Interface de fusion de doublons~~ — *supprimé : remplacé par l'approche avertissement de 3.3* | ~~🟡~~ | ADR-039 §2.1 | — |
+| ~~3.5~~ | ~~Import depuis un fichier GED existant~~ — *supprimé : voir ADR-04x* | ~~🟡~~ | ADR-039 | Un fichier tableur modifié dans la GED ne serait pas reflété dans la DataGrid |
+| 3.6 | **ADR-04x** — Fichiers tableurs GED vs DataGrid : règle d'unicité de source de vérité. Upload d'un `.xlsx`/`.ods`/`.csv` dans la GED → proposition d'import DataGrid. Exception archivage lecture seule avec bandeau d'avertissement permanent. | 🟢 | ADR-04x | À rédiger avant implémentation |
 
 ---
 
