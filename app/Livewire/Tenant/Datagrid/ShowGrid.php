@@ -7,7 +7,6 @@ use App\Exports\DatagridExport;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
-use App\Services\DatagridFuzzySearch;
 use App\Services\DatagridPermissionService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -73,6 +72,9 @@ class ShowGrid extends Component
     /** Panneau de sélection des colonnes ouvert/fermé */
     public bool $showColumnPicker = false;
 
+    /** Contrôle la modale de confirmation de suppression d'une vue sauvegardée. */
+    public bool $confirmingDeleteView = false;
+
     /** @var array<int, int> IDs des colonnes masquées par les droits (2.14) — non modifiable par l'utilisateur */
     public array $forbiddenColumns = [];
 
@@ -84,7 +86,7 @@ class ShowGrid extends Component
         return [
             'row-updated' => 'resetRows',
             'row-deleted' => 'resetRows',
-            'row-added' => 'resetRows',
+            'row-added'   => 'resetRows',
         ];
     }
 
@@ -108,11 +110,11 @@ class ShowGrid extends Component
 
         if (! empty($initialSort['column'])) {
             // Tri explicite passé en paramètre (vue sauvegardée, lien direct)
-            $this->sortColumn = $initialSort['column'];
+            $this->sortColumn    = $initialSort['column'];
             $this->sortDirection = $initialSort['direction'] ?? 'asc';
         } elseif ($table->default_sort_column !== null && $table->default_sort_column !== '') {
             // Tri par défaut configuré sur la grille par l'admin (2.16)
-            $this->sortColumn = $table->default_sort_column;
+            $this->sortColumn    = $table->default_sort_column;
             $this->sortDirection = $table->default_sort_direction ?? 'asc';
         }
 
@@ -223,22 +225,7 @@ class ShowGrid extends Component
                 continue;
             }
 
-            // Recherche floue pour NOM_PERSONNE avec fuzzy_search activé (3.2)
-            if ($col->type === DatagridColumnType::NOM_PERSONNE && $col->fuzzy_search) {
-                $ids = DatagridFuzzySearch::matchingIds(
-                    $this->table->mysql_table,
-                    $name,
-                    $val
-                );
-                if (empty($ids)) {
-                    // Aucune correspondance floue → forcer 0 résultat
-                    $query->whereRaw('1 = 0');
-                } else {
-                    $query->whereIn('id', $ids);
-                }
-            } else {
-                $query->where($name, 'like', '%'.$val.'%');
-            }
+            $query->where($name, 'like', '%'.$val.'%');
         }
 
         if ($this->sortColumn !== '') {
@@ -292,7 +279,16 @@ class ShowGrid extends Component
         $viewId = (int) $value;
 
         if ($viewId === 0) {
-            $this->filters = [];
+            // Réinitialiser à la visibilité par défaut
+            $this->filters        = [];
+            $this->sortColumn     = $this->table->default_sort_column ?? '';
+            $this->sortDirection  = $this->table->default_sort_direction ?? 'asc';
+            $this->visibleColumns = $this->table->columns
+                ->whereNotIn('id', $this->forbiddenColumns)
+                ->where('visible_by_default', true)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
             $this->resetPage();
 
             return;
@@ -303,6 +299,24 @@ class ShowGrid extends Component
             ->findOrFail($viewId);
 
         $this->filters = $view->filters ?? [];
+
+        // Restaurer les colonnes visibles sauvegardées
+        if (! empty($view->visible_columns)) {
+            // Filtrer les colonnes interdites par les droits
+            $this->visibleColumns = array_values(
+                array_filter(
+                    array_map('intval', $view->visible_columns),
+                    fn ($id) => ! in_array($id, $this->forbiddenColumns, true)
+                )
+            );
+        }
+
+        // Restaurer le tri sauvegardé
+        if (! empty($view->sort_column)) {
+            $this->sortColumn    = $view->sort_column;
+            $this->sortDirection = $view->sort_direction ?? 'asc';
+        }
+
         $this->resetPage();
     }
 
@@ -312,15 +326,27 @@ class ShowGrid extends Component
 
         $view = DatagridSavedView::create([
             'datagrid_table_id' => $this->table->id,
-            'user_id' => auth()->id(),
-            'name' => $this->newViewName,
-            'filters' => $this->filters,
+            'user_id'           => auth()->id(),
+            'name'              => $this->newViewName,
+            'filters'           => $this->filters,
+            'visible_columns'   => $this->visibleColumns,
+            'sort_column'       => $this->sortColumn !== '' ? $this->sortColumn : null,
+            'sort_direction'    => $this->sortDirection,
         ]);
 
         $this->activeViewId = $view->id;
         $this->newViewName = '';
 
         $this->dispatch('view-saved');
+    }
+
+    public function confirmDeleteView(): void
+    {
+        if (! $this->activeViewId) {
+            return;
+        }
+
+        $this->deleteView($this->activeViewId);
     }
 
     public function deleteView(int $viewId): void
@@ -331,9 +357,9 @@ class ShowGrid extends Component
 
         $view->delete();
 
-        if ($this->activeViewId === $viewId) {
-            $this->activeViewId = null;
-        }
+        $this->activeViewId         = null;
+        $this->confirmingDeleteView = false;
+        unset($this->rows);
     }
 
     // ── Colonnes ──────────────────────────────────────────────────────────────
@@ -515,9 +541,9 @@ class ShowGrid extends Component
         $savedViews = $this->table->savedViews()->where('user_id', auth()->id())->get();
 
         return view('livewire.tenant.datagrid.show-grid', [
-            'columns' => $columns->whereNotIn('id', $this->forbiddenColumns),
-            'savedViews' => $savedViews,
-            'columnTypes' => DatagridColumnType::options(),
+            'columns'        => $columns->whereNotIn('id', $this->forbiddenColumns),
+            'savedViews'     => $savedViews,
+            'columnTypes'    => DatagridColumnType::options(),
             'visibleColumns' => $this->visibleColumns,
             'forbiddenColumns' => $this->forbiddenColumns,
         ]);

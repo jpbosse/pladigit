@@ -154,19 +154,25 @@
                    class="w-4 h-4 cursor-pointer" style="accent-color:#dc2626;">
         </label>
 
-        {{-- Recherche floue — uniquement pour NOM_PERSONNE --}}
-        <label id="row-fuzzy"
-               class="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors
-                       {{ $column->type->value !== 'nom_personne' ? 'hidden' : '' }}">
-            <div>
-                <div class="text-sm font-semibold text-gray-800">Recherche floue (Levenshtein)</div>
-                <div class="text-xs text-gray-400">
-                    Tolère les variantes orthographiques (Dupond/Dupont). Active aussi la détection
-                    de doublons à l'import. Désactivé par défaut pour préserver les performances.
-                </div>
-            </div>
+    </div>
+
+
+    {{-- ── Bloc fuzzy (NOM_PERSONNE) ────────────────────────────────── --}}
+    <div id="block-fuzzy"
+         class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-4
+                 {{ $column->type->value !== 'nom_personne' ? 'hidden' : '' }}">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">⑤ Recherche floue</h2>
+        <label class="flex items-center gap-3 cursor-pointer">
             <input id="f-fuzzy" type="checkbox" {{ $column->fuzzy_search ? 'checked' : '' }}
                    class="w-4 h-4 cursor-pointer accent-blue-800">
+            <div>
+                <div class="text-sm font-semibold text-gray-800">Activer la recherche floue (Levenshtein)</div>
+                <div class="text-xs text-gray-400">
+                    Tolère les variantes orthographiques (Dupond/Dupont, distance ≤ 2).
+                    Active aussi la détection de doublons à l'import.
+                    Désactivé par défaut pour préserver les performances.
+                </div>
+            </div>
         </label>
     </div>
 
@@ -204,8 +210,8 @@
         var el = document.getElementById('block-length');
         el.classList.toggle('hidden', !hasLengthTypes.includes(t));
         // Afficher la case fuzzy uniquement pour NOM_PERSONNE
-        var rowFuzzy = document.getElementById('row-fuzzy');
-        if (rowFuzzy) { rowFuzzy.classList.toggle('hidden', t !== 'nom_personne'); }
+        var blockFuzzy = document.getElementById('block-fuzzy');
+        if (blockFuzzy) { blockFuzzy.classList.toggle('hidden', t !== 'nom_personne'); }
     };
 
     window.selectTab = function (val) {

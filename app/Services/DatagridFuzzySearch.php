@@ -61,7 +61,6 @@ class DatagridFuzzySearch
             // Correspondance exacte (après normalisation)
             if ($hay === $needle) {
                 $matchedIds[] = (int) $row->id;
-
                 continue;
             }
 
@@ -77,16 +76,21 @@ class DatagridFuzzySearch
         }
 
         // ── 2. Fallback SOUNDS LIKE MySQL ─────────────────────────────────────
-        // Complète Levenshtein pour les homophones (Dupond/Dupont déjà couverts,
-        // mais Beauchamp/Beaucham pas forcément).
-        $soundsLikeIds = DB::connection('tenant')
-            ->table($mysqlTable)
-            ->whereRaw("`{$columnName}` SOUNDS LIKE ?", [$searchValue])
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->toArray();
+        // Appliqué uniquement si :
+        //   - Levenshtein n'a rien trouvé (évite les doublons inutiles)
+        //   - La valeur recherchée a au moins 4 caractères (Soundex trop imprécis sur les courts termes)
+        if (empty($matchedIds) && strlen($needle) >= 4) {
+            $soundsLikeIds = DB::connection('tenant')
+                ->table($mysqlTable)
+                ->whereRaw("`{$columnName}` SOUNDS LIKE ?", [$searchValue])
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->toArray();
 
-        return array_values(array_unique(array_merge($matchedIds, $soundsLikeIds)));
+            return array_values(array_unique($soundsLikeIds));
+        }
+
+        return array_values($matchedIds);
     }
 
     /**
@@ -124,10 +128,10 @@ class DatagridFuzzySearch
             $needle = self::normalize($needleRaw);
 
             $bestMatch = null;
-            $bestDist = PHP_INT_MAX;
+            $bestDist  = PHP_INT_MAX;
 
             foreach ($existingValues as $existing) {
-                $hay = self::normalize((string) $existing['value']);
+                $hay  = self::normalize((string) $existing['value']);
                 if ($hay === '') {
                     continue;
                 }
@@ -144,18 +148,18 @@ class DatagridFuzzySearch
 
                 $dist = levenshtein($needle, $hay);
                 if ($dist <= $maxDistance && $dist < $bestDist) {
-                    $bestDist = $dist;
+                    $bestDist  = $dist;
                     $bestMatch = $existing;
                 }
             }
 
             if ($bestMatch !== null) {
                 $duplicates[] = [
-                    'import_value' => $needleRaw,
-                    'import_index' => $importIndex,
-                    'existing_id' => $bestMatch['id'],
+                    'import_value'   => $needleRaw,
+                    'import_index'   => $importIndex,
+                    'existing_id'    => $bestMatch['id'],
                     'existing_value' => $bestMatch['value'],
-                    'distance' => $bestDist,
+                    'distance'       => $bestDist,
                 ];
             }
         }
@@ -172,7 +176,6 @@ class DatagridFuzzySearch
         $value = mb_strtolower(trim($value));
         $value = Str::ascii($value);            // supprime les accents
         $value = preg_replace('/\s+/', ' ', $value) ?? $value; // espaces multiples
-
         return $value;
     }
 }

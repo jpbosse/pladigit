@@ -65,16 +65,21 @@ class DatagridColumn extends Model
         'fuzzy_search',
     ];
 
+    /** @var array<string, mixed> Valeurs par défaut PHP (complètent les défauts MySQL). */
+    protected $attributes = [
+        'fuzzy_search' => false,
+    ];
+
     protected $casts = [
-        'type' => DatagridColumnType::class,
-        'length' => 'int',
-        'required' => 'bool',
+        'type'             => DatagridColumnType::class,
+        'length'           => 'int',
+        'required'         => 'bool',
         'visible_by_default' => 'bool',
         'is_rgpd_sensitive' => 'bool',
-        'is_role_column' => 'bool',
-        'options' => 'array',
-        'sort_order' => 'int',
-        'fuzzy_search' => 'bool',
+        'is_role_column'   => 'bool',
+        'options'          => 'array',
+        'sort_order'       => 'int',
+        'fuzzy_search'     => 'bool',
     ];
 
     // ── Accesseurs ───────────────────────────────────────────

@@ -580,7 +580,8 @@
         <div style="background:#92400e;padding:18px 24px;">
             <div style="font-size:16px;font-weight:700;color:#fff;">⚠ Doublons potentiels détectés</div>
             <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;">
-                {{ count($duplicates) }} correspondance(s) suspecte(s) — décidez ligne par ligne avant d'importer.
+                {{ count($duplicates) }} correspondance(s) détectée(s) par recherche floue (Levenshtein ≤ 2)
+                — décidez ligne par ligne avant d'importer.
             </div>
         </div>
 
@@ -946,6 +947,17 @@
                         padding:12px 14px;font-size:12px;color:#1e40af;margin-bottom:20px;line-height:1.7;">
                 Les lignes du fichier Excel seront ajoutées aux données existantes de la grille
                 <strong>{{ $targetGrid['label'] ?? '' }}</strong>.
+            </div>
+            @endif
+
+            {{-- Note recherche floue --}}
+            @if(!empty($fuzzyColumnLabels))
+            <div style="background:#eff6ff;border:0.5px solid #bfdbfe;border-radius:8px;
+                        padding:12px 14px;font-size:12px;color:#1e40af;margin-bottom:16px;line-height:1.7;">
+                🔍 <strong>Analyse de doublons activée</strong> — une recherche floue (Levenshtein ≤ 2)
+                sera effectuée sur {{ count($fuzzyColumnLabels) > 1 ? 'les colonnes' : 'la colonne' }} :
+                <strong>{{ implode(', ', $fuzzyColumnLabels) }}</strong>.
+                Les correspondances suspectes vous seront présentées avant le lancement.
             </div>
             @endif
 

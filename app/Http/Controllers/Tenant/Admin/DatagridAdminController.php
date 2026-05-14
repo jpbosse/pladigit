@@ -444,7 +444,7 @@ class DatagridAdminController extends Controller
     private function typesCompatible(DatagridColumnType $from, DatagridColumnType $to): bool
     {
         $families = [
-            [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE],
+            [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE, DatagridColumnType::NOM_PERSONNE],
             [DatagridColumnType::NUMBER],
             [DatagridColumnType::DATE],
             [DatagridColumnType::BOOLEAN],

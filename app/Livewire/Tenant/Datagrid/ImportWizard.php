@@ -4,14 +4,13 @@ namespace App\Livewire\Tenant\Datagrid;
 
 use App\Enums\DatagridColumnType;
 use App\Imports\DatagridImport;
+use App\Services\DatagridFuzzySearch;
 use App\Jobs\ImportDatagridJob;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
-use App\Services\DatagridFuzzySearch;
 use App\Services\TenantManager;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -376,14 +375,12 @@ class ImportWizard extends Component
     {
         if ($this->importMode !== 'update' || ! $this->targetTableId) {
             $this->step = 3;
-
             return;
         }
 
         $dgTable = DatagridTable::find($this->targetTableId);
         if (! $dgTable) {
             $this->step = 3;
-
             return;
         }
 
@@ -395,13 +392,12 @@ class ImportWizard extends Component
 
         if ($fuzzyCols->isEmpty()) {
             $this->step = 3;
-
             return;
         }
 
         // Lire les valeurs du fichier pour les colonnes fuzzy
-        $import = new DatagridImport(fullRead: true);
-        Excel::import($import, Storage::disk('local')->path($this->tempPath));
+        $import = new \App\Imports\DatagridImport(fullRead: true);
+        \Maatwebsite\Excel\Facades\Excel::import($import, \Illuminate\Support\Facades\Storage::disk('local')->path($this->tempPath));
         $rows = $import->getData();
 
         $this->duplicates = [];
@@ -421,7 +417,7 @@ class ImportWizard extends Component
             }
 
             // Valeurs existantes en base
-            $existingValues = DB::connection('tenant')
+            $existingValues = \Illuminate\Support\Facades\DB::connection('tenant')
                 ->table($dgTable->mysql_table)
                 ->select('id', $col->name)
                 ->whereNotNull($col->name)
@@ -673,9 +669,23 @@ class ImportWizard extends Component
 
     public function render(): View
     {
+        // Colonnes NOM_PERSONNE + fuzzy_search de la grille cible (mode update)
+        $fuzzyColumnLabels = [];
+        if ($this->importMode === 'update' && $this->targetTableId) {
+            $dgTable = DatagridTable::find($this->targetTableId);
+            if ($dgTable) {
+                $fuzzyColumnLabels = $dgTable->columns()
+                    ->where('fuzzy_search', true)
+                    ->whereIn('type', ['nom_personne'])
+                    ->pluck('label')
+                    ->toArray();
+            }
+        }
+
         return view('livewire.tenant.datagrid.import-wizard', [
-            'columnTypes' => DatagridColumnType::options(),
-            'sampleValues' => $this->sampleValues,
+            'columnTypes'       => DatagridColumnType::options(),
+            'sampleValues'      => $this->sampleValues,
+            'fuzzyColumnLabels' => $fuzzyColumnLabels,
         ]);
     }
 }

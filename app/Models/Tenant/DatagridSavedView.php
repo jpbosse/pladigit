@@ -19,6 +19,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int|null $department_id
  * @property string $name
  * @property array $filters
+ * @property array|null $visible_columns
+ * @property string|null $sort_column
+ * @property string|null $sort_direction
  * @property bool $is_default
  */
 class DatagridSavedView extends Model
@@ -33,12 +36,16 @@ class DatagridSavedView extends Model
         'department_id',
         'name',
         'filters',
+        'visible_columns',
+        'sort_column',
+        'sort_direction',
         'is_default',
     ];
 
     protected $casts = [
-        'filters' => 'array',
-        'is_default' => 'bool',
+        'filters'         => 'array',
+        'visible_columns' => 'array',
+        'is_default'      => 'bool',
     ];
 
     // ── Relations ────────────────────────────────────────────

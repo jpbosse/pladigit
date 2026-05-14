@@ -8,13 +8,22 @@
 
     {{-- Vues sauvegardées --}}
     @if($savedViews->count())
-    <select wire:model.live="activeViewId"
-            style="padding:6px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);">
-        <option value="">— Choisir une vue —</option>
-        @foreach($savedViews as $sv)
-        <option value="{{ $sv->id }}" {{ $activeViewId === $sv->id ? 'selected' : '' }}>{{ $sv->name }}</option>
-        @endforeach
-    </select>
+    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <select wire:model.live="activeViewId"
+                style="padding:6px 10px;border:1px solid var(--pd-border);border-radius:7px;font-size:12px;color:var(--pd-text);background:var(--pd-bg);">
+            <option value="">— Choisir une vue —</option>
+            @foreach($savedViews as $sv)
+            <option value="{{ $sv->id }}" {{ $activeViewId === $sv->id ? 'selected' : '' }}>{{ $sv->name }}</option>
+            @endforeach
+        </select>
+        @if($activeViewId)
+        <button wire:click="$set('confirmingDeleteView', true)"
+                style="padding:5px 9px;border:1px solid #fca5a5;border-radius:7px;font-size:12px;
+                       color:#dc2626;background:#fef2f2;cursor:pointer;line-height:1;">
+            🗑
+        </button>
+        @endif
+    </div>
     @endif
 
     {{-- Sauvegarder la vue courante --}}
@@ -316,5 +325,34 @@
 
 {{-- Modal ajout — stub prêt (AddRowModal à créer, Bloc 2.4 migré) --}}
 {{-- @livewire('tenant.datagrid.add-row-modal', [...], key('add-modal-'.$table->id)) --}}
+
+
+{{-- ── Modale confirmation suppression vue ─────────────────────────── --}}
+@if($confirmingDeleteView)
+<div style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;
+            display:flex;align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:12px;padding:28px;max-width:380px;width:90%;
+                box-shadow:0 20px 60px rgba(0,0,0,.2);">
+        <h3 style="font-size:15px;font-weight:700;color:var(--pd-text);margin:0 0 10px;">
+            Supprimer la vue
+        </h3>
+        <p style="font-size:13px;color:var(--pd-muted);margin:0 0 20px;line-height:1.5;">
+            Confirmer la suppression de cette vue sauvegardée ?
+        </p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+            <button wire:click="$set('confirmingDeleteView', false)"
+                    style="padding:7px 16px;border:1px solid var(--pd-border);border-radius:7px;
+                           font-size:13px;color:var(--pd-text);background:#fff;cursor:pointer;">
+                Annuler
+            </button>
+            <button wire:click="deleteView({{ $activeViewId }})"
+                    style="padding:7px 16px;background:#dc2626;color:#fff;border:none;
+                           border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;">
+                Supprimer
+            </button>
+        </div>
+    </div>
+</div>
+@endif
 
 </div>

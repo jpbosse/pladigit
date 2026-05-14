@@ -142,6 +142,22 @@
             </span>
         </div>
 
+        {{-- Recherche floue — uniquement pour NOM_PERSONNE --}}
+        <div id="block-fuzzy"
+             style="margin-bottom:16px;display:{{ $column->type->value === 'nom_personne' ? 'block' : 'none' }};">
+            <label style="display:flex;align-items:flex-start;gap:8px;font-size:13px;cursor:pointer;">
+                <input id="f-fuzzy" type="checkbox" {{ $column->fuzzy_search ? 'checked' : '' }}
+                       style="margin-top:2px;width:15px;height:15px;cursor:pointer;">
+                <span>
+                    <strong style="font-size:13px;color:var(--pd-text);">Recherche floue (Levenshtein)</strong>
+                    <span style="display:block;font-size:11px;color:var(--pd-muted);margin-top:2px;">
+                        Tolère les variantes orthographiques (Dupond/Dupont, distance ≤ 2).
+                        Active aussi la détection de doublons à l'import.
+                    </span>
+                </span>
+            </label>
+        </div>
+
         {{-- Ordre --}}
         <div style="margin-bottom:16px;">
             <label style="font-size:12px;color:var(--pd-muted);display:block;margin-bottom:4px;">Ordre d'affichage</label>
@@ -197,16 +213,7 @@
                 <input id="f-rgpd" type="checkbox" {{ $column->is_rgpd_sensitive ? 'checked' : '' }}>
                 Donnée RGPD sensible
             </label>
-            <label id="row-fuzzy" style="display:{{ $column->type->value === 'nom_personne' ? 'flex' : 'none' }};align-items:center;gap:8px;font-size:13px;cursor:pointer;">
-                <input id="f-fuzzy" type="checkbox" {{ $column->fuzzy_search ? 'checked' : '' }}>
-                <span>
-                    Recherche floue (Levenshtein)
-                    <span style="display:block;font-size:11px;color:var(--pd-muted);">
-                        Tolère les variantes orthographiques (Dupond/Dupont). Active aussi la
-                        détection de doublons à l'import.
-                    </span>
-                </span>
-            </label>
+
         </div>
 
         {{-- Actions --}}
@@ -240,8 +247,8 @@
         document.getElementById('block-options').style.display =
             t === 'select' ? 'block' : 'none';
         // Afficher la case fuzzy uniquement pour NOM_PERSONNE
-        var rowFuzzy = document.getElementById('row-fuzzy');
-        if (rowFuzzy) { rowFuzzy.style.display = t === 'nom_personne' ? 'flex' : 'none'; }
+        var blockFuzzy = document.getElementById('block-fuzzy');
+        if (blockFuzzy) { blockFuzzy.style.display = t === 'nom_personne' ? 'block' : 'none'; }
     };
 
     window.selectTab = function (val) {

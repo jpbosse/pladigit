@@ -37,40 +37,40 @@ class DatagridQualiteTest extends TestCase
         app(TenantManager::class)->current()->enableModule(ModuleKey::DATAGRID);
 
         $this->admin = User::factory()->create(['role' => 'admin', 'status' => 'active']);
-        $this->user = User::factory()->create(['role' => 'user',  'status' => 'active']);
+        $this->user  = User::factory()->create(['role' => 'user',  'status' => 'active']);
 
         $this->table = DatagridTable::create([
-            'name' => 'test_qualite',
-            'label' => 'Grille Qualité Test',
+            'name'        => 'test_qualite',
+            'label'       => 'Grille Qualité Test',
             'mysql_table' => $this->mysqlTable,
-            'has_rgpd' => false,
-            'created_by' => $this->admin->id,
+            'has_rgpd'    => false,
+            'created_by'  => $this->admin->id,
         ]);
 
         DatagridColumn::create([
             'datagrid_table_id' => $this->table->id,
-            'name' => 'nom',
-            'label' => 'Nom',
-            'type' => DatagridColumnType::NOM_PERSONNE,
-            'required' => false,
+            'name'              => 'nom',
+            'label'             => 'Nom',
+            'type'              => DatagridColumnType::NOM_PERSONNE,
+            'required'          => false,
             'visible_by_default' => true,
             'is_rgpd_sensitive' => false,
-            'is_role_column' => false,
-            'sort_order' => 0,
-            'fuzzy_search' => false,
+            'is_role_column'    => false,
+            'sort_order'        => 0,
+            'fuzzy_search'      => false,
         ]);
 
         DatagridColumn::create([
             'datagrid_table_id' => $this->table->id,
-            'name' => 'commune',
-            'label' => 'Commune',
-            'type' => DatagridColumnType::TEXT,
-            'required' => false,
+            'name'              => 'commune',
+            'label'             => 'Commune',
+            'type'              => DatagridColumnType::TEXT,
+            'required'          => false,
             'visible_by_default' => true,
             'is_rgpd_sensitive' => false,
-            'is_role_column' => false,
-            'sort_order' => 1,
-            'fuzzy_search' => false,
+            'is_role_column'    => false,
+            'sort_order'        => 1,
+            'fuzzy_search'      => false,
         ]);
 
         Schema::connection('tenant')->create($this->mysqlTable, function ($t) {
@@ -105,13 +105,13 @@ class DatagridQualiteTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('admin.datagrid.columns.update', [$this->table, $col]), [
-                'label' => 'Nom',
+                'label'             => 'Nom',
                 'visible_by_default' => true,
-                'required' => false,
+                'required'          => false,
                 'is_rgpd_sensitive' => false,
-                'sort_order' => 0,
-                'type' => 'nom_personne',
-                'fuzzy_search' => true,
+                'sort_order'        => 0,
+                'type'              => 'nom_personne',
+                'fuzzy_search'      => true,
             ])
             ->assertOk()
             ->assertJson(['success' => true]);
@@ -127,32 +127,32 @@ class DatagridQualiteTest extends TestCase
 
         $this->actingAs($this->admin, 'tenant')
             ->patchJson(route('admin.datagrid.columns.update', [$this->table, $col]), [
-                'label' => 'Nom',
+                'label'             => 'Nom',
                 'visible_by_default' => true,
-                'required' => false,
+                'required'          => false,
                 'is_rgpd_sensitive' => false,
-                'sort_order' => 0,
-                'type' => 'nom_personne',
-                'fuzzy_search' => false,
+                'sort_order'        => 0,
+                'type'              => 'nom_personne',
+                'fuzzy_search'      => false,
             ])
             ->assertOk();
 
         $col->refresh();
-        $this->assertFalse($col->fuzzy_search);
+        $this->assertFalse((bool) $col->fuzzy_search);
     }
 
     public function test_fuzzy_search_est_false_par_defaut(): void
     {
         $col = DatagridColumn::create([
             'datagrid_table_id' => $this->table->id,
-            'name' => 'prenom',
-            'label' => 'Prénom',
-            'type' => DatagridColumnType::NOM_PERSONNE,
-            'required' => false,
+            'name'              => 'prenom',
+            'label'             => 'Prénom',
+            'type'              => DatagridColumnType::NOM_PERSONNE,
+            'required'          => false,
             'visible_by_default' => true,
             'is_rgpd_sensitive' => false,
-            'is_role_column' => false,
-            'sort_order' => 2,
+            'is_role_column'    => false,
+            'sort_order'        => 2,
         ]);
 
         $this->assertFalse($col->fuzzy_search);
@@ -204,7 +204,7 @@ class DatagridQualiteTest extends TestCase
 
     public function test_detect_duplicates_trouve_doublon_proche(): void
     {
-        $importValues = ['Dupond Jean', 'Nouveau Nom'];
+        $importValues   = ['Dupond Jean', 'Nouveau Nom'];
         $existingValues = [
             ['id' => 1, 'value' => 'Dupont Jean'],
             ['id' => 2, 'value' => 'Martin Marie'],
@@ -221,7 +221,7 @@ class DatagridQualiteTest extends TestCase
     public function test_detect_duplicates_ne_signale_pas_exact(): void
     {
         // Correspondance exacte → mise à jour normale, pas un doublon suspect
-        $importValues = ['Dupont Jean'];
+        $importValues   = ['Dupont Jean'];
         $existingValues = [['id' => 1, 'value' => 'Dupont Jean']];
 
         $result = DatagridFuzzySearch::detectDuplicates($importValues, $existingValues);
@@ -230,7 +230,7 @@ class DatagridQualiteTest extends TestCase
 
     public function test_detect_duplicates_retourne_vide_sans_correspondance(): void
     {
-        $importValues = ['Untel Inconnu'];
+        $importValues   = ['Untel Inconnu'];
         $existingValues = [
             ['id' => 1, 'value' => 'Dupont Jean'],
             ['id' => 2, 'value' => 'Martin Marie'],
@@ -243,7 +243,7 @@ class DatagridQualiteTest extends TestCase
     public function test_detect_duplicates_retourne_meilleur_match(): void
     {
         // "Dupond Jean" est plus proche de "Dupont Jean" (dist 1) que de "Dupond Marie" (dist 5)
-        $importValues = ['Dupond Jean'];
+        $importValues   = ['Dupond Jean'];
         $existingValues = [
             ['id' => 1, 'value' => 'Dupont Jean'],
             ['id' => 3, 'value' => 'Bernard Paul'],

@@ -217,7 +217,7 @@ class DatagridController extends Controller
 
         if ($newType !== $oldType) {
             $families = [
-                [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE],
+                [DatagridColumnType::TEXT, DatagridColumnType::EMAIL, DatagridColumnType::PHONE, DatagridColumnType::SELECT, DatagridColumnType::SIRET, DatagridColumnType::POSTAL_CODE, DatagridColumnType::NOM_PERSONNE],
                 [DatagridColumnType::NUMBER],
                 [DatagridColumnType::DATE],
                 [DatagridColumnType::BOOLEAN],
