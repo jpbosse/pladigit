@@ -257,6 +257,8 @@ Route::middleware('tenant')->group(function () {
                 Route::get('datagrid/{table}/edit', [DatagridAdminController::class, 'edit'])->name('datagrid.edit');
                 Route::get('datagrid/{table}/permissions', [DatagridAdminController::class, 'permissions'])->name('datagrid.permissions');
                 Route::patch('datagrid/{table}', [DatagridAdminController::class, 'update'])->name('datagrid.update');
+                Route::patch('datagrid/{table}/settings', [DatagridAdminController::class, 'updateSettings'])->name('datagrid.settings.update');
+                Route::patch('datagrid/{table}/columns/reorder', [DatagridAdminController::class, 'reorderColumns'])->name('datagrid.columns.reorder');
                 Route::delete('datagrid/{table}', [DatagridAdminController::class, 'destroy'])->name('datagrid.destroy');
                 Route::get('datagrid/{table}/columns/{column}/edit', [DatagridAdminController::class, 'editColumn'])->name('datagrid.columns.edit');
                 Route::patch('datagrid/{table}/columns/{column}', [DatagridAdminController::class, 'updateColumn'])->name('datagrid.columns.update');

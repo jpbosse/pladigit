@@ -74,14 +74,25 @@
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5 overflow-hidden">
         <div class="px-5 py-3 border-b bg-gray-50 flex items-center justify-between">
             <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">② Colonnes ({{ $columns->count() }})</h2>
+            @if($columns->count() > 1)
+            <div class="flex items-center gap-3">
+                <span id="badge-order-ok" style="display:none;font-size:12px;color:#16a34a;font-weight:600;">✓ Ordre sauvegardé</span>
+                <button id="btn-save-order" type="button"
+                        style="background:var(--pd-navy);"
+                        class="px-3 py-1 text-white rounded text-xs font-semibold border-0 cursor-pointer">
+                    💾 Enregistrer l'ordre
+                </button>
+            </div>
+            @endif
         </div>
 
         @if($columns->isEmpty())
         <p class="text-sm text-gray-400 p-5">Aucune colonne.</p>
         @else
-        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <table id="cols-table" style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
                 <tr class="bg-gray-50">
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-400 border-b" title="Glisser pour réordonner">⇅</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-400 border-b">#</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-400 border-b">Nom technique</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-400 border-b">Label</th>
@@ -95,7 +106,8 @@
             <tbody>
                 @foreach($columns as $col)
                 @php $tab = $col->tab ?? 'main'; @endphp
-                <tr class="border-b hover:bg-gray-50 transition-colors">
+                <tr class="border-b hover:bg-gray-50 transition-colors" data-col-id="{{ $col->id }}">
+                    <td class="px-4 py-2 text-gray-400 text-center" style="cursor:grab;font-size:14px;user-select:none;" title="Glisser pour réordonner">⠿</td>
                     <td class="px-4 py-2 text-gray-400">{{ $col->sort_order }}</td>
                     <td class="px-4 py-2 font-mono font-semibold text-blue-900">{{ $col->name }}</td>
                     <td class="px-4 py-2 font-medium text-gray-800">{{ $col->label }}</td>
@@ -141,11 +153,64 @@
         @endif
     </div>
 
+    {{-- ── Présentation de la grille (2.16 + 2.17) ────────────────────────── --}}
+    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mb-5" id="bloc-presentation">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4 pb-2 border-b">③ Présentation</h2>
+
+        <div id="badge-settings-ok" style="display:none;" class="mb-3 px-4 py-2 bg-green-50 border border-green-200 rounded-lg text-sm font-semibold text-green-800">
+            ✓ Paramètres enregistrés
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">
+                    Tri par défaut
+                    <span class="font-normal text-gray-400">— colonne</span>
+                </label>
+                <select id="f-default-sort-col"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    <option value="">— Aucun (ordre naturel) —</option>
+                    @foreach($columns as $col)
+                    <option value="{{ $col->name }}"
+                            {{ ($table->default_sort_column ?? '') === $col->name ? 'selected' : '' }}>
+                        {{ $col->label }} ({{ $col->name }})
+                    </option>
+                    @endforeach
+                </select>
+            </div>
+            <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">
+                    Sens du tri par défaut
+                </label>
+                <select id="f-default-sort-dir"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200">
+                    <option value="asc"  {{ ($table->default_sort_direction ?? 'asc') === 'asc'  ? 'selected' : '' }}>Croissant (A → Z)</option>
+                    <option value="desc" {{ ($table->default_sort_direction ?? 'asc') === 'desc' ? 'selected' : '' }}>Décroissant (Z → A)</option>
+                </select>
+            </div>
+        </div>
+
+        <label class="flex items-center gap-3 mb-4 cursor-pointer">
+            <input id="f-show-row-number" type="checkbox" class="w-4 h-4 accent-blue-800"
+                   {{ $table->show_row_number ? 'checked' : '' }}>
+            <div>
+                <div class="text-sm font-semibold text-gray-700">Afficher une colonne numéro de ligne (#)</div>
+                <div class="text-xs text-gray-400">Utile pour les registres officiels. La numérotation suit l'ordre affiché après tri et filtres.</div>
+            </div>
+        </label>
+
+        <button onclick="saveSettings()" type="button"
+                style="background:var(--pd-navy);"
+                class="px-5 py-2 text-white rounded-lg text-sm font-semibold border-0 cursor-pointer">
+            Enregistrer la présentation
+        </button>
+    </div>
+
     {{-- ── Droits d'accès ──────────────────────────────────────────────────── --}}
     <div class="bg-white rounded-xl border border-gray-200 shadow-sm mb-5 overflow-hidden">
         <div class="px-5 py-4 flex items-center justify-between">
             <div>
-                <h2 class="text-sm font-semibold text-gray-700">③ Droits d'accès</h2>
+                <h2 class="text-sm font-semibold text-gray-700">④ Droits d'accès</h2>
                 <p class="text-xs text-gray-400 mt-1">Gérer qui peut lire, écrire, supprimer et exporter les données.</p>
             </div>
             <a href="{{ route('admin.datagrid.permissions', $table) }}"
@@ -163,6 +228,88 @@
     var token   = '{{ csrf_token() }}';
     var tableId = {{ $table->id }};
     var baseUrl = '{{ url('/admin/datagrid') }}/' + tableId;
+
+    // ── Drag & drop réordonnancement colonnes (2.15) ──────────────────────────
+    (function initDragDrop() {
+        var tbody = document.querySelector('#cols-table tbody');
+        if (! tbody) { return; }
+
+        var dragged = null;
+
+        tbody.addEventListener('dragstart', function (e) {
+            dragged = e.target.closest('tr');
+            if (dragged) {
+                dragged.style.opacity = '0.5';
+                e.dataTransfer.effectAllowed = 'move';
+            }
+        });
+
+        tbody.addEventListener('dragend', function () {
+            if (dragged) { dragged.style.opacity = ''; dragged = null; }
+        });
+
+        tbody.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            var target = e.target.closest('tr');
+            if (target && target !== dragged) {
+                var rect   = target.getBoundingClientRect();
+                var after  = (e.clientY - rect.top) > rect.height / 2;
+                tbody.insertBefore(dragged, after ? target.nextSibling : target);
+            }
+        });
+
+        // Activer draggable uniquement sur la poignée
+        tbody.querySelectorAll('tr').forEach(function (row) {
+            row.setAttribute('draggable', 'true');
+        });
+
+        // Bouton Enregistrer l'ordre
+        document.getElementById('btn-save-order').addEventListener('click', function () {
+            var ids = [];
+            tbody.querySelectorAll('tr[data-col-id]').forEach(function (row) {
+                ids.push(parseInt(row.getAttribute('data-col-id')));
+            });
+            fetch(baseUrl + '/columns/reorder', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+                body: JSON.stringify({ order: ids }),
+            }).then(function (r) {
+                if (r.ok) {
+                    var badge = document.getElementById('badge-order-ok');
+                    badge.style.display = 'inline';
+                    setTimeout(function () { badge.style.display = 'none'; }, 2500);
+                    // Mettre à jour les numéros affichés
+                    tbody.querySelectorAll('tr[data-col-id]').forEach(function (row, i) {
+                        var cells = row.querySelectorAll('td');
+                        if (cells[1]) { cells[1].textContent = i; }
+                    });
+                } else {
+                    r.json().then(function (e) { alert(e.error || 'Erreur lors du réordonnancement'); });
+                }
+            });
+        });
+    }());
+
+    // ── Paramètres de présentation (2.16 + 2.17) ─────────────────────────────
+    window.saveSettings = function () {
+        fetch(baseUrl + '/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token },
+            body: JSON.stringify({
+                default_sort_column:    document.getElementById('f-default-sort-col').value,
+                default_sort_direction: document.getElementById('f-default-sort-dir').value,
+                show_row_number:        document.getElementById('f-show-row-number').checked,
+            }),
+        }).then(function (r) {
+            if (r.ok) {
+                var badge = document.getElementById('badge-settings-ok');
+                badge.style.display = 'block';
+                setTimeout(function () { badge.style.display = 'none'; }, 2500);
+            } else {
+                r.json().then(function (e) { alert(e.error || 'Erreur lors de la sauvegarde'); });
+            }
+        });
+    };
 
     function post(url, data) {
         return fetch(url, {

@@ -71,6 +71,65 @@ class DatagridAdminController extends Controller
         return response()->json(['success' => true]);
     }
 
+    /**
+     * Paramètres de présentation de la grille (2.16 + 2.17).
+     *
+     * Met à jour le tri par défaut et l'option numéro de ligne.
+     * Appelé depuis admin/datagrid/edit.blade.php via fetch PATCH.
+     */
+    public function updateSettings(DatagridTable $table): JsonResponse
+    {
+        $columns = $table->columns->pluck('name')->toArray();
+
+        $data = request()->validate([
+            'default_sort_column' => ['nullable', 'string', 'max:100', 'in:'.implode(',', array_merge([''], $columns))],
+            'default_sort_direction' => 'required|in:asc,desc',
+            'show_row_number' => 'boolean',
+        ]);
+
+        // Normaliser : chaîne vide → NULL
+        if (($data['default_sort_column'] ?? '') === '') {
+            $data['default_sort_column'] = null;
+        }
+
+        $table->update([
+            'default_sort_column' => $data['default_sort_column'],
+            'default_sort_direction' => $data['default_sort_direction'],
+            'show_row_number' => (bool) ($data['show_row_number'] ?? false),
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Réordonnancement des colonnes par l'admin tenant (2.15).
+     *
+     * Reçoit un tableau ordonné d'IDs de colonnes et met à jour sort_order.
+     * Aucun DDL — uniquement des UPDATE sur datagrid_columns.
+     *
+     * Body JSON attendu : { "order": [3, 1, 5, 2, 4] }
+     */
+    public function reorderColumns(DatagridTable $table): JsonResponse
+    {
+        $data = request()->validate([
+            'order' => 'required|array',
+            'order.*' => 'integer|min:1',
+        ]);
+
+        $columnIds = $table->columns->pluck('id')->toArray();
+
+        foreach ($data['order'] as $position => $columnId) {
+            if (! in_array((int) $columnId, $columnIds, true)) {
+                return response()->json(['error' => "Colonne {$columnId} inconnue."], 422);
+            }
+            DatagridColumn::where('id', $columnId)->update(['sort_order' => $position]);
+        }
+
+        app(DatagridPermissionService::class)->invalidateCacheForTable($table);
+
+        return response()->json(['success' => true]);
+    }
+
     // ── Droits par rôle ───────────────────────────────────────────────────────
 
     public function storeRolePermission(DatagridTable $table): RedirectResponse

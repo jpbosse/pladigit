@@ -106,8 +106,13 @@ class ShowGrid extends Component
         $this->filters = $initialFilters;
 
         if (! empty($initialSort['column'])) {
+            // Tri explicite passé en paramètre (vue sauvegardée, lien direct)
             $this->sortColumn = $initialSort['column'];
             $this->sortDirection = $initialSort['direction'] ?? 'asc';
+        } elseif ($table->default_sort_column !== null && $table->default_sort_column !== '') {
+            // Tri par défaut configuré sur la grille par l'admin (2.16)
+            $this->sortColumn = $table->default_sort_column;
+            $this->sortDirection = $table->default_sort_direction ?? 'asc';
         }
 
         foreach ($table->columns as $col) {
@@ -499,6 +504,7 @@ class ShowGrid extends Component
             'columnTypes' => DatagridColumnType::options(),
             'visibleColumns' => $this->visibleColumns,
             'forbiddenColumns' => $this->forbiddenColumns,
+            'showRowNumber' => (bool) ($this->table->show_row_number ?? false),
         ]);
     }
 

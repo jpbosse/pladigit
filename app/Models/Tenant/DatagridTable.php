@@ -12,11 +12,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * Définition d'une grille DataGrid — méta-table no-code.
  *
- * mysql_table     : table MySQL tenant sous-jacente (ex: "personnes").
- * is_persons_view : grille liée à personnes+roles_titres ;
- *                   l'import Excel transposera les colonnes "rôles" en lignes roles_titres.
- * role_categories : filtre JSON des RoleTitreCategorie visibles dans cette vue.
- * has_rgpd        : active l'audit trail complet et le registre des traitements.
+ * mysql_table            : table MySQL tenant sous-jacente (ex: "personnes").
+ * is_persons_view        : grille liée à personnes+roles_titres ;
+ *                          l'import Excel transposera les colonnes "rôles" en lignes roles_titres.
+ * role_categories        : filtre JSON des RoleTitreCategorie visibles dans cette vue.
+ * has_rgpd               : active l'audit trail complet et le registre des traitements.
+ * default_sort_column    : nom MySQL de la colonne triée par défaut. NULL = ordre naturel.
+ * default_sort_direction : sens du tri par défaut ('asc' ou 'desc').
+ * show_row_number        : affiche une colonne # numérotant les lignes (utile registres).
  *
  * @property int $id
  * @property string $name
@@ -27,6 +30,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property bool $is_persons_view
  * @property array|null $role_categories
  * @property int|null $created_by
+ * @property string|null $default_sort_column
+ * @property string $default_sort_direction
+ * @property bool $show_row_number
  */
 class DatagridTable extends Model
 {
@@ -44,6 +50,9 @@ class DatagridTable extends Model
         'role_categories',
         'created_by',
         'folder_id',
+        'default_sort_column',
+        'default_sort_direction',
+        'show_row_number',
     ];
 
     protected $casts = [
@@ -51,6 +60,7 @@ class DatagridTable extends Model
         'is_persons_view' => 'bool',
         'role_categories' => 'array',
         'deleted_at' => 'datetime',
+        'show_row_number' => 'bool',
     ];
 
     // ── Relations ────────────────────────────────────────────
