@@ -7,9 +7,11 @@ use App\Imports\DatagridImport;
 use App\Jobs\ImportDatagridJob;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
+use App\Services\DatagridFuzzySearch;
 use App\Services\TenantManager;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -80,6 +82,26 @@ class ImportWizard extends Component
      * @var array<int, array{name:string, label:string}>
      */
     public array $gridColumns = [];
+
+    // ── Étape 3b — détection doublons ────────────────────────────
+
+    /**
+     * Doublons détectés avant le lancement du job.
+     * Format : [{import_value, import_index, existing_id, existing_value, distance}, ...]
+     *
+     * @var array<int, array{import_value:string, import_index:int, existing_id:int, existing_value:string, distance:int}>
+     */
+    public array $duplicates = [];
+
+    /**
+     * Décision par ligne suspecte : 'skip' | 'import' (indexé par import_index)
+     *
+     * @var array<int, string>
+     */
+    public array $duplicateDecisions = [];
+
+    /** true quand l'étape doublons est active (step 3 avec doublons détectés) */
+    public bool $showDuplicateStep = false;
 
     // ── Étape 3 — job / progression ───────────────────────────────
 
@@ -266,7 +288,7 @@ class ImportWizard extends Component
 
     public function confirmMapping(): void
     {
-        $this->step = 3;
+        $this->analyzeDuplicates();
     }
 
     // ── Étape 2 : confirmation des colonnes (mode 'new') ──────────
@@ -296,6 +318,8 @@ class ImportWizard extends Component
             'columns.*.type.in' => 'Type de colonne invalide.',
         ]);
 
+        // Analyser les doublons si la grille cible a des colonnes NOM_PERSONNE fuzzy
+        // Pour le mode 'new', pas de grille existante → pas de détection
         $this->step = 3;
     }
 
@@ -338,6 +362,118 @@ class ImportWizard extends Component
         $this->jobStatus = '';
         $this->jobProcessed = 0;
         $this->jobTotal = 0;
+    }
+
+    // ── Étape 3b : analyse doublons (mode 'update' avec colonnes fuzzy) ────────
+
+    /**
+     * Analyse les doublons potentiels dans le fichier avant import.
+     * Appelé depuis confirmMapping() en mode 'update'.
+     * Si des doublons sont détectés, affiche l'étape intermédiaire.
+     * Sinon, passe directement à step 3 (lancement du job).
+     */
+    public function analyzeDuplicates(): void
+    {
+        if ($this->importMode !== 'update' || ! $this->targetTableId) {
+            $this->step = 3;
+
+            return;
+        }
+
+        $dgTable = DatagridTable::find($this->targetTableId);
+        if (! $dgTable) {
+            $this->step = 3;
+
+            return;
+        }
+
+        // Colonnes NOM_PERSONNE avec fuzzy_search activé
+        $fuzzyCols = $dgTable->columns()
+            ->where('fuzzy_search', true)
+            ->whereIn('type', ['nom_personne'])
+            ->get();
+
+        if ($fuzzyCols->isEmpty()) {
+            $this->step = 3;
+
+            return;
+        }
+
+        // Lire les valeurs du fichier pour les colonnes fuzzy
+        $import = new DatagridImport(fullRead: true);
+        Excel::import($import, Storage::disk('local')->path($this->tempPath));
+        $rows = $import->getData();
+
+        $this->duplicates = [];
+        $this->duplicateDecisions = [];
+
+        foreach ($fuzzyCols as $col) {
+            // Trouver l'index Excel de cette colonne via le mapping
+            $excelIndex = null;
+            foreach ($this->columnMapping as $idx => $gridColName) {
+                if ($gridColName === $col->name) {
+                    $excelIndex = (int) $idx;
+                    break;
+                }
+            }
+            if ($excelIndex === null) {
+                continue;
+            }
+
+            // Valeurs existantes en base
+            $existingValues = DB::connection('tenant')
+                ->table($dgTable->mysql_table)
+                ->select('id', $col->name)
+                ->whereNotNull($col->name)
+                ->get()
+                ->map(fn ($r) => ['id' => (int) $r->id, 'value' => (string) ($r->{$col->name} ?? '')])
+                ->toArray();
+
+            // Valeurs du fichier (en sautant l'en-tête)
+            $importValues = [];
+            foreach ($rows as $rowIndex => $row) {
+                if ($rowIndex === 0 && $this->fileHasHeader) {
+                    continue;
+                }
+                $val = $row[$excelIndex] ?? null;
+                if ($val !== null && trim((string) $val) !== '') {
+                    $importValues[$rowIndex] = (string) $val;
+                }
+            }
+
+            $detected = DatagridFuzzySearch::detectDuplicates($importValues, $existingValues);
+
+            foreach ($detected as $d) {
+                $d['column_label'] = $col->label;
+                $this->duplicates[] = $d;
+                $this->duplicateDecisions[$d['import_index']] = 'skip'; // décision par défaut : ignorer
+            }
+        }
+
+        if (! empty($this->duplicates)) {
+            $this->showDuplicateStep = true;
+        } else {
+            $this->step = 3;
+        }
+    }
+
+    /**
+     * Valider les décisions sur les doublons et passer au lancement du job.
+     * Les lignes marquées 'skip' seront exclues de l'import.
+     */
+    public function confirmDuplicateDecisions(): void
+    {
+        $this->showDuplicateStep = false;
+        $this->step = 3;
+    }
+
+    /** Annuler l'analyse doublons et revenir à l'étape 2. */
+    public function backFromDuplicates(): void
+    {
+        $this->showDuplicateStep = false;
+        $this->duplicates = [];
+        $this->duplicateDecisions = [];
+        $this->step = 2;
     }
 
     // ── Étape 3 : dispatch du job ─────────────────────────────────
@@ -472,6 +608,12 @@ class ImportWizard extends Component
                 'error' => '',
             ], 7200);
 
+            // Lignes à ignorer suite à l'analyse doublons
+            $skipRows = array_keys(array_filter(
+                $this->duplicateDecisions,
+                fn ($d) => $d === 'skip'
+            ));
+
             ImportDatagridJob::dispatch(
                 orgSlug: $this->resolveOrgSlug(),
                 importId: $this->importId,
@@ -484,6 +626,7 @@ class ImportWizard extends Component
                 fileHasHeader: $this->fileHasHeader,
                 columnMapping: $this->columnMapping,
                 defaultVisibility: 'restricted',
+                skipRows: $skipRows,
             );
 
             $this->tempPath = null;

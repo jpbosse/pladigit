@@ -181,6 +181,7 @@ class DatagridController extends Controller
             'type' => 'nullable|in:'.implode(',', DatagridColumnType::values()),
             'length' => 'nullable|integer|min:1|max:65535',
             'tab' => 'nullable|in:main,extra',
+            'fuzzy_search' => 'boolean',
         ]);
 
         $oldName = $col->name;
@@ -198,6 +199,7 @@ class DatagridController extends Controller
             'type' => $newType,
             'length' => $newLength,
             'tab' => $data['tab'] ?? $col->tab ?? 'main',
+            'fuzzy_search' => (bool) ($data['fuzzy_search'] ?? false),
         ]);
         $col->save();
 

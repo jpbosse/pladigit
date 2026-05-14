@@ -197,6 +197,16 @@
                 <input id="f-rgpd" type="checkbox" {{ $column->is_rgpd_sensitive ? 'checked' : '' }}>
                 Donnée RGPD sensible
             </label>
+            <label id="row-fuzzy" style="display:{{ $column->type->value === 'nom_personne' ? 'flex' : 'none' }};align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+                <input id="f-fuzzy" type="checkbox" {{ $column->fuzzy_search ? 'checked' : '' }}>
+                <span>
+                    Recherche floue (Levenshtein)
+                    <span style="display:block;font-size:11px;color:var(--pd-muted);">
+                        Tolère les variantes orthographiques (Dupond/Dupont). Active aussi la
+                        détection de doublons à l'import.
+                    </span>
+                </span>
+            </label>
         </div>
 
         {{-- Actions --}}
@@ -229,6 +239,9 @@
             t === 'boolean' ? 'block' : 'none';
         document.getElementById('block-options').style.display =
             t === 'select' ? 'block' : 'none';
+        // Afficher la case fuzzy uniquement pour NOM_PERSONNE
+        var rowFuzzy = document.getElementById('row-fuzzy');
+        if (rowFuzzy) { rowFuzzy.style.display = t === 'nom_personne' ? 'flex' : 'none'; }
     };
 
     window.selectTab = function (val) {
@@ -268,6 +281,7 @@
                 visible_by_default:  document.getElementById('f-visible').checked,
                 is_rgpd_sensitive:   document.getElementById('f-rgpd').checked,
                 tab:                 document.querySelector('input[name="tab"]:checked')?.value || 'main',
+                fuzzy_search:        document.getElementById('f-fuzzy') ? document.getElementById('f-fuzzy').checked : false,
                 force:               force === true,
             }),
         })

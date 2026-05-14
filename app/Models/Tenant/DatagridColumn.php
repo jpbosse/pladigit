@@ -18,6 +18,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *                     Si null → "Oui" par défaut.
  * label_false       : libellé affiché quand booléen = faux  (ex: "Libre", "F", "Inactif").
  *                     Si null → "Non" par défaut.
+ * fuzzy_search      : active la recherche floue (Levenshtein ≤ 2 + SOUNDS LIKE) sur cette
+ *                     colonne. Uniquement pertinent pour type = NOM_PERSONNE. Désactivé par
+ *                     défaut pour préserver les performances.
  *
  * @property int $id
  * @property int $datagrid_table_id
@@ -34,6 +37,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property int $sort_order
  * @property string|null $label_true
  * @property string|null $label_false
+ * @property string|null $tab
+ * @property bool $fuzzy_search
  */
 class DatagridColumn extends Model
 {
@@ -57,6 +62,7 @@ class DatagridColumn extends Model
         'label_true',
         'label_false',
         'tab',
+        'fuzzy_search',
     ];
 
     protected $casts = [
@@ -68,6 +74,7 @@ class DatagridColumn extends Model
         'is_role_column' => 'bool',
         'options' => 'array',
         'sort_order' => 'int',
+        'fuzzy_search' => 'bool',
     ];
 
     // ── Accesseurs ───────────────────────────────────────────
@@ -112,5 +119,10 @@ class DatagridColumn extends Model
     public function scopeRequired($query)
     {
         return $query->where('required', true);
+    }
+
+    public function scopeFuzzy($query)
+    {
+        return $query->where('fuzzy_search', true);
     }
 }

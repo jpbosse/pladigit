@@ -339,6 +339,7 @@ class DatagridAdminController extends Controller
             'options' => 'nullable|array',
             'options.*' => 'string|max:255',
             'tab' => 'nullable|in:main,extra',
+            'fuzzy_search' => 'boolean',
         ]);
 
         $oldName = $column->name;
@@ -356,6 +357,7 @@ class DatagridAdminController extends Controller
             'type' => $newType,
             'length' => $newLength,
             'tab' => $data['tab'] ?? $column->tab ?? 'main',
+            'fuzzy_search' => (bool) ($data['fuzzy_search'] ?? false),
         ]);
         $column->save();
 

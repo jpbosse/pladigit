@@ -7,6 +7,7 @@ use App\Exports\DatagridExport;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
+use App\Services\DatagridFuzzySearch;
 use App\Services\DatagridPermissionService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -107,11 +108,11 @@ class ShowGrid extends Component
 
         if (! empty($initialSort['column'])) {
             // Tri explicite passé en paramètre (vue sauvegardée, lien direct)
-            $this->sortColumn    = $initialSort['column'];
+            $this->sortColumn = $initialSort['column'];
             $this->sortDirection = $initialSort['direction'] ?? 'asc';
         } elseif ($table->default_sort_column !== null && $table->default_sort_column !== '') {
             // Tri par défaut configuré sur la grille par l'admin (2.16)
-            $this->sortColumn    = $table->default_sort_column;
+            $this->sortColumn = $table->default_sort_column;
             $this->sortDirection = $table->default_sort_direction ?? 'asc';
         }
 
@@ -222,7 +223,22 @@ class ShowGrid extends Component
                 continue;
             }
 
-            $query->where($name, 'like', '%'.$val.'%');
+            // Recherche floue pour NOM_PERSONNE avec fuzzy_search activé (3.2)
+            if ($col->type === DatagridColumnType::NOM_PERSONNE && $col->fuzzy_search) {
+                $ids = DatagridFuzzySearch::matchingIds(
+                    $this->table->mysql_table,
+                    $name,
+                    $val
+                );
+                if (empty($ids)) {
+                    // Aucune correspondance floue → forcer 0 résultat
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereIn('id', $ids);
+                }
+            } else {
+                $query->where($name, 'like', '%'.$val.'%');
+            }
         }
 
         if ($this->sortColumn !== '') {
@@ -499,9 +515,9 @@ class ShowGrid extends Component
         $savedViews = $this->table->savedViews()->where('user_id', auth()->id())->get();
 
         return view('livewire.tenant.datagrid.show-grid', [
-            'columns'        => $columns->whereNotIn('id', $this->forbiddenColumns),
-            'savedViews'     => $savedViews,
-            'columnTypes'    => DatagridColumnType::options(),
+            'columns' => $columns->whereNotIn('id', $this->forbiddenColumns),
+            'savedViews' => $savedViews,
+            'columnTypes' => DatagridColumnType::options(),
             'visibleColumns' => $this->visibleColumns,
             'forbiddenColumns' => $this->forbiddenColumns,
         ]);

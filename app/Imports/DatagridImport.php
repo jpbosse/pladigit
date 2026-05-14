@@ -9,16 +9,19 @@ use Maatwebsite\Excel\Concerns\WithFormatData;
 use Maatwebsite\Excel\Concerns\WithLimit;
 
 /**
- * Import léger — lit les 6 premières lignes (1 header + 5 données).
- * Utilisé par ImportWizard à l'étape 1 pour détecter les colonnes
- * et afficher un aperçu des valeurs distinctes par colonne.
+ * Import léger — lit les premières lignes pour l'aperçu (étape 1)
+ * ou toutes les lignes pour l'analyse de doublons (étape 3b).
+ *
+ * Par défaut (mode aperçu) : limite à 6 lignes.
+ * Mode complet ($fullRead = true) : lit tout le fichier.
+ *
  * L'import réel des données est délégué à ImportDatagridJob.
  */
 class DatagridImport implements ToCollection, WithCalculatedFormulas, WithFormatData, WithLimit
 {
     private Collection $rows;
 
-    public function __construct()
+    public function __construct(private readonly bool $fullRead = false)
     {
         $this->rows = collect();
     }
@@ -28,10 +31,10 @@ class DatagridImport implements ToCollection, WithCalculatedFormulas, WithFormat
         $this->rows = $rows;
     }
 
-    /** Lire header + 5 lignes de données — suffisant pour l'aperçu. */
+    /** Lire header + 5 lignes (aperçu) ou toutes les lignes (analyse doublons). */
     public function limit(): int
     {
-        return 6;
+        return $this->fullRead ? PHP_INT_MAX : 6;
     }
 
     /** Retourne la première ligne brute (en-têtes). */
@@ -79,5 +82,16 @@ class DatagridImport implements ToCollection, WithCalculatedFormulas, WithFormat
     public function getAllRows(): Collection
     {
         return $this->rows->values();
+    }
+
+    /**
+     * Retourne toutes les lignes sous forme de tableau indexé.
+     * Utilisé par ImportWizard::analyzeDuplicates() pour la détection de doublons.
+     *
+     * @return array<int, array<int, mixed>>
+     */
+    public function getData(): array
+    {
+        return $this->rows->map(fn ($row) => $row->toArray())->toArray();
     }
 }

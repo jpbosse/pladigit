@@ -153,6 +153,21 @@
             <input id="f-rgpd" type="checkbox" {{ $column->is_rgpd_sensitive ? 'checked' : '' }}
                    class="w-4 h-4 cursor-pointer" style="accent-color:#dc2626;">
         </label>
+
+        {{-- Recherche floue — uniquement pour NOM_PERSONNE --}}
+        <label id="row-fuzzy"
+               class="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors
+                       {{ $column->type->value !== 'nom_personne' ? 'hidden' : '' }}">
+            <div>
+                <div class="text-sm font-semibold text-gray-800">Recherche floue (Levenshtein)</div>
+                <div class="text-xs text-gray-400">
+                    Tolère les variantes orthographiques (Dupond/Dupont). Active aussi la détection
+                    de doublons à l'import. Désactivé par défaut pour préserver les performances.
+                </div>
+            </div>
+            <input id="f-fuzzy" type="checkbox" {{ $column->fuzzy_search ? 'checked' : '' }}
+                   class="w-4 h-4 cursor-pointer accent-blue-800">
+        </label>
     </div>
 
     {{-- ── Actions ──────────────────────────────────────────────────────── --}}
@@ -188,6 +203,9 @@
         var t = document.getElementById('f-type').value;
         var el = document.getElementById('block-length');
         el.classList.toggle('hidden', !hasLengthTypes.includes(t));
+        // Afficher la case fuzzy uniquement pour NOM_PERSONNE
+        var rowFuzzy = document.getElementById('row-fuzzy');
+        if (rowFuzzy) { rowFuzzy.classList.toggle('hidden', t !== 'nom_personne'); }
     };
 
     window.selectTab = function (val) {
@@ -217,6 +235,7 @@
                 visible_by_default: document.getElementById('f-visible').checked,
                 is_rgpd_sensitive:  document.getElementById('f-rgpd').checked,
                 tab:                tab,
+                fuzzy_search:       document.getElementById('f-fuzzy') ? document.getElementById('f-fuzzy').checked : false,
             }),
         })
         .then(function (r) {

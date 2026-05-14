@@ -17,6 +17,13 @@
 | ⚪ | Documentation / maintenance / opérationnel |
 
 ---
+| Ce qui est terminé |
+|--------------------|
+| Bloc 0 |
+| Bloc 2 |
+---
+
+
 
 ## Bloc 0 — Fondations architecturales - TERMINE
 *À poser maintenant, avant tout développement fonctionnel.
@@ -53,7 +60,7 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 
 ---
 
-## Bloc 2 — DataGrid Socle (fonctionnalités utilisateur)
+## Bloc 2 — DataGrid Socle (fonctionnalités utilisateur) - 
 *Ce bloc seul suffit pour une démo convaincante auprès d'une DSI.*
 
 | # | Tâche | Priorité | ADR | Remarque |
@@ -72,9 +79,9 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | 2.12 | Droits UI admin tenant — par département et utilisateur - TERMINE| 🟠 | ADR-039 §2.2 | — |
 | 2.13 | Cache Redis des droits résolus (`datagrid_perm:{tenant}:{user}:{table}`) - TERMINE | 🟠 | ADR-039 §2.2 | Invalidation sur modif hiérarchie |
 | 2.14 | Droits au niveau colonne (masquer colonne selon service) - TERMINE | 🟡 | ADR-039 §2.2 | Ex : colonne Salaire → RH uniquement |
-| 2.15 | Création/modification de structure de grille par l'admin tenant | 🟡 | ADR-039 §2.4 | Renommer, réordonner — DDL réservé Super Admin |
-| 2.16 | Tri par défaut configurable par grille | 🟡 | ADR-039 | — |
-| 2.17 | Colonne numéro de ligne (optionnelle) | 🟡 | ADR-039 | Utile registres officiels |
+| 2.15 | Création/modification de structure de grille par l'admin tenant - TERMINE| 🟡 | ADR-039 §2.4 | Renommer, réordonner — DDL réservé Super Admin |
+| 2.16 | Tri par défaut configurable par grille - TERMINE | 🟡 | ADR-039 | — |
+| 2.17 | Colonne numéro de ligne (optionnelle) - NE SERT A RIEN | 🟡 | ADR-039 | Utile registres officiels |
 
 ---
 

@@ -571,6 +571,113 @@
     {{-- ══════════════════════════════════════════════════════════════ --}}
     {{-- ÉTAPE 3 — Confirmation et lancement                         --}}
     {{-- ══════════════════════════════════════════════════════════════ --}}
+    {{-- ══════════════════════════════════════════════════════════════ --}}
+    {{-- ÉTAPE 3b — Détection de doublons (3.3) ───────────────────────── --}}
+    {{-- ══════════════════════════════════════════════════════════════ --}}
+    @if($showDuplicateStep)
+    <div style="background:var(--pd-surface);border:0.5px solid var(--pd-border);border-radius:14px;overflow:hidden;">
+
+        <div style="background:#92400e;padding:18px 24px;">
+            <div style="font-size:16px;font-weight:700;color:#fff;">⚠ Doublons potentiels détectés</div>
+            <div style="font-size:12px;color:rgba(255,255,255,.75);margin-top:3px;">
+                {{ count($duplicates) }} correspondance(s) suspecte(s) — décidez ligne par ligne avant d'importer.
+            </div>
+        </div>
+
+        <div style="padding:24px;">
+
+            <p style="font-size:13px;color:var(--pd-muted);margin:0 0 18px;line-height:1.6;">
+                Les lignes ci-dessous ressemblent à des fiches déjà existantes (distance orthographique ≤ 2).
+                Pour chaque ligne, choisissez l'action à effectuer.
+            </p>
+
+            <div style="border:0.5px solid var(--pd-border);border-radius:10px;overflow:hidden;margin-bottom:20px;">
+                <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                    <thead>
+                        <tr style="background:var(--pd-bg2);">
+                            <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:0.5px solid var(--pd-border);">Valeur dans le fichier</th>
+                            <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:0.5px solid var(--pd-border);">Fiche existante proche</th>
+                            <th style="padding:9px 14px;text-align:center;font-weight:600;color:var(--pd-muted);border-bottom:0.5px solid var(--pd-border);">Distance</th>
+                            <th style="padding:9px 14px;text-align:left;font-weight:600;color:var(--pd-muted);border-bottom:0.5px solid var(--pd-border);">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($duplicates as $dup)
+                        <tr style="border-bottom:0.5px solid var(--pd-border);">
+                            <td style="padding:10px 14px;font-weight:600;color:var(--pd-text);">
+                                {{ $dup['import_value'] }}
+                                @if(isset($dup['column_label']))
+                                <span style="font-size:10px;color:var(--pd-muted);font-weight:400;display:block;">
+                                    colonne : {{ $dup['column_label'] }}
+                                </span>
+                                @endif
+                            </td>
+                            <td style="padding:10px 14px;color:var(--pd-text);">
+                                {{ $dup['existing_value'] }}
+                            </td>
+                            <td style="padding:10px 14px;text-align:center;">
+                                <span style="display:inline-flex;align-items:center;justify-content:center;
+                                             width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;
+                                             background:{{ $dup['distance'] === 1 ? '#fee2e2' : '#fef3c7' }};
+                                             color:{{ $dup['distance'] === 1 ? '#dc2626' : '#92400e' }};">
+                                    {{ $dup['distance'] }}
+                                </span>
+                            </td>
+                            <td style="padding:10px 14px;">
+                                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;
+                                                  padding:4px 10px;border-radius:6px;
+                                                  background:{{ ($duplicateDecisions[$dup['import_index']] ?? 'skip') === 'skip' ? '#fee2e2' : '#f3f4f6' }};
+                                                  border:1px solid {{ ($duplicateDecisions[$dup['import_index']] ?? 'skip') === 'skip' ? '#fca5a5' : '#e5e7eb' }};">
+                                        <input type="radio"
+                                               wire:model.live="duplicateDecisions.{{ $dup['import_index'] }}"
+                                               value="skip"
+                                               style="cursor:pointer;">
+                                        Ignorer cette ligne
+                                    </label>
+                                    <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;
+                                                  padding:4px 10px;border-radius:6px;
+                                                  background:{{ ($duplicateDecisions[$dup['import_index']] ?? 'skip') === 'import' ? '#f0fdf4' : '#f3f4f6' }};
+                                                  border:1px solid {{ ($duplicateDecisions[$dup['import_index']] ?? 'skip') === 'import' ? '#bbf7d0' : '#e5e7eb' }};">
+                                        <input type="radio"
+                                               wire:model.live="duplicateDecisions.{{ $dup['import_index'] }}"
+                                               value="import"
+                                               style="cursor:pointer;">
+                                        Importer quand même
+                                    </label>
+                                </div>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="padding:10px 14px;background:#fffbeb;border:0.5px solid #fcd34d;border-radius:8px;
+                        font-size:12px;color:#92400e;line-height:1.6;margin-bottom:20px;">
+                <strong>Par défaut :</strong> les lignes suspectes sont ignorées. Changez la décision
+                à <strong>Importer quand même</strong> si vous êtes certain qu'il ne s'agit pas d'un doublon.
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <button wire:click="backFromDuplicates"
+                        style="padding:8px 18px;border:0.5px solid var(--pd-border);border-radius:9px;
+                               font-size:13px;color:var(--pd-muted);background:var(--pd-bg);cursor:pointer;">
+                    ← Retour au mapping
+                </button>
+                <button wire:click="confirmDuplicateDecisions"
+                        style="padding:9px 22px;background:var(--pd-navy);color:#fff;border:none;
+                               border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;">
+                    Continuer vers l'import →
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- ══════════════════════════════════════════════════════════════ --}}
+    {{-- ÉTAPE 3 — Confirmation et lancement du job ───────────────────── --}}
+    {{-- ══════════════════════════════════════════════════════════════ --}}
     @if($step === 3)
     @php
         $targetGrid  = $importMode === 'update' && $targetTableId
