@@ -130,9 +130,6 @@
         <table style="width:100%;border-collapse:collapse;font-size:12px;">
             <thead>
                 <tr style="background:var(--pd-bg2,#f8f9fb);">
-                    @if($showRowNumber)
-                    <th style="padding:10px 8px;text-align:right;font-weight:600;color:var(--pd-muted);border-bottom:1px solid var(--pd-border);white-space:nowrap;min-width:40px;width:40px;">#</th>
-                    @endif
                     @foreach($columns->whereIn('id', $visibleColumns) as $col)
                     <th wire:click="sortBy('{{ $col->name }}')"
                         style="padding:10px 12px;text-align:left;font-weight:600;color:var(--pd-text);border-bottom:1px solid var(--pd-border);cursor:pointer;white-space:nowrap;user-select:none;">
@@ -146,9 +143,6 @@
                 </tr>
                 {{-- Ligne filtres --}}
                 <tr style="background:var(--pd-bg);">
-                    @if($showRowNumber)
-                    <td style="padding:6px 8px;border-bottom:1px solid var(--pd-border);min-width:40px;"></td>
-                    @endif
                     @foreach($columns->whereIn('id', $visibleColumns) as $col)
                     <td style="padding:6px 8px;border-bottom:1px solid var(--pd-border);">
                         @if($col->type === \App\Enums\DatagridColumnType::BOOLEAN)
@@ -208,14 +202,11 @@
             </thead>
             <tbody>
                 @forelse($this->rows as $row)
-                @php $row = (array) $row; $__rowIndex = ($this->rows->firstItem() - 1) + $loop->iteration; @endphp
+                @php $row = (array) $row; @endphp
                 <tr wire:key="row-{{ $row['id'] ?? 0 }}"
                     style="border-bottom:1px solid var(--pd-border);transition:background 0.1s;"
                     onmouseover="this.style.background='color-mix(in srgb,var(--pd-navy) 4%,transparent)'"
                     onmouseout="this.style.background=''">
-                    @if($showRowNumber)
-                    <td style="padding:9px 8px;color:var(--pd-muted);text-align:right;font-size:11px;font-variant-numeric:tabular-nums;min-width:40px;">{{ $__rowIndex }}</td>
-                    @endif
                     @foreach($columns->whereIn('id', $visibleColumns) as $col)
                     @php $val = $row[$col->name] ?? null; @endphp
                     <td style="padding:9px 12px;color:var(--pd-text);">

@@ -190,15 +190,6 @@
             </div>
         </div>
 
-        <label class="flex items-center gap-3 mb-4 cursor-pointer">
-            <input id="f-show-row-number" type="checkbox" class="w-4 h-4 accent-blue-800"
-                   {{ $table->show_row_number ? 'checked' : '' }}>
-            <div>
-                <div class="text-sm font-semibold text-gray-700">Afficher une colonne numéro de ligne (#)</div>
-                <div class="text-xs text-gray-400">Utile pour les registres officiels. La numérotation suit l'ordre affiché après tri et filtres.</div>
-            </div>
-        </label>
-
         <button onclick="saveSettings()" type="button"
                 style="background:var(--pd-navy);"
                 class="px-5 py-2 text-white rounded-lg text-sm font-semibold border-0 cursor-pointer">
@@ -298,7 +289,6 @@
             body: JSON.stringify({
                 default_sort_column:    document.getElementById('f-default-sort-col').value,
                 default_sort_direction: document.getElementById('f-default-sort-dir').value,
-                show_row_number:        document.getElementById('f-show-row-number').checked,
             }),
         }).then(function (r) {
             if (r.ok) {
