@@ -33,6 +33,8 @@ class PlatformSettings extends Model
 {
     protected $table = 'platform_settings';
 
+    public $timestamps = false;
+
     protected $fillable = [
         'backup_enabled', 'backup_schedule',
         'backup_driver',
