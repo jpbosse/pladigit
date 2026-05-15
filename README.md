@@ -5,7 +5,7 @@
 
 ![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)
 ![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?logo=laravel&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-781%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/Tests-884%20passed-brightgreen)
 ![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-blue)
 ![CI](https://github.com/jpbosse/pladigit/actions/workflows/ci.yml/badge.svg?branch=main)
 
@@ -40,7 +40,7 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 | OneDrive / Photos | Photothèque NAS | ✅ Livré |
 | SharePoint | GED documentaire + Collabora Online | ✅ Livré |
 | Word / Excel / PowerPoint | Collabora Online (ODF natif) | ✅ Livré |
-| Excel (listes et synthèses) | DataGrid + DataPilot | 🔜 Planifié |
+| Excel (listes et synthèses) | DataGrid + DataPilot | ✅ Livré (socle + niveau 2) |
 | Teams | Messagerie instantanée | 🔜 Planifié |
 | Outlook Calendrier | Agenda global + CalDAV | 🔜 Planifié |
 | Forms | Sondages Pladigit | 🔜 Planifié |
@@ -48,6 +48,19 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 ---
 
 ## Fonctionnalités livrées
+
+### DataGrid + DataPilot (Phase 8 — Mai 2026)
+- Import CSV / XLSX / ODS par chunks avec progression temps réel, détection automatique du séparateur
+- Détection et fusion des doublons — algorithme Levenshtein adaptatif avec contexte prénom/ville
+- Conversion de type avec confirmation — TEXT → DATE / NUMBER / BOOLEAN / SELECT
+- Droits hiérarchiques par rôle, département et utilisateur — colonnes masquables par service
+- Organisation en dossiers avec drag & drop
+- Recherche globale multi-colonnes avec compteur résultats/total
+- Export Excel, ODS et PDF (fiche et liste) avec filtres actifs
+- Audit log complet — chaque modification tracée avec auteur et timestamp
+- Pagination enrichie, tri par défaut configurable, vues sauvegardées
+- Interface admin tenant — structure, colonnes, droits, onglets configurables
+
 
 ### Socle (Phases 1–2)
 - Authentification locale sécurisée — bcrypt coût 12, verrouillage de compte, politique de mot de passe configurable

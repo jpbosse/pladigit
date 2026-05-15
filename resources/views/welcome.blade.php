@@ -284,6 +284,9 @@
         <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" class="sidebar-link" target="_blank" rel="noopener">
             <span class="link-icon">📋</span> Changelog v{{ config('app.version') }}
         </a>
+        <a href="https://github.com/jpbosse/pladigit/blob/main/ROADMAP.md" class="sidebar-link" target="_blank" rel="noopener">
+            <span class="link-icon">🗺</span> Roadmap
+        </a>
 
         <div class="sidebar-divider"></div>
 
@@ -319,7 +322,7 @@
             <div>
                 <div class="hero-badge">🏛 Conçu pour les collectivités publiques</div>
                 <h1 class="hero-title">La plateforme <em>digitale</em><br>de votre collectivité</h1>
-                <p class="hero-subtitle">Pladigit centralise la gestion documentaire, les médias, les projets et la communication interne dans un espace sécurisé et souverain.</p>
+                <p class="hero-subtitle">Pladigit centralise la gestion documentaire, les médias, les projets, les données tabulaires et la communication interne dans un espace sécurisé et souverain.</p>
                 <div class="hero-actions">
                     <a href="#demo" class="btn-primary">🚀 Tester en ligne</a>
                     <a href="#fonctionnalites" class="btn-secondary">Découvrir les modules</a>
@@ -328,7 +331,7 @@
             <div class="hero-card">
                 <div class="hero-card-title">Plateforme en chiffres</div>
                 <div class="stat-grid">
-                    <div class="stat-item"><div class="stat-num">7</div><div class="stat-label">Phases livrées</div></div>
+                    <div class="stat-item"><div class="stat-num">8</div><div class="stat-label">Phases livrées</div></div>
                     <div class="stat-item"><div class="stat-num">100%</div><div class="stat-label">Open source</div></div>
                     <div class="stat-item"><div class="stat-num">RGPD</div><div class="stat-label">Conforme</div></div>
                     <div class="stat-item"><div class="stat-num">2FA</div><div class="stat-label">Sécurisé</div></div>
@@ -337,6 +340,7 @@
                     <div class="module-item"><span>📁</span><span class="module-name">GED — Gestion documentaire</span><span class="module-badge">✅ Livré</span></div>
                     <div class="module-item"><span>🖼</span><span class="module-name">Photothèque NAS</span><span class="module-badge">✅ Livré</span></div>
                     <div class="module-item"><span>✏️</span><span class="module-name">Collabora Online</span><span class="module-badge">✅ Livré</span></div>
+                    <div class="module-item"><span>🗄</span><span class="module-name">DataGrid + DataPilot</span><span class="module-badge">✅ Livré</span></div>
                 </div>
             </div>
         </div>
@@ -378,7 +382,7 @@
                     ['icon'=>'✏️','name'=>'Collabora Online','desc'=>'Édition collaborative ODF + Office, protocole WOPI','phase'=>'✅'],
                     ['icon'=>'💬','name'=>'Messagerie','desc'=>'Chat interne temps réel par canaux thématiques','phase'=>'🔜'],
                     ['icon'=>'📅','name'=>'Agenda CalDAV','desc'=>'Calendrier partagé, sync Thunderbird, remplace Outlook','phase'=>'🔜'],
-                    ['icon'=>'🗄','name'=>'DataGrid + DataPilot','desc'=>'Listes sans code et tableaux croisés dynamiques — remplace les Excel éparpillés','phase'=>'🔜'],
+                    ['icon'=>'🗄','name'=>'DataGrid + DataPilot','desc'=>'Listes collaboratives sans code, droits hiérarchiques, export Excel/PDF/ODS, recherche floue, détection doublons','phase'=>'✅'],
                 ]; @endphp
                 @foreach($modules as $m)
                 <div class="module-card fade-up">
@@ -615,6 +619,7 @@
                     <a href="https://jpbosse.github.io/pladigit/GUIDE-INSTALLATION.html" target="_blank" rel="noopener">Guide d'installation</a>
                     <a href="https://github.com/jpbosse/pladigit/blob/main/INSTALL.md" target="_blank" rel="noopener">Documentation technique</a>
                     <a href="https://github.com/jpbosse/pladigit/blob/main/CHANGELOG.md" target="_blank" rel="noopener">Changelog v{{ config('app.version') }}</a>
+                    <a href="https://github.com/jpbosse/pladigit/blob/main/ROADMAP.md" target="_blank" rel="noopener">🗺 Roadmap</a>
                 </div>
                 <div class="footer-col">
                     <div class="footer-col-title">Pladigit</div>

@@ -17,8 +17,9 @@
 | Assistant d'installation — script automatique + wizard web 8 étapes | — | Avr 2026 |
 | Sécurité production — CSP, HSTS, X-Frame-Options, headers Nginx, ressources locales | — | Mai 2026 |
 | Mise à jour Super Admin — `update.sh`, log temps réel, `pladigit:update-status` | — | Mai 2026 |
+| **DataGrid — Socle et niveau 2** — listes collaboratives, droits hiérarchiques, import CSV/XLSX/ODS, export Excel/PDF/ODS, recherche floue multi-colonnes, détection doublons, organisation en dossiers, audit log | Tableurs Excel éparpillés | Mai 2026 |
 
-**En chiffres :** 828 tests verts · PHPStan niveau 8 · 41 décisions architecturales documentées · CI/CD GitHub Actions
+**En chiffres :** 884 tests verts · PHPStan niveau 8 · 43 décisions architecturales documentées · CI/CD GitHub Actions
 
 ---
 
@@ -28,8 +29,8 @@ Les modules sont dans l'ordre de priorité révisé. Les dates sont indicatives.
 
 | Module | Ce que ça remplace | Période visée |
 |--------|-------------------|---------------|
-| **DataGrid — Socle** — listes collaboratives sans programmation, droits hiérarchiques, export Excel/PDF, recherche multicolonne et floue, détection et fusion des doublons, assistant de normalisation des fichiers complexes | Tableurs Excel éparpillés | Été 2026 |
-| **Sécurité renforcée** — chiffrement MySQL TDE au repos, sauvegardes GPG chiffrées, procédures de restauration testées (complète / partielle / fichier GED), plan de réponse à incident, rotation des secrets | — | Été 2026 |
+
+| **Sécurité renforcée** *(en cours)* — chiffrement MySQL TDE au repos, sauvegardes GPG chiffrées, procédures de restauration testées (complète / partielle / fichier GED), plan de réponse à incident, rotation des secrets | — | Été 2026 |
 | **Source de vérité documentaire** — classification des actes officiels (délibérations DEL-2026-042, arrêtés, PV), nommage automatique, modèles Collabora — socle architectural posé (ADR-038), UI à construire | SharePoint / registres papier | Été–Automne 2026 |
 | **DataGrid — Extensions** — relations entre tables (N-1 / 1-N / N-N), vues métier transparentes (l'utilisateur ne voit pas les tables techniques), colonnes calculées et agrégées, workflow statuts, commentaires, pièces jointes GED | Airtable / NocoDB propriétaires | Automne 2026 |
 | **DataPilote** — tableaux croisés dynamiques par drag & drop, graphiques Apache ECharts, export Excel/PDF, lecture seule | Synthèses Excel manuelles | Automne–Hiver 2026 |
