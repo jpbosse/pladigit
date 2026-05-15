@@ -583,6 +583,7 @@ DataPilote
 - ADR-037 : Gouvernance des données personnelles et conformité RGPD
 - ADR-038 : Source de vérité documentaire
 - ADR-040 : Relations entre tables DataGrid (à rédiger)
+- ADR-043 : GED vs DataGrid — unicité de source de vérité pour les fichiers tableurs
 - Tabulator 6.x : https://tabulator.info
 - Apache ECharts : https://echarts.apache.org
 - PhpSpreadsheet : https://phpspreadsheet.readthedocs.io

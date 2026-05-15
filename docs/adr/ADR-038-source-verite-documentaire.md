@@ -185,3 +185,4 @@ Un modèle définit, pour un type donné :
 - ADR-020 : interface de stockage GED
 - ADR-022 : intégration Collabora dans la GED
 - ADR-036 : DataGrid et modèle de droits hiérarchiques
+- ADR-043 : GED vs DataGrid — unicité de source de vérité pour les fichiers tableurs

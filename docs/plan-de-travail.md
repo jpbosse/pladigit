@@ -96,8 +96,8 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | 3.2 | Recherche floue (Levenshtein ≤ 2 + SOUNDS LIKE) sur colonnes `NOM_PERSONNE` - TERMINE | 🟠 | ADR-039 §2.1 | Activé sur `fuzzy_search = true` uniquement |
 | 3.3 | Détection de doublons à l'import — avertissement avec contexte prénom/ville, seuil adaptatif Levenshtein, filtre abréviations — TERMINÉ | ✅ | ADR-039 §2.1 | Approche : avertir et laisser l'utilisateur corriger son fichier source |
 | ~~3.4~~ | ~~Interface de fusion de doublons~~ — *supprimé : remplacé par l'approche avertissement de 3.3* | ~~🟡~~ | ADR-039 §2.1 | — |
-| ~~3.5~~ | ~~Import depuis un fichier GED existant~~ — *supprimé : voir ADR-04x* | ~~🟡~~ | ADR-039 | Un fichier tableur modifié dans la GED ne serait pas reflété dans la DataGrid |
-| 3.6 | **ADR-04x** — Fichiers tableurs GED vs DataGrid : règle d'unicité de source de vérité. Upload d'un `.xlsx`/`.ods`/`.csv` dans la GED → proposition d'import DataGrid. Exception archivage lecture seule avec bandeau d'avertissement permanent. | 🟢 | ADR-04x | À rédiger avant implémentation |
+| ~~3.5~~ | ~~Import depuis un fichier GED existant~~ — *supprimé : voir ADR-043* | ~~🟡~~ | ADR-039 | Un fichier tableur modifié dans la GED ne serait pas reflété dans la DataGrid |
+| 3.6 | **ADR-043** — Fichiers tableurs GED vs DataGrid : règle d'unicité de source de vérité. Upload d'un `.xlsx`/`.ods`/`.csv` dans la GED → proposition d'import DataGrid. Exception archivage lecture seule avec bandeau d'avertissement permanent. | 🟢 | ADR-043 | Rédigé — 2026-05-15 |
 
 ---
 
