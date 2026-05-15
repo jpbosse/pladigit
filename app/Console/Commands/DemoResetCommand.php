@@ -53,6 +53,9 @@ class DemoResetCommand extends Command
         $this->tenantManager->connectTo($org);
         $this->info("Remise à zéro de « {$org->name} » (base : {$org->db_name})...");
 
+        $this->archiveAuditLogs();
+        $this->info('✓ Audit logs archivés');
+
         $this->wipeTables();
         $this->info('✓ Tables vidées');
 
@@ -71,6 +74,62 @@ class DemoResetCommand extends Command
         $this->info('Remise à zéro terminée.');
 
         return self::SUCCESS;
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  Archivage des audit_logs avant reset
+    // ─────────────────────────────────────────────────────────────
+
+    private function archiveAuditLogs(): void
+    {
+        $logs = DB::connection('tenant')->table('audit_logs')->get();
+
+        if ($logs->isEmpty()) {
+            return;
+        }
+
+        $dir = storage_path('app/demo_audit');
+        if (! is_dir($dir)) {
+            mkdir($dir, 0775, true);
+        }
+
+        $filename = 'audit_'.now()->format('Y-m-d_His').'.csv';
+        $path = $dir.'/'.$filename;
+
+        $handle = fopen($path, 'w');
+        if (! $handle) {
+            $this->warn('  ⚠  Impossible de créer le fichier d\'archive audit : '.$path);
+
+            return;
+        }
+
+        // En-tête CSV
+        $first = (array) $logs->first();
+        fputcsv($handle, array_keys($first));
+
+        foreach ($logs as $row) {
+            fputcsv($handle, (array) $row);
+        }
+
+        fclose($handle);
+
+        $count = $logs->count();
+        $this->info("  → {$count} entrée(s) archivées dans demo_audit/{$filename}");
+
+        // Purger les archives de plus de 90 jours
+        $this->purgeOldAuditArchives($dir);
+    }
+
+    private function purgeOldAuditArchives(string $dir): void
+    {
+        $cutoff = now()->subDays(90)->timestamp;
+        $files = glob($dir.'/audit_*.csv') ?: [];
+
+        foreach ($files as $file) {
+            if (filemtime($file) < $cutoff) {
+                @unlink($file);
+            }
+        }
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -100,9 +159,19 @@ class DemoResetCommand extends Command
             'department_user',
             'departments',
             'notifications',
-            'audit_logs',
+            // audit_logs intentionnellement absent : archivé dans archiveAuditLogs() puis vidé séparément
             'personal_access_tokens',
             'password_reset_tokens',
+            // Tables DataGrid
+            'datagrid_audit_log',
+            'datagrid_user_permissions',
+            'datagrid_permissions',
+            'datagrid_saved_views',
+            'datagrid_user_preferences',
+            'datagrid_columns',
+            'datagrid_tables',
+            'datagrid_folders',
+            'datagrid_rgpd_registry',
             // 'users' intentionnellement absent : updateOrCreate dans le seeder préserve les IDs
             // et évite l'invalidation de session lors d'un reset depuis l'interface web.
         ];
@@ -113,6 +182,12 @@ class DemoResetCommand extends Command
             } catch (\Throwable) {
                 // Table absente selon la version des migrations — on continue
             }
+        }
+
+        // Vider audit_logs après archivage
+        try {
+            DB::connection('tenant')->table('audit_logs')->truncate();
+        } catch (\Throwable) {
         }
 
         DB::connection('tenant')->statement('SET FOREIGN_KEY_CHECKS=1');
