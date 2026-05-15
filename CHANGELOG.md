@@ -9,6 +9,49 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 
 ---
 
+## [0.8.3] — Mai 2026
+
+### Ajouté
+
+- **DataGrid — Import par chunks avec progression temps réel** — lecture CSV/XLSX/ODS par lots de 500 lignes, bulk insert, barre de progression Livewire, détection automatique du séparateur CSV
+- **DataGrid — Visibilité initiale à l'import** — choix publique/restreinte/privée à l'étape 3 du wizard
+- **DataGrid — Aperçu valeurs détectées** — affichage des valeurs distinctes BOOLEAN et SELECT dans l'étape 2 du wizard
+- **DataGrid — Conversion de type avec confirmation** — conversion TEXT→DATE/NUMBER/etc avec bandeau d'avertissement et confirmation forcée
+- **DataGrid — Droits par colonne** — masquer/afficher une colonne selon le service (ex : colonne Salaire → RH uniquement)
+- **DataGrid — Page droits dédiée** — interface admin tenant par rôle/département/utilisateur, `can_export` contrôlé partout
+- **DataGrid — Tri par défaut configurable** — par grille, depuis l'interface admin tenant
+- **DataGrid — Création/modification de structure** — renommer et réordonner les colonnes depuis l'admin tenant
+- **DataGrid — Onglet colonne configurable** — onglets Données/Complémentaires paramétrables par Super Admin et admin tenant
+- **DataGrid — Détection de doublons à l'import** — algorithme Levenshtein adaptatif avec contexte prénom/ville, filtre abréviations, avertissement utilisateur
+- **DataGrid — Export Excel/ODS avec filtres actifs** — export respectant les filtres en cours
+- **DataGrid — Export PDF fiche et liste** — via controller dédié, 100 lignes max, impression
+- **DataGrid — Organisation en dossiers** — sidebar collapse/expand avec drag & drop, CRUD dossiers
+- **DataGrid — Ajout manuel de ligne** — bouton + popup, valeurs par défaut par colonne
+- **DataGrid — Recherche globale multicolonne** — 1 champ → toutes colonnes texte visibles, compteur résultats/total
+- **DataGrid — Pagination enrichie** — compteur français, navigation «‹›», sélecteur lignes/page, 5 pages contextuelles
+- **DataGrid — Éditeur colonne** — labels Vrai/Faux, options SELECT, rendu CHEMIN_FICHIER dans la grille
+- **DataGrid — Popup onglets** — Données / Complémentaires / Historique (EditRowModal + AddRowModal refactorisés)
+- **DataGrid — Audit log** — édition et suppression de ligne tracées
+- **DataGrid — Formatage colonnes** — date, booléen, téléphone, SIRET, email, nombre dans la grille
+- **DataGrid — Filtres avancés** — par type, pagination 10/20/50, vues sauvegardées
+- **Bloc 0 — Migrations fondations DataGrid** — colonnes `relation_*` / `computed_*`, tables `datagrid_views` / `datagrid_folders` / `datagrid_user_preferences`, enum RELATION/NOM_PERSONNE/CHEMIN_FICHIER, `DatagridNormalizationService`
+- **Sécurité — TDE MySQL InnoDB** — procédure `docs/deploy/tde-mysql.md` + commande `pladigit:check-tde` avec option `--fix-tables` (ADR-041 §1.1)
+- **ADR-043** — GED vs DataGrid : règle d'unicité de source de vérité pour les fichiers tableurs (décision différée à l'ouverture, sens unique GED→DataGrid, interface d'intégrité, contrôle nocturne)
+
+### Modifié
+- ADR-038 : référence croisée ADR-043 ajoutée
+- ADR-039 : référence croisée ADR-043 ajoutée
+- Plan de travail : blocs 2 et 3 marqués terminés, bloc 1 enrichi (1.11 à 1.15)
+
+### Corrigé
+- `can_export` dans EditRowModal + nullsafe corrigé
+- Libellé Président → Président / Maire
+- Normalisation booléen, code postal, SIRET, téléphone à l'import
+- Fix permissions imports/datagrid
+- Fix bouton Modifier admin
+
+---
+
 ## [0.8.2] — Mai 2026
 
 ### Ajouté

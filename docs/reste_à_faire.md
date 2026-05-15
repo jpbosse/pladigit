@@ -18,24 +18,6 @@
 
 ---
 
-
-
-## ~~Bloc 0 — Fondations architecturales - TERMINE~~
-*À poser maintenant, avant tout développement fonctionnel.
-Ces migrations sont additives — elles n'impactent pas l'existant.*
-
-| # | Tâche | Priorité | ADR | Remarque |
-|---|-------|----------|-----|----------|
-| ~~0.1~~ | ~~Migration additive — colonnes `relation_*` + `computed_*` sur `datagrid_columns`~~ | 🔴 | ADR-040 | Socle relations — doit précéder tout développement Extensions |
-| ~~0.2~~ | ~~Migration — table `datagrid_views`~~ | 🔴 | ADR-040 | Socle vues métier transparentes |
-| ~~0.3~~ | ~~Migration — table `datagrid_folders` + `folder_id` sur `datagrid_tables`~~ | 🔴 | ADR-039 | Organisation sidebar en dossiers |
-| ~~0.4~~ | ~~Migration — table `datagrid_user_preferences`~~ | 🔴 | ADR-039 | Persistance colonnes visibles, per_page |
-| ~~0.5~~ | ~~Enum `DatagridColumnType::RELATION` + `NOM_PERSONNE` + `CHEMIN_FICHIER`~~ | 🔴 | ADR-039/040 | Nouveaux types — ne génèrent aucun comportement seuls |
-| ~~0.6~~ | ~~Service `DatagridNormalizationService` (squelette + détection colonnes répétées/inutiles)~~ | 🔴 | ADR-040 | Réutilisé par l'assistant IA futur |
-
-
----
-
 ## Bloc 1 — Sécurité et infrastructure
 
 *À implémenter avant tout déploiement chez une collectivité réelle.*
@@ -52,50 +34,15 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | 1.8 | Test de restauration d'un fichier GED | 🟠 | ADR-041 §7 | — |
 | 1.9 | Journal des tests de restauration (`/var/log/pladigit_restore_tests.log`) | 🟠 | ADR-041 §8 | — |
 | 1.10 | Checklist sécurité mensuelle — documenter et planifier | ⚪ | ADR-041 §11 | Calendrier de maintenance |
-| 1.11 | En-têtes HTTP sécurité globaux Nginx — `Strict-Transport-Security`, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options` | 🔴 | — | Global Nginx, pas seulement médias |
-| 1.12 | Alerte email + log si tentative connexion Super Admin depuis IP non autorisée | 🟠 | ADR-027 | Modifier `CheckSuperAdmin.php` |
-| 1.13 | Purge automatique `audit_logs` après N années configurables (RGPD) | 🟡 | ADR-037 | Nouvelle commande + scheduled |
-| 1.14 | Test d'isolation tenant automatisé — vérifier qu'un user tenant A ne peut pas accéder aux données tenant B | 🔴 | ADR-002 | Test Feature dédié |
-| 1.15 | Procédure de suppression complète d'un tenant (RGPD — droit à l'effacement) | 🟠 | ADR-037 | Commande artisan + documentation |
 
 ---
 
-~~## Bloc 2 — DataGrid Socle (fonctionnalités utilisateur) - ~~
-*Ce bloc seul suffit pour une démo convaincante auprès d'une DSI.*
-
-| # | Tâche | Priorité | ADR | Remarque |
-|---|-------|----------|-----|----------|
-| ~~2.1~~ | ~~Compteur contextuel "X résultats sur Y total" - TERMINE~~| 🟠 | ADR-039 §2.4 | 1h de travail |
-| ~~2.2~~ | ~~Recherche globale multicolonne (1 champ → toutes colonnes texte visibles) - TERMINE~~ | 🟠 | ADR-039 §2.1 | Impact immédiat pour l'utilisateur |
-| ~~2.3~~ | ~~Gestion des dates Excel (numéros sériels → dates ISO) à l'import - TERMINE~~ | 🟠 | ADR-039 §2.4 | Fréquent dans les fichiers collectivités |
-| ~~2.4~~ | ~~Ajout manuel d'une ligne (bouton + popup vide) - TERMINE~~| 🟠 | ADR-039 §2.4 | Valeurs par défaut par colonne |
-| ~~2.5~~ | ~~Organisation des grilles en dossiers — sidebar collapse/expand - TERMINE~~ | 🟠 | ADR-039 §2.4 | Utilise migration 0.3 |
-| ~~2.6~~ | ~~Type de colonne `CHEMIN_FICHIER` — icône PDF/image/fichier cliquable - TERMINE~~| 🟡 | ADR-039 §2.4 | Cas arrêtés sur NAS |
-| ~~2.7~~ | ~~Persistance préférences utilisateur (colonnes visibles, per_page) - TERMINE~~ | 🟡 | ADR-039 §2.4 | Utilise migration 0.4 |
-| ~~2.8~~ | ~~Export Excel (PhpSpreadsheet) avec avertissement RGPD - TERMINE~~| 🟠 | ADR-039 §2.3 | — |
-| ~~2.9~~ | ~~Export PDF + impression d'une fiche - TERMINE~~ | 🟡 | ADR-039 §2.3 | dompdf |
-| ~~2.10~~ | ~~Popup onglets (Données / Complémentaires / Historique) - TERMINE~~ | 🟠 | ADR-039 §2.5 | — |
-| ~~2.11~~ | ~~Onglet Historique UI — qui a changé quoi dans la fiche - TERMINE~~| 🟠 | ADR-039 §2.5 | Données dans `datagrid_audit_logs` — UI manque |
-| ~~2.12~~ | ~~Droits UI admin tenant — par département et utilisateur - TERMINE~~| 🟠 | ADR-039 §2.2 | — |
-| ~~2.13~~ | ~~Cache Redis des droits résolus (`datagrid_perm:{tenant}:{user}:{table}`) - TERMINE~~ | 🟠 | ADR-039 §2.2 | Invalidation sur modif hiérarchie |
-| ~~2.14~~ | ~~Droits au niveau colonne (masquer colonne selon service) - TERMINE~~ | 🟡 | ADR-039 §2.2 | Ex : colonne Salaire → RH uniquement |
-| ~~2.15~~ | ~~Création/modification de structure de grille par l'admin tenant - TERMINE~~| 🟡 | ADR-039 §2.4 | Renommer, réordonner — DDL réservé Super Admin |
-| ~~2.16~~ | ~~Tri par défaut configurable par grille - TERMINE~~ | 🟡 | ADR-039 | — |
-| ~~2.17~~ | ~~Colonne numéro de ligne (optionnelle)~~ — *supprimé : colonne ordinaire TEXT ou NUMBER créée par le Super Admin selon le format de la collectivité* | ~~🟡~~ | ADR-039 | — |
-
----
-
-~~## Bloc 3 — DataGrid Qualité des données - TERMINE~~
+## Bloc 3 — DataGrid Qualité des données - TERMINE
 *Recherche floue et gestion des doublons — différenciant fort.*
 
 | # | Tâche | Priorité | ADR | Remarque |
 |---|-------|----------|-----|----------|
-| ~~3.1~~ | ~~Type de colonne `NOM_PERSONNE` dans l'enum et l'UI -TERMINE~~ | 🟠 | ADR-039 §2.1 | Sous-type de TEXT |
-| ~~3.2~~ | ~~Recherche floue (Levenshtein ≤ 2 + SOUNDS LIKE) sur colonnes `NOM_PERSONNE` - TERMINE~~ | 🟠 | ADR-039 §2.1 | Activé sur `fuzzy_search = true` uniquement |
-| ~~3.3~~ | ~~Détection de doublons à l'import — avertissement avec contexte prénom/ville, seuil adaptatif Levenshtein, filtre abréviations — TERMINÉ~~ | ✅ | ADR-039 §2.1 | Approche : avertir et laisser l'utilisateur corriger son fichier source |
-| ~~3.4~~ | ~~Interface de fusion de doublons~~ — *supprimé : remplacé par l'approche avertissement de 3.3* | ~~🟡~~ | ADR-039 §2.1 | — |
-| ~~3.5~~ | ~~Import depuis un fichier GED existant~~ — *supprimé : voir ADR-043* | ~~🟡~~ | ADR-039 | Un fichier tableur modifié dans la GED ne serait pas reflété dans la DataGrid |
-| 3.6 | **ADR-043** — Fichiers tableurs GED vs DataGrid : règle d'unicité de source de vérité. Upload d'un `.xlsx`/`.ods`/`.csv` dans la GED → proposition d'import DataGrid. Exception archivage lecture seule avec bandeau d'avertissement permanent. | 🟢 | ADR-043 | Rédigé — 2026-05-15 |
+| 3.6 | **ADR-04x** — Fichiers tableurs GED vs DataGrid : règle d'unicité de source de vérité. Upload d'un `.xlsx`/`.ods`/`.csv` dans la GED → proposition d'import DataGrid. Exception archivage lecture seule avec bandeau d'avertissement permanent. | 🟢 | ADR-04x | À rédiger avant implémentation |
 
 ---
 
