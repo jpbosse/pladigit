@@ -211,11 +211,11 @@ class ImportWizard extends Component
     public function uploadFile(): void
     {
         $this->validate([
-            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,ods', 'max:102400'],
+            'file' => ['required', 'file', 'mimes:xlsx,xls,csv,ods', 'max:10240'],
         ], [
             'file.required' => 'Veuillez choisir un fichier.',
             'file.mimes' => 'Le fichier doit être au format .xlsx, .xls, .csv ou .ods.',
-            'file.max' => 'La taille maximale est de 100 Mo.',
+            'file.max' => 'La taille maximale est de 10 Mo. Découpez votre fichier en plusieurs parties.',
         ]);
 
         if ($this->importMode === 'update' && ! $this->targetTableId) {

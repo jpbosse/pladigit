@@ -203,12 +203,34 @@
             <div class="pd-form-group">
                 <label class="pd-label pd-label-req">Fichier (.xlsx / .xls / .csv / .ods)</label>
                 <input type="file" wire:model="file" accept=".xlsx,.xls,.csv,.ods"
+                       id="datagrid-file-input"
                        style="display:block;width:100%;padding:8px 10px;border:0.5px solid var(--pd-border);
                               border-radius:8px;font-size:13px;color:var(--pd-text);
-                              background:var(--pd-bg);cursor:pointer;">
-                <div style="font-size:11px;color:var(--pd-muted);margin-top:5px;">
-                    Taille maximale : 40 Mo
+                              background:var(--pd-bg);cursor:pointer;"
+                       onchange="checkFileSize(this)">
+                <div id="datagrid-file-size-error"
+                     style="display:none;padding:8px 12px;background:#FEE2E2;color:#991B1B;
+                            border-radius:6px;margin-top:6px;font-size:12px;">
                 </div>
+                <div style="font-size:11px;color:var(--pd-muted);margin-top:5px;">
+                    Taille maximale : 10 Mo — pour les fichiers plus volumineux, découpez-les en plusieurs fichiers.
+                </div>
+                <script>
+                function checkFileSize(input) {
+                    var maxBytes = 10 * 1024 * 1024; // 10 Mo
+                    var err = document.getElementById('datagrid-file-size-error');
+                    if (input.files && input.files[0] && input.files[0].size > maxBytes) {
+                        var sizeMo = (input.files[0].size / 1024 / 1024).toFixed(1);
+                        err.textContent = '❌ Ce fichier fait ' + sizeMo + ' Mo — la taille maximale est de 10 Mo. Découpez-le en plusieurs fichiers et importez-les séparément.';
+                        err.style.display = 'block';
+                        input.value = '';
+                        // Réinitialiser le composant Livewire
+                        @this.set('file', null);
+                    } else {
+                        err.style.display = 'none';
+                    }
+                }
+                </script>
             </div>
 
             <div style="background:var(--pd-bg2);border-radius:8px;padding:12px 14px;
