@@ -103,7 +103,7 @@ class CheckTdeCommand extends Command
             }
 
             $schema = str_replace('`', '', $t->TABLE_SCHEMA);
-            $table  = str_replace('`', '', $t->TABLE_NAME);
+            $table = str_replace('`', '', $t->TABLE_NAME);
 
             try {
                 DB::statement("ALTER TABLE `{$schema}`.`{$table}` ENCRYPTION='Y'");
