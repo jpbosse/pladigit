@@ -1,7 +1,7 @@
 <?php
 /**
  * Pladigit — Assistant d'installation web v2.0
- * Wizard 6 étapes — PHP standalone, sans framework
+ * Wizard 7 étapes — PHP standalone, sans framework
  * Compatible PHP 8.2+
  */
 session_start();
@@ -261,6 +261,29 @@ function handle_post(string $action): void
             $_SESSION['admin'] = $admin;
             save_config(['admin' => $admin]);
             $_SESSION['step'] = 7;
+            redirect('security');
+            break;
+
+        case 'security':
+            // La passphrase a été générée côté client et soumise ici
+            $passphrase = trim($_POST['gpg_passphrase'] ?? '');
+            if (empty($passphrase) || strlen($passphrase) < 20) {
+                $_SESSION['errors'] = ['La passphrase GPG est invalide. Veuillez régénérer.'];
+                redirect('security');
+            }
+            // Vérification que les 3 cases sont cochées
+            if (
+                empty($_POST['confirm_stored']) ||
+                empty($_POST['confirm_shared']) ||
+                empty($_POST['confirm_understood'])
+            ) {
+                $_SESSION['errors'] = ['Vous devez cocher les trois cases de confirmation.'];
+                redirect('security');
+            }
+            $security = ['gpg_passphrase' => $passphrase];
+            $_SESSION['security'] = $security;
+            save_config(['security' => $security]);
+            $_SESSION['step'] = 8;
             redirect('install');
             break;
     }
@@ -349,6 +372,8 @@ function write_runner(): void
     $collabora = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
     $collaboraMode = $collabora['mode'] ?? 'skip';
     $collaboraUrl = $collabora['url'] ?? '';
+    $security = $cfg['security'] ?? $_SESSION['security'] ?? [];
+    $gpgPassphrase = addslashes($security['gpg_passphrase'] ?? '');
 
     $appKey = 'base64:'.base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
@@ -524,6 +549,53 @@ try {
     file_put_contents('{$root}/public/install-success.html', \$successHtml);
     ilog('✓ Page de succes generee');
 
+
+    // 8bis. Chiffrement GPG — sauvegardes + copie .env
+    ilog('Configuration du chiffrement GPG...');
+    \$gpgPassphrase = '{$gpgPassphrase}';
+    if (!empty(\$gpgPassphrase)) {
+        // Vérifier que gpg est disponible
+        exec('which gpg 2>/dev/null', \$gpgOut, \$gpgCode);
+        if (\$gpgCode !== 0) {
+            shell_exec('apt-get install -y -qq gnupg 2>/dev/null');
+        }
+
+        // Activer GPG dans platform_settings via artisan
+        \$gpgPassEscaped = addslashes(\$gpgPassphrase);
+        \$out = shell_exec('cd {$root} && php artisan tinker --execute="'
+            . 'try {'
+            . '\\\$ps = App\\\\Models\\\\Platform\\\\PlatformSettings::firstOrCreate([]);'
+            . '\\\$ps->backup_gpg_enabled = true;'
+            . '\\\$ps->backup_gpg_passphrase_enc = Illuminate\\\\Support\\\\Facades\\\\Crypt::encryptString(addslashes(\\"' . \$gpgPassEscaped . '\\"));'
+            . '\\\$ps->save();'
+            . 'echo \\"OK\\";'
+            . '} catch(\\\\Throwable \\\$e) { echo \\"ERR:\\" . \\\$e->getMessage(); }"'
+            . ' 2>&1');
+        if (str_contains((string)\$out, 'OK')) {
+            ilog('✓ Chiffrement GPG activé en base');
+        } else {
+            ilog('⚠ GPG base : ' . trim((string)\$out));
+        }
+
+        // Chiffrer la copie du .env
+        \$envFile = '{$root}/.env';
+        \$envBackup = '/root/.pladigit_env_backup.gpg';
+        \$cmd = sprintf(
+            'gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase %s --output %s %s 2>&1',
+            escapeshellarg(\$gpgPassphrase),
+            escapeshellarg(\$envBackup),
+            escapeshellarg(\$envFile)
+        );
+        exec(\$cmd, \$gpgResult, \$gpgExit);
+        if (\$gpgExit === 0 && file_exists(\$envBackup)) {
+            ilog('✓ Copie chiffrée du .env créée : ' . \$envBackup);
+        } else {
+            ilog('⚠ Copie .env GPG échouée — à refaire manuellement (voir docs/deploy/secrets.md)');
+        }
+    } else {
+        ilog('⚠ Passphrase GPG absente — chiffrement non activé');
+    }
+
     // 9. Fichier DONE
     file_put_contents('{$done}', date('d/m/Y H:i:s'));
     ilog('✓ Installation terminee avec succes !');
@@ -592,7 +664,7 @@ function render_page(string $action): void
     $step = $_SESSION['step'] ?? 0;
     $errors = $_SESSION['errors'] ?? [];
     unset($_SESSION['errors']);
-    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Installation'];
+    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Sécurité', 'Installation'];
 
     html_open();
     html_steps($step, $steps);
@@ -612,6 +684,11 @@ function render_page(string $action): void
         case 'collabora': page_collabora();
             break;
         case 'admin':    page_admin($errors);
+            break;
+        case 'security':
+            $secErrors = $_SESSION['errors'] ?? [];
+            unset($_SESSION['errors']);
+            page_security($secErrors);
             break;
         case 'install':  page_install();
             break;
@@ -1017,6 +1094,146 @@ function page_admin(array $e): void
 </form></div></div>
 <?php }
 
+function page_security(array $e): void
+{
+    ?>
+<div class="wrap"><div class="card">
+<div class="card-title">&#x1F510; Sécurité — Chiffrement de vos sauvegardes</div>
+<p class="card-sub">Pladigit chiffre automatiquement toutes vos sauvegardes et votre configuration. Une passphrase a été générée pour vous. <strong>Vous devez la conserver avant de continuer.</strong></p>
+
+<?php if ($e) { ?>
+<div class="alert ae"><strong>Erreur :</strong><ul style="margin:.4rem 0 0 1.1rem">
+<?php foreach ($e as $i) {
+    echo '<li>'.htmlspecialchars($i).'</li>';
+} ?>
+</ul></div>
+<?php } ?>
+
+<div style="background:#FEF2F2;border:2px solid #FECACA;border-radius:10px;padding:1.5rem;margin-bottom:1.5rem">
+  <div style="font-size:.8rem;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:1rem">
+    &#x26A0;&#xFE0F; Votre passphrase de chiffrement — à conserver impérativement
+  </div>
+
+  <div style="background:#fff;border:2px solid #DC2626;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;text-align:center">
+    <div id="passphrase-display" style="font-family:'Courier New',monospace;font-size:1.1rem;font-weight:700;color:#111;letter-spacing:.05em;word-break:break-all"></div>
+  </div>
+
+  <div style="display:flex;gap:.75rem;margin-bottom:1rem;justify-content:center">
+    <button type="button" onclick="copyPassphrase()" class="btn btn-s" style="font-size:.8rem;padding:.5rem 1rem">
+      &#x1F4CB; Copier
+    </button>
+    <button type="button" onclick="generatePassphrase()" class="btn btn-s" style="font-size:.8rem;padding:.5rem 1rem">
+      &#x1F504; Régénérer
+    </button>
+  </div>
+
+  <div style="font-size:.82rem;color:#7F1D1D;line-height:1.7">
+    <strong>Si vous perdez cette passphrase, vos sauvegardes seront irrécupérables.</strong><br>
+    Ni votre prestataire, ni l'équipe Pladigit ne pourront vous aider.<br>
+    Elle protège à la fois vos sauvegardes et la copie de secours de votre configuration.
+  </div>
+</div>
+
+<form method="POST" id="security-form">
+  <input type="hidden" name="action" value="security">
+  <input type="hidden" name="gpg_passphrase" id="gpg_passphrase_input">
+
+  <div style="background:var(--light);border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
+    <div style="font-size:.8rem;font-weight:700;color:var(--navy);margin-bottom:1rem">
+      Confirmations obligatoires
+    </div>
+
+    <label style="display:flex;align-items:flex-start;gap:.875rem;padding:.6rem 0;border-bottom:1px solid #e5e7eb;cursor:pointer">
+      <input type="checkbox" name="confirm_stored" id="confirm_stored" style="margin-top:.2rem;flex-shrink:0" onchange="updateBtn()">
+      <span style="font-size:.875rem;color:#1A2332">
+        J'ai noté cette passphrase dans un <strong>gestionnaire de mots de passe</strong>
+        (Bitwarden, KeePass…) ou dans un endroit sécurisé hors du serveur.
+      </span>
+    </label>
+
+    <label style="display:flex;align-items:flex-start;gap:.875rem;padding:.6rem 0;border-bottom:1px solid #e5e7eb;cursor:pointer">
+      <input type="checkbox" name="confirm_shared" id="confirm_shared" style="margin-top:.2rem;flex-shrink:0" onchange="updateBtn()">
+      <span style="font-size:.875rem;color:#1A2332">
+        Je l'ai transmise <strong>en main propre</strong> à une seconde personne de confiance
+        à la mairie (DGS, responsable informatique).
+        <span style="color:#DC2626;font-size:.78rem;display:block;margin-top:.2rem">
+          ⚠ Jamais par email ou SMS — ces canaux ne sont pas sécurisés.
+        </span>
+      </span>
+    </label>
+
+    <label style="display:flex;align-items:flex-start;gap:.875rem;padding:.6rem 0;cursor:pointer">
+      <input type="checkbox" name="confirm_understood" id="confirm_understood" style="margin-top:.2rem;flex-shrink:0" onchange="updateBtn()">
+      <span style="font-size:.875rem;color:#1A2332">
+        Je comprends que <strong>sa perte est définitive et irrécupérable</strong>,
+        et que personne ne pourra m'aider à déchiffrer mes sauvegardes sans elle.
+      </span>
+    </label>
+  </div>
+
+  <div class="btns">
+    <a href="?action=admin" class="btn btn-s">&#x2190; Retour</a>
+    <button type="submit" id="submit-btn" class="btn btn-p" disabled style="opacity:.4;cursor:not-allowed">
+      &#x1F680; Lancer l'installation
+    </button>
+  </div>
+</form>
+</div></div>
+
+<script>
+// Mots mémorables pour la génération de passphrase
+var words = [
+    'Acajou','Balcon','Canard','Donjon','Eperon','Falaise','Gateau','Hermine',
+    'Ivoire','Jardin','Kiosque','Lanterne','Miroir','Nuage','Olivier','Pinede',
+    'Quartz','Riviere','Sapin','Tilleul','Urbain','Vague','Wagon','Zephyr',
+    'Creme','Moulin','Toiture','Plongeon','Girofle','Hameau','Bergere','Clocher'
+];
+
+var currentPassphrase = '';
+
+function generatePassphrase() {
+    var w1 = words[Math.floor(Math.random() * words.length)];
+    var w2 = words[Math.floor(Math.random() * words.length)];
+    var w3 = words[Math.floor(Math.random() * words.length)];
+    var num = Math.floor(Math.random() * 90) + 10;
+    var year = new Date().getFullYear();
+    currentPassphrase = w1 + '-' + num + '-' + w2 + '-' + w3 + '-' + year + '-Pladigit';
+    document.getElementById('passphrase-display').textContent = currentPassphrase;
+    document.getElementById('gpg_passphrase_input').value = currentPassphrase;
+    // Réinitialiser les cases à cocher si on régénère
+    ['confirm_stored','confirm_shared','confirm_understood'].forEach(function(id) {
+        document.getElementById(id).checked = false;
+    });
+    updateBtn();
+}
+
+function copyPassphrase() {
+    if (!currentPassphrase) return;
+    navigator.clipboard.writeText(currentPassphrase).then(function() {
+        var btn = event.target;
+        var orig = btn.innerHTML;
+        btn.innerHTML = '&#x2705; Copié !';
+        setTimeout(function() { btn.innerHTML = orig; }, 2000);
+    });
+}
+
+function updateBtn() {
+    var allChecked =
+        document.getElementById('confirm_stored').checked &&
+        document.getElementById('confirm_shared').checked &&
+        document.getElementById('confirm_understood').checked &&
+        currentPassphrase.length > 0;
+    var btn = document.getElementById('submit-btn');
+    btn.disabled = !allChecked;
+    btn.style.opacity = allChecked ? '1' : '.4';
+    btn.style.cursor = allChecked ? 'pointer' : 'not-allowed';
+}
+
+// Générer automatiquement au chargement
+generatePassphrase();
+</script>
+<?php }
+
 function page_install(): void
 {
     $cfg = load_config();
@@ -1254,6 +1471,8 @@ function page_success(): void
     $url = $_SESSION['app_url'] ?? '';
     $admin = $_SESSION['admin'] ?? [];
     $db = $_SESSION['db'] ?? [];
+    $cfg = load_config();
+    $gpgPassphrase = $cfg['security']['gpg_passphrase'] ?? ($_SESSION['security']['gpg_passphrase'] ?? '');
     ?>
 <div class="wrap"><div class="card">
 <div style="text-align:center;font-size:3.5rem;margin-bottom:1.25rem">&#x1F389;</div>
@@ -1275,6 +1494,22 @@ function page_success(): void
   <div class="cred-row"><span class="cred-label">Utilisateur</span><code><?= htmlspecialchars($db['app_user'] ?? 'pladigit') ?></code></div>
   <div class="cred-row"><span class="cred-label">Mot de passe</span><em>Celui que vous avez défini</em></div>
 </div>
+
+<?php if ($gpgPassphrase) { ?>
+<div style="background:#FEF2F2;border:2px solid #FECACA;border-radius:8px;padding:1.25rem 1.5rem;margin:1.5rem 0">
+  <div style="font-size:.8rem;font-weight:700;color:#991B1B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">
+    &#x26A0;&#xFE0F; Dernière affichage — Passphrase de chiffrement
+  </div>
+  <div style="font-family:'Courier New',monospace;font-size:1rem;font-weight:700;color:#111;background:#fff;border:1px solid #FECACA;border-radius:6px;padding:.75rem 1rem;word-break:break-all;margin-bottom:.75rem">
+    <?= htmlspecialchars($gpgPassphrase) ?>
+  </div>
+  <div style="font-size:.78rem;color:#7F1D1D;line-height:1.6">
+    Cette passphrase ne sera plus jamais affichée après fermeture de cette page.<br>
+    Copiez-la maintenant si ce n'est pas encore fait.<br>
+    <strong>Jamais par email ou SMS.</strong> En main propre ou gestionnaire de mots de passe uniquement.
+  </div>
+</div>
+<?php } ?>
 
 <div class="btns" style="justify-content:center;margin-top:2rem">
   <a href="<?= htmlspecialchars($url) ?>/super-admin" class="btn btn-p" target="_blank">Accéder à Pladigit &#x2192;</a>

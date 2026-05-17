@@ -30,9 +30,11 @@ class AuthController extends Controller
 
         // Si aucun secret TOTP configuré → accès direct (mode legacy)
         if (! config('superadmin.totp_secret')) {
+            $request->session()->regenerate();
             session([
                 'super_admin_email' => $request->email,
                 'super_admin_verified' => true,
+                'super_admin_last_activity' => time(),
             ]);
 
             return redirect()->route('super-admin.dashboard');
@@ -72,9 +74,11 @@ class AuthController extends Controller
         }
 
         session()->forget('super_admin_totp_pending');
+        $request->session()->regenerate();
         session([
             'super_admin_email' => $email,
             'super_admin_verified' => true,
+            'super_admin_last_activity' => time(),
         ]);
 
         return redirect()->route('super-admin.dashboard');

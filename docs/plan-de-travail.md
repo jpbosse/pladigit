@@ -1,7 +1,7 @@
 # Plan de travail — Pladigit
 
 > Ordre d'exécution recommandé, toutes tâches confondues.
-> Mis à jour : Mai 2026.
+> Mis à jour : 17 mai 2026.
 
 ---
 
@@ -40,23 +40,57 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 
 *À implémenter avant tout déploiement chez une collectivité réelle.*
 
+### Étape 1-A — Documents et ADR
+
 | # | Tâche | Priorité | ADR | Remarque |
 |---|-------|----------|-----|----------|
-| 1.1 | MySQL InnoDB TDE — chiffrement au repos + sauvegarde du keyring hors serveur | 🔴 | ADR-041 §1.1 | VPS uniquement |
-| 1.2 | Chiffrement GPG des archives de sauvegarde dans `BackupService` | 🔴 | ADR-041 §2 | Modif `BackupService` + colonnes `backup_gpg_*` |
-| 1.3 | Vérification d'intégrité SHA-256 des archives | 🔴 | ADR-041 §2.2 | Générer `.sha256` à côté de chaque archive |
-| 1.4 | Chiffrement GPG du `.env` pour archivage sécurisé hors serveur | 🔴 | ADR-041 §1.2 | Procédure manuelle + documenter |
-| 1.5 | Configuration logs Nginx 90 jours + logs MySQL slow/error | 🟠 | ADR-041 §4 | `logrotate.d` + `mysqld.cnf` |
-| 1.6 | Test de restauration complète sur VPS de test | 🔴 | ADR-041 §5 | Valider RPO/RTO réels |
-| 1.7 | Test de restauration partielle (un tenant) | 🔴 | ADR-041 §6 | — |
-| 1.8 | Test de restauration d'un fichier GED | 🟠 | ADR-041 §7 | — |
-| 1.9 | Journal des tests de restauration (`/var/log/pladigit_restore_tests.log`) | 🟠 | ADR-041 §8 | — |
-| 1.10 | Checklist sécurité mensuelle — documenter et planifier | ⚪ | ADR-041 §11 | Calendrier de maintenance |
-| 1.11 | En-têtes HTTP sécurité globaux Nginx — `Strict-Transport-Security`, `X-Frame-Options`, `Referrer-Policy`, `X-Content-Type-Options` | 🔴 | — | Global Nginx, pas seulement médias |
-| 1.12 | Alerte email + log si tentative connexion Super Admin depuis IP non autorisée | 🟠 | ADR-027 | Modifier `CheckSuperAdmin.php` |
-| 1.13 | Purge automatique `audit_logs` après N années configurables (RGPD) | 🟡 | ADR-037 | Nouvelle commande + scheduled |
-| 1.14 | Test d'isolation tenant automatisé — vérifier qu'un user tenant A ne peut pas accéder aux données tenant B | 🔴 | ADR-002 | Test Feature dédié |
-| 1.15 | Procédure de suppression complète d'un tenant (RGPD — droit à l'effacement) | 🟠 | ADR-037 | Commande artisan + documentation |
+| ~~1.A.1~~ | ~~Amender ADR-041 §1.1~~ — TDE délégué prestataire/communauté OS, appel à contribution, risque résiduel documenté et assumé | ⚪ | ADR-041 §1.1 | **FAIT — 2026-05-17** |
+| ~~1.A.2~~ | ~~Amender ADR-041 §1.2~~ — GPG `.env` automatisé par le wizard (même passphrase que les sauvegardes, même runner) | ⚪ | ADR-041 §1.2 | **FAIT — 2026-05-17** |
+| ~~1.A.3~~ | ~~Créer `docs/deploy/secrets.md`~~ — procédures de gestion des secrets, déchiffrement d'urgence, à deux emplacements obligatoires | ⚪ | ADR-041 §1.2 | **FAIT — 2026-05-17** |
+
+### Étape 1-B — Modifications applicatives (code Laravel)
+
+| # | Tâche | Priorité | ADR | Remarque |
+|---|-------|----------|-----|----------|
+| 1.B.1 | `CheckSuperAdmin.php` — alerte email + log structuré si tentative depuis IP non autorisée | 🟠 | ADR-027 | ~20 lignes ; Mail::to() + Log::warning() |
+| 1.B.2 | Session Super Admin — régénération ID de session après login + timeout inactivité 30 min | 🔴 | — | Vérifier `AuthController` ; session()->regenerate() + middleware |
+| 1.B.3 | Wizard `install/index.php` — ajouter étape "Sécurité" : génération passphrase GPG, encadré bloquant avec confirmation en 3 points, activation GPG par défaut, écriture en base + chiffrement `.env` par le runner | 🔴 | ADR-041 §2.1 | Remplace "UI Super Admin activer GPG" — le GPG est activé à l'install, pas en option après |
+| 1.B.4 | UI Super Admin — afficher résultat vérification SHA-256 à la demande (code `BackupService` déjà prêt) | 🟠 | ADR-041 §2.2 | Bouton "Vérifier l'intégrité" sur la liste des sauvegardes |
+| 1.B.5 | Tableau de bord sécurité Super Admin — état GPG, dernière sauvegarde, workers, dernier test de restauration, clés SSH autorisées, version PHP/Laravel | 🟠 | ADR-041 §11 | Intégrer `CheckTdeCommand` existant ; remplace la checklist manuelle |
+| 1.B.6 | Page "Tester la sauvegarde" Super Admin — déchiffrer, vérifier SHA-256, lister le contenu de l'archive sans restaurer ; écrire dans le journal de tests | 🟠 | ADR-041 §8 | Couvre 1.6 partiel, 1.7 partiel, 1.9 |
+| 1.B.7 | Commande artisan `pladigit:purge-audit-logs` + scheduler — durée configurable dans PlatformSettings (RGPD) | 🟡 | ADR-037 | Vérifier overlap avec `PurgeExpiredDataCommand` avant de créer |
+| 1.B.8 | Suppression complète d'un tenant — compléter `destroy()` : ajouter suppression fichiers GED + sauvegardes locales (la base MySQL et le soft-delete existent déjà) | 🟠 | ADR-037 | Trou identifié : `storage/app/private/ged/organisations/{slug}/` non supprimé |
+| 1.B.9 | Commande artisan `pladigit:delete-tenant --slug=xxx` — suppression complète (base + GED + sauvegardes) avec confirmation explicite | 🟠 | ADR-037 | Complète 1.B.8 pour usage CLI prestataire |
+| 1.B.10 | Rate limiting sur déclenchement manuel de sauvegarde — éviter saturation disque | 🟡 | — | 1 sauvegarde manuelle / 10 min par org |
+| 1.B.11 | Log des exports DataGrid (qui, quoi, quand) — RGPD, registre des traitements | 🟡 | ADR-037 | Chaque export Excel/PDF loggé dans `datagrid_audit_logs` |
+| 1.B.12 | Purge automatique `audit_logs` — durée max absolue configurable (ex : 5 ans) indépendante de la rétention courante | 🟡 | ADR-037 | Complète 1.B.7 |
+
+### Étape 1-C — Script d'installation (`install.sh`)
+
+| # | Tâche | Priorité | Remarque |
+|---|-------|----------|----------|
+| 1.C.1 | Ajouter dans `install.sh` : `logrotate.d/nginx` rotation 90 jours (en-têtes HTTP sécurité déjà présents lignes 637-642) | 🟠 | `logrotate.d/nginx` — daily, rotate 90, compress |
+| 1.C.2 | Ajouter dans `install.sh` : MySQL slow_query_log + log_error dans `mysqld.cnf` | 🟠 | `slow_query_log=1`, `long_query_time=2`, `log_error` |
+| 1.C.3 | Ajouter dans `install.sh` : note explicite sur TDE (non automatisé — voir ADR-041 §1.1 et contribution communauté) | ⚪ | Message informatif en fin d'install |
+
+### Étape 1-D — Tests
+
+| # | Tâche | Priorité | ADR | Remarque |
+|---|-------|----------|-----|----------|
+| 1.D.1 | Test PHPUnit Feature — isolation cross-tenant : un user tenant A ne peut pas accéder aux routes ni aux données du tenant B via DataGrid | 🔴 | ADR-002 | Nouveau fichier `tests/Feature/Tenant/TenantIsolationTest.php` |
+| 1.D.2 | Test PHPUnit Feature — suppression tenant complète : vérifier que base, GED et sauvegardes sont bien supprimés | 🟠 | ADR-037 | Compléter `OrganizationTest.php` |
+| 1.D.3 | Test PHPUnit Feature — validation slug organisation : caractères dangereux rejetés pour le nom de base MySQL | 🟠 | ADR-002 | Vérifier la validation existante dans `OrganizationController::store()` |
+
+### Étape 1-E — Tâches déléguées / procédures manuelles (hors app)
+
+| # | Tâche | Priorité | ADR | Remarque |
+|---|-------|----------|-----|----------|
+| 1.1 | MySQL InnoDB TDE — chiffrement au repos | 🔴 | ADR-041 §1.1 | **Non prérequis au déploiement.** Risque résiduel (vol physique disque) documenté et assumé dans ADR-041. À faire par un administrateur système qualifié si disponible. Contribution communauté open source bienvenue (`CONTRIBUTING.md` — label `help wanted / security`). |
+| 1.4 | Chiffrement GPG du `.env` — archivage sécurisé hors serveur | 🔴 | ADR-041 §1.2 | **Automatisé par le runner d'installation** (même passphrase que les sauvegardes). Copie à télécharger hors serveur — rappelé sur la page de succès du wizard. |
+| 1.6 | Test de restauration complète sur VPS de test | 🔴 | ADR-041 §5 | Valider RPO/RTO réels — ne peut pas être automatisé dans l'app |
+| 1.7 | Test de restauration partielle (un tenant) sur VPS de test | 🔴 | ADR-041 §6 | Idem — procédure documentée dans ADR-041 |
+| 1.8 | Test de restauration d'un fichier GED | 🟠 | ADR-041 §7 | Idem |
+| 1.10 | Checklist sécurité mensuelle — planifier dans l'agenda | ⚪ | ADR-041 §11 | Remplacée en grande partie par le tableau de bord 1.B.5 |
 
 ---
 
@@ -211,7 +245,7 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 
 ```
 Bloc 0  — Fondations architecturales          (migrations + enums + service)
-Bloc 1  — Sécurité et infrastructure          (TDE + GPG + tests restauration)
+Bloc 1  — Sécurité et infrastructure          (ADR + app + install.sh + tests)
 Bloc 2  — DataGrid Socle                      (fonctionnalités utilisateur)
 Bloc 3  — DataGrid Qualité des données        (fuzzy + doublons)
 Bloc 7  — Source de vérité documentaire       (en parallèle de Bloc 2-3)

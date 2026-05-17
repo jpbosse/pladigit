@@ -1,7 +1,8 @@
 # ADR-041 — Sécurité des données au repos, sauvegardes chiffrées et plan de restauration
 
 ## Statut
-Proposé — 2026-05-08
+Accepté — 2026-05-08
+Amendé — 2026-05-17 (§1.1 délégué prestataire/communauté ; §1.2 et §2.1 automatisés par le wizard d'installation)
 
 ## Contexte
 
@@ -32,6 +33,23 @@ les archives sont corrompues ou que la procédure est inconnue
 est catastrophique — en particulier pour une collectivité qui
 doit assurer la continuité du service public.
 
+### Principe directeur — Secure by default, transparent pour l'opérateur
+
+La réalité du terrain des collectivités de moins de 20 000 habitants
+impose un constat sans concession : le "prestataire informatique"
+local peut être quelqu'un dont la compétence principale est la
+maintenance de postes Windows, sans aucune expérience Unix ou de la
+ligne de commande. Concevoir la sécurité en supposant un opérateur
+qualifié, c'est concevoir une sécurité qui ne sera pas appliquée.
+
+Ce principe guide toutes les décisions de sécurité de Pladigit :
+
+| Catégorie | Exemple | Mise en œuvre |
+|-----------|---------|---------------|
+| **Automatique** | GPG sauvegardes, GPG `.env`, logrotate, en-têtes HTTP | Wizard ou `install.sh` — aucune action requise |
+| **Guidé, impossible à ignorer** | Passphrase GPG | Étape dédiée du wizard, bouton "Suivant" bloqué sans confirmation |
+| **Documenté, non bloquant** | TDE MySQL | Souhaitable, non prérequis — contribution communauté bienvenue |
+
 Cet ADR définit les mesures de protection des données au repos,
 le chiffrement des sauvegardes, et les procédures de restauration
 à différentes granularités.
@@ -60,7 +78,37 @@ code n'est modifié.
 - Un attaquant qui accède à MySQL via un compte authentifié
   (TDE chiffre le disque, pas l'accès applicatif)
 
-**Configuration :**
+**Analyse du risque résiduel sans TDE :**
+Le scénario couvert exclusivement par TDE est le vol physique du
+disque du VPS. Pour une infrastructure OVH, ce vecteur est très peu
+probable. Les autres vecteurs d'attaque (SSH, exploit web,
+compromission OVH) ne sont pas couverts par TDE de toute façon.
+Le risque résiduel est documenté, assumé, et réévalué à chaque
+version majeure.
+
+> **⚠ Périmètre d'intervention — administrateur système qualifié**
+>
+> La mise en œuvre de TDE nécessite la modification de fichiers
+> système MySQL (`mysqld.cnf`), la création d'un répertoire keyring
+> avec droits stricts, et un redémarrage de MySQL en production.
+> Ces opérations sont **réservées à un administrateur système
+> qualifié maîtrisant l'environnement Unix/Linux**. Une erreur
+> (keyring mal sauvegardé, fichier corrompu, redémarrage raté)
+> peut rendre l'intégralité des données MySQL irrécupérables.
+>
+> **TDE n'est pas un prérequis au déploiement de Pladigit.**
+> Les autres mesures (chiffrement GPG des sauvegardes, droits stricts
+> sur le `.env`, accès SSH par clé, Fail2ban) constituent un niveau
+> de protection suffisant pour une première mise en production.
+>
+> **Appel à la communauté open source :**
+> Un script bash automatisant l'activation de TDE de manière sécurisée
+> (vérification de la version MySQL, création du keyring, sauvegarde
+> automatique de la clé, test de redémarrage, rollback en cas d'échec)
+> serait une contribution précieuse. Voir `CONTRIBUTING.md` —
+> label `help wanted / security`.
+
+**Configuration de référence** (pour administrateur qualifié) :
 
 ```bash
 # /etc/mysql/mysql.conf.d/mysqld.cnf
@@ -78,97 +126,99 @@ sudo mkdir -p /etc/mysql/keyring
 sudo chown mysql:mysql /etc/mysql/keyring
 sudo chmod 750 /etc/mysql/keyring
 
-# Sauvegarder le fichier keyring dans un endroit distinct du serveur
-# (coffre-fort numérique, gestionnaire de mots de passe de la collectivité)
+# ⚠ Sauvegarder le fichier keyring HORS du serveur immédiatement
+# Sa perte rend les données MySQL irrécupérables.
 ```
-
-**⚠ Point critique :** le fichier `keyring` est la clé de déchiffrement.
-S'il est perdu ou corrompu, les données MySQL sont irrécupérables.
-Il doit être sauvegardé séparément des données (jamais dans la même
-archive de sauvegarde).
 
 #### 1.2 Chiffrement du fichier `.env`
 
-Le `.env` contient tous les secrets de l'application. En complément
-des droits stricts (`ubuntu:www-data 640`), le `.env` de production
-est chiffré avec GPG en tant que sauvegarde sécurisée.
+Le `.env` contient tous les secrets de l'application (`APP_KEY`,
+credentials MySQL, SMTP, clés SFTP). Sa compromission est l'incident
+le plus critique possible.
+
+**Mise en œuvre — automatisée par le wizard d'installation :**
+
+Le runner d'installation (`install/runner.php`) chiffre automatiquement
+une copie du `.env` avec GPG immédiatement après sa génération,
+en utilisant **la même passphrase** que celle des sauvegardes
+(générée et confirmée à l'étape "Sécurité" du wizard — voir §2.1).
+
+L'opérateur n'a rien à faire. La copie chiffrée est créée à
+`/root/.pladigit_env_backup.gpg` et sa localisation est rappelée
+sur la page de succès finale du wizard.
+
+**Procédure de déchiffrement en cas de besoin :**
 
 ```bash
-# Chiffrer le .env pour archivage sécurisé
-gpg --symmetric --cipher-algo AES256 \
-    --output /root/.pladigit_env_backup.gpg \
-    /var/www/pladigit/.env
-
-# Déchiffrer si besoin
 gpg --decrypt /root/.pladigit_env_backup.gpg > /var/www/pladigit/.env
+# → Saisir la passphrase GPG conservée hors du serveur
 ```
 
-Le `.env` chiffré est stocké hors du serveur (gestionnaire de mots
-de passe ou coffre-fort numérique de la collectivité).
+Procédure complète dans `docs/deploy/secrets.md`.
+
+**Mise à jour de la copie chiffrée :**
+À chaque modification du `.env` (rotation de secrets, changement SMTP,
+etc.), utiliser le bouton Super Admin → Paramètres → Sécurité →
+"Recréer la copie chiffrée du .env", ou relancer manuellement :
+
+```bash
+gpg --batch --yes --symmetric --cipher-algo AES256 \
+    --passphrase "VOTRE_PASSPHRASE_GPG" \
+    --output /root/.pladigit_env_backup.gpg \
+    /var/www/pladigit/.env
+```
 
 ---
 
 ### 2. Chiffrement des archives de sauvegarde
 
-Les archives `.tar.gz` actuelles ne sont pas chiffrées. Une archive
-volée contient l'intégralité des données de la collectivité.
+#### 2.1 Chiffrement GPG des archives — activé par défaut
 
-#### 2.1 Chiffrement GPG des archives
+Le chiffrement GPG est **activé automatiquement** lors de l'installation.
+Il ne s'agit pas d'une option : toute archive produite par Pladigit
+est chiffrée avant d'être stockée ou transmise.
 
-Le `BackupService` est modifié pour chiffrer chaque archive après
-création, avant envoi vers la destination :
+**Génération de la passphrase — étape dédiée et bloquante du wizard :**
 
-```php
-// Dans BackupService::run()
-// Après création de l'archive tar.gz :
+Le wizard d'installation (`install/index.php`) comporte une étape
+"Sécurité" positionnée juste avant la phase d'installation finale.
+Cette étape génère automatiquement une passphrase forte et lisible
+(format mémorable : `Mot-Chiffre-Mot-Mot-Année-Pladigit`) et
+l'affiche dans un encadré avec confirmation obligatoire en trois
+points. Le bouton "Continuer vers l'installation" est désactivé
+tant que les trois cases ne sont pas cochées.
 
-if ($this->gpgEnabled($settings)) {
-    $encryptedPath = $archivePath . '.gpg';
-    $this->encryptArchive($archivePath, $encryptedPath, $settings);
-    unlink($archivePath); // supprimer l'archive non chiffrée
-    $archivePath = $encryptedPath;
-    $archiveName = $archiveName . '.gpg';
-}
-```
+Cette passphrase est ensuite :
+1. Stockée chiffrée en base (`platform_settings.backup_gpg_passphrase_enc`
+   via `APP_KEY` Laravel) pour que le `BackupService` puisse l'utiliser
+2. Utilisée pour chiffrer automatiquement la copie de secours du `.env`
+3. Affichée **une dernière fois** sur la page de succès finale du wizard,
+   dans un encadré distinct des autres informations d'accès
 
-```php
-private function encryptArchive(
-    string $sourcePath,
-    string $destPath,
-    TenantSettings $settings
-): void {
-    $passphrase = Crypt::decryptString($settings->backup_gpg_passphrase_enc);
-    $cmd = sprintf(
-        'gpg --batch --yes --symmetric --cipher-algo AES256 '
-        . '--passphrase %s --output %s %s 2>/dev/null',
-        escapeshellarg($passphrase),
-        escapeshellarg($destPath),
-        escapeshellarg($sourcePath)
-    );
-    exec($cmd, $output, $exitCode);
-    if ($exitCode !== 0) {
-        throw new \RuntimeException('Chiffrement GPG de l\'archive échoué.');
-    }
-}
-```
+**Un seul secret à retenir et à conserver hors serveur.**
+La passphrase GPG protège à la fois les sauvegardes et la copie
+du `.env`. Deux protections, une seule passphrase à gérer.
 
-Nouvelles colonnes dans `platform_settings` :
+**Implémentation dans `BackupService` :**
+Le chiffrement GPG est intégré dans `app/Services/BackupService.php`.
+Les colonnes `backup_gpg_enabled` (activé par défaut à `true`) et
+`backup_gpg_passphrase_enc` sont présentes dans `platform_settings`.
 
-```sql
-ALTER TABLE platform_settings
-    ADD COLUMN backup_gpg_enabled         BOOLEAN NOT NULL DEFAULT FALSE,
-    ADD COLUMN backup_gpg_passphrase_enc  TEXT NULL; -- chiffré via APP_KEY
-```
+**⚠ Point critique absolu :** si la passphrase GPG est perdue,
+les archives de sauvegarde et la copie du `.env` sont définitivement
+irrécupérables. Ni le prestataire, ni l'équipe Pladigit ne peuvent
+aider. La stocker dans un gestionnaire de mots de passe ET la
+remettre **en main propre** à une seconde personne de confiance
+à la mairie (DGS, responsable informatique) est une obligation,
+pas une option. **Jamais par email ou SMS** — ces canaux laissent
+une copie en clair sur des serveurs que vous ne contrôlez pas.
 
-**⚠ Point critique :** la passphrase GPG doit être stockée hors du
-serveur. Si elle est perdue, les archives sont irrécupérables.
-
-#### 2.2 Vérification d'intégrité
+#### 2.2 Vérification d'intégrité SHA-256
 
 À chaque sauvegarde, un fichier de somme de contrôle SHA-256 est
-généré à côté de l'archive :
+généré automatiquement à côté de l'archive :
 
-```bash
+```
 backup_2026-05-08_000001_demo.tar.gz.gpg
 backup_2026-05-08_000001_demo.tar.gz.gpg.sha256
 ```
@@ -178,6 +228,10 @@ La restauration commence toujours par vérifier la somme de contrôle :
 ```bash
 sha256sum -c backup_2026-05-08_000001_demo.tar.gz.gpg.sha256
 ```
+
+L'interface Super Admin permet de déclencher cette vérification
+sans ligne de commande (bouton "Vérifier l'intégrité" sur la liste
+des sauvegardes).
 
 ---
 
@@ -202,10 +256,9 @@ incompatible avec l'objectif d'autonomie des collectivités.
 - Mot de passe MySQL long et aléatoire (32 caractères minimum)
 - `bind-address = 127.0.0.1` dans `mysqld.cnf`
 - Accès SSH uniquement par clé (mot de passe SSH désactivé)
-- TDE activé (§1.1) — les fichiers MySQL sur disque sont chiffrés
+- TDE activé si possible (§1.1)
 
-**Ce risque est réévalué** à chaque montée de version majeure de
-Pladigit pour étudier des alternatives architecturales.
+**Ce risque est réévalué** à chaque montée de version majeure.
 
 ---
 
@@ -214,9 +267,9 @@ Pladigit pour étudier des alternatives architecturales.
 En cas d'intrusion détectée, les logs permettent de reconstituer
 ce qui a été accédé ou modifié.
 
-#### 4.1 Logs Nginx
+#### 4.1 Logs Nginx — conservation 90 jours
 
-Conservation 90 jours :
+Configuré automatiquement par `install.sh` :
 
 ```nginx
 # /etc/nginx/nginx.conf
@@ -225,7 +278,7 @@ error_log  /var/log/nginx/error.log warn;
 ```
 
 ```bash
-# /etc/logrotate.d/nginx
+# /etc/logrotate.d/nginx — généré par install.sh
 /var/log/nginx/*.log {
     daily
     rotate 90
@@ -236,171 +289,90 @@ error_log  /var/log/nginx/error.log warn;
 }
 ```
 
-#### 4.2 Logs MySQL — accès suspects
+#### 4.2 Logs MySQL — requêtes lentes et erreurs
 
-Activer le log des requêtes lentes et des erreurs (pas le general_log
-qui est trop verbeux en production) :
+Configuré automatiquement par `install.sh` :
 
-```bash
-# /etc/mysql/mysql.conf.d/mysqld.cnf
+```ini
 [mysqld]
-slow_query_log = 1
-slow_query_log_file = /var/log/mysql/slow.log
-long_query_time = 2
-log_error = /var/log/mysql/error.log
+slow_query_log        = 1
+slow_query_log_file   = /var/log/mysql/slow.log
+long_query_time       = 2
+log_error             = /var/log/mysql/error.log
 ```
+
+Pas de `general_log` en production (trop verbeux).
 
 #### 4.3 Audit trail applicatif
 
 L'audit trail Pladigit (`datagrid_audit_logs`, logs Laravel) est
-déjà en place pour les actions métier. En cas d'incident, il permet
-de savoir quelles données ont été consultées ou modifiées via l'application.
+déjà en place pour les actions métier. Les exports DataGrid
+(Excel, PDF) sont également loggés (qui, quoi, quand) pour
+conformité RGPD.
 
 #### 4.4 Fail2ban
 
-Déjà installé (ADR-026). Vérifie régulièrement que les jails
-SSH et Nginx sont actifs :
+Déjà installé et configuré par `install.sh`. Vérification
+périodique recommandée :
 
 ```bash
-sudo fail2ban-client status
-sudo fail2ban-client status sshd
+sudo fail2ban-client status && sudo fail2ban-client status sshd
 ```
 
 ---
 
 ### 5. Procédure de restauration complète (nouveau VPS)
 
-**Scénario :** le VPS est inaccessible ou corrompu. On repart de zéro.
-
-**RPO (Recovery Point Objective) :** données de la veille à minuit
-(dernière sauvegarde quotidienne réussie).
-
-**RTO (Recovery Time Objective) estimé :** 2 à 4 heures selon
-la taille des données et la connexion réseau.
-
-#### Étape 1 — Préparer le nouveau serveur
-
-Suivre l'`INSTALL.md` jusqu'à l'étape "Déploiement de Pladigit"
-incluse, sans exécuter les migrations.
+**RPO :** données de la veille à minuit.
+**RTO estimé :** 2 à 4 heures.
 
 ```bash
-# Vérifier que le stack est en place
-php8.4 -v
-mysql --version
-redis-server --version
-nginx -v
-```
+# Étape 1 — Préparer le nouveau serveur (suivre INSTALL.md)
+php8.4 -v && mysql --version && redis-server --version && nginx -v
 
-#### Étape 2 — Récupérer et déchiffrer la dernière sauvegarde
-
-```bash
-# Copier l'archive depuis la destination de sauvegarde (SFTP ou support)
+# Étape 2 — Récupérer et déchiffrer la sauvegarde
 scp user@nas:/backup/pladigit/demo/backup_YYYY-MM-DD_*.tar.gz.gpg /tmp/
-
-# Vérifier l'intégrité
 sha256sum -c /tmp/backup_YYYY-MM-DD_*.tar.gz.gpg.sha256
+gpg --decrypt /tmp/backup_YYYY-MM-DD_*.tar.gz.gpg > /tmp/backup.tar.gz
+mkdir /tmp/restore && tar -xzf /tmp/backup.tar.gz -C /tmp/restore
 
-# Déchiffrer
-gpg --batch --passphrase "VOTRE_PASSPHRASE_GPG" \
-    --decrypt /tmp/backup_YYYY-MM-DD_*.tar.gz.gpg \
-    > /tmp/backup.tar.gz
-
-# Extraire
-mkdir /tmp/restore
-tar -xzf /tmp/backup.tar.gz -C /tmp/restore
-ls /tmp/restore/
-# → db_platform.sql.gz  db_demo.sql.gz  ged/  nas/  env.txt
-```
-
-#### Étape 3 — Restaurer le `.env`
-
-```bash
+# Étape 3 — Restaurer le .env
 cp /tmp/restore/env.txt /var/www/pladigit/.env
-sudo chown ubuntu:www-data /var/www/pladigit/.env
-sudo chmod 640 /var/www/pladigit/.env
+sudo chown ubuntu:www-data /var/www/pladigit/.env && sudo chmod 640 /var/www/pladigit/.env
+php artisan config:clear && php artisan cache:clear
 
-# Vider les caches Laravel
-php artisan config:clear
-php artisan cache:clear
-```
-
-#### Étape 4 — Restaurer les bases MySQL
-
-```bash
-# Base platform
+# Étape 4 — Restaurer les bases MySQL
 gunzip -c /tmp/restore/db_platform.sql.gz | mysql -u pladigit -p pladigit_platform
+gunzip -c /tmp/restore/db_demo.sql.gz     | mysql -u pladigit -p pladigit_demo
 
-# Base tenant (une par organisation)
-gunzip -c /tmp/restore/db_demo.sql.gz | mysql -u pladigit -p pladigit_demo
-```
-
-#### Étape 5 — Restaurer les fichiers GED et NAS
-
-```bash
-# GED
+# Étape 5 — Restaurer les fichiers GED
 cp -r /tmp/restore/ged/ /var/www/pladigit/storage/app/private/ged/
 sudo chown -R www-data:www-data /var/www/pladigit/storage/app/private/ged/
 
-# NAS médias (si driver local)
-cp -r /tmp/restore/nas/ /chemin/nas/local/
-```
-
-#### Étape 6 — Relancer les services
-
-```bash
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# Étape 6 — Relancer les services
+php artisan config:cache && php artisan route:cache && php artisan view:cache
 sudo systemctl restart php8.4-fpm nginx
 sudo supervisorctl restart pladigit-worker:*
-```
-
-#### Étape 7 — Vérifier
-
-```bash
-# Accéder à https://demo.pladigit.fr
-# Vérifier la connexion en tant que Super Admin
-# Vérifier que les données d'une organisation sont présentes
-# Vérifier que les workers sont RUNNING
-sudo supervisorctl status
 ```
 
 ---
 
 ### 6. Procédure de restauration partielle (un tenant)
 
-**Scénario :** une organisation a perdu des données suite à une
-fausse manipulation ou un bug. Les autres organisations ne sont
-pas affectées.
-
 ```bash
-# Identifier la sauvegarde à restaurer
-ls -la /var/www/pladigit/storage/app/private/backup_complet/demo/
-# → backup_2026-05-07_000001_demo.tar.gz.gpg  (hier)
-# → backup_2026-05-06_000001_demo.tar.gz.gpg  (avant-hier)
-
-# Déchiffrer et extraire la sauvegarde choisie
-gpg --batch --passphrase "VOTRE_PASSPHRASE_GPG" \
-    --decrypt backup_2026-05-07_000001_demo.tar.gz.gpg \
-    > /tmp/restore_demo.tar.gz
-
-mkdir /tmp/restore_demo
-tar -xzf /tmp/restore_demo.tar.gz -C /tmp/restore_demo
-
-# ⚠ ATTENTION : cette opération écrase les données actuelles du tenant
-# Prendre une sauvegarde de l'état actuel avant de procéder
+# Sauvegarde préventive de l'état actuel
 php artisan pladigit:backup --force --slug=demo
 
-# Restaurer uniquement la base du tenant
-# Stopper les workers pendant la restauration
+# Stopper les workers
 sudo supervisorctl stop pladigit-worker:*
 
+# Déchiffrer et restaurer
+gpg --decrypt backup_YYYY-MM-DD_demo.tar.gz.gpg > /tmp/restore_demo.tar.gz
+mkdir /tmp/restore_demo && tar -xzf /tmp/restore_demo.tar.gz -C /tmp/restore_demo
 gunzip -c /tmp/restore_demo/db_demo.sql.gz | mysql -u pladigit -p pladigit_demo
 
-# Redémarrer les workers
+# Redémarrer
 sudo supervisorctl start pladigit-worker:*
-
-# Vider les caches
 php artisan cache:clear
 ```
 
@@ -408,26 +380,20 @@ php artisan cache:clear
 
 ### 7. Procédure de restauration d'un fichier GED
 
-**Scénario :** un document a été supprimé par erreur dans la GED.
-
 ```bash
-# Identifier quelle sauvegarde contient le fichier
-# (chercher dans la sauvegarde d'hier en premier)
-gpg --batch --passphrase "VOTRE_PASSPHRASE_GPG" \
-    --decrypt backup_YYYY-MM-DD_demo.tar.gz.gpg \
-    > /tmp/restore_ged.tar.gz
+# Déchiffrer la sauvegarde
+gpg --decrypt backup_YYYY-MM-DD_demo.tar.gz.gpg > /tmp/restore_ged.tar.gz
 
-# Lister les fichiers GED dans l'archive sans tout extraire
+# Lister les fichiers GED sans tout extraire
 tar -tzf /tmp/restore_ged.tar.gz | grep "ged/"
 
 # Extraire uniquement le fichier recherché
 tar -xzf /tmp/restore_ged.tar.gz -C /tmp/ \
     ged/organisations/demo/documents/2026/05/le_fichier.pdf
 
-# Copier vers la GED
+# Copier vers la GED et corriger les droits
 cp /tmp/ged/organisations/demo/documents/2026/05/le_fichier.pdf \
    /var/www/pladigit/storage/app/private/ged/organisations/demo/documents/2026/05/
-
 sudo chown www-data:www-data \
    /var/www/pladigit/storage/app/private/ged/organisations/demo/documents/2026/05/le_fichier.pdf
 ```
@@ -438,38 +404,34 @@ sudo chown www-data:www-data \
 
 **Une sauvegarde non testée n'est pas une sauvegarde.**
 
-#### 8.1 Test mensuel recommandé
+Le tableau de bord sécurité Super Admin permet de vérifier l'intégrité
+d'une archive et de lister son contenu sans restaurer, directement
+depuis l'interface, avec consignation automatique dans le journal
+des tests (plan de travail 1.B.5 et 1.B.6).
 
-Une fois par mois, exécuter cette procédure sur un environnement
-de test (pas en production) :
+#### 8.1 Test mensuel recommandé (sur environnement de test)
 
 ```bash
-# 1. Prendre la dernière sauvegarde de production
-# 2. La déchiffrer
-gpg --batch --passphrase "PASSPHRASE" --decrypt backup_*.tar.gz.gpg > /tmp/test.tar.gz
+# Déchiffrer et vérifier
+gpg --batch --passphrase "PASSPHRASE" \
+    --decrypt backup_*.tar.gz.gpg > /tmp/test.tar.gz
+tar -tzf /tmp/test.tar.gz | wc -l
+tar -tzf /tmp/test.tar.gz | grep "db_platform.sql.gz"
 
-# 3. Vérifier que l'archive est lisible et complète
-tar -tzf /tmp/test.tar.gz | wc -l  # doit retourner un nombre > 0
-tar -tzf /tmp/test.tar.gz | grep "db_platform.sql.gz"  # doit trouver le dump
-tar -tzf /tmp/test.tar.gz | grep "db_"  # doit trouver les dumps tenant
+# Restaurer sur instance de test
+mkdir /tmp/test_restore && tar -xzf /tmp/test.tar.gz -C /tmp/test_restore
+gunzip -c /tmp/test_restore/db_platform.sql.gz \
+    | mysql -u pladigit -p pladigit_test_platform
+mysql -u pladigit -p pladigit_test_platform \
+    -e "SELECT COUNT(*) FROM organizations;"
 
-# 4. Restaurer sur une instance MySQL de test
-mkdir /tmp/test_restore
-tar -xzf /tmp/test.tar.gz -C /tmp/test_restore
-gunzip -c /tmp/test_restore/db_platform.sql.gz | mysql -u pladigit -p pladigit_test_platform
-
-# 5. Vérifier que les données sont lisibles
-mysql -u pladigit -p pladigit_test_platform -e "SELECT COUNT(*) FROM organizations;"
-
-# 6. Consigner le résultat dans le journal de tests
-echo "$(date) — Test restauration OK — $(wc -l < <(tar -tzf /tmp/test.tar.gz)) fichiers" \
+# Consigner et nettoyer
+echo "$(date) — Test restauration OK — $(tar -tzf /tmp/test.tar.gz | wc -l) fichiers" \
     >> /var/log/pladigit_restore_tests.log
-
-# 7. Nettoyer
 rm -rf /tmp/test_restore /tmp/test.tar.gz
 ```
 
-#### 8.2 Checklist de validation du test
+#### 8.2 Checklist de validation
 
 ```
 ☐ L'archive GPG se déchiffre sans erreur
@@ -494,130 +456,75 @@ rm -rf /tmp/test_restore /tmp/test.tar.gz
 | **RTO restauration partielle** | 30 à 60 minutes | Tenant uniquement, VPS opérationnel |
 | **RTO restauration fichier GED** | 10 à 20 minutes | Fichier unique |
 
-Ces valeurs sont indicatives. Elles doivent être validées par un
-test de restauration réel (§8) et ajustées selon la taille réelle
-des données de la collectivité.
-
-**Amélioration du RPO :**
-Pour les collectivités qui ne peuvent pas se permettre 24h de perte,
-passer `backup_schedule` à `hourly` dans PlatformSettings — les
-sauvegardes se déclenchent toutes les heures.
-
 ---
 
 ### 10. Plan de réponse à incident
 
 #### 10.1 Signes d'une compromission
 
-- Connexions SSH depuis des IP inconnues (vérifier `/var/log/auth.log`)
+- Connexions SSH depuis des IP inconnues (`/var/log/auth.log`)
 - Processus inconnus consommant CPU ou réseau (`top`, `netstat`)
-- Fichiers modifiés récemment dans `/var/www/pladigit` (`find . -newer .env -type f`)
-- Logs applicatifs avec des erreurs inhabituelles ou des requêtes suspectes
-- Sauvegarde échouant avec "Permission denied" sur des fichiers non modifiés
+- Fichiers modifiés récemment dans `/var/www/pladigit`
+- Logs applicatifs avec erreurs inhabituelles
+- **Alerte email Pladigit** : tentative de connexion Super Admin
+  depuis IP non autorisée (plan de travail 1.B.1)
 
 #### 10.2 Procédure d'urgence immédiate
 
 ```bash
-# 1. Isoler le serveur — couper le trafic entrant
+# 1. Isoler le serveur
 sudo ufw deny in on eth0
 
-# 2. Prendre un snapshot de l'état actuel (pour investigation)
-# Depuis le panneau OVH : Instances → Créer un snapshot
+# 2. Snapshot OVH depuis le panneau de contrôle
 
-# 3. Changer immédiatement tous les mots de passe et secrets :
-#    - Mot de passe root SSH
-#    - Clés SSH autorisées (vérifier ~/.ssh/authorized_keys)
-#    - Mot de passe MySQL pladigit
-#    - APP_KEY Laravel (régénérer + recrypter les secrets)
-#    - Passphrase GPG des sauvegardes
+# 3. Changer tous les mots de passe et secrets :
+#    root SSH, clés SSH (vérifier authorized_keys),
+#    mot de passe MySQL, APP_KEY (voir §10.3), passphrase GPG
 
 # 4. Vérifier les accès récents
-last -20                          # dernières connexions
+last -20
 grep "Failed password" /var/log/auth.log | tail -20
 grep "Accepted" /var/log/auth.log | tail -20
 
-# 5. Notifier la collectivité (responsable informatique ou DGS)
+# 5. Notifier la collectivité (DGS ou responsable informatique)
 ```
 
 #### 10.3 Rotation d'urgence de l'APP_KEY
 
 **⚠ Critique :** changer l'APP_KEY invalide tous les secrets chiffrés
-(TOTP, mots de passe SFTP des sauvegardes). Procédure à suivre
-dans l'ordre strict :
+(TOTP, passphrase GPG, mots de passe SFTP). Ordre strict :
 
 ```bash
-# 1. Sauvegarder le .env actuel
 cp /var/www/pladigit/.env /root/.env_before_rotation
-
-# 2. Déchiffrer et noter les secrets avant rotation
-php artisan tinker --execute="
-echo 'Secrets actuels :' . PHP_EOL;
-// Lister les secrets chiffrés à re-chiffrer après rotation
-"
-
-# 3. Générer une nouvelle APP_KEY
 php artisan key:generate --force
-
-# 4. Re-chiffrer les secrets avec la nouvelle clé
-# (via l'interface Super Admin → Paramètres → Sécurité)
-
-# 5. Vérifier que les 2FA fonctionnent encore
-# (les utilisateurs devront peut-être re-scanner leur QR code)
-
-# 6. Vider tous les caches et sessions
-php artisan cache:clear
-php artisan config:clear
+# Re-chiffrer les secrets : Super Admin → Paramètres → Sécurité
+php artisan cache:clear && php artisan config:clear
 php artisan session:flush 2>/dev/null || true
 ```
 
 #### 10.4 Communication de crise
 
-En cas de compromission avérée de données personnelles, le RGPD
-impose une notification à la CNIL dans les **72 heures** (article 33).
-
-Le responsable de traitement de la collectivité (le Maire ou le DGS)
-doit être informé immédiatement. Pladigit fournit les éléments
-techniques pour constituer le dossier de notification :
-
-- Date et heure estimées de la compromission (logs)
-- Nature des données potentiellement exposées
-- Nombre d'enregistrements concernés
-- Mesures prises pour contenir l'incident
+En cas de compromission avérée, notification CNIL obligatoire dans
+les **72 heures** (RGPD article 33). Éléments à fournir :
+date et heure estimées, nature des données exposées, nombre
+d'enregistrements, mesures prises.
 
 ---
 
-### 11. Checklist de sécurité — vérification périodique
+### 11. Tableau de bord sécurité — vérification périodique
 
-À exécuter mensuellement :
+La majorité de ces vérifications sont automatisées dans le tableau
+de bord sécurité Super Admin (plan de travail 1.B.5). La checklist
+bash reste utile pour un audit ponctuel ou en cas d'inaccessibilité
+de l'interface.
 
 ```bash
-# Droits sur le .env
-ls -la /var/www/pladigit/.env
-# Attendu : -rw-r----- ubuntu www-data
-
-# Workers Supervisor
-sudo supervisorctl status
-# Attendu : RUNNING
-
-# Fail2ban
+ls -la /var/www/pladigit/.env           # Attendu : -rw-r----- ubuntu www-data
+sudo supervisorctl status               # Attendu : RUNNING
 sudo fail2ban-client status sshd
-# Attendu : Currently banned > 0 si attaques en cours
-
-# Dernière sauvegarde réussie
-php artisan tinker --execute="
-\$ps = App\Models\Platform\PlatformSettings::first();
-echo \$ps->backup_last_status . ' — ' . \$ps->backup_last_run_at . PHP_EOL;
-"
-# Attendu : success — date < 25h
-
-# Clés SSH autorisées (vérifier l'absence d'entrées inconnues)
-cat ~/.ssh/authorized_keys
-
-# Connexions SSH récentes
+cat ~/.ssh/authorized_keys              # Vérifier l'absence d'entrées inconnues
 last -10
-
-# Test de restauration (mensuel)
-# → Suivre §8.1
+# Test de restauration mensuel → voir §8.1
 ```
 
 ---
@@ -625,34 +532,32 @@ last -10
 ## Conséquences
 
 ### Positives
-- TDE MySQL protège les données si le disque est volé physiquement
-- Le chiffrement GPG des sauvegardes protège en cas de vol d'archive
+- GPG sauvegardes et `.env` activés automatiquement — aucune
+  compétence technique requise de l'opérateur
+- Un seul secret à retenir et à conserver hors serveur
+  (passphrase GPG protège les deux)
+- La passphrase ne peut pas être ignorée lors de l'installation —
+  le wizard bloque jusqu'à confirmation explicite
 - Les procédures de restauration documentées réduisent le stress
-  et les erreurs lors d'un incident réel
-- Le test périodique détecte les sauvegardes corrompues avant qu'on
-  en ait besoin
-- Le plan de réponse à incident guide des actions calmes et ordonnées
-  dans un moment potentiellement paniqué
-- La notification CNIL dans les 72h devient réalisable avec les
-  éléments techniques pré-identifiés
+  lors d'un incident réel
+- Le test périodique détecte les sauvegardes corrompues avant
+  qu'on en ait besoin
+- Notification CNIL dans les 72h réalisable avec les éléments
+  techniques pré-identifiés
 
 ### Points de vigilance
-- **Le fichier keyring MySQL (TDE) et la passphrase GPG doivent être
-  stockés hors du serveur** — leur perte rend les données et les
-  sauvegardes irrécupérables. Les stocker dans un gestionnaire
-  de mots de passe séparé (Bitwarden, KeePass) est obligatoire.
-- La rotation d'APP_KEY invalide les secrets chiffrés — procédure
-  strictement ordonnée, ne jamais la faire sous pression
-- TDE MySQL ajoute une charge CPU faible mais non nulle (~5%) —
-  acceptable sur VPS-1 OVH pour les volumes de collectivités cibles
+- **La passphrase GPG doit être stockée hors du serveur ET transmise
+  à une seconde personne de confiance** — sa perte est définitive
+- La rotation d'APP_KEY invalide les secrets chiffrés — ne jamais
+  la faire sous pression sans suivre la procédure §10.3
+- TDE MySQL (§1.1) n'est pas automatisé — risque résiduel
+  (vol physique du disque) documenté et assumé pour V1
 - Le test mensuel de restauration demande 30 minutes — à planifier
-  dans l'agenda de maintenance
 
 ### Ce que cette ADR ne couvre pas
 - La sécurité du poste de travail de l'administrateur (hors périmètre)
 - Les attaques par ingénierie sociale (phishing) ciblant les agents
-- La supervision temps réel (SIEM) — hors périmètre pour V1,
-  à envisager si Pladigit est adopté par plusieurs collectivités
+- La supervision temps réel (SIEM) — hors périmètre pour V1
 
 ---
 
@@ -664,6 +569,7 @@ last -10
 - ADR-037 : Gouvernance des données personnelles RGPD
 - RGPD article 33 : notification de violation de données à la CNIL
 - ANSSI — Guide d'hygiène informatique pour les collectivités
-- MySQL 8 InnoDB Transparent Data Encryption :
-  https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html
+- MySQL 8 InnoDB TDE : https://dev.mysql.com/doc/refman/8.0/en/innodb-data-encryption.html
+- `docs/deploy/secrets.md` : procédures de gestion des secrets
 - `docs/deploy/troubleshooting.md` : incidents déjà résolus en production
+- `CONTRIBUTING.md` : label `help wanted / security` — script TDE
