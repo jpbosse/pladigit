@@ -375,10 +375,12 @@ function write_runner(): void
     $security = $cfg['security'] ?? $_SESSION['security'] ?? [];
     $gpgPassphrase = addslashes($security['gpg_passphrase'] ?? '');
 
+    $composerJson = json_decode(file_get_contents(PLADIGIT_ROOT.'/composer.json'), true);
+    $appVersion = $composerJson['version'] ?? '0.0.0';
     $appKey = 'base64:'.base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
 
-    $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash);
+    $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash, $appVersion);
 
     // Écriture directe du .env depuis le wizard (fiable, pas d'échappement)
     file_put_contents(PLADIGIT_ROOT.'/.env', $envContent);
@@ -614,7 +616,7 @@ RUNNER;
     file_put_contents(INSTALL_DIR.'/runner.php', $script);
 }
 
-function build_env(array $db, array $app, array $smtp, array $admin, string $key, string $hash): string
+function build_env(array $db, array $app, array $smtp, array $admin, string $key, string $hash, string $version = '0.0.0'): string
 {
     return 'APP_NAME="'.addslashes($app['name']).'"'."\n"
         .'APP_ENV=production'."\n"
@@ -645,6 +647,7 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'MAIL_SCHEME='.$smtp['encryption']."\n"
         .'MAIL_FROM_ADDRESS='.$smtp['from']."\n"
         .'MAIL_FROM_NAME="'.addslashes($smtp['from_name']).'"'."\n\n"
+        .'APP_VERSION='.$version."\n"
         .'SUPER_ADMIN_EMAIL='.$admin['email']."\n"
         .'SUPER_ADMIN_PASSWORD_HASH='.$hash."\n"
     .'SUPER_ADMIN_ALLOWED_IPS='.($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')."\n";

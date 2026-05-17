@@ -21,12 +21,13 @@ return [
     |--------------------------------------------------------------------------
     |
     | Numéro de version affiché dans l'interface (sidebar, footer, super-admin).
-    | C'est LE seul endroit à modifier pour mettre la version à jour partout.
+    | Source de vérité unique : composer.json → clé "version".
     | Accessible via config('app.version') dans tout le code.
+    | Pour mettre à jour : modifier uniquement "version" dans composer.json.
     |
     */
 
-    'version' => env('APP_VERSION', '0.8.1'),
+    'version' => json_decode(file_get_contents(base_path('composer.json')), true)['version'] ?? env('APP_VERSION', '0.0.0'),
 
     /*
     |--------------------------------------------------------------------------
