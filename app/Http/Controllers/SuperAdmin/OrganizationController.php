@@ -287,9 +287,11 @@ class OrganizationController extends Controller
     public function destroy(Organization $organization)
     {
         $dbName = $organization->db_name;
+        $slug = $organization->slug;
         $orgName = $organization->name;
+        $errors = [];
 
-        // Supprimer la base de données tenant
+        // 1. Supprimer la base de données tenant
         try {
             \DB::statement('DROP DATABASE IF EXISTS `'.str_replace('`', '', $dbName).'`');
         } catch (\Throwable $e) {
@@ -298,12 +300,86 @@ class OrganizationController extends Controller
                 ->with('error', 'Impossible de supprimer la base de données : '.$e->getMessage());
         }
 
-        // Supprimer l'organisation (soft delete)
+        // 2. Supprimer les fichiers GED du tenant
+        $gedPath = storage_path('app/private/ged/organisations/'.trim($slug, '/'));
+        if (is_dir($gedPath)) {
+            try {
+                $this->deleteDirectory($gedPath);
+            } catch (\Throwable $e) {
+                $errors[] = 'GED : '.$e->getMessage();
+                \Log::warning("destroy tenant [{$slug}] — échec suppression GED.", [
+                    'path' => $gedPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // 3. Supprimer les sauvegardes locales du tenant
+        //    On cherche dans les destinations locales connues
+        $backupPaths = [
+            storage_path('app/private/backups/'.$slug),
+            '/var/backups/pladigit/'.$slug,
+        ];
+        foreach ($backupPaths as $backupPath) {
+            if (is_dir($backupPath)) {
+                try {
+                    $this->deleteDirectory($backupPath);
+                } catch (\Throwable $e) {
+                    $errors[] = 'Sauvegardes locales : '.$e->getMessage();
+                    \Log::warning("destroy tenant [{$slug}] — échec suppression sauvegardes.", [
+                        'path' => $backupPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        }
+
+        // 4. Log de traçabilité RGPD
+        \Log::info("Tenant [{$slug}] supprimé définitivement (RGPD).", [
+            'org_name' => $orgName,
+            'db_name' => $dbName,
+            'ged_path' => $gedPath,
+            'errors' => $errors,
+            'deleted_by' => 'super-admin',
+            'deleted_at' => now()->toIso8601String(),
+        ]);
+
+        // 5. Supprimer l'organisation (soft delete)
         $organization->delete();
+
+        $message = "Organisation « {$orgName} » supprimée définitivement (base, GED, sauvegardes locales).";
+        if ($errors) {
+            $message .= ' Avertissements : '.implode(' | ', $errors);
+        }
 
         return redirect()
             ->route('super-admin.organizations.index')
-            ->with('success', "Organisation « {$orgName} » et sa base de données supprimées définitivement.");
+            ->with($errors ? 'warning' : 'success', $message);
+    }
+
+    /**
+     * Supprime récursivement un répertoire et son contenu.
+     */
+    private function deleteDirectory(string $path): void
+    {
+        if (! is_dir($path)) {
+            return;
+        }
+
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($path, \RecursiveDirectoryIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+
+        foreach ($items as $item) {
+            if ($item->isDir()) {
+                rmdir($item->getRealPath());
+            } else {
+                unlink($item->getRealPath());
+            }
+        }
+
+        rmdir($path);
     }
 
     private function maxUsersFromPlan(string $plan): int
