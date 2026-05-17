@@ -422,7 +422,7 @@
 </main>
 
 <footer class="footer">
-    <span>Pladigit v2.0 · Phase 2</span>
+    <span>Pladigit v{{ config('app.version') }}</span>
     <span>·</span>
     <a href="/health" onclick="location.reload();return false;">↺ Rafraîchir</a>
     <span>·</span>
