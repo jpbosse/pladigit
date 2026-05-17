@@ -94,6 +94,13 @@ class DatagridQualiteTest extends TestCase
             $this->table->forceDelete();
         }
         Schema::connection('tenant')->dropIfExists($this->mysqlTable);
+        // Nettoyer les users créés dans setUp pour éviter les conflits d'unicité email
+        if (isset($this->admin)) {
+            $this->admin->forceDelete();
+        }
+        if (isset($this->user)) {
+            $this->user->forceDelete();
+        }
         parent::tearDown();
     }
 
