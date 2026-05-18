@@ -29,7 +29,7 @@
 
 ~~1.B.4/1.B.5/1.B.6~~ — UI vérification SHA-256 + tableau de bord sécurité + page test sauvegarde → tout ensemble, même page
 
-1.B.7/1.B.12 — Purge audit_logs RGPD
+~~1.B.7~~/1.B.12 — Purge audit_logs RGPD
 
 1.B.10 — Rate limiting sauvegardes manuelles
 
@@ -75,7 +75,7 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | ~~1.B.4~~ | ~~UI Super Admin — afficher résultat vérification SHA-256 à la demande (code `BackupService` déjà prêt)~~ | 🟠 | ADR-041 §2.2 | Bouton "Vérifier l'intégrité" sur la liste des sauvegardes |
 | ~~1.B.5~~ | ~~Tableau de bord sécurité Super Admin — état GPG, dernière sauvegarde, workers, dernier test de restauration, clés SSH autorisées, version PHP/Laravel~~ | 🟠 | ADR-041 §11 | Intégrer `CheckTdeCommand` existant ; remplace la checklist manuelle |
 | ~~1.B.6~~ | ~~Page "Tester la sauvegarde" Super Admin — déchiffrer, vérifier SHA-256, lister le contenu de l'archive sans restaurer ; écrire dans le journal de tests~~ | 🟠 | ADR-041 §8 | Couvre 1.6 partiel, 1.7 partiel, 1.9 |
-| 1.B.7 | Commande artisan `pladigit:purge-audit-logs` + scheduler — durée configurable dans PlatformSettings (RGPD) | 🟡 | ADR-037 | Vérifier overlap avec `PurgeExpiredDataCommand` avant de créer |
+| ~~1.B.7~~ | ~~Commande artisan `pladigit:purge-audit-logs` + scheduler — durée configurable dans PlatformSettings (RGPD)~~ | 🟡 | ADR-037 | Vérifier overlap avec `PurgeExpiredDataCommand` avant de créer |
 | ~~1.B.8~~ | ~~Suppression complète d'un tenant — compléter `destroy()` : ajouter suppression fichiers GED + sauvegardes locales (la base MySQL et le soft-delete existent déjà)~~ | 🟠 | ADR-037 | Trou identifié : `storage/app/private/ged/organisations/{slug}/` non supprimé |
 | ~~1.B.9~~ | ~~Commande artisan `pladigit:delete-tenant --slug=xxx` — suppression complète (base + GED + sauvegardes) avec confirmation explicite~~ | 🟠 | ADR-037 | Complète 1.B.8 pour usage CLI prestataire |
 | 1.B.10 | Rate limiting sur déclenchement manuel de sauvegarde — éviter saturation disque | 🟡 | — | 1 sauvegarde manuelle / 10 min par org |

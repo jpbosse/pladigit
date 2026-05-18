@@ -9,6 +9,7 @@ use BaconQrCode\Renderer\ImageRenderer;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Writer;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 use PragmaRX\Google2FA\Google2FA;
@@ -66,9 +67,22 @@ class SecurityController extends Controller
         return response()->json(['ok' => true, 'message' => 'Test de restauration enregistré.']);
     }
 
-    // =========================================================================
-    // Helpers privés
-    // =========================================================================
+    /**
+     * Met à jour le plafond de rétention absolu des audit_logs (RGPD).
+     */
+    public function updateAuditRetention(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'audit_max_retention_months' => ['required', 'integer', 'in:12,24,36,60,84'],
+        ]);
+
+        $settings = PlatformSettings::firstOrCreate([]);
+        $settings->update([
+            'audit_max_retention_months' => (int) $request->audit_max_retention_months,
+        ]);
+
+        return back()->with('success_audit_retention', 'Plafond de rétention enregistré.');
+    }
 
     /**
      * Récupère le statut des workers via supervisorctl.

@@ -137,6 +137,7 @@ Route::prefix('super-admin')
         Route::post('security/totp', [SecurityController::class, 'totpConfirm'])->name('security.totp.confirm');
         Route::get('security/dashboard', [SecurityController::class, 'dashboard'])->name('security.dashboard');
         Route::post('security/record-restore-test', [SecurityController::class, 'recordRestoreTest'])->name('security.record-restore-test');
+        Route::put('security/audit-retention', [SecurityController::class, 'updateAuditRetention'])->name('security.update-audit-retention');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────

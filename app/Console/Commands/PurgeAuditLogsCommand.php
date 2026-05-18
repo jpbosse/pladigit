@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Platform\Organization;
+use App\Models\Platform\PlatformSettings;
 use App\Models\Tenant\TenantSettings;
 use App\Services\TenantManager;
 use Illuminate\Console\Command;
@@ -67,6 +68,12 @@ class PurgeAuditLogsCommand extends Command
         $this->info("Purge audit_logs — {$organizations->count()} organisation(s).");
         $this->newLine();
 
+        // ── Plafond absolu plateforme ─────────────────────────────────
+        $platformSettings = PlatformSettings::first();
+        $maxMonths = max(1, (int) ($platformSettings !== null ? $platformSettings->audit_max_retention_months : 60));
+        $this->line("  Plafond plateforme : {$maxMonths} mois max.");
+        $this->newLine();
+
         $totalAudit = 0;
         $totalDatagrid = 0;
         $errors = 0;
@@ -79,9 +86,11 @@ class PurgeAuditLogsCommand extends Command
 
                 $settings = TenantSettings::first();
                 $months = max(1, (int) ($settings !== null ? $settings->audit_retention_months : 12));
+                // Appliquer le plafond plateforme — prend le minimum des deux
+                $months = min($months, $maxMonths);
                 $cutoff = now()->subMonths($months);
 
-                $this->line("     Rétention : {$months} mois — cutoff : {$cutoff->format('d/m/Y')}");
+                $this->line("     Rétention : {$months} mois (plafond : {$maxMonths}) — cutoff : {$cutoff->format('d/m/Y')}");
 
                 // ── audit_logs ────────────────────────────────────────
                 $auditCount = DB::connection('tenant')

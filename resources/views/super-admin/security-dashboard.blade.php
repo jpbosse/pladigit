@@ -221,6 +221,34 @@
             @endif
         </div>
 
+        {{-- ── Rétention max audit (RGPD) ── --}}
+        <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <h2 class="text-sm font-semibold text-gray-700 mb-3 pb-2 border-b flex items-center gap-2">
+                🛡 Rétention maximale audit_logs (RGPD)
+            </h2>
+            <p class="text-xs text-gray-500 mb-4">
+                Plafond absolu appliqué à tous les tenants, indépendamment de leur propre configuration.
+                Si un tenant a configuré une rétention supérieure, ce plafond s'applique.
+            </p>
+            <form method="POST" action="{{ route('super-admin.security.update-audit-retention') }}" class="flex items-center gap-3">
+                @csrf @method('PUT')
+                <select name="audit_max_retention_months"
+                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-200">
+                    @foreach([12 => '12 mois (1 an)', 24 => '24 mois (2 ans)', 36 => '36 mois (3 ans)', 60 => '60 mois (5 ans — défaut)', 84 => '84 mois (7 ans)'] as $val => $label)
+                        <option value="{{ $val }}" {{ ($settings->audit_max_retention_months ?? 60) == $val ? 'selected' : '' }}>{{ $label }}</option>
+                    @endforeach
+                </select>
+                <button type="submit"
+                        class="px-4 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90 transition"
+                        style="background-color:var(--sa-primary,#7B1C1C);">
+                    Enregistrer
+                </button>
+                @if(session('success_audit_retention'))
+                    <span class="text-sm text-green-600">✅ {{ session('success_audit_retention') }}</span>
+                @endif
+            </form>
+        </div>
+
     </div>
 </div>
 
