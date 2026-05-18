@@ -28,6 +28,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property string|null $update_current_version
  * @property string|null $update_available_version
  * @property string|null $update_log_path
+ * @property Carbon|null $security_restore_tested_at
+ * @property string|null $security_restore_test_status
+ * @property string|null $security_restore_test_note
  */
 class PlatformSettings extends Model
 {
@@ -48,6 +51,8 @@ class PlatformSettings extends Model
         'update_last_run_at', 'update_last_status',
         'update_last_message', 'update_current_version',
         'update_available_version', 'update_log_path',
+        'security_restore_tested_at', 'security_restore_test_status',
+        'security_restore_test_note',
     ];
 
     protected $casts = [
@@ -58,6 +63,7 @@ class PlatformSettings extends Model
         'backup_last_run_at' => 'datetime',
         'backup_last_size_bytes' => 'integer',
         'update_last_run_at' => 'datetime',
+        'security_restore_tested_at' => 'datetime',
     ];
 
     public function backupHumanSize(): ?string

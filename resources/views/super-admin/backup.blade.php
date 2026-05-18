@@ -194,6 +194,22 @@
             </button>
         </div>
     </form>
+
+    {{-- ── Archives disponibles (driver local uniquement) ── --}}
+    @if(($settings->backup_driver ?? 'local') === 'local' && filled($settings->backup_local_path))
+    <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm mt-5" id="archivesCard">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b">
+            <h2 class="text-sm font-semibold text-gray-700">Archives disponibles</h2>
+            <button type="button" onclick="loadArchives()"
+                    class="text-xs px-3 py-1.5 rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
+                ↻ Actualiser
+            </button>
+        </div>
+        <div id="archivesList">
+            <p class="text-sm text-gray-400 italic">Chargement…</p>
+        </div>
+    </div>
+    @endif
 </div>
 
 <script>
@@ -247,5 +263,80 @@ async function pollStatus(max) {
     else if (d.status === 'failed') { res.textContent = '❌ '+d.message; res.className = 'text-sm text-red-600'; }
     pollCount = 0;
 }
+
+async function loadArchives() {
+    const container = document.getElementById('archivesList');
+    if (!container) return;
+    container.innerHTML = '<p class="text-sm text-gray-400 italic">Chargement…</p>';
+    try {
+        const r = await fetch('{{ route('super-admin.backup.list') }}', { headers: {'X-Requested-With':'XMLHttpRequest'} });
+        const d = await r.json();
+        if (!d.ok || !d.archives.length) {
+            container.innerHTML = '<p class="text-sm text-gray-400 italic">Aucune archive trouvée.</p>';
+            return;
+        }
+        let html = '<div class="space-y-2">';
+        d.archives.forEach(a => {
+            const slug = a.path.includes('/') ? a.path.split('/')[0] : '—';
+            const tenantBadge = `<span class="text-xs bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full font-mono">${slug}</span>`;
+            const gpgBadge = a.gpg ? '<span class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded font-mono">GPG</span>' : '';
+            const sha256Preview = a.sha256
+                ? `<span class="font-mono text-xs text-gray-400" title="${a.sha256}">${a.sha256.substring(0,16)}…</span>`
+                : '<span class="text-xs text-gray-300 italic">pas de .sha256</span>';
+            const verifyBtn = a.sha256
+                ? `<button type="button" onclick="verifyChecksum('${a.path}', '${a.name}', this)"
+                       class="text-xs px-2.5 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 transition">
+                       Vérifier
+                   </button>`
+                : '';
+            html += `
+            <div class="flex flex-wrap items-center gap-2 p-3 bg-gray-50 rounded-lg border border-gray-100 text-sm">
+                ${tenantBadge}
+                <span class="font-mono font-medium text-gray-700 flex-1 min-w-0 truncate" title="${a.name}">${a.name}</span>
+                ${gpgBadge}
+                <span class="text-xs text-gray-400">${a.size_h}</span>
+                <span class="text-xs text-gray-400">${a.date}</span>
+                <span class="flex items-center gap-1">${sha256Preview}</span>
+                ${verifyBtn}
+                <span class="verify-result-${a.name.replace(/[^a-z0-9]/gi,'_')} text-xs hidden"></span>
+            </div>`;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    } catch {
+        container.innerHTML = '<p class="text-sm text-red-500">Erreur lors du chargement des archives.</p>';
+    }
+}
+
+async function verifyChecksum(filepath, filename, btn) {
+    const safeKey = filename.replace(/[^a-z0-9]/gi,'_');
+    const resultEl = document.querySelector(`.verify-result-${safeKey}`);
+    btn.disabled = true; btn.textContent = '⏳';
+    if (resultEl) { resultEl.className = 'text-xs hidden'; }
+    try {
+        const url = '{{ route('super-admin.backup.checksum') }}?file='+encodeURIComponent(filepath);
+        const r = await fetch(url, { headers: {'X-Requested-With':'XMLHttpRequest'} });
+        const d = await r.json();
+        if (!d.ok) {
+            if (resultEl) { resultEl.textContent = '❌ '+d.message; resultEl.className = 'text-xs text-red-600'; }
+        } else if (d.match) {
+            if (resultEl) { resultEl.textContent = '✅ Intégrité OK'; resultEl.className = 'text-xs text-green-600 font-medium'; }
+        } else {
+            if (resultEl) {
+                resultEl.innerHTML = '❌ Hash incorrect<br>'
+                    +'<span class="font-mono">attendu&nbsp;: '+d.expected+'</span><br>'
+                    +'<span class="font-mono">calculé&nbsp;: '+d.computed+'</span>';
+                resultEl.className = 'text-xs text-red-600';
+            }
+        }
+    } catch {
+        if (resultEl) { resultEl.textContent = '❌ Erreur réseau'; resultEl.className = 'text-xs text-red-600'; }
+    }
+    if (resultEl) resultEl.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = 'Vérifier';
+}
+
+// Chargement automatique au démarrage de la page
+document.addEventListener('DOMContentLoaded', () => { if (document.getElementById('archivesList')) loadArchives(); });
 </script>
 @endsection

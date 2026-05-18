@@ -128,9 +128,15 @@ Route::prefix('super-admin')
         Route::post('backup/run', [BackupController::class, 'run'])->name('backup.run');
         Route::get('backup/status', [BackupController::class, 'status'])->name('backup.status');
         Route::get('backup/test-sftp', [BackupController::class, 'testSftp'])->name('backup.test-sftp');
+        Route::get('backup/list', [BackupController::class, 'listBackups'])->name('backup.list');
+        Route::get('backup/checksum', [BackupController::class, 'checksum'])->name('backup.checksum');
+        Route::get('backup/test', [BackupController::class, 'testBackup'])->name('backup.test');
+        Route::get('backup/inspect', [BackupController::class, 'inspectArchive'])->name('backup.inspect');
 
         Route::get('security/totp', [SecurityController::class, 'totpSetup'])->name('security.totp');
         Route::post('security/totp', [SecurityController::class, 'totpConfirm'])->name('security.totp.confirm');
+        Route::get('security/dashboard', [SecurityController::class, 'dashboard'])->name('security.dashboard');
+        Route::post('security/record-restore-test', [SecurityController::class, 'recordRestoreTest'])->name('security.record-restore-test');
     });
 
 // ── Routes Tenant ──────────────────────────────────────────

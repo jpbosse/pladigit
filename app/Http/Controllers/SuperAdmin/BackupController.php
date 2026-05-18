@@ -98,4 +98,230 @@ class BackupController extends Controller
 
         return response()->json($backupService->testSftp($proxy));
     }
+
+    /**
+     * Liste les archives locales présentes dans le dossier de destination.
+     * Retourne aussi le SHA-256 attendu (contenu du .sha256) si disponible.
+     */
+    public function listBackups(): JsonResponse
+    {
+        $settings = PlatformSettings::firstOrCreate([]);
+
+        if (($settings->backup_driver ?? 'local') !== 'local') {
+            return response()->json(['ok' => false, 'message' => 'Listage disponible uniquement en mode local.']);
+        }
+
+        $destDir = rtrim((string) ($settings->backup_local_path ?? ''), '/');
+
+        if ($destDir === '' || ! is_dir($destDir)) {
+            return response()->json(['ok' => true, 'archives' => []]);
+        }
+
+        // Les archives sont organisées par sous-dossier : backup_complet/{slug}/backup_*.tar.gz
+        $files = array_merge(
+            glob($destDir.'/*/backup_*.tar.gz') ?: [],
+            glob($destDir.'/*/backup_*.tar.gz.gpg') ?: [],
+            // Compatibilité ancienne structure à plat
+            glob($destDir.'/backup_*.tar.gz') ?: [],
+            glob($destDir.'/backup_*.tar.gz.gpg') ?: []
+        );
+
+        // Trier du plus récent au plus ancien
+        rsort($files);
+
+        $archives = [];
+        foreach ($files as $file) {
+            $name = basename($file);
+            $size = filesize($file);
+            $mtime = filemtime($file);
+            $sha256File = $file.'.sha256';
+            $sha256 = null;
+
+            if (file_exists($sha256File)) {
+                // Format : "<hash>  <filename>\n"
+                $line = trim((string) file_get_contents($sha256File));
+                $parts = preg_split('/\s+/', $line, 2);
+                $sha256 = $parts[0] ?? null;
+            }
+
+            $archives[] = [
+                'name' => $name,
+                'path' => str_replace($destDir.'/', '', $file), // chemin relatif : slug/fichier
+                'size' => $size,
+                'size_h' => number_format($size / 1024 / 1024, 2).' Mo',
+                'date' => date('d/m/Y H:i:s', $mtime),
+                'sha256' => $sha256,
+                'gpg' => str_ends_with($name, '.gpg'),
+            ];
+        }
+
+        return response()->json(['ok' => true, 'archives' => $archives]);
+    }
+
+    /**
+     * Recalcule le SHA-256 d'une archive et le compare à celui du fichier .sha256.
+     * GET /super-admin/backup/checksum?file=backup_2026-05-18_demo.tar.gz
+     */
+    public function checksum(Request $request): JsonResponse
+    {
+        $request->validate(['file' => ['required', 'string', 'max:255']]);
+
+        $settings = PlatformSettings::firstOrCreate([]);
+        $destDir = rtrim((string) ($settings->backup_local_path ?? ''), '/');
+
+        if ($destDir === '') {
+            return response()->json(['ok' => false, 'message' => 'Chemin local non configuré.']);
+        }
+
+        // Sécurité : autoriser slug/fichier mais interdire toute traversée de chemin (..)
+        $relative = ltrim($request->string('file')->toString(), '/');
+        if (str_contains($relative, '..')) {
+            return response()->json(['ok' => false, 'message' => 'Chemin invalide.']);
+        }
+        $filePath = $destDir.'/'.$relative;
+
+        if (! file_exists($filePath)) {
+            return response()->json(['ok' => false, 'message' => "Fichier introuvable : {$relative}"]);
+        }
+
+        $computed = hash_file('sha256', $filePath);
+
+        $sha256File = $filePath.'.sha256';
+        $expected = null;
+
+        if (file_exists($sha256File)) {
+            $line = trim((string) file_get_contents($sha256File));
+            $parts = preg_split('/\s+/', $line, 2);
+            $expected = $parts[0] ?? null;
+        }
+
+        $match = ($expected !== null && hash_equals($expected, $computed));
+
+        return response()->json([
+            'ok' => true,
+            'computed' => $computed,
+            'expected' => $expected,
+            'match' => $match,
+        ]);
+    }
+
+    /**
+     * Page "Tester la sauvegarde" — liste les archives, permet de vérifier
+     * SHA-256 et d'inspecter le contenu sans restaurer.
+     */
+    public function testBackup(): View
+    {
+        $settings = PlatformSettings::firstOrCreate([]);
+
+        return view('super-admin.backup-test', compact('settings'));
+    }
+
+    /**
+     * Inspecte une archive : vérifie SHA-256 + liste le contenu tar.
+     * Si l'archive est chiffrée GPG, la déchiffre dans un fichier temporaire.
+     *
+     * GET /super-admin/backup/inspect?file=cedbos/backup_xxx.tar.gz
+     */
+    public function inspectArchive(Request $request): JsonResponse
+    {
+        $request->validate(['file' => ['required', 'string', 'max:500']]);
+
+        $settings = PlatformSettings::firstOrCreate([]);
+        $destDir = rtrim((string) ($settings->backup_local_path ?? ''), '/');
+
+        if ($destDir === '') {
+            return response()->json(['ok' => false, 'message' => 'Chemin local non configuré.']);
+        }
+
+        $relative = ltrim($request->string('file')->toString(), '/');
+        if (str_contains($relative, '..')) {
+            return response()->json(['ok' => false, 'message' => 'Chemin invalide.']);
+        }
+
+        $filePath = $destDir.'/'.$relative;
+
+        if (! file_exists($filePath)) {
+            return response()->json(['ok' => false, 'message' => "Fichier introuvable : {$relative}"]);
+        }
+
+        // ── 1. Vérification SHA-256 ───────────────────────────────────
+        $computed = hash_file('sha256', $filePath);
+        $sha256File = $filePath.'.sha256';
+        $expected = null;
+        $sha256Match = null;
+
+        if (file_exists($sha256File)) {
+            $line = trim((string) file_get_contents($sha256File));
+            $parts = preg_split('/\s+/', $line, 2);
+            $expected = $parts[0] ?? null;
+            $sha256Match = $expected !== null && hash_equals($expected, $computed);
+        }
+
+        // ── 2. Déchiffrement GPG si nécessaire ───────────────────────
+        $archiveToInspect = $filePath;
+        $tmpDecrypted = null;
+
+        if (str_ends_with($filePath, '.gpg')) {
+            if (empty($settings->backup_gpg_passphrase_enc)) {
+                return response()->json(['ok' => false, 'message' => 'Archive GPG mais passphrase non configurée.']);
+            }
+
+            try {
+                $passphrase = Crypt::decryptString((string) $settings->backup_gpg_passphrase_enc);
+                $tmpDecrypted = sys_get_temp_dir().'/pladigit_inspect_'.uniqid().'.tar.gz';
+
+                $cmd = sprintf(
+                    'gpg --batch --yes --decrypt --passphrase %s --output %s %s 2>/dev/null',
+                    escapeshellarg($passphrase),
+                    escapeshellarg($tmpDecrypted),
+                    escapeshellarg($filePath)
+                );
+                exec($cmd, $out, $code);
+
+                if ($code !== 0 || ! file_exists($tmpDecrypted)) {
+                    return response()->json(['ok' => false, 'message' => 'Déchiffrement GPG échoué.']);
+                }
+
+                $archiveToInspect = $tmpDecrypted;
+            } catch (\Throwable $e) {
+                return response()->json(['ok' => false, 'message' => 'Erreur GPG : '.$e->getMessage()]);
+            }
+        }
+
+        // ── 3. Listage du contenu tar ─────────────────────────────────
+        $entries = [];
+        $tarError = null;
+
+        try {
+            $cmd = sprintf('tar -tzf %s 2>&1', escapeshellarg($archiveToInspect));
+            exec($cmd, $lines, $tarCode);
+
+            if ($tarCode !== 0) {
+                $tarError = implode(' ', array_slice($lines, 0, 3));
+            } else {
+                // Dédoublonner et trier, ignorer les entrées de répertoire seules
+                $entries = array_values(array_filter($lines, fn ($l) => ! str_ends_with($l, '/')));
+                sort($entries);
+            }
+        } finally {
+            // Nettoyer le fichier temporaire déchiffré
+            if ($tmpDecrypted && file_exists($tmpDecrypted)) {
+                @unlink($tmpDecrypted);
+            }
+        }
+
+        return response()->json([
+            'ok' => true,
+            'file' => basename($filePath),
+            'sha256' => [
+                'computed' => $computed,
+                'expected' => $expected,
+                'match' => $sha256Match,
+            ],
+            'gpg_decrypted' => $tmpDecrypted !== null,
+            'entries' => $entries,
+            'entry_count' => count($entries),
+            'tar_error' => $tarError,
+        ]);
+    }
 }
