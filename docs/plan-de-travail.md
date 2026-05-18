@@ -29,7 +29,7 @@
 
 ~~1.B.4/1.B.5/1.B.6~~ — UI vérification SHA-256 + tableau de bord sécurité + page test sauvegarde → tout ensemble, même page
 
-~~1.B.7~~/1.B.12 — Purge audit_logs RGPD
+~~1.B.7/1.B.12~~ — Purge audit_logs RGPD
 
 1.B.10 — Rate limiting sauvegardes manuelles
 
@@ -80,7 +80,7 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | ~~1.B.9~~ | ~~Commande artisan `pladigit:delete-tenant --slug=xxx` — suppression complète (base + GED + sauvegardes) avec confirmation explicite~~ | 🟠 | ADR-037 | Complète 1.B.8 pour usage CLI prestataire |
 | 1.B.10 | Rate limiting sur déclenchement manuel de sauvegarde — éviter saturation disque | 🟡 | — | 1 sauvegarde manuelle / 10 min par org |
 | 1.B.11 | Log des exports DataGrid (qui, quoi, quand) — RGPD, registre des traitements | 🟡 | ADR-037 | Chaque export Excel/PDF loggé dans `datagrid_audit_logs` |
-| 1.B.12 | Purge automatique `audit_logs` — durée max absolue configurable (ex : 5 ans) indépendante de la rétention courante | 🟡 | ADR-037 | Complète 1.B.7 |
+| ~~1.B.12~~ | ~~Purge automatique `audit_logs` — durée max absolue configurable (ex : 5 ans) indépendante de la rétention courante~~ | 🟡 | ADR-037 | Complète 1.B.7 |
 
 ### Étape 1-C — Script d'installation (`install.sh`)
 
