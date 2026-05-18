@@ -102,3 +102,13 @@ Schedule::command('pladigit:backup')
     ->onFailure(function () {
         Log::error('Lancement sauvegarde automatique échoué');
     });
+
+// Purge RGPD des journaux d'audit — chaque nuit à 03h30
+// Durée configurable par tenant dans tenant_settings.audit_retention_months
+Schedule::command('pladigit:purge-audit-logs')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onFailure(function () {
+        Log::error('Purge RGPD audit_logs échouée');
+    });
