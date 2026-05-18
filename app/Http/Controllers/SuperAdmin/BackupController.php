@@ -63,6 +63,19 @@ class BackupController extends Controller
             ]);
         }
 
+        // ── Rate limiting : 1 sauvegarde manuelle / 10 min ───────────
+        if ($settings->backup_last_run_at !== null
+            && $settings->backup_last_run_at->gt(now()->subMinutes(10))
+        ) {
+            $waitSeconds = (int) now()->diffInSeconds($settings->backup_last_run_at->addMinutes(10));
+            $waitMin = (int) ceil($waitSeconds / 60);
+
+            return response()->json([
+                'ok' => false,
+                'message' => "Une sauvegarde a déjà été lancée récemment. Veuillez patienter encore {$waitMin} minute(s).",
+            ]);
+        }
+
         PlatformBackupJob::dispatch();
 
         return response()->json([
