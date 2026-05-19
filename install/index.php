@@ -249,7 +249,21 @@ function handle_post(string $action): void
             save_config(['smtp' => $smtp]);
             $_SESSION['step'] = 5;
             $appMode = $_SESSION['app']['mode'] ?? 'domain';
-            redirect($appMode === 'ip' ? 'collabora' : 'ssl');
+            if ($appMode === 'ip') {
+                redirect('collabora');
+            } else {
+                // Sauter SSL si certificat déjà présent pour ce domaine
+                $domain = $_SESSION['app']['domain'] ?? '';
+                $certPath = '/etc/letsencrypt/live/'.$domain.'/fullchain.pem';
+                if (file_exists($certPath)) {
+                    $_SESSION['ssl'] = ['email' => 'already-configured', 'skipped' => true];
+                    save_config(['ssl' => ['skipped' => true]]);
+                    $_SESSION['step'] = 6;
+                    redirect('collabora');
+                } else {
+                    redirect('ssl');
+                }
+            }
             break;
 
         case 'ssl':
@@ -1124,10 +1138,22 @@ function page_ssl(): void
     $domain = $_SESSION['app']['domain'] ?? '';
     $errors = $_SESSION['errors'] ?? [];
     unset($_SESSION['errors']);
+    $savedEmail = $_SESSION['ssl']['email'] ?? '';
+    $certPath = '/etc/letsencrypt/live/'.$domain.'/fullchain.pem';
+    $certExists = file_exists($certPath);
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F512; Certificat SSL — HTTPS obligatoire</div>
 <p class="card-sub">Pladigit requiert HTTPS pour la sécurité des sessions et des données. Le certificat sera obtenu gratuitement via <strong>Let's Encrypt</strong>.</p>
+<?php if ($certExists) { ?>
+<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#15803d;font-size:13px;">
+  &#x2705; Un certificat SSL existe déjà pour <strong><?= htmlspecialchars($domain) ?></strong>. Vous pouvez passer à l'étape suivante.
+</div>
+<div class="btns">
+  <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
+  <a href="?action=collabora" class="btn btn-p">Continuer &#x2192;</a>
+</div>
+<?php } else { ?>
 <?php if ($errors) { ?>
 <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#b91c1c;font-size:13px;">
 <?php foreach ($errors as $err) { ?><div>⚠ <?= $err ?></div><?php } ?>
@@ -1139,14 +1165,16 @@ function page_ssl(): void
 </div>
 <form method="POST"><input type="hidden" name="action" value="ssl">
 <div class="fg"><label class="lbl">Email Let's Encrypt</label>
-  <input type="email" name="ssl_email" class="inp" placeholder="admin@macommune.fr" required>
+  <input type="email" name="ssl_email" class="inp" value="<?= htmlspecialchars($savedEmail) ?>" placeholder="admin@macommune.fr" required>
   <div class="hint">Utilisé pour les notifications d'expiration. Ne sera pas partagé.</div>
 </div>
 <div class="btns">
   <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
   <button type="submit" class="btn btn-p">Obtenir le certificat SSL &#x1F512;</button>
 </div>
-</form></div></div>
+</form>
+<?php } ?>
+</div></div>
 <?php }
 
 function page_collabora(): void

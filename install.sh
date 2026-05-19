@@ -623,11 +623,12 @@ setup_super_admin_ip() {
         echo -e "  Pour protéger l'accès Super Admin, seules certaines adresses IP"
         echo -e "  seront autorisées à s'y connecter."
         echo ""
+        echo -e "  ${YELLOW}⚠  L'IP détectée est celle de ce serveur, pas la vôtre.${NC}"
+        echo -e "  Entrez l'IP publique de ${BOLD}votre ordinateur${NC} (celle depuis laquelle"
+        echo -e "  vous administrez ce serveur)."
+        echo -e "  Pour connaître votre IP : ${CYAN}https://www.whatismyip.com${NC}"
         if [[ -n "${detected_ip}" ]]; then
-            echo -e "  Votre adresse IP publique actuelle : ${CYAN}${BOLD}${detected_ip}${NC}"
-            echo -e "  ${YELLOW}Recommandé : entrez cette IP pour vous autoriser l'accès.${NC}"
-        else
-            echo -e "  ${YELLOW}Impossible de détecter votre IP publique.${NC}"
+            echo -e "  IP de ce serveur (pour référence) : ${detected_ip}"
         fi
         echo ""
         echo -e "  Laissez vide pour autoriser uniquement l'accès local (127.0.0.1)"
@@ -769,7 +770,7 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
@@ -822,6 +823,15 @@ NGINX
 
 show_success() {
     local server_ip
+    # Détecter si SSL est configuré
+    local install_url
+    if ls /etc/letsencrypt/live/*/fullchain.pem > /dev/null 2>&1; then
+        local ssl_domain
+        ssl_domain=$(ls /etc/letsencrypt/live/ | grep -v README | head -1)
+        install_url="https://${ssl_domain}/install/"
+    else
+        install_url="http://$(hostname -I | awk '{print $1}')/install/"
+    fi
     server_ip=$(hostname -I | awk '{print $1}')
     echo ""
     echo -e "${GREEN}${BOLD}"
@@ -839,7 +849,7 @@ show_success() {
     echo ""
     echo -e "  Sur votre ordinateur, ouvrez un navigateur et accédez à :"
     echo ""
-    echo -e "  ${CYAN}${BOLD}  ➜  http://${server_ip}/install/${NC}"
+    echo -e "  ${CYAN}${BOLD}  ➜  ${install_url}${NC}"
     echo ""
     echo -e "  L'assistant de configuration vous guidera pour :"
     echo -e "  • Configurer la base de données"
@@ -855,7 +865,7 @@ show_success() {
     echo -e "  Contribution communauté bienvenue (label 'help wanted / security')."
     echo ""
     if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-        xdg-open "http://${server_ip}/install/" 2>/dev/null &
+        xdg-open "${install_url}" 2>/dev/null &
     fi
 }
 
