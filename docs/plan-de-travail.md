@@ -18,25 +18,6 @@
 
 ---
 
-## Ordre de priorité : 
-~~1.B.2 — Session Super Admin : régénération ID + timeout 30 min → sécurité fondamentale, touche l'auth~~ 
-
-~~1.B.1 — CheckSuperAdmin : alerte email + log IP → dépend du mail qui fonctionne, mais le log lui est immédiat~~
-
-~~1.B.3 — Wizard étape "Sécurité" : passphrase GPG → c'est le plus gros morceau, on le fait bien reposé~~
-
-~~1.B.8/1.B.9 — Suppression tenant complète : compléter destroy() + commande artisan~~
-
-~~1.B.4/1.B.5/1.B.6 — UI vérification SHA-256 + tableau de bord sécurité + page test sauvegarde → tout ensemble, même page~~
-
-~~1.B.7/1.B.12 — Purge audit_logs RGPD~~
-
-~~1.B.10 — Rate limiting sauvegardes manuelles~~
-
-1.B.11 — Log exports DataGrid
-
----
-
 ## ~~Bloc 0 — Fondations architecturales - TERMINE~~
 *À poser maintenant, avant tout développement fonctionnel.
 Ces migrations sont additives — elles n'impactent pas l'existant.*
@@ -79,7 +60,7 @@ Ces migrations sont additives — elles n'impactent pas l'existant.*
 | ~~1.B.8~~ | ~~Suppression complète d'un tenant — compléter `destroy()` : ajouter suppression fichiers GED + sauvegardes locales (la base MySQL et le soft-delete existent déjà)~~ | 🟠 | ADR-037 | Trou identifié : `storage/app/private/ged/organisations/{slug}/` non supprimé |
 | ~~1.B.9~~ | ~~Commande artisan `pladigit:delete-tenant --slug=xxx` — suppression complète (base + GED + sauvegardes) avec confirmation explicite~~ | 🟠 | ADR-037 | Complète 1.B.8 pour usage CLI prestataire |
 | ~~1.B.10~~ | ~~Rate limiting sur déclenchement manuel de sauvegarde — éviter saturation disque~~ | 🟡 | — | 1 sauvegarde manuelle / 10 min par org |
-| 1.B.11 | Log des exports DataGrid (qui, quoi, quand) — RGPD, registre des traitements | 🟡 | ADR-037 | Chaque export Excel/PDF loggé dans `datagrid_audit_logs` |
+| ~~1.B.11~~ | ~~Log des exports DataGrid (qui, quoi, quand) — RGPD, registre des traitements~~ | 🟡 | ADR-037 | Chaque export Excel/PDF loggé dans `datagrid_audit_logs` |
 | ~~1.B.12~~ | ~~Purge automatique `audit_logs` — durée max absolue configurable (ex : 5 ans) indépendante de la rétention courante~~ | 🟡 | ADR-037 | Complète 1.B.7 |
 
 ### Étape 1-C — Script d'installation (`install.sh`)

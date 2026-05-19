@@ -456,6 +456,49 @@ SUPERVISOR
 }
 
 # ── 5. Clonage et dépendances Pladigit ───────────────────────────────────────
+setup_logrotate() {
+    step "Logrotate Nginx — rétention 90 jours"
+
+    cat > /etc/logrotate.d/nginx-pladigit << 'LOGROTATE'
+/var/log/nginx/*.log {
+    daily
+    rotate 90
+    compress
+    delaycompress
+    missingok
+    notifempty
+    sharedscripts
+    postrotate
+        [ -f /var/run/nginx.pid ] && kill -USR1 $(cat /var/run/nginx.pid) || true
+    endscript
+}
+LOGROTATE
+
+    log "Logrotate Nginx configuré (90 jours)"
+}
+
+# ── MySQL slow query log ──────────────────────────────────────────────────────
+setup_mysql_logs() {
+    step "MySQL — slow query log + error log"
+
+    local mycnf="/etc/mysql/mysql.conf.d/mysqld.cnf"
+
+    if ! grep -q "slow_query_log" "$mycnf" 2>/dev/null; then
+        cat >> "$mycnf" << 'MYCNF'
+
+# Pladigit — logs MySQL
+slow_query_log       = 1
+slow_query_log_file  = /var/log/mysql/mysql-slow.log
+long_query_time      = 2
+log_error            = /var/log/mysql/error.log
+MYCNF
+        systemctl restart mysql >> "$LOG_FILE" 2>&1 || warn "Redémarrage MySQL ignoré."
+        log "MySQL slow query log activé (seuil 2s)"
+    else
+        log "MySQL slow query log déjà configuré"
+    fi
+}
+
 install_pladigit() {
     step "Étape 6/7 — Installation de Pladigit"
 
@@ -702,6 +745,7 @@ show_success() {
     echo -e "${NC}"
     echo -e "  ${BOLD}Ce qui vient d'être installé :${NC}"
     echo -e "  • PHP 8.4, MySQL 8, Redis, Nginx, Supervisor, Node.js"
+    echo -e "  • Logrotate Nginx (90 jours), MySQL slow query log"
     echo -e "  • Code source Pladigit et toutes ses dépendances"
     echo ""
     echo -e "  ${BOLD}Étape suivante — Configuration :${NC}"
@@ -717,6 +761,11 @@ show_success() {
     echo -e "  • Créer le premier compte administrateur"
     echo ""
     echo -e "  ${YELLOW}Journal d'installation : ${LOG_FILE}${NC}"
+    echo ""
+    echo -e "  ${YELLOW}${BOLD}Note TDE (chiffrement MySQL au repos) :${NC}"
+    echo -e "  Le chiffrement InnoDB TDE n'est pas automatisé."
+    echo -e "  Voir docs/deploy/tde-mysql.md et ADR-041 §1.1."
+    echo -e "  Contribution communauté bienvenue (label 'help wanted / security')."
     echo ""
     if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
         xdg-open "http://${server_ip}/install/" 2>/dev/null &
@@ -840,6 +889,8 @@ main() {
     install_php
     install_mysql
     install_services
+    setup_logrotate
+    setup_mysql_logs
     install_pladigit
     configure_nginx
     setup_cron
