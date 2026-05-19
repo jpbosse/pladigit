@@ -339,7 +339,7 @@ if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.
         info "Installation de Composer..."
         curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
             >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Composer."
-        log "Composer installé : $(composer --version --no-ansi 2>/dev/null | head -1)"
+        log "Composer installé"
     fi
 
     progress 3 7 "PHP ${PHP_VERSION} + Composer"
