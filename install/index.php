@@ -631,6 +631,7 @@ try {
         . '<div class="row"><span class="lbl">Base</span><span><code>' . '{$dbNm}' . '</code></span></div>'
         . '<div class="row"><span class="lbl">Utilisateur</span><span><code>' . '{$dbUsr}' . '</code></span></div>'
         . '</div>'
+        . '<div class="box" style="background:#fffbeb;border:1px solid #fde68a;"><div class="bt" style="color:#92400e;">&#x26A0; S&#233;curit&#233; — Mots de passe</div><p style="font-size:.82rem;color:#78350f;line-height:1.5;">Plusieurs mots de passe ont &#233;t&#233; saisis durant l\'installation (MySQL, Super Admin, GPG...). <strong>Stockez-les imm&#233;diatement</strong> dans un gestionnaire de mots de passe : <strong>Bitwarden</strong>, KeePass, Vaultwarden ou similaire. Ne les notez jamais en clair par email ou SMS.</p></div>'
         . '<a href="' . '{$appUrl}' . '/super-admin" class="btn">Acc&#233;der &#224; Pladigit &#x2192;</a>'
         . '</div></body></html>';
     file_put_contents('{$root}/public/install-success.html', \$successHtml);
@@ -718,6 +719,7 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'DB_USERNAME='.$db['app_user']."\n"
         .'DB_PASSWORD='.$db['app_password']."\n\n"
         .'CACHE_DRIVER=redis'."\n"
+        .'CACHE_STORE=redis'."\n"
         .'QUEUE_CONNECTION=redis'."\n"
         .'SESSION_DRIVER=redis'."\n"
         .'SESSION_LIFETIME=120'."\n"
