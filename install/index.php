@@ -565,8 +565,13 @@ try {
     ilog('Configuration des workers...');
     \$supervisorConf = "[program:pladigit-worker]\nprocess_name=%(program_name)s_%(process_num)02d\ncommand=php {$root}/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600\nautostart=true\nautorestart=true\nstopasgroup=true\nkillasgroup=true\nuser=www-data\nnumprocs=2\nredirect_stderr=true\nstdout_logfile=/var/log/pladigit-worker.log\nstopwaitsecs=3600\n";
     @file_put_contents('/etc/supervisor/conf.d/pladigit.conf', \$supervisorConf);
-    shell_exec('supervisorctl reread 2>&1 && supervisorctl update 2>&1');
-    ilog('✓ Workers configurés');
+    shell_exec('supervisorctl reread 2>&1 && supervisorctl update 2>&1 && supervisorctl restart all 2>&1');
+    ilog('✓ Workers configurés et démarrés');
+
+    // 6bis. Migrations tenant (initialise les bases existantes)
+    ilog('Migrations tenant...');
+    shell_exec('cd {$root} && php artisan migrate:tenants --force 2>&1');
+    ilog('✓ Migrations tenant appliquées');
 
     // 7. Collabora Online (si demandé)
     \$collaboraMode = '{$collaboraMode}';
@@ -931,6 +936,11 @@ function page_welcome(): void
   <?php } ?>
 </div>
 <div class="alert ai"><strong>Durée estimée :</strong> 5 à 10 minutes (30 minutes si Collabora Online est installé).</div>
+<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.875rem;color:#78350f;">
+  <div style="font-weight:700;margin-bottom:.5rem;">&#x1F511; Conseil sécurité — Gestionnaire de mots de passe</div>
+  <p>Plusieurs mots de passe vous seront demandés durant cette installation (base de données, compte administrateur, chiffrement des sauvegardes...).</p>
+  <p style="margin-top:.5rem;">Nous vous recommandons d'utiliser un gestionnaire de mots de passe comme <strong>Bitwarden</strong>, KeePass ou Vaultwarden. Il génèrera des mots de passe forts automatiquement et les mémorisera pour vous — <strong>vous n'avez pas besoin de les retenir</strong>.</p>
+</div>
 <div class="btns" style="justify-content:center">
   <a href="?action=check" class="btn btn-p">Commencer l'installation &#x2192;</a>
 </div>

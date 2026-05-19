@@ -707,6 +707,9 @@ setup_ssl() {
     if certbot --nginx -d "${domain}" -d "www.${domain}"         --non-interactive --agree-tos --email "${ssl_email}"         --redirect >> "$LOG_FILE" 2>&1; then
 
         log "Certificat SSL obtenu pour ${domain}"
+        # Permettre à www-data de vérifier l'existence du certificat (détection dans le wizard)
+        chmod 755 /etc/letsencrypt/live/ 2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/live/${domain}/" 2>/dev/null || true
 
         # Mettre à jour APP_URL et SESSION dans .env
         if [[ -f "$env_file" ]]; then
@@ -858,8 +861,6 @@ show_success() {
     echo ""
     echo -e "  ${YELLOW}Journal d'installation : ${LOG_FILE}${NC}"
     echo ""
-    echo -e "  ${YELLOW}${BOLD}⚠  Sécurité — Gestionnaire de mots de passe :${NC}"
-    echo -e "  Plusieurs mots de passe ont été saisis (MySQL, Super Admin, GPG...)."    echo -e "  Stockez-les dans Bitwarden, KeePass ou Vaultwarden."    echo -e "  Ne les notez jamais en clair par email ou SMS."    echo ""
     echo -e "  ${YELLOW}${BOLD}Note TDE (chiffrement MySQL au repos) :${NC}"
     echo -e "  Le chiffrement InnoDB TDE n'est pas automatisé."
     echo -e "  Voir docs/deploy/tde-mysql.md et ADR-041 §1.1."
