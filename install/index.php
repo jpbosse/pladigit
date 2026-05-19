@@ -248,55 +248,6 @@ function handle_post(string $action): void
             $_SESSION['smtp'] = $smtp;
             save_config(['smtp' => $smtp]);
             $_SESSION['step'] = 5;
-            $appMode = $_SESSION['app']['mode'] ?? 'domain';
-            if ($appMode === 'ip') {
-                redirect('collabora');
-            } else {
-                // Sauter SSL si certificat déjà présent pour ce domaine
-                $domain = $_SESSION['app']['domain'] ?? '';
-                $certPath = '/etc/letsencrypt/live/'.$domain.'/fullchain.pem';
-                if (file_exists($certPath)) {
-                    $_SESSION['ssl'] = ['email' => 'already-configured', 'skipped' => true];
-                    save_config(['ssl' => ['skipped' => true]]);
-                    $_SESSION['step'] = 6;
-                    redirect('collabora');
-                } else {
-                    redirect('ssl');
-                }
-            }
-            break;
-
-        case 'ssl':
-            $sslErrors = validate_ssl($_POST);
-            if ($sslErrors) {
-                $_SESSION['errors'] = $sslErrors;
-                redirect('ssl');
-            }
-            $sslEmail = trim($_POST['ssl_email'] ?? '');
-            $domain = $_SESSION['app']['domain'] ?? '';
-            $certbotCmd = sprintf(
-                'sudo certbot --nginx -d %s -d www.%s --non-interactive --agree-tos --email %s --redirect 2>&1',
-                escapeshellarg($domain),
-                escapeshellarg($domain),
-                escapeshellarg($sslEmail)
-            );
-            $certbotOutput = shell_exec($certbotCmd);
-            $certbotSuccess = (
-                strpos($certbotOutput ?? '', 'Congratulations') !== false
-                || strpos($certbotOutput ?? '', 'Certificate not yet due for renewal') !== false
-            );
-            if (! $certbotSuccess) {
-                $_SESSION['errors'] = [
-                    'Échec SSL pour <strong>'.htmlspecialchars($domain).'</strong>. Vérifiez que le domaine pointe vers ce serveur.',
-                    '<details><summary>Détail</summary><pre>'.htmlspecialchars(substr($certbotOutput ?? 'Aucune sortie.', 0, 1000)).'</pre></details>',
-                ];
-                redirect('ssl');
-            }
-            $cronCmd = '(crontab -l 2>/dev/null | grep -q "certbot renew") || (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook \"systemctl reload nginx\"") | crontab -';
-            shell_exec($cronCmd);
-            $_SESSION['ssl'] = ['email' => $sslEmail];
-            save_config(['ssl' => ['email' => $sslEmail]]);
-            $_SESSION['step'] = 6;
             redirect('collabora');
             break;
 
@@ -410,16 +361,6 @@ function validate_app(array $p): array
         } elseif (! filter_var($ip, FILTER_VALIDATE_IP)) {
             $e[] = 'Adresse IP invalide.';
         }
-    }
-
-    return $e;
-}
-
-function validate_ssl(array $p): array
-{
-    $e = [];
-    if (empty($p['ssl_email']) || ! filter_var($p['ssl_email'], FILTER_VALIDATE_EMAIL)) {
-        $e[] = 'Adresse email valide requise pour Let\'s Encrypt.';
     }
 
     return $e;
@@ -760,7 +701,7 @@ function render_page(string $action): void
     $step = $_SESSION['step'] ?? 0;
     $errors = $_SESSION['errors'] ?? [];
     unset($_SESSION['errors']);
-    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'HTTPS', 'Collabora', 'Administrateur', 'Sécurité', 'Installation'];
+    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Sécurité', 'Installation'];
 
     html_open();
     html_steps($step, $steps);
@@ -776,8 +717,6 @@ function render_page(string $action): void
         case 'app':      page_app($errors);
             break;
         case 'smtp':     page_smtp();
-            break;
-        case 'ssl':      page_ssl();
             break;
         case 'collabora': page_collabora();
             break;
@@ -1143,50 +1082,6 @@ function page_smtp(): void
   <button type="submit" class="btn btn-p">Continuer &#x2192;</button>
 </div>
 </form></div></div>
-<?php }
-
-function page_ssl(): void
-{
-    $domain = $_SESSION['app']['domain'] ?? '';
-    $errors = $_SESSION['errors'] ?? [];
-    unset($_SESSION['errors']);
-    $savedEmail = $_SESSION['ssl']['email'] ?? '';
-    $certPath = '/etc/letsencrypt/live/'.$domain.'/fullchain.pem';
-    $certExists = file_exists($certPath);
-    ?>
-<div class="wrap"><div class="card">
-<div class="card-title">&#x1F512; Certificat SSL — HTTPS obligatoire</div>
-<p class="card-sub">Pladigit requiert HTTPS pour la sécurité des sessions et des données. Le certificat sera obtenu gratuitement via <strong>Let's Encrypt</strong>.</p>
-<?php if ($certExists) { ?>
-<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#15803d;font-size:13px;">
-  &#x2705; Un certificat SSL existe déjà pour <strong><?= htmlspecialchars($domain) ?></strong>. Vous pouvez passer à l'étape suivante.
-</div>
-<div class="btns">
-  <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
-  <a href="?action=collabora" class="btn btn-p">Continuer &#x2192;</a>
-</div>
-<?php } else { ?>
-<?php if ($errors) { ?>
-<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#b91c1c;font-size:13px;">
-<?php foreach ($errors as $err) { ?><div>⚠ <?= $err ?></div><?php } ?>
-</div>
-<?php } ?>
-<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#1d4ed8;">
-  &#x2139; Domaine configuré : <strong><?= htmlspecialchars($domain) ?></strong><br>
-  Assurez-vous que ce domaine pointe bien vers ce serveur avant de continuer.
-</div>
-<form method="POST"><input type="hidden" name="action" value="ssl">
-<div class="fg"><label class="lbl">Email Let's Encrypt</label>
-  <input type="email" name="ssl_email" class="inp" value="<?= htmlspecialchars($savedEmail) ?>" placeholder="admin@macommune.fr" required>
-  <div class="hint">Utilisé pour les notifications d'expiration. Ne sera pas partagé.</div>
-</div>
-<div class="btns">
-  <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
-  <button type="submit" class="btn btn-p">Obtenir le certificat SSL &#x1F512;</button>
-</div>
-</form>
-<?php } ?>
-</div></div>
 <?php }
 
 function page_collabora(): void
