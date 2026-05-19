@@ -966,6 +966,7 @@ main() {
     if [[ "$ALL_INSTALLED" == true ]] && [[ -d "${PLADIGIT_DIR}/.git" ]]; then
         install_pladigit   # git pull + assets + permissions
         configure_nginx
+        set +e; setup_ssl; set -e
         setup_cron
         setup_super_admin_ip
         show_success
@@ -980,7 +981,7 @@ main() {
     setup_mysql_logs
     install_pladigit
     configure_nginx
-    setup_ssl
+    set +e; setup_ssl; set -e
     setup_cron
     setup_super_admin_ip
     show_success
