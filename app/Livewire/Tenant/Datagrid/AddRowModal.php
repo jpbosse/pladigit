@@ -125,7 +125,7 @@ class AddRowModal extends Component
         DatagridAuditLog::create([
             'datagrid_table_id' => $this->table->id,
             'user_id' => auth()->id(),
-            'action' => DatagridAuditAction::WRITE->value,
+            'action' => DatagridAuditAction::CREATE->value,
             'row_id' => $newId,
             'column_name' => null,
             'old_value' => null,

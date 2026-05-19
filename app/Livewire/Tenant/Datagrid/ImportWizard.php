@@ -2,9 +2,11 @@
 
 namespace App\Livewire\Tenant\Datagrid;
 
+use App\Enums\DatagridAuditAction;
 use App\Enums\DatagridColumnType;
 use App\Imports\DatagridImport;
 use App\Jobs\ImportDatagridJob;
+use App\Models\Tenant\DatagridAuditLog;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridTable;
 use App\Services\DatagridFuzzySearch;
@@ -688,6 +690,22 @@ class ImportWizard extends Component
 
             $this->tempPath = null; // le job gère la suppression
             $this->jobStatus = 'pending';
+
+            DatagridAuditLog::create([
+                'datagrid_table_id' => $dgTable->id,
+                'user_id' => auth()->id(),
+                'action' => DatagridAuditAction::STRUCTURE_CREATE->value,
+                'row_id' => null,
+                'column_name' => null,
+                'old_value' => null,
+                'new_value' => json_encode([
+                    'label' => $dgTable->label,
+                    'mysql_table' => $dgTable->mysql_table,
+                    'source_file' => $this->file?->getClientOriginalName(),
+                    'columns' => count($this->columns),
+                ], JSON_UNESCAPED_UNICODE),
+                'ip_address' => request()->ip(),
+            ]);
 
         } catch (\Throwable $e) {
             if ($tableCreated) {

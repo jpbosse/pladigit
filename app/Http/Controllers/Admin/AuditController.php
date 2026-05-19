@@ -10,6 +10,69 @@ use Illuminate\Support\Facades\DB;
 
 class AuditController extends Controller
 {
+    // ── Journal DataGrid ─────────────────────────────────────────────────────
+
+    public function datagrid(Request $request)
+    {
+        $query = DB::connection('tenant')
+            ->table('datagrid_audit_log as dal')
+            ->leftJoin('datagrid_tables as dt', 'dal.datagrid_table_id', '=', 'dt.id')
+            ->leftJoin('users as u', 'dal.user_id', '=', 'u.id')
+            ->select(
+                'dal.id',
+                'dal.created_at',
+                'u.name as user_name',
+                DB::raw("COALESCE(dt.label, IF(JSON_VALID(dal.old_value), JSON_UNQUOTE(JSON_EXTRACT(dal.old_value, '$.label')), NULL), '— grille supprimée —') as table_label"),
+                'dt.id as table_id',
+                'dal.action',
+                'dal.row_id',
+                'dal.column_name',
+                'dal.old_value',
+                'dal.new_value',
+                'dal.ip_address'
+            )
+            ->orderByDesc('dal.created_at');
+
+        if ($action = $request->input('action')) {
+            $query->where('dal.action', $action);
+        }
+
+        if ($table = $request->input('table')) {
+            $query->where('dt.id', $table);
+        }
+
+        if ($user = $request->input('user')) {
+            $query->where('u.name', 'like', "%{$user}%");
+        }
+
+        if ($from = $request->input('from')) {
+            $query->where('dal.created_at', '>=', $from.' 00:00:00');
+        }
+
+        if ($to = $request->input('to')) {
+            $query->where('dal.created_at', '<=', $to.' 23:59:59');
+        }
+
+        $logs = $query->paginate(50)->withQueryString();
+
+        // Pour les filtres
+        $tables = DB::connection('tenant')->table('datagrid_tables')->orderBy('label')->get();
+
+        $actions = DB::connection('tenant')
+            ->table('datagrid_audit_log')
+            ->selectRaw('action, count(*) as cnt')
+            ->groupBy('action')
+            ->orderByDesc('cnt')
+            ->pluck('cnt', 'action');
+
+        $totalLogs = DB::connection('tenant')->table('datagrid_audit_log')->count();
+        $settings = TenantSettings::on('tenant')->first();
+
+        return view('admin.audit.datagrid', compact(
+            'logs', 'tables', 'actions', 'totalLogs', 'settings'
+        ));
+    }
+
     // ── Journal (existant enrichi) ────────────────────────────────────────
 
     public function index(Request $request)

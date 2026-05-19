@@ -304,6 +304,8 @@ Route::middleware('tenant')->group(function () {
             Route::delete('audit/purge', [AuditController::class, 'purge'])->name('audit.purge');
             Route::get('audit/export', [AuditController::class, 'export'])->name('audit.export');
             Route::get('audit/export/form', fn () => view('admin.audit.export'))->name('audit.export.form');
+            Route::get('audit/datagrid', [AuditController::class, 'datagrid'])->name('audit.datagrid');
+            Route::get('datagrid/journal', [AuditController::class, 'datagrid'])->name('datagrid.journal');
 
             // Gestion démo — uniquement pour l'organisation "demo"
             Route::get('demo', [DemoController::class, 'index'])->name('demo.index');

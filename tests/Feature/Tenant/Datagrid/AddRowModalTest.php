@@ -173,7 +173,7 @@ class AddRowModalTest extends TestCase
             'datagrid_table_id' => $this->table->id,
             'user_id' => $this->admin->id,
             'row_id' => $newId,
-            'action' => 'write',
+            'action' => 'create',
             'column_name' => null,
         ], 'tenant');
     }

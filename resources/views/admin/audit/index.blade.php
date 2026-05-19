@@ -38,8 +38,10 @@ $actionMap = [
             Toutes les actions sensibles enregistrées — rétention 12 mois.
         </p>
     </div>
-    <div style="font-size:12px;color:var(--pd-muted);background:var(--pd-surface);border:1.5px solid var(--pd-border);border-radius:9px;padding:6px 14px;align-self:flex-start;">
-        {{ number_format($logs->total()) }} entrée{{ $logs->total() > 1 ? 's' : '' }}
+    <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-size:12px;color:var(--pd-muted);background:var(--pd-surface);border:1.5px solid var(--pd-border);border-radius:9px;padding:6px 14px;">
+            {{ number_format($logs->total()) }} entrée{{ $logs->total() > 1 ? 's' : '' }}
+        </div>
     </div>
 </div>
 

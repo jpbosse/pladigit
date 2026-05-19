@@ -8,6 +8,7 @@ use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
 use App\Services\DatagridPermissionService;
+use App\Traits\LogsDatagridExport;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -34,6 +35,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class ShowGrid extends Component
 {
+    use LogsDatagridExport;
     use WithPagination;
 
     public DatagridTable $table;
@@ -515,6 +517,8 @@ class ShowGrid extends Component
             abort(403);
         }
 
+        $this->logExport($this->table, 'xlsx');
+
         return Excel::download(
             new DatagridExport($this->table, $this->visibleColumns, $this->filters),
             $this->table->label.'.xlsx'
@@ -526,6 +530,8 @@ class ShowGrid extends Component
         if (! $this->userPerms['can_export']) {
             abort(403);
         }
+
+        $this->logExport($this->table, 'ods');
 
         return Excel::download(
             new DatagridExport($this->table, $this->visibleColumns, $this->filters),

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Tenant\Admin;
 
+use App\Enums\DatagridAuditAction;
 use App\Enums\DatagridColumnType;
 use App\Enums\UserRole;
 use App\Http\Controllers\Controller;
@@ -124,6 +125,17 @@ class DatagridAdminController extends Controller
             }
             DatagridColumn::where('id', $columnId)->update(['sort_order' => $position]);
         }
+
+        DatagridAuditLog::create([
+            'datagrid_table_id' => $table->id,
+            'user_id' => auth()->id(),
+            'action' => DatagridAuditAction::COLUMN_REORDER->value,
+            'row_id' => null,
+            'column_name' => null,
+            'old_value' => null,
+            'new_value' => json_encode($data['order'], JSON_UNESCAPED_UNICODE),
+            'ip_address' => request()->ip(),
+        ]);
 
         app(DatagridPermissionService::class)->invalidateCacheForTable($table);
 
@@ -401,6 +413,17 @@ class DatagridAdminController extends Controller
             );
         }
 
+        DatagridAuditLog::create([
+            'datagrid_table_id' => $table->id,
+            'user_id' => auth()->id(),
+            'action' => DatagridAuditAction::COLUMN_UPDATE->value,
+            'row_id' => null,
+            'column_name' => $column->name,
+            'old_value' => json_encode(['label' => $column->getOriginal('label'), 'type' => $oldType->value, 'name' => $oldName], JSON_UNESCAPED_UNICODE),
+            'new_value' => json_encode(['label' => $column->label, 'type' => $column->type->value, 'name' => $column->name], JSON_UNESCAPED_UNICODE),
+            'ip_address' => request()->ip(),
+        ]);
+
         app(DatagridPermissionService::class)->invalidateCacheForTable($table);
 
         return response()->json(['success' => true]);
@@ -413,6 +436,17 @@ class DatagridAdminController extends Controller
         );
 
         $column->delete();
+
+        DatagridAuditLog::create([
+            'datagrid_table_id' => $table->id,
+            'user_id' => auth()->id(),
+            'action' => DatagridAuditAction::COLUMN_DROP->value,
+            'row_id' => null,
+            'column_name' => $column->name,
+            'old_value' => json_encode(['label' => $column->label, 'type' => $column->type->value], JSON_UNESCAPED_UNICODE),
+            'new_value' => null,
+            'ip_address' => request()->ip(),
+        ]);
 
         app(DatagridPermissionService::class)->invalidateCacheForTable($table);
 
@@ -427,7 +461,21 @@ class DatagridAdminController extends Controller
 
     public function destroy(DatagridTable $table): RedirectResponse
     {
-        DatagridAuditLog::where('datagrid_table_id', $table->id)->delete();
+        // ── Log AVANT suppression — les audit logs sont immuables (RGPD) ──
+        DatagridAuditLog::create([
+            'datagrid_table_id' => null,
+            'user_id' => auth()->id(),
+            'action' => DatagridAuditAction::STRUCTURE_DROP->value,
+            'row_id' => null,
+            'column_name' => null,
+            'old_value' => json_encode(['label' => $table->label, 'mysql_table' => $table->mysql_table, 'datagrid_table_id' => $table->id], JSON_UNESCAPED_UNICODE),
+            'new_value' => null,
+            'ip_address' => request()->ip(),
+        ]);
+
+        // Les audit logs ne sont PAS supprimés — immuabilité RGPD.
+        // datagrid_table_id est NULL sur le log ci-dessus, les anciens logs
+        // passent à NULL via nullOnDelete (migration 2026_05_19_000001).
         DatagridSavedView::where('datagrid_table_id', $table->id)->delete();
         DatagridColumn::where('datagrid_table_id', $table->id)->delete();
 

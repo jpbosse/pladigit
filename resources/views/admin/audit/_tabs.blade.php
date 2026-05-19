@@ -3,6 +3,7 @@
 @php
 $tabs = [
     'journal'   => ['route' => 'admin.audit.index',          'label' => '📋 Journal',          'count' => $totalLogs ?? null],
+    'datagrid'  => ['route' => 'admin.audit.datagrid',       'label' => '🗂 DataGrid'],
     'stats'     => ['route' => 'admin.audit.stats',          'label' => '📊 Statistiques'],
     'retention' => ['route' => 'admin.audit.retention.index','label' => '⚙ Rétention & Purge'],
     'export'    => ['route' => 'admin.audit.export.form',    'label' => '📥 Export'],
