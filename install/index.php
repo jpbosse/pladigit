@@ -209,11 +209,26 @@ function handle_post(string $action): void
                 $_SESSION['errors'] = $errors;
                 redirect('app');
             }
-            $app = [
-                'url' => rtrim(trim($_POST['app_url'] ?? ''), '/'),
-                'name' => trim($_POST['app_name'] ?? 'Pladigit'),
-                'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
-            ];
+            $mode = $_POST['app_mode'] ?? 'domain';
+            if ($mode === 'domain') {
+                $domain = strtolower(trim($_POST['app_domain'] ?? ''));
+                $app = [
+                    'mode' => 'domain',
+                    'domain' => $domain,
+                    'url' => 'https://'.$domain,
+                    'name' => trim($_POST['app_name'] ?? 'Pladigit'),
+                    'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
+                ];
+            } else {
+                $ip = trim($_POST['app_ip'] ?? '');
+                $app = [
+                    'mode' => 'ip',
+                    'domain' => $ip,
+                    'url' => 'http://'.$ip,
+                    'name' => trim($_POST['app_name'] ?? 'Pladigit'),
+                    'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
+                ];
+            }
             $_SESSION['app'] = $app;
             save_config(['app' => $app]);
             $_SESSION['step'] = 4;
@@ -233,6 +248,41 @@ function handle_post(string $action): void
             $_SESSION['smtp'] = $smtp;
             save_config(['smtp' => $smtp]);
             $_SESSION['step'] = 5;
+            $appMode = $_SESSION['app']['mode'] ?? 'domain';
+            redirect($appMode === 'ip' ? 'collabora' : 'ssl');
+            break;
+
+        case 'ssl':
+            $sslErrors = validate_ssl($_POST);
+            if ($sslErrors) {
+                $_SESSION['errors'] = $sslErrors;
+                redirect('ssl');
+            }
+            $sslEmail = trim($_POST['ssl_email'] ?? '');
+            $domain = $_SESSION['app']['domain'] ?? '';
+            $certbotCmd = sprintf(
+                'sudo certbot --nginx -d %s -d www.%s --non-interactive --agree-tos --email %s --redirect 2>&1',
+                escapeshellarg($domain),
+                escapeshellarg($domain),
+                escapeshellarg($sslEmail)
+            );
+            $certbotOutput = shell_exec($certbotCmd);
+            $certbotSuccess = (
+                strpos($certbotOutput ?? '', 'Congratulations') !== false
+                || strpos($certbotOutput ?? '', 'Certificate not yet due for renewal') !== false
+            );
+            if (! $certbotSuccess) {
+                $_SESSION['errors'] = [
+                    'Échec SSL pour <strong>'.htmlspecialchars($domain).'</strong>. Vérifiez que le domaine pointe vers ce serveur.',
+                    '<details><summary>Détail</summary><pre>'.htmlspecialchars(substr($certbotOutput ?? 'Aucune sortie.', 0, 1000)).'</pre></details>',
+                ];
+                redirect('ssl');
+            }
+            $cronCmd = '(crontab -l 2>/dev/null | grep -q "certbot renew") || (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook \"systemctl reload nginx\"") | crontab -';
+            shell_exec($cronCmd);
+            $_SESSION['ssl'] = ['email' => $sslEmail];
+            save_config(['ssl' => ['email' => $sslEmail]]);
+            $_SESSION['step'] = 6;
             redirect('collabora');
             break;
 
@@ -243,7 +293,7 @@ function handle_post(string $action): void
             ];
             $_SESSION['collabora'] = $collabora;
             save_config(['collabora' => $collabora]);
-            $_SESSION['step'] = 6;
+            $_SESSION['step'] = 7;
             redirect('admin');
             break;
 
@@ -331,10 +381,31 @@ function validate_database(array $p): array
 function validate_app(array $p): array
 {
     $e = [];
-    if (empty($p['app_url'])) {
-        $e[] = "L'URL est requise.";
-    } elseif (! filter_var($p['app_url'], FILTER_VALIDATE_URL)) {
-        $e[] = 'URL invalide (ex: http://192.168.1.10).';
+    $mode = $p['app_mode'] ?? 'domain';
+    if ($mode === 'domain') {
+        $domain = trim($p['app_domain'] ?? '');
+        if (empty($domain)) {
+            $e[] = 'Le nom de domaine est requis.';
+        } elseif (! preg_match('/^[a-z0-9][a-z0-9\.\-]+\.[a-z]{2,}$/i', $domain)) {
+            $e[] = 'Nom de domaine invalide (ex: pladigit.macommune.fr).';
+        }
+    } else {
+        $ip = trim($p['app_ip'] ?? '');
+        if (empty($ip)) {
+            $e[] = "L'adresse IP est requise.";
+        } elseif (! filter_var($ip, FILTER_VALIDATE_IP)) {
+            $e[] = 'Adresse IP invalide.';
+        }
+    }
+
+    return $e;
+}
+
+function validate_ssl(array $p): array
+{
+    $e = [];
+    if (empty($p['ssl_email']) || ! filter_var($p['ssl_email'], FILTER_VALIDATE_EMAIL)) {
+        $e[] = 'Adresse email valide requise pour Let\'s Encrypt.';
     }
 
     return $e;
@@ -635,7 +706,8 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'CACHE_DRIVER=redis'."\n"
         .'QUEUE_CONNECTION=redis'."\n"
         .'SESSION_DRIVER=redis'."\n"
-        .'SESSION_LIFETIME=120'."\n\n"
+        .'SESSION_LIFETIME=120'."\n"
+        .(($app['mode'] ?? 'domain') === 'domain' ? 'SESSION_DOMAIN=.'.$app['domain']."\n".'SESSION_SECURE_COOKIE=true'."\n" : 'SESSION_SECURE_COOKIE=false'."\n")."\n"
         .'REDIS_HOST=127.0.0.1'."\n"
         .'REDIS_PASSWORD=null'."\n"
         .'REDIS_PORT=6379'."\n\n"
@@ -667,7 +739,7 @@ function render_page(string $action): void
     $step = $_SESSION['step'] ?? 0;
     $errors = $_SESSION['errors'] ?? [];
     unset($_SESSION['errors']);
-    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Sécurité', 'Installation'];
+    $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'HTTPS', 'Collabora', 'Administrateur', 'Sécurité', 'Installation'];
 
     html_open();
     html_steps($step, $steps);
@@ -683,6 +755,8 @@ function render_page(string $action): void
         case 'app':      page_app($errors);
             break;
         case 'smtp':     page_smtp();
+            break;
+        case 'ssl':      page_ssl();
             break;
         case 'collabora': page_collabora();
             break;
@@ -927,17 +1001,65 @@ function page_database(array $e): void
 
 function page_app(array $e): void
 {
-    $ip = $_SERVER['SERVER_ADDR'] ?? '127.0.0.1';
+    $savedDomain = $_SESSION['app']['domain'] ?? '';
+    $savedMode = $_SESSION['app']['mode'] ?? 'domain';
+    $savedIp = ($_SESSION['app']['mode'] ?? '') === 'ip' ? ($_SESSION['app']['domain'] ?? '') : ($_SERVER['SERVER_ADDR'] ?? '');
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F310; Paramètres de l'application</div>
-<p class="card-sub">L'adresse à laquelle vos agents accéderont à Pladigit.</p>
+<p class="card-sub">Comment souhaitez-vous accéder à Pladigit ?</p>
 <?php errs($e) ?>
-<form method="POST"><input type="hidden" name="action" value="app">
-<div class="fg"><label class="lbl">URL de l'application</label>
-  <input type="text" name="app_url" class="inp" value="http://<?= htmlspecialchars($ip) ?>" required>
-  <div class="hint">Incluez http:// ou https://. Ex : https://pladigit.macommune.fr</div>
+<form method="POST" id="appForm"><input type="hidden" name="action" value="app">
+
+<div style="display:flex;gap:12px;margin-bottom:20px;">
+  <label style="flex:1;border:2px solid <?= $savedMode === 'domain' ? '#1E3A5F' : '#d1d5db' ?>;border-radius:10px;padding:14px;cursor:pointer;" id="lbl-domain">
+    <input type="radio" name="app_mode" value="domain" <?= $savedMode === 'domain' ? 'checked' : '' ?> onchange="switchMode('domain')" style="margin-right:8px;">
+    <strong>&#x1F512; Nom de domaine</strong> <span style="font-size:11px;background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:10px;margin-left:4px;">Recommandé</span>
+    <div style="font-size:12px;color:#6b7280;margin-top:4px;">HTTPS automatique via Let's Encrypt. Pour une utilisation en production.</div>
+  </label>
+  <label style="flex:1;border:2px solid <?= $savedMode === 'ip' ? '#1E3A5F' : '#d1d5db' ?>;border-radius:10px;padding:14px;cursor:pointer;" id="lbl-ip">
+    <input type="radio" name="app_mode" value="ip" <?= $savedMode === 'ip' ? 'checked' : '' ?> onchange="switchMode('ip')" style="margin-right:8px;">
+    <strong>&#x1F9EA; Adresse IP</strong> <span style="font-size:11px;background:#fef9c3;color:#854d0e;padding:2px 6px;border-radius:10px;margin-left:4px;">Test uniquement</span>
+    <div style="font-size:12px;color:#6b7280;margin-top:4px;">HTTP uniquement. Pour découvrir Pladigit sans nom de domaine.</div>
+  </label>
 </div>
+
+<div id="zone-domain" style="display:<?= $savedMode === 'ip' ? 'none' : 'block' ?>;">
+  <div class="fg"><label class="lbl">Nom de domaine</label>
+    <div style="display:flex;align-items:center;">
+      <span style="padding:0 10px;height:40px;line-height:40px;background:#f0f4f8;border:1px solid #d1d5db;border-right:none;border-radius:6px 0 0 6px;font-size:13px;color:#6b7280;">https://</span>
+      <input type="text" name="app_domain" id="inp-domain" class="inp" value="<?= htmlspecialchars($savedDomain) ?>" placeholder="pladigit.macommune.fr" style="border-radius:0 6px 6px 0;">
+    </div>
+    <div class="hint">Le certificat SSL sera obtenu automatiquement à l'étape suivante.</div>
+  </div>
+</div>
+
+<div id="zone-ip" style="display:<?= $savedMode === 'ip' ? 'block' : 'none' ?>;">
+  <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e;">
+    ⚠ Mode test — HTTP non chiffré. Ne pas utiliser pour des données réelles. Configurez un domaine pour la production.
+  </div>
+  <div class="fg"><label class="lbl">Adresse IP du serveur</label>
+    <div style="display:flex;align-items:center;">
+      <span style="padding:0 10px;height:40px;line-height:40px;background:#f0f4f8;border:1px solid #d1d5db;border-right:none;border-radius:6px 0 0 6px;font-size:13px;color:#6b7280;">http://</span>
+      <input type="text" name="app_ip" id="inp-ip" class="inp" value="<?= htmlspecialchars($savedIp) ?>" placeholder="192.168.1.10" style="border-radius:0 6px 6px 0;">
+    </div>
+  </div>
+</div>
+
+<script>
+function switchMode(m) {
+  document.getElementById('zone-domain').style.display = m==='domain' ? 'block' : 'none';
+  document.getElementById('zone-ip').style.display     = m==='ip'     ? 'block' : 'none';
+  document.getElementById('lbl-domain').style.borderColor = m==='domain' ? '#1E3A5F' : '#d1d5db';
+  document.getElementById('lbl-ip').style.borderColor     = m==='ip'     ? '#1E3A5F' : '#d1d5db';
+  document.getElementById('inp-domain').required = (m==='domain');
+  document.getElementById('inp-ip').required     = (m==='ip');
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var checked = document.querySelector('input[name=app_mode]:checked');
+  if (checked) switchMode(checked.value);
+});
+</script>
 <div class="fg"><label class="lbl">Nom de votre organisation</label>
   <input type="text" name="app_name" class="inp" value="Pladigit" placeholder="Mairie de Saint-Aubin-les-Communes">
 </div>
@@ -993,6 +1115,36 @@ function page_smtp(): void
   <a href="?action=app" class="btn btn-s">&#x2190; Retour</a>
   <button type="submit" name="skip" value="1" class="btn btn-s">Passer cette étape</button>
   <button type="submit" class="btn btn-p">Continuer &#x2192;</button>
+</div>
+</form></div></div>
+<?php }
+
+function page_ssl(): void
+{
+    $domain = $_SESSION['app']['domain'] ?? '';
+    $errors = $_SESSION['errors'] ?? [];
+    unset($_SESSION['errors']);
+    ?>
+<div class="wrap"><div class="card">
+<div class="card-title">&#x1F512; Certificat SSL — HTTPS obligatoire</div>
+<p class="card-sub">Pladigit requiert HTTPS pour la sécurité des sessions et des données. Le certificat sera obtenu gratuitement via <strong>Let's Encrypt</strong>.</p>
+<?php if ($errors) { ?>
+<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#b91c1c;font-size:13px;">
+<?php foreach ($errors as $err) { ?><div>⚠ <?= $err ?></div><?php } ?>
+</div>
+<?php } ?>
+<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#1d4ed8;">
+  &#x2139; Domaine configuré : <strong><?= htmlspecialchars($domain) ?></strong><br>
+  Assurez-vous que ce domaine pointe bien vers ce serveur avant de continuer.
+</div>
+<form method="POST"><input type="hidden" name="action" value="ssl">
+<div class="fg"><label class="lbl">Email Let's Encrypt</label>
+  <input type="email" name="ssl_email" class="inp" placeholder="admin@macommune.fr" required>
+  <div class="hint">Utilisé pour les notifications d'expiration. Ne sera pas partagé.</div>
+</div>
+<div class="btns">
+  <a href="?action=smtp" class="btn btn-s">&#x2190; Retour</a>
+  <button type="submit" class="btn btn-p">Obtenir le certificat SSL &#x1F512;</button>
 </div>
 </form></div></div>
 <?php }

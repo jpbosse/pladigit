@@ -334,7 +334,7 @@ if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.
 
     # Composer
     if command -v composer &>/dev/null; then
-        log "Composer déjà installé : $(composer --version --no-ansi 2>/dev/null | head -1)"
+        log "Composer déjà installé"
     else
         info "Installation de Composer..."
         curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
@@ -450,6 +450,15 @@ SUPERVISOR
         ufw allow 443/tcp >> "$LOG_FILE" 2>&1 || true
         ufw --force enable >> "$LOG_FILE" 2>&1 || true
         log "Pare-feu UFW configuré (22, 80, 443)"
+    fi
+
+    # Certbot
+    if command -v certbot &>/dev/null; then
+        log "Certbot déjà installé"
+    else
+        info "Installation de Certbot..."
+        apt-get install -y -qq certbot python3-certbot-nginx >> "$LOG_FILE" 2>&1             || warn "Impossible d'installer Certbot — SSL à configurer manuellement."
+        log "Certbot installé"
     fi
 
     progress 5 7 "Services (Redis, Nginx, Supervisor, Node.js)"
@@ -601,7 +610,7 @@ setup_super_admin_ip() {
 
     # Détecter l'IP publique de l'administrateur (best-effort)
     local detected_ip
-    detected_ip=$(curl -sf --max-time 5 https://ifconfig.me 2>/dev/null || true)
+    detected_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || curl -4 -sf --max-time 5 https://api.ipify.org 2>/dev/null || true)
 
     echo ""
     info "Restriction d'accès au Super Admin par IP (ADR-027)"
@@ -652,6 +661,84 @@ setup_super_admin_ip() {
     fi
 
     log "SUPER_ADMIN_ALLOWED_IPS configuré : ${admin_ips}"
+}
+
+# ── 6b. SSL / HTTPS ──────────────────────────────────────────────────────────
+setup_ssl() {
+    local env_file="${PLADIGIT_DIR}/.env"
+
+    echo ""
+    info "Configuration SSL / HTTPS (Certbot Let's Encrypt)"
+    echo ""
+
+    if [ ! -t 0 ]; then
+        info "Pas de terminal interactif — SSL ignoré."
+        return
+    fi
+
+    echo -e "  Pour sécuriser votre plateforme en HTTPS, entrez votre nom de domaine."
+    echo -e "  Exemple : pladigit.macommune.fr"
+    echo -e "  ${YELLOW}Laissez vide pour ignorer (HTTP uniquement — déconseillé en production).${NC}"
+    echo ""
+    echo -n "  Nom de domaine (laisser vide pour ignorer) : "
+    read -r domain || domain=""
+
+    if [[ -z "$domain" ]]; then
+        warn "SSL ignoré — l'application tournera en HTTP."
+        warn "Vous pourrez configurer HTTPS ultérieurement avec : certbot --nginx -d votre-domaine.fr"
+        return
+    fi
+
+    echo ""
+    echo -n "  Adresse email pour les notifications Let's Encrypt : "
+    read -r ssl_email || ssl_email=""
+
+    if [[ -z "$ssl_email" ]]; then
+        warn "Email manquant — SSL ignoré."
+        return
+    fi
+
+    info "Obtention du certificat SSL pour ${domain}..."
+
+    # Configurer Nginx temporairement pour la validation ACME
+    sed -i "s/server_name _;/server_name ${domain} www.${domain};/" /etc/nginx/sites-available/pladigit
+    systemctl reload nginx >> "$LOG_FILE" 2>&1
+
+    if certbot --nginx -d "${domain}" -d "www.${domain}"         --non-interactive --agree-tos --email "${ssl_email}"         --redirect >> "$LOG_FILE" 2>&1; then
+
+        log "Certificat SSL obtenu pour ${domain}"
+
+        # Mettre à jour APP_URL et SESSION dans .env
+        if [[ -f "$env_file" ]]; then
+            sed -i "s|^APP_URL=.*|APP_URL=https://${domain}|" "$env_file"
+            if grep -q "^SESSION_DOMAIN=" "$env_file"; then
+                sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${domain}|" "$env_file"
+            else
+                echo "SESSION_DOMAIN=.${domain}" >> "$env_file"
+            fi
+            if grep -q "^SESSION_SECURE_COOKIE=" "$env_file"; then
+                sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file"
+            else
+                echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
+            fi
+            log "APP_URL mis à jour : https://${domain}"
+            log "SESSION_DOMAIN et SESSION_SECURE_COOKIE configurés"
+        fi
+
+        # Renouvellement automatique
+        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
+            log "Renouvellement automatique SSL configuré (cron 3h)"
+        fi
+
+    else
+        warn "Échec de l'obtention du certificat SSL."
+        warn "Vérifiez que le domaine ${domain} pointe bien vers ce serveur (IP: $(hostname -I | awk '"'"'{print $1}'"'"'))."
+        warn "Vous pourrez réessayer avec : certbot --nginx -d ${domain}"
+        # Remettre server_name _ en cas d'échec
+        sed -i "s/server_name ${domain} www.${domain};/server_name _;/" /etc/nginx/sites-available/pladigit
+        systemctl reload nginx >> "$LOG_FILE" 2>&1
+    fi
 }
 
 # ── 7. Configuration Nginx ────────────────────────────────────────────────────
@@ -744,7 +831,7 @@ show_success() {
     echo "  ╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
     echo -e "  ${BOLD}Ce qui vient d'être installé :${NC}"
-    echo -e "  • PHP 8.4, MySQL 8, Redis, Nginx, Supervisor, Node.js"
+    echo -e "  • PHP ${PHP_VERSION}, MySQL 8, Redis, Nginx, Supervisor, Node.js"
     echo -e "  • Logrotate Nginx (90 jours), MySQL slow query log"
     echo -e "  • Code source Pladigit et toutes ses dépendances"
     echo ""
@@ -893,6 +980,7 @@ main() {
     setup_mysql_logs
     install_pladigit
     configure_nginx
+    setup_ssl
     setup_cron
     setup_super_admin_ip
     show_success
