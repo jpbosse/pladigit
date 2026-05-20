@@ -319,7 +319,6 @@ install_php() {
             "php${PHP_VERSION}-fpm"
             "php${PHP_VERSION}-cli"
             "php${PHP_VERSION}-mysql"
-            "php${PHP_VERSION}-redis"
             "php${PHP_VERSION}-xml"
             "php${PHP_VERSION}-curl"
             "php${PHP_VERSION}-mbstring"
@@ -328,13 +327,31 @@ install_php() {
             "php${PHP_VERSION}-intl"
             "php${PHP_VERSION}-bcmath"
             "php${PHP_VERSION}-opcache"
-            "php${PHP_VERSION}-imagick"
             "php${PHP_VERSION}-ldap"
         )
 
         info "Installation de PHP ${PHP_VERSION} et extensions..."
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
+
+        # Extensions PECL (redis + imagick non fournies par sury.org)
+        apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
+        if ! php -m 2>/dev/null | grep -q redis; then
+            info "Installation de l'extension redis (PECL)..."
+            pecl install redis >> "$LOG_FILE" 2>&1 \
+                && echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini" \
+                && phpenmod -v "${PHP_VERSION}" redis \
+                && log "Extension redis installée" \
+                || warn "Extension redis non installée — à configurer manuellement."
+        fi
+        if ! php -m 2>/dev/null | grep -q imagick; then
+            info "Installation de l'extension imagick (PECL)..."
+            pecl install imagick >> "$LOG_FILE" 2>&1 \
+                && echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini" \
+                && phpenmod -v "${PHP_VERSION}" imagick \
+                && log "Extension imagick installée" \
+                || warn "Extension imagick non installée — à configurer manuellement."
+        fi
 
         log "PHP ${PHP_VERSION} installé"
     fi
