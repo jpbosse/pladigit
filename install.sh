@@ -68,6 +68,8 @@ NEED_SUPERVISOR=false
 NEED_NODE=false
 ALL_INSTALLED=false
 MYSQL_ROOT_PASSWORD=""   # Demandé si MySQL déjà installé avec mot de passe
+DOMAIN=""                # Domaine principal saisi au début
+SSL_EMAIL=""             # Email Let's Encrypt saisi au début
 
 # ── 0. Inventaire complet du système ──────────────────────────────────────────
 check_prerequisites() {
@@ -290,7 +292,7 @@ update_system() {
         curl wget git unzip zip \
         software-properties-common \
         apt-transport-https ca-certificates \
-        gnupg lsb-release \
+        gnupg lsb-release dnsutils \
         >> "$LOG_FILE" 2>&1 || die "Impossible d'installer les outils de base."
 
     log "Système mis à jour"
@@ -678,48 +680,44 @@ setup_super_admin_ip() {
 # ── 6b. SSL / HTTPS ──────────────────────────────────────────────────────────
 setup_ssl() {
     local env_file="${PLADIGIT_DIR}/.env"
+    local domain="${DOMAIN}"
+    local ssl_email="${SSL_EMAIL}"
 
     echo ""
     info "Configuration SSL / HTTPS (Certbot Let's Encrypt)"
     echo ""
 
-    if [ ! -t 0 ]; then
-        info "Pas de terminal interactif — SSL ignoré."
-        return
-    fi
-
-    echo -e "  Pour sécuriser votre plateforme en HTTPS, entrez votre nom de domaine."
-    echo -e "  Exemple : pladigit.macommune.fr"
-    echo -e "  ${YELLOW}Laissez vide pour ignorer (HTTP uniquement — déconseillé en production).${NC}"
-    echo ""
-    echo -n "  Nom de domaine (laisser vide pour ignorer) : "
-    read -r domain || domain=""
-
     if [[ -z "$domain" ]]; then
-        warn "SSL ignoré — l'application tournera en HTTP."
+        warn "Aucun domaine configuré — SSL ignoré."
         warn "Vous pourrez configurer HTTPS ultérieurement avec : certbot --nginx -d votre-domaine.fr"
         return
     fi
 
-    echo ""
-    echo -n "  Adresse email pour les notifications Let's Encrypt : "
-    read -r ssl_email || ssl_email=""
-
-    if [[ -z "$ssl_email" ]]; then
-        warn "Email manquant — SSL ignoré."
+    # Certificat déjà présent — rien à faire
+    if [[ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]]; then
+        log "Certificat SSL déjà présent pour ${domain} — ignoré"
         return
     fi
 
     info "Obtention du certificat SSL pour ${domain}..."
 
-    # Configurer Nginx temporairement pour la validation ACME
-    sed -i "s/server_name _;/server_name ${domain} www.${domain};/" /etc/nginx/sites-available/pladigit
-    systemctl reload nginx >> "$LOG_FILE" 2>&1
+    # Vérifier que le domaine résout bien vers ce serveur avant de lancer Certbot
+    local server_ip
+    server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk "{print \$1}")
+    local dns_ip
+    dns_ip=$(dig +short "${domain}" A 2>/dev/null | tail -1)
 
-    if certbot --nginx -d "${domain}" -d "www.${domain}"         --non-interactive --agree-tos --email "${ssl_email}"         --redirect >> "$LOG_FILE" 2>&1; then
+    if [[ -n "$dns_ip" && "$dns_ip" != "$server_ip" ]]; then
+        warn "DNS : ${domain} pointe vers ${dns_ip} mais ce serveur est ${server_ip}."
+        warn "SSL ignoré — mettez à jour votre DNS puis relancez : certbot --nginx -d ${domain}"
+        return
+    fi
+
+    if certbot --nginx         -d "${domain}"         --non-interactive --agree-tos         --email "${ssl_email}"         --redirect >> "$LOG_FILE" 2>&1; then
 
         log "Certificat SSL obtenu pour ${domain}"
-        # Permettre à www-data de vérifier l'existence du certificat (détection dans le wizard)
+
+        # Permettre à www-data de vérifier l'existence du certificat
         chmod 755 /etc/letsencrypt/live/ 2>/dev/null || true
         chmod 755 "/etc/letsencrypt/live/${domain}/" 2>/dev/null || true
 
@@ -742,17 +740,16 @@ setup_ssl() {
 
         # Renouvellement automatique
         if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
+            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook '"'"'systemctl reload nginx'"'"'") | crontab -
             log "Renouvellement automatique SSL configuré (cron 3h)"
         fi
 
     else
+        local vps_ip
+        vps_ip=$(hostname -I | awk "{print \$1}")
         warn "Échec de l'obtention du certificat SSL."
-        warn "Vérifiez que le domaine ${domain} pointe bien vers ce serveur (IP: $(hostname -I | awk '"'"'{print $1}'"'"'))."
-        warn "Vous pourrez réessayer avec : certbot --nginx -d ${domain}"
-        # Remettre server_name _ en cas d'échec
-        sed -i "s/server_name ${domain} www.${domain};/server_name _;/" /etc/nginx/sites-available/pladigit
-        systemctl reload nginx >> "$LOG_FILE" 2>&1
+        warn "Vérifiez que ${domain} pointe vers ce serveur (IP: ${vps_ip})."
+        warn "Relancez manuellement : certbot --nginx -d ${domain}"
     fi
 }
 
@@ -764,15 +761,11 @@ configure_nginx() {
     local server_ip
     server_ip=$(hostname -I | awk '{print $1}')
 
-    # Détecter le domaine principal depuis .env (APP_URL) pour le wildcard
+    # Utiliser le domaine saisi en début d'installation pour le wildcard
     local nginx_server_name="_"
-    if [[ -f "${PLADIGIT_DIR}/.env" ]]; then
-        local app_url
-        app_url=$(grep -E "^APP_URL=" "${PLADIGIT_DIR}/.env" | cut -d= -f2- | tr -d "'\"" | sed 's|https\?://||')
-        if [[ -n "$app_url" && "$app_url" != "http://localhost" && "$app_url" != *"localhost"* ]]; then
-            nginx_server_name="${app_url} *.${app_url}"
-            log "Nginx server_name détecté : ${nginx_server_name}"
-        fi
+    if [[ -n "${DOMAIN}" ]]; then
+        nginx_server_name="${DOMAIN} *.${DOMAIN}"
+        log "Nginx server_name : ${nginx_server_name}"
     fi
 
     cat > /etc/nginx/sites-available/pladigit << NGINX
@@ -905,6 +898,31 @@ main() {
     echo -e "  Journal : ${LOG_FILE}"
     echo ""
 
+    # ── Domaine et email — seules saisies requises ───────────────────────────────
+    if [ -t 0 ]; then
+        echo -e "  ${BOLD}Une seule information est nécessaire pour démarrer.${NC}"
+        echo ""
+        echo -e "  Entrez votre nom de domaine principal."
+        echo -e "  Exemple : pladigit.macommune.fr"
+        echo -e "  ${YELLOW}Laissez vide pour une installation en HTTP (test local uniquement).${NC}"
+        echo ""
+        echo -n "  Nom de domaine : "
+        read -r DOMAIN || DOMAIN=""
+        DOMAIN="${DOMAIN// /}"   # supprimer les espaces accidentels
+
+        if [[ -n "$DOMAIN" ]]; then
+            # Email : proposer contact@domaine par défaut
+            local default_email="contact@${DOMAIN}"
+            echo ""
+            echo -n "  Email Let'''s Encrypt [${default_email}] : "
+            read -r SSL_EMAIL || SSL_EMAIL=""
+            [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
+            log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
+        else
+            warn "Aucun domaine — installation en HTTP uniquement."
+        fi
+        echo ""
+    fi
 
     # ── Vérification installation existante ──────────────────────────────────────
     if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
