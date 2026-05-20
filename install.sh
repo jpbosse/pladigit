@@ -330,14 +330,14 @@ install_php() {
             "php${PHP_VERSION}-ldap"
         )
 
-        info "Installation de PHP ${PHP_VERSION} et extensions..."
+        info "Installation de PHP ${PHP_VERSION} et extensions (peut prendre 3-4 minutes)..."
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
 
         # Extensions PECL (redis + imagick non fournies par sury.org)
         apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
         if ! php -m 2>/dev/null | grep -q redis; then
-            info "Installation de l'extension redis (PECL)..."
+            info "Installation de l'extension redis (PECL) — patience..."
             pecl install redis >> "$LOG_FILE" 2>&1 \
                 && echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini" \
                 && phpenmod -v "${PHP_VERSION}" redis \
@@ -345,7 +345,7 @@ install_php() {
                 || warn "Extension redis non installée — à configurer manuellement."
         fi
         if ! php -m 2>/dev/null | grep -q imagick; then
-            info "Installation de l'extension imagick (PECL)..."
+            info "Installation de l'extension imagick (PECL) — patience..."
             pecl install imagick >> "$LOG_FILE" 2>&1 \
                 && echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini" \
                 && phpenmod -v "${PHP_VERSION}" imagick \
@@ -670,9 +670,11 @@ setup_super_admin_ip() {
         echo -e "  Laissez vide pour autoriser uniquement l'accès local (127.0.0.1)"
         echo -e "  ou entrez une ou plusieurs IPs séparées par des virgules."
         echo ""
-        echo -n "  IP(s) autorisée(s) : "
-        read -r admin_ips || admin_ips=""
-        [[ -z "$admin_ips" ]] && admin_ips="127.0.0.1"
+        while [[ -z "$admin_ips" ]]; do
+            echo -n "  IP(s) autorisée(s) (obligatoire) : "
+            read -r admin_ips || admin_ips=""
+            [[ -z "$admin_ips" ]] && warn "L'IP est obligatoire pour accéder au Super Admin."
+        done
     else
         admin_ips="${detected_ip:-127.0.0.1,::1}"
         info "Pas de terminal interactif — SUPER_ADMIN_ALLOWED_IPS par défaut (${admin_ips})"
@@ -926,23 +928,21 @@ main() {
         echo ""
         echo -e "  Entrez votre nom de domaine principal."
         echo -e "  Exemple : pladigit.macommune.fr"
-        echo -e "  ${YELLOW}Laissez vide pour une installation en HTTP (test local uniquement).${NC}"
         echo ""
-        echo -n "  Nom de domaine : "
-        read -r DOMAIN || DOMAIN=""
-        DOMAIN="${DOMAIN// /}"   # supprimer les espaces accidentels
+        while [[ -z "$DOMAIN" ]]; do
+            echo -n "  Nom de domaine (obligatoire) : "
+            read -r DOMAIN || DOMAIN=""
+            DOMAIN="${DOMAIN// /}"
+            [[ -z "$DOMAIN" ]] && warn "Le domaine est obligatoire pour continuer."
+        done
 
-        if [[ -n "$DOMAIN" ]]; then
-            # Email : proposer contact@domaine par défaut
-            local default_email="contact@${DOMAIN}"
-            echo ""
-            echo -n "  Email Let\'s Encrypt [${default_email}] : "
-            read -r SSL_EMAIL || SSL_EMAIL=""
-            [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
-            log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
-        else
-            warn "Aucun domaine — installation en HTTP uniquement."
-        fi
+        # Email : proposer contact@domaine par défaut
+        local default_email="contact@${DOMAIN}"
+        echo ""
+        echo -n "  Email Let\'s Encrypt [${default_email}] : "
+        read -r SSL_EMAIL || SSL_EMAIL=""
+        [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
+        log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
         echo ""
     fi
 
