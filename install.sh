@@ -18,7 +18,7 @@ PLADIGIT_USER="www-data"
 LOG_FILE="/var/log/pladigit-install.log"
 MIN_RAM_MB=2048
 MIN_DISK_GB=10
-PHP_VERSION="8.3"
+PHP_VERSION="8.4"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 log()     { echo -e "${GREEN}✓${NC} $*" | tee -a "$LOG_FILE"; }
@@ -304,11 +304,16 @@ install_php() {
     step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
 
     # Vérifier si PHP est déjà installé à la bonne version
-if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
+    if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
         log "PHP ${PHP_VERSION} déjà installé — on continue"
     else
+        # Ajouter le dépôt sury.org (source de référence pour PHP 8.4 sur Ubuntu/Mint)
+        info "Ajout du dépôt PHP sury.org..."
+        curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg \
+            >> "$LOG_FILE" 2>&1 || die "Impossible de télécharger la clé GPG sury.org."
+        echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
+            > /etc/apt/sources.list.d/php.list
         apt-get update -qq >> "$LOG_FILE" 2>&1
-
 
         local php_packages=(
             "php${PHP_VERSION}-fpm"
@@ -900,7 +905,7 @@ main() {
 
     # ── Domaine et email — seules saisies requises ───────────────────────────────
     if [ -t 0 ]; then
-        echo -e "  ${BOLD}Une seule information est nécessaire pour démarrer.${NC}"
+        echo -e "  ${BOLD}Deux informations sont nécessaires pour démarrer.${NC}"
         echo ""
         echo -e "  Entrez votre nom de domaine principal."
         echo -e "  Exemple : pladigit.macommune.fr"
@@ -914,7 +919,7 @@ main() {
             # Email : proposer contact@domaine par défaut
             local default_email="contact@${DOMAIN}"
             echo ""
-            echo -n "  Email Let'''s Encrypt [${default_email}] : "
+            echo -n "  Email Let\'s Encrypt [${default_email}] : "
             read -r SSL_EMAIL || SSL_EMAIL=""
             [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
             log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
