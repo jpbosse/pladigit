@@ -461,6 +461,15 @@ SUPERVISOR
         log "Certbot installé"
     fi
 
+    # Autoriser www-data à exécuter certbot en root sans mot de passe (provisionSsl)
+    CERTBOT_SUDOERS="/etc/sudoers.d/pladigit-certbot"
+    CERTBOT_PATH=$(command -v certbot || echo "/usr/bin/certbot")
+    echo "www-data ALL=(root) NOPASSWD: ${CERTBOT_PATH}" > "$CERTBOT_SUDOERS"
+    chmod 440 "$CERTBOT_SUDOERS"
+    visudo -c -f "$CERTBOT_SUDOERS" >> "$LOG_FILE" 2>&1 \
+        && log "Règle sudoers certbot configurée (www-data)" \
+        || { warn "Règle sudoers certbot invalide — suppression."; rm -f "$CERTBOT_SUDOERS"; }
+
     progress 5 7 "Services (Redis, Nginx, Supervisor, Node.js)"
 }
 
@@ -512,6 +521,9 @@ install_pladigit() {
     step "Étape 6/7 — Installation de Pladigit"
 
     # Clonage
+    # Rendre le répertoire safe pour git (évite l'erreur dubious ownership root vs www-data)
+    git config --global --add safe.directory "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 || true
+
     if [[ -d "$PLADIGIT_DIR/.git" ]]; then
         info "Répertoire existant détecté — mise à jour..."
         git -C "$PLADIGIT_DIR" pull origin main >> "$LOG_FILE" 2>&1 || warn "git pull échoué — on continue."
@@ -752,11 +764,22 @@ configure_nginx() {
     local server_ip
     server_ip=$(hostname -I | awk '{print $1}')
 
+    # Détecter le domaine principal depuis .env (APP_URL) pour le wildcard
+    local nginx_server_name="_"
+    if [[ -f "${PLADIGIT_DIR}/.env" ]]; then
+        local app_url
+        app_url=$(grep -E "^APP_URL=" "${PLADIGIT_DIR}/.env" | cut -d= -f2- | tr -d "'\"" | sed 's|https\?://||')
+        if [[ -n "$app_url" && "$app_url" != "http://localhost" && "$app_url" != *"localhost"* ]]; then
+            nginx_server_name="${app_url} *.${app_url}"
+            log "Nginx server_name détecté : ${nginx_server_name}"
+        fi
+    fi
+
     cat > /etc/nginx/sites-available/pladigit << NGINX
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-    server_name _;
+    server_name ${nginx_server_name};
 
     root ${PLADIGIT_DIR}/public;
     index index.php index.html;
