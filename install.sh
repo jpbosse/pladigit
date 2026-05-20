@@ -667,9 +667,8 @@ setup_super_admin_ip() {
             echo -e "  IP de ce serveur (pour référence) : ${detected_ip}"
         fi
         echo ""
-        echo -e "  Laissez vide pour autoriser uniquement l'accès local (127.0.0.1)"
-        echo -e "  ou entrez une ou plusieurs IPs séparées par des virgules."
         echo ""
+        local admin_ips=""
         while [[ -z "$admin_ips" ]]; do
             echo -n "  IP(s) autorisée(s) (obligatoire) : "
             read -r admin_ips || admin_ips=""
