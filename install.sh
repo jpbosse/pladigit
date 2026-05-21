@@ -6,10 +6,13 @@
 
 # ── Relancement avec TTY forcé (indispensable via curl | bash) ────────────────
 # Whiptail nécessite stdin/stdout/stderr connectés au terminal réel.
-# Si le script est lancé via un pipe (curl | bash), on se relance
-# en lisant et écrivant directement sur /dev/tty.
+# Via curl | bash, $0 = /dev/stdin — pas de fichier à relancer.
+# On s'écrit dans un fichier temporaire puis on se relance depuis ce fichier.
 if [ ! -t 0 ] || [ ! -t 1 ]; then
-    exec bash "$0" "$@" </dev/tty >/dev/tty 2>/dev/tty
+    _tmp=$(mktemp /tmp/pladigit-install-XXXXXX.sh)
+    cat "$0" > "$_tmp" 2>/dev/null || cat > "$_tmp"
+    chmod +x "$_tmp"
+    exec bash "$_tmp" "$@" </dev/tty >/dev/tty 2>/dev/tty
 fi
 #  Usage   : curl -fsSL https://pladigit.fr/install.sh | sudo bash
 # ==============================================================================
