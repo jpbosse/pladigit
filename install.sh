@@ -845,8 +845,11 @@ NGINX_SSL
         fi
 
         # Permissions lecture cert par www-data
-        chmod 755 /etc/letsencrypt/live/ 2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/live/${domain}/" 2>/dev/null || true
+        chmod 755 /etc/letsencrypt/                          2>/dev/null || true
+        chmod 755 /etc/letsencrypt/live/                     2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/live/${domain}/"          2>/dev/null || true
+        chmod 755 /etc/letsencrypt/archive/                  2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/archive/${domain}/"       2>/dev/null || true
 
         return
     fi
@@ -869,9 +872,12 @@ NGINX_SSL
 
         log "Certificat SSL obtenu pour ${domain}"
 
-        # Permettre à www-data de vérifier l'existence du certificat
-        chmod 755 /etc/letsencrypt/live/ 2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/live/${domain}/" 2>/dev/null || true
+        # Permettre à www-data de vérifier l'existence des certificats
+        chmod 755 /etc/letsencrypt/                          2>/dev/null || true
+        chmod 755 /etc/letsencrypt/live/                     2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/live/${domain}/"          2>/dev/null || true
+        chmod 755 /etc/letsencrypt/archive/                  2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/archive/${domain}/"       2>/dev/null || true
 
         # Mettre à jour APP_URL et SESSION dans .env
         if [[ -f "$env_file" ]]; then
