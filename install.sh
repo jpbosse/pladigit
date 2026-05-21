@@ -50,48 +50,119 @@ _log() { echo -e "$*" | tee -a "$LOG_FILE"; }
 log()  { _log "✓ $*"; }
 warn() { _log "⚠  $*"; }
 info() { _log "→  $*"; }
-die()  { _log "✗  $*"; whiptail --title "Erreur fatale" --msgbox "❌ $*\n\nConsultez le journal :\n$LOG_FILE" 12 60 2>/dev/tty; exit 1; }
+die()  { _log "✗  $*"; dialog --title "Erreur fatale" --msgbox "❌ $*\n\nConsultez le journal :\n$LOG_FILE" 12 60 2>/dev/tty; exit 1; }
 
 # ── Whiptail helpers ──────────────────────────────────────────────────────────
 # Toutes les saisies lisent depuis /dev/tty — fonctionne via curl | bash
+# ── Couleurs dialog ──────────────────────────────────────────────────────────
+export DIALOGRC
+DIALOGRC=$(mktemp /tmp/pladigit-dialogrc-XXXXXX)
+cat > "$DIALOGRC" << 'DIALOGRC_EOF'
+use_colors = ON
+screen_color = (WHITE,BLUE,ON)
+dialog_color = (BLACK,WHITE,OFF)
+title_color = (BLUE,WHITE,ON)
+border_color = (WHITE,WHITE,ON)
+button_active_color = (WHITE,BLUE,ON)
+button_inactive_color = (BLACK,WHITE,OFF)
+tag_color = (BLUE,WHITE,ON)
+tag_selected_color = (WHITE,BLUE,ON)
+check_color = (BLACK,WHITE,OFF)
+check_selected_color = (WHITE,BLUE,ON)
+DIALOGRC_EOF
+
 wt_msg() {
     # wt_msg "Titre" "Message" [hauteur] [largeur]
-    whiptail --title "${1}" --msgbox "${2}" "${3:-12}" "${4:-70}" 2>/dev/tty
+    dialog --title "${1}" --msgbox "${2}" "${3:-14}" "${4:-72}" 2>/dev/tty
+    clear
 }
 
 wt_info() {
     # Boîte non bloquante pendant les opérations longues
-    whiptail --title "${1}" --infobox "${2}" "${3:-8}" "${4:-70}" 2>/dev/tty
+    dialog --title "${1}" --infobox "${2}" "${3:-8}" "${4:-72}" 2>/dev/tty
 }
 
 wt_input() {
     # wt_input "Titre" "Question" "Valeur par défaut" → stdout
-    # whiptail écrit la valeur sur stderr — 3>&1 1>/dev/tty 2>&3
-    whiptail --title "${1}" --inputbox "${2}" 10 70 "${3}" 3>&1 1>/dev/tty 2>&3
+    dialog --title "${1}" --inputbox "${2}" 12 72 "${3}" 3>&1 1>/dev/tty 2>&3
 }
 
 wt_yesno() {
     # wt_yesno "Titre" "Question" → 0=oui 1=non
-    whiptail --title "${1}" --yesno "${2}" 10 70 >/dev/tty 2>&1
+    dialog --title "${1}" --yesno "${2}" 12 72 2>/dev/tty
+    local ret=$?
+    clear
+    return $ret
 }
 
-wt_gauge() {
-    # wt_gauge "Message" pct
-    echo "${2}" | whiptail --title "Pladigit — Installation" \
-        --gauge "${1}" 8 70 0 2>/dev/tty
+# ── Fenêtre de progression avec liste d'étapes ───────────────────────────────
+# Usage : start_progress
+#         update_progress PCT "Étape en cours..."
+#         stop_progress
+PROGRESS_PIPE=""
+PROGRESS_PID=""
+
+STEPS_DONE=()
+STEPS_TODO=("Mise à jour système" "PHP 8.4 + Composer" "MySQL 8" "Services (Redis, Nginx...)" "Pladigit" "Configuration Nginx" "SSL + finalisation")
+
+_render_steps() {
+    local current_msg="${1}"
+    local pct="${2}"
+    local text=""
+
+    for step in "${STEPS_DONE[@]}"; do
+        text+="✅ ${step}\n"
+    done
+    if [[ -n "$current_msg" ]]; then
+        text+="⏳ ${current_msg}\n"
+    fi
+    local remaining=$(( ${#STEPS_TODO[@]} ))
+    for (( i=0; i<remaining; i++ )); do
+        text+="○  ${STEPS_TODO[$i]}\n"
+    done
+    echo "$text"
 }
 
-wt_progress() {
-    # Affiche une progression via gauge (pipe)
+start_progress() {
+    PROGRESS_PIPE=$(mktemp -u /tmp/pladigit-progress-XXXXXX)
+    mkfifo "$PROGRESS_PIPE"
+    dialog --title "Pladigit — Installation en cours"         --gauge "Démarrage..." 20 72 0 < "$PROGRESS_PIPE" 2>/dev/tty &
+    PROGRESS_PID=$!
+    exec 3>"$PROGRESS_PIPE"
+}
+
+update_progress() {
     local pct="${1}"
     local msg="${2}"
-    echo "$pct"
     _log "[${pct}%] ${msg}"
+    # Mettre à jour le gauge via le pipe nommé
+    printf "XXX
+%s
+%s
+XXX
+" "$pct" "$msg" >&3 2>/dev/null || true
+}
+
+step_done() {
+    local step="${1}"
+    STEPS_DONE+=("$step")
+    if [[ ${#STEPS_TODO[@]} -gt 0 ]]; then
+        STEPS_TODO=("${STEPS_TODO[@]:1}")
+    fi
+}
+
+stop_progress() {
+    exec 3>&- 2>/dev/null || true
+    sleep 0.3
+    kill "$PROGRESS_PID" 2>/dev/null || true
+    wait "$PROGRESS_PID" 2>/dev/null || true
+    rm -f "$PROGRESS_PIPE"
+    clear
 }
 
 # ── Écran de bienvenue ────────────────────────────────────────────────────────
 show_welcome() {
-    whiptail --title "Pladigit v${INSTALL_VERSION} — Installation" \
+    dialog --title "Pladigit v${INSTALL_VERSION} — Installation" \
         --msgbox "\
 Bienvenue dans l'assistant d'installation de Pladigit !
 
@@ -113,8 +184,8 @@ Appuyez sur Entrée pour commencer." 20 70 2>/dev/tty
 # ── Choix du profil ───────────────────────────────────────────────────────────
 choose_profil() {
     local choice
-    # whiptail écrit le choix sur stderr — redirection 3>&1 1>/dev/tty 2>&3
-    choice=$(whiptail --title "Pladigit — Qui êtes-vous ?" \
+    # dialog écrit le choix sur stderr — redirection 3>&1 1>/dev/tty 2>&3
+    choice=$(dialog --title "Pladigit — Qui êtes-vous ?" \
         --menu "\
 Choisissez votre situation pour adapter l'installation :" \
         20 78 3 \
@@ -184,7 +255,7 @@ ask_domain() {
     esac
 
     while [[ -z "$DOMAIN" ]]; do
-        DOMAIN=$(whiptail --title "Pladigit — Nom de domaine" \
+        DOMAIN=$(dialog --title "Pladigit — Nom de domaine" \
             --inputbox "${msg_domaine}" 18 70 "" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
         DOMAIN="${DOMAIN// /}"
         if [[ -z "$DOMAIN" ]]; then
@@ -199,7 +270,7 @@ ask_domain() {
 ask_email() {
     local default_email="contact@${DOMAIN}"
 
-    SSL_EMAIL=$(whiptail --title "Pladigit — Email Let's Encrypt" \
+    SSL_EMAIL=$(dialog --title "Pladigit — Email Let's Encrypt" \
         --inputbox "\
 Entrez une adresse email pour le certificat HTTPS (Let's Encrypt).
 
@@ -227,7 +298,7 @@ ask_admin_ip() {
     esac
 
     while [[ -z "$ADMIN_IPS" ]]; do
-        ADMIN_IPS=$(whiptail --title "Pladigit — IP Super Admin" \
+        ADMIN_IPS=$(dialog --title "Pladigit — IP Super Admin" \
             --inputbox "${msg_ip}" 18 70 "" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
         ADMIN_IPS="${ADMIN_IPS// /}"
         if [[ -z "$ADMIN_IPS" ]]; then
@@ -247,7 +318,7 @@ show_recap() {
         3) profil_label="Communauté de communes" ;;
     esac
 
-    whiptail --title "Pladigit — Récapitulatif" \
+    dialog --title "Pladigit — Récapitulatif" \
         --yesno "\
 Voici ce qui va être installé :
 
@@ -338,7 +409,7 @@ check_prerequisites() {
 
     if command -v mysql &>/dev/null && systemctl is-active --quiet mysql 2>/dev/null; then
         if ! mysql -u root --connect-timeout=3 -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
-            MYSQL_ROOT_PASSWORD=$(whiptail --title "MySQL — Mot de passe root" \
+            MYSQL_ROOT_PASSWORD=$(dialog --title "MySQL — Mot de passe root" \
                 --passwordbox "MySQL est déjà installé.\n\nEntrez le mot de passe root MySQL :" \
                 10 60 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
             mysql -u root --connect-timeout=3 -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1 \
@@ -392,6 +463,8 @@ update_system() {
         >> "$LOG_FILE" 2>&1 || die "Impossible d'installer les outils de base."
 
     log "Système mis à jour"
+    step_done "Mise à jour système"
+    update_progress 14 "Système mis à jour ✅"
 }
 
 # ── 2. PHP 8.4 ────────────────────────────────────────────────────────────────
@@ -468,7 +541,7 @@ install_php() {
     if command -v composer &>/dev/null; then
         log "Composer déjà installé"
     else
-        wt_info "Installation (2/7)" "📦 Installation de Composer..." 6 60
+        update_progress 26 "Installation de Composer..."
         curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
             >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Composer."
         log "Composer installé"
@@ -477,7 +550,7 @@ install_php() {
 
 # ── 3. MySQL 8 ────────────────────────────────────────────────────────────────
 install_mysql() {
-    wt_info "Installation (3/7)" "🗄  Installation de MySQL 8..." 6 60
+    update_progress 29 "Installation de MySQL 8..."
 
     if command -v mysql &>/dev/null; then
         log "MySQL déjà installé"
@@ -501,6 +574,8 @@ install_mysql() {
     fi
 
     log "Authentification MySQL configurée"
+    step_done "MySQL 8"
+    update_progress 42 "MySQL 8 ✅"
 }
 
 # ── 4. Services (Redis, Nginx, Supervisor, Node.js, Certbot) ──────────────────
@@ -587,6 +662,8 @@ SUDOERS_EOF
         || { warn "Règle sudoers invalide — suppression."; rm -f "$CERTBOT_SUDOERS"; }
 
     log "Services installés"
+    step_done "Services (Redis, Nginx...)"
+    update_progress 57 "Services ✅"
 }
 
 # ── 5. Logrotate + MySQL logs ─────────────────────────────────────────────────
@@ -682,11 +759,13 @@ install_pladigit() {
     supervisorctl reread >> "$LOG_FILE" 2>&1 || true
     supervisorctl update >> "$LOG_FILE" 2>&1 || true
     log "Workers Supervisor activés"
+    step_done "Pladigit"
+    update_progress 85 "Pladigit ✅"
 }
 
 # ── 7. Nginx ──────────────────────────────────────────────────────────────────
 configure_nginx() {
-    wt_info "Installation (7/7)" "🌐 Configuration de Nginx..." 6 60
+    update_progress 86 "Configuration de Nginx..."
 
     local nginx_server_name="_"
     [[ -n "${DOMAIN}" ]] && nginx_server_name="${DOMAIN} *.${DOMAIN}"
@@ -745,6 +824,8 @@ NGINX
     systemctl restart nginx >> "$LOG_FILE" 2>&1 || die "Impossible de redémarrer Nginx."
     systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1
     log "Nginx configuré"
+    step_done "Configuration Nginx"
+    update_progress 90 "Nginx ✅"
 }
 
 # ── SSL ───────────────────────────────────────────────────────────────────────
@@ -759,7 +840,7 @@ setup_ssl() {
         if grep -q "listen 443" /etc/nginx/sites-available/pladigit 2>/dev/null; then
             log "Bloc HTTPS Nginx déjà présent"
         else
-            wt_info "SSL" "🔒 Injection du bloc HTTPS Nginx..." 6 60
+            update_progress 92 "Injection du bloc HTTPS Nginx..."
             local nginx_server_name="${DOMAIN} *.${DOMAIN}"
             cat > /etc/nginx/sites-available/pladigit << NGINX_SSL
 server {
@@ -926,7 +1007,7 @@ show_success() {
         3) msg_success="🎉 Pladigit est installé !\n\nÉtape suivante :\n\n  ${install_url}\n\nConnectez-vous au Super Admin pour créer\nles communes membres.\n\nPour le SSL de chaque commune : la commande\ncertbot sera affichée automatiquement." ;;
     esac
 
-    whiptail --title "✅ Installation terminée !" \
+    dialog --title "✅ Installation terminée !" \
         --msgbox "${msg_success}" 22 70 2>/dev/tty
 
     log "Installation terminée — ${install_url}"
@@ -939,7 +1020,7 @@ show_success() {
 
 # ── Mise à jour ───────────────────────────────────────────────────────────────
 do_update() {
-    whiptail --title "Pladigit — Mise à jour" \
+    dialog --title "Pladigit — Mise à jour" \
         --yesno "Une installation Pladigit a été détectée sur ce serveur.\n\nSouhaitez-vous la mettre à jour ?\n\n• Le code sera mis à jour (git pull)\n• Les dépendances seront mises à jour\n• Les migrations seront appliquées\n• Vos données ne seront PAS supprimées" \
         16 70 2>/dev/tty || { log "Mise à jour annulée."; exit 0; }
 
@@ -973,9 +1054,9 @@ main() {
     mkdir -p "$(dirname "$LOG_FILE")"
     echo "=== Pladigit Install Log v${INSTALL_VERSION} — $(date) ===" > "$LOG_FILE"
 
-    # Vérifier que whiptail est disponible (préinstallé sur Ubuntu)
-    if ! command -v whiptail &>/dev/null; then
-        apt-get install -y -qq whiptail >> "$LOG_FILE" 2>&1 || true
+    # Vérifier que dialog est disponible (préinstallé sur Ubuntu)
+    if ! command -v dialog &>/dev/null; then
+        apt-get install -y -qq dialog >> "$LOG_FILE" 2>&1 || true
     fi
 
     # Vérifier les droits root en amont
@@ -1000,15 +1081,19 @@ main() {
     check_prerequisites
 
     if [[ "$ALL_INSTALLED" == true ]] && [[ -d "${PLADIGIT_DIR}/.git" ]]; then
+        start_progress
         install_pladigit
         configure_nginx
         set +e; setup_ssl; set -e
         setup_cron
         setup_super_admin_ip
+        update_progress 100 "Installation terminée !"
+        stop_progress
         show_success
         return
     fi
 
+    start_progress
     update_system
     install_php
     install_mysql
@@ -1019,7 +1104,10 @@ main() {
     set +e; setup_ssl; set -e
     setup_cron
     setup_super_admin_ip
+    update_progress 100 "Installation terminée !"
+    stop_progress
     show_success
+    rm -f "$DIALOGRC" 2>/dev/null || true
 }
 
 main "$@"
