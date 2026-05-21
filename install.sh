@@ -424,7 +424,7 @@ install_php() {
             else
                 wt_info "Installation (2/7)" "⏳ Compilation de l'extension redis...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" >> "$LOG_FILE" 2>&1 || true
-                if pecl install redis >> "$LOG_FILE" 2>&1; then
+                if printf "\n" | pecl install redis >> "$LOG_FILE" 2>&1; then
                     echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini"
                     phpenmod -v "${PHP_VERSION}" redis
                     log "Extension redis installée (PECL)"
@@ -442,7 +442,7 @@ install_php() {
             else
                 wt_info "Installation (2/7)" "⏳ Compilation de l'extension imagick...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
-                if pecl install imagick >> "$LOG_FILE" 2>&1; then
+                if printf "\n" | pecl install imagick >> "$LOG_FILE" 2>&1; then
                     echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini"
                     phpenmod -v "${PHP_VERSION}" imagick
                     log "Extension imagick installée (PECL)"
