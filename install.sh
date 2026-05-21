@@ -1,64 +1,26 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  Pladigit — Script d'installation automatique
-#  Version : 1.1.0
+#  Version : 2.0.0
 #  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
-#  Usage   : curl -fsSL https://pladigit.fr/get-install | sudo bash
+#  Usage   : curl -fsSL https://pladigit.fr/install.sh | sudo bash
 # ==============================================================================
 set -euo pipefail
-
-# ── Couleurs ──────────────────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; CYAN='\033[0;36m'; BOLD='\033[1m'; NC='\033[0m'
 
 # ── Configuration ─────────────────────────────────────────────────────────────
 PLADIGIT_DIR="/var/www/pladigit"
 PLADIGIT_REPO="https://github.com/jpbosse/pladigit.git"
-PLADIGIT_USER="www-data"
 LOG_FILE="/var/log/pladigit-install.log"
 MIN_RAM_MB=2048
 MIN_DISK_GB=10
 PHP_VERSION="8.4"
+INSTALL_VERSION="2.0.0"
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-log()     { echo -e "${GREEN}✓${NC} $*" | tee -a "$LOG_FILE"; }
-warn()    { echo -e "${YELLOW}⚠${NC}  $*" | tee -a "$LOG_FILE"; }
-error()   { echo -e "${RED}✗${NC}  $*" | tee -a "$LOG_FILE"; }
-info()    { echo -e "${CYAN}→${NC}  $*" | tee -a "$LOG_FILE"; }
-title()   { echo -e "\n${BOLD}${BLUE}$*${NC}" | tee -a "$LOG_FILE"; }
-step()    { echo -e "\n${BOLD}[ $* ]${NC}" | tee -a "$LOG_FILE"; }
-die()     { error "$*"; echo -e "\n${RED}Installation interrompue. Consultez : $LOG_FILE${NC}"; exit 1; }
-
-banner() {
-    clear
-    echo -e "${BLUE}"
-    echo "  ██████╗ ██╗      █████╗ ██████╗ ██╗ ██████╗ ██╗████████╗"
-    echo "  ██╔══██╗██║     ██╔══██╗██╔══██╗██║██╔════╝ ██║╚══██╔══╝"
-    echo "  ██████╔╝██║     ███████║██║  ██║██║██║  ███╗██║   ██║   "
-    echo "  ██╔═══╝ ██║     ██╔══██║██║  ██║██║██║   ██║██║   ██║   "
-    echo "  ██║     ███████╗██║  ██║██████╔╝██║╚██████╔╝██║   ██║   "
-    echo "  ╚═╝     ╚══════╝╚═╝  ╚═╝╚═════╝ ╚═╝ ╚═════╝ ╚═╝   ╚═╝   "
-    echo -e "${NC}"
-    echo -e "  ${BOLD}Plateforme de Digitalisation pour Collectivités${NC}"
-    echo -e "  Installation automatique — v1.0.0"
-    echo -e "  ─────────────────────────────────────────────────"
-    echo ""
-}
-
-progress() {
-    local current=$1
-    local total=$2
-    local label=$3
-    local pct=$(( current * 100 / total ))
-    local filled=$(( pct / 5 ))
-    local bar=""
-    for ((i=0; i<filled; i++)); do bar+="█"; done
-    for ((i=filled; i<20; i++)); do bar+="░"; done
-    printf "\r  [${GREEN}%s${NC}] %3d%%  %s" "$bar" "$pct" "$label"
-    echo "" | tee -a "$LOG_FILE" > /dev/null
-}
-
-# ── Variables globales d'état — remplies par check_prerequisites ──────────────
+# ── Variables globales ────────────────────────────────────────────────────────
+PROFIL=""          # 1=commune 2=maison-communes 3=communaute
+DOMAIN=""
+SSL_EMAIL=""
+ADMIN_IPS=""
 NEED_SYSTEM_UPDATE=false
 NEED_PHP=false
 NEED_MYSQL=false
@@ -67,42 +29,270 @@ NEED_NGINX=false
 NEED_SUPERVISOR=false
 NEED_NODE=false
 ALL_INSTALLED=false
-MYSQL_ROOT_PASSWORD=""   # Demandé si MySQL déjà installé avec mot de passe
-DOMAIN=""                # Domaine principal saisi au début
-SSL_EMAIL=""             # Email Let's Encrypt saisi au début
+MYSQL_ROOT_PASSWORD=""
 
-# ── 0. Inventaire complet du système ──────────────────────────────────────────
+# ── Helpers log (sans Whiptail — pour le journal) ─────────────────────────────
+LOG_FILE="/var/log/pladigit-install.log"
+_log() { echo -e "$*" | tee -a "$LOG_FILE"; }
+log()  { _log "✓ $*"; }
+warn() { _log "⚠  $*"; }
+info() { _log "→  $*"; }
+die()  { _log "✗  $*"; whiptail --title "Erreur fatale" --msgbox "❌ $*\n\nConsultez le journal :\n$LOG_FILE" 12 60 2>/dev/tty; exit 1; }
+
+# ── Whiptail helpers ──────────────────────────────────────────────────────────
+# Toutes les saisies lisent depuis /dev/tty — fonctionne via curl | bash
+wt_msg() {
+    # wt_msg "Titre" "Message" [hauteur] [largeur]
+    whiptail --title "${1}" --msgbox "${2}" "${3:-12}" "${4:-70}" 2>/dev/tty
+}
+
+wt_info() {
+    # Boîte non bloquante pendant les opérations longues
+    whiptail --title "${1}" --infobox "${2}" "${3:-8}" "${4:-70}" 2>/dev/tty
+}
+
+wt_input() {
+    # wt_input "Titre" "Question" "Valeur par défaut" → stdout
+    whiptail --title "${1}" --inputbox "${2}" 10 70 "${3}" 2>/dev/tty
+}
+
+wt_yesno() {
+    # wt_yesno "Titre" "Question" → 0=oui 1=non
+    whiptail --title "${1}" --yesno "${2}" 10 70 2>/dev/tty
+}
+
+wt_gauge() {
+    # wt_gauge "Message" pct
+    echo "${2}" | whiptail --title "Pladigit — Installation" \
+        --gauge "${1}" 8 70 0 2>/dev/tty
+}
+
+wt_progress() {
+    # Affiche une progression via gauge (pipe)
+    local pct="${1}"
+    local msg="${2}"
+    echo "$pct"
+    _log "[${pct}%] ${msg}"
+}
+
+# ── Écran de bienvenue ────────────────────────────────────────────────────────
+show_welcome() {
+    whiptail --title "Pladigit v${INSTALL_VERSION} — Installation" \
+        --msgbox "\
+Bienvenue dans l'assistant d'installation de Pladigit !
+
+Pladigit est une plateforme libre de digitalisation pour les
+collectivités françaises (gestion documentaire, photothèque,
+projets, données, édition collaborative).
+
+Ce script va installer et configurer tout le nécessaire
+sur votre serveur Ubuntu automatiquement.
+
+─────────────────────────────────────────
+⏱  Durée estimée : 15 à 30 minutes
+📋  Journal : ${LOG_FILE}
+─────────────────────────────────────────
+
+Appuyez sur Entrée pour commencer." 20 70 2>/dev/tty
+}
+
+# ── Choix du profil ───────────────────────────────────────────────────────────
+choose_profil() {
+    local choice
+    choice=$(whiptail --title "Pladigit — Qui êtes-vous ?" \
+        --menu "\
+Choisissez votre situation pour adapter l'installation :" \
+        20 78 3 \
+        "1" "Je suis une commune ou une petite collectivité" \
+        "2" "Je gère l'informatique de plusieurs communes (maison des communes...)" \
+        "3" "Je suis technicien d'une communauté de communes" \
+        2>/dev/tty) || die "Installation annulée."
+
+    PROFIL="$choice"
+
+    case "$PROFIL" in
+        1)
+            wt_msg "Profil — Commune" "\
+✅ Parfait !
+
+Pladigit sera installé pour votre commune uniquement.
+Aucune autre organisation ne partagera votre serveur.
+
+L'installation sera la plus simple possible.
+Vous n'aurez pas besoin de connaissances techniques particulières.
+
+👉 Deux informations vous seront demandées :
+   • Votre nom de domaine (ex: pladigit.macommune.fr)
+   • Une adresse email (pour le certificat de sécurité HTTPS)" 18 70
+            ;;
+        2)
+            wt_msg "Profil — Maison des communes" "\
+✅ Parfait !
+
+Pladigit sera installé en mode multi-organisations.
+Vous pourrez gérer plusieurs communes depuis un seul serveur
+via l'interface Super Administrateur.
+
+Ce mode nécessite :
+   • Un nom de domaine principal (ex: pladigit.maison85.fr)
+   • Un accès SSH au serveur
+   • Pour chaque nouvelle commune : lancer une commande SSL
+     (affichée automatiquement dans l'interface)" 18 70
+            ;;
+        3)
+            wt_msg "Profil — Communauté de communes" "\
+✅ Parfait !
+
+Pladigit sera installé en mode multi-organisations.
+Vous pourrez administrer les communes membres depuis un seul serveur.
+
+Ce mode suppose que vous savez :
+   • Installer Ubuntu Server
+   • Utiliser un terminal SSH
+   • Configurer un nom de domaine (enregistrement DNS)
+
+Une commande SSL sera à lancer pour chaque nouvelle commune
+(affichée automatiquement dans l'interface)." 18 70
+            ;;
+    esac
+
+    log "Profil sélectionné : ${PROFIL}"
+}
+
+# ── Saisie domaine ────────────────────────────────────────────────────────────
+ask_domain() {
+    local msg_domaine
+    case "$PROFIL" in
+        1) msg_domaine="Entrez le nom de domaine de votre commune.\n\nExemple : pladigit.macommune.fr\n\n⚠ Ce domaine doit déjà pointer vers ce serveur\n  (configuré chez votre hébergeur ou registrar)." ;;
+        2) msg_domaine="Entrez le nom de domaine principal de votre structure.\n\nExemple : pladigit.maison85.fr\n\nLes communes seront accessibles sur des sous-domaines :\n  mairie-soullans.pladigit.maison85.fr\n  mairie-olonne.pladigit.maison85.fr" ;;
+        3) msg_domaine="Entrez le nom de domaine de votre communauté de communes.\n\nExemple : numerique.cc-example.fr\n\nChaque commune membre sera un sous-domaine :\n  mairie-a.numerique.cc-example.fr" ;;
+    esac
+
+    while [[ -z "$DOMAIN" ]]; do
+        DOMAIN=$(whiptail --title "Pladigit — Nom de domaine" \
+            --inputbox "${msg_domaine}" 18 70 "" 2>/dev/tty) || die "Installation annulée."
+        DOMAIN="${DOMAIN// /}"
+        if [[ -z "$DOMAIN" ]]; then
+            wt_msg "Champ obligatoire" "⚠ Le nom de domaine est obligatoire.\n\nSans domaine, le certificat HTTPS ne peut pas être obtenu\net votre installation ne sera pas sécurisée." 10 60
+        fi
+    done
+
+    log "Domaine : ${DOMAIN}"
+}
+
+# ── Saisie email ──────────────────────────────────────────────────────────────
+ask_email() {
+    local default_email="contact@${DOMAIN}"
+
+    SSL_EMAIL=$(whiptail --title "Pladigit — Email Let's Encrypt" \
+        --inputbox "\
+Entrez une adresse email pour le certificat HTTPS (Let's Encrypt).
+
+Cet email recevra des alertes si votre certificat approche
+de sa date d'expiration (renouvellement automatique prévu).
+
+Laissez vide pour utiliser : ${default_email}" \
+        14 70 "" 2>/dev/tty) || die "Installation annulée."
+
+    [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
+    log "Email SSL : ${SSL_EMAIL}"
+}
+
+# ── Saisie IP Super Admin ─────────────────────────────────────────────────────
+ask_admin_ip() {
+    local server_ip
+    server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null \
+        || hostname -I | awk '{print $1}')
+
+    local msg_ip
+    case "$PROFIL" in
+        1) msg_ip="Pour protéger l'accès à l'administration de Pladigit,\nentrez l'adresse IP de votre ordinateur.\n\n⚠ Attention : l'IP affichée ci-dessous est celle du SERVEUR,\n  pas la vôtre !\n\nPour connaître votre IP, visitez : https://www.whatismyip.com\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+        2) msg_ip="Entrez la ou les adresses IP autorisées à accéder\nau Super Admin (interface de gestion des communes).\n\nVous pouvez saisir plusieurs IP séparées par des virgules :\n  88.123.45.67,192.168.1.10\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+        3) msg_ip="Entrez l'adresse IP du ou des techniciens autorisés\nà accéder au Super Admin.\n\nSéparez plusieurs IP par des virgules :\n  88.123.45.67,88.123.45.68\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+    esac
+
+    while [[ -z "$ADMIN_IPS" ]]; do
+        ADMIN_IPS=$(whiptail --title "Pladigit — IP Super Admin" \
+            --inputbox "${msg_ip}" 18 70 "" 2>/dev/tty) || die "Installation annulée."
+        ADMIN_IPS="${ADMIN_IPS// /}"
+        if [[ -z "$ADMIN_IPS" ]]; then
+            wt_msg "Champ obligatoire" "⚠ L'adresse IP est obligatoire.\n\nSans restriction d'IP, n'importe qui pourrait tenter\nd'accéder à l'administration de votre plateforme." 10 60
+        fi
+    done
+
+    log "IP Super Admin : ${ADMIN_IPS}"
+}
+
+# ── Récap avant installation ──────────────────────────────────────────────────
+show_recap() {
+    local profil_label
+    case "$PROFIL" in
+        1) profil_label="Commune / petite collectivité" ;;
+        2) profil_label="Maison des communes / structure départementale" ;;
+        3) profil_label="Communauté de communes" ;;
+    esac
+
+    whiptail --title "Pladigit — Récapitulatif" \
+        --yesno "\
+Voici ce qui va être installé :
+
+  Profil      : ${profil_label}
+  Domaine     : ${DOMAIN}
+  Email HTTPS : ${SSL_EMAIL}
+  IP Admin    : ${ADMIN_IPS}
+
+─────────────────────────────────────────
+Ce qui sera installé sur ce serveur :
+  • PHP ${PHP_VERSION}, MySQL 8, Redis, Nginx, Supervisor
+  • Node.js 20, Certbot (HTTPS automatique)
+  • Pladigit et toutes ses dépendances
+─────────────────────────────────────────
+
+⏱  Durée estimée : 15 à 30 minutes
+
+Lancer l'installation ?" \
+        24 70 2>/dev/tty || die "Installation annulée par l'utilisateur."
+}
+
+# ── Écrire config.json pour le wizard ────────────────────────────────────────
+write_wizard_config() {
+    mkdir -p "${PLADIGIT_DIR}/install"
+    cat > "${PLADIGIT_DIR}/install/config.json" << CONFIG
+{
+    "install": {
+        "domain": "${DOMAIN}",
+        "email": "${SSL_EMAIL}",
+        "profil": "${PROFIL}",
+        "version": "${INSTALL_VERSION}",
+        "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    }
+}
+CONFIG
+    chown www-data:www-data "${PLADIGIT_DIR}/install/config.json" 2>/dev/null || true
+    log "config.json wizard écrit"
+}
+
+# ── 0. Vérifications système ──────────────────────────────────────────────────
 check_prerequisites() {
-    step "Étape 1/7 — Inventaire du système"
+    wt_info "Pladigit — Vérification" "🔍 Analyse de votre serveur en cours..." 6 60
 
-    # ── Droits root ──────────────────────────────────────────────────────────
-    if [[ $EUID -ne 0 ]]; then
-        die "Ce script doit être exécuté en tant que root (sudo)."
-    fi
+    [[ $EUID -ne 0 ]] && die "Ce script doit être exécuté en tant que root (sudo)."
     log "Droits root : OK"
 
-    # ── OS ───────────────────────────────────────────────────────────────────
     if [[ ! -f /etc/os-release ]]; then
         die "Système d'exploitation non reconnu."
     fi
     source /etc/os-release
-    if [[ "$ID" != "ubuntu" ]]; then
-        die "Pladigit nécessite Ubuntu 22.04 ou 24.04. Système détecté : $ID $VERSION_ID"
-    fi
-    if [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]]; then
-        die "Version Ubuntu non supportée : $VERSION_ID"
-    fi
+    [[ "$ID" != "ubuntu" ]] && die "Pladigit nécessite Ubuntu 22.04 ou 24.04. Système détecté : $ID $VERSION_ID"
+    [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]] && die "Version Ubuntu non supportée : $VERSION_ID"
     log "Système : Ubuntu $VERSION_ID — OK"
 
-    # ── RAM ──────────────────────────────────────────────────────────────────
     local ram_mb
     ram_mb=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo)
-    if (( ram_mb < MIN_RAM_MB )); then
-        die "RAM insuffisante : ${ram_mb} Mo détectés, minimum requis : ${MIN_RAM_MB} Mo."
-    fi
+    (( ram_mb < MIN_RAM_MB )) && die "RAM insuffisante : ${ram_mb} Mo détectés, minimum requis : ${MIN_RAM_MB} Mo."
     log "RAM : ${ram_mb} Mo — OK"
 
-    # ── Extension LVM automatique ────────────────────────────────────────────
+    # Extension LVM automatique
     if command -v lvextend &>/dev/null; then
         local lv_path
         lv_path=$(lvdisplay 2>/dev/null | awk '/LV Path/{print $3}' | head -1)
@@ -110,7 +300,6 @@ check_prerequisites() {
             local free_pe
             free_pe=$(vgdisplay 2>/dev/null | awk '/Free.*PE/{print $5}' | head -1)
             if [[ -n "$free_pe" && "$free_pe" -gt 0 ]]; then
-                info "Extension automatique du volume LVM..."
                 lvextend -l +100%FREE "$lv_path" >> "$LOG_FILE" 2>&1 || true
                 resize2fs "$lv_path" >> "$LOG_FILE" 2>&1 || true
                 log "Volume LVM étendu automatiquement"
@@ -118,172 +307,64 @@ check_prerequisites() {
         fi
     fi
 
-    # ── Disque ───────────────────────────────────────────────────────────────
     local disk_gb
     disk_gb=$(df / | awk 'NR==2 {printf "%d", $4/1024/1024}')
-    if (( disk_gb < MIN_DISK_GB )); then
-        die "Espace disque insuffisant : ${disk_gb} Go disponibles, minimum requis : ${MIN_DISK_GB} Go."
-    fi
+    (( disk_gb < MIN_DISK_GB )) && die "Espace disque insuffisant : ${disk_gb} Go disponibles, minimum requis : ${MIN_DISK_GB} Go."
     log "Disque : ${disk_gb} Go disponibles — OK"
 
-    # ── Connexion internet ───────────────────────────────────────────────────
     if ! curl -sf --max-time 5 https://github.com > /dev/null 2>&1; then
         die "Pas de connexion internet. Vérifiez votre réseau."
     fi
     log "Connexion internet — OK"
 
-    # ── Inventaire des composants ────────────────────────────────────────────
-    echo ""
-    echo -e "  ${BOLD}Composants détectés :${NC}"
-    echo ""
+    # Inventaire composants
+    [[ "$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;' 2>/dev/null || true)" != "${PHP_VERSION}" ]] && NEED_PHP=true && NEED_SYSTEM_UPDATE=true
+    command -v composer &>/dev/null || NEED_PHP=true
 
-    # PHP
-    local php_detected_version
-    php_detected_version=$(php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null || true)
-    if [[ "$php_detected_version" == "${PHP_VERSION}" ]]; then
-        log "  PHP ${PHP_VERSION}      : ✅ installé"
-    else
-        warn "  PHP ${PHP_VERSION}      : ❌ à installer"
-        NEED_PHP=true
-        NEED_SYSTEM_UPDATE=true
-    fi
-
-    # Composer
-    if command -v composer &>/dev/null; then
-        log "  Composer    : ✅ installé"
-    else
-        warn "  Composer    : ❌ à installer"
-        NEED_PHP=true
-    fi
-
-    # MySQL
     if command -v mysql &>/dev/null && systemctl is-active --quiet mysql 2>/dev/null; then
-        # Tester si root se connecte sans mot de passe (fresh install Ubuntu)
-        if mysql -u root --connect-timeout=3 -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
-            log "  MySQL       : ✅ installé et actif (accès root sans mot de passe)"
-            MYSQL_ROOT_PASSWORD=""
-        else
-            # MySQL installé avec mot de passe root — on le demande
-            warn "  MySQL       : ✅ installé et actif (mot de passe root requis)"
-            echo ""
-            echo -n "  Entrez le mot de passe root MySQL : "
-            read -rs MYSQL_ROOT_PASSWORD
-            echo ""
-            # Vérifier que le mot de passe est correct
-            if ! mysql -u root --connect-timeout=3 -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
-                die "Mot de passe MySQL root incorrect."
-            fi
-            log "  MySQL       : mot de passe root vérifié ✅"
+        if ! mysql -u root --connect-timeout=3 -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
+            MYSQL_ROOT_PASSWORD=$(whiptail --title "MySQL — Mot de passe root" \
+                --passwordbox "MySQL est déjà installé.\n\nEntrez le mot de passe root MySQL :" \
+                10 60 2>/dev/tty) || die "Installation annulée."
+            mysql -u root --connect-timeout=3 -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1 \
+                || die "Mot de passe MySQL root incorrect."
         fi
-    elif command -v mysql &>/dev/null; then
-        warn "  MySQL       : ⚠️  installé mais inactif"
-        NEED_MYSQL=true
     else
-        warn "  MySQL       : ❌ à installer"
         NEED_MYSQL=true
         NEED_SYSTEM_UPDATE=true
     fi
 
-    # Redis
-    if command -v redis-server &>/dev/null && systemctl is-active --quiet redis-server 2>/dev/null; then
-        log "  Redis       : ✅ installé et actif"
-    elif command -v redis-server &>/dev/null; then
-        warn "  Redis       : ⚠️  installé mais inactif"
-        NEED_REDIS=true
-    else
-        warn "  Redis       : ❌ à installer"
-        NEED_REDIS=true
-        NEED_SYSTEM_UPDATE=true
-    fi
+    command -v redis-server &>/dev/null && systemctl is-active --quiet redis-server 2>/dev/null || { NEED_REDIS=true; NEED_SYSTEM_UPDATE=true; }
+    command -v nginx &>/dev/null && systemctl is-active --quiet nginx 2>/dev/null || { NEED_NGINX=true; NEED_SYSTEM_UPDATE=true; }
+    command -v supervisorctl &>/dev/null && systemctl is-active --quiet supervisor 2>/dev/null || { NEED_SUPERVISOR=true; NEED_SYSTEM_UPDATE=true; }
+    command -v node &>/dev/null || { NEED_NODE=true; NEED_SYSTEM_UPDATE=true; }
 
-    # Nginx
-    if command -v nginx &>/dev/null && systemctl is-active --quiet nginx 2>/dev/null; then
-        log "  Nginx       : ✅ installé et actif"
-    elif command -v nginx &>/dev/null; then
-        warn "  Nginx       : ⚠️  installé mais inactif"
-        NEED_NGINX=true
-    else
-        warn "  Nginx       : ❌ à installer"
-        NEED_NGINX=true
-        NEED_SYSTEM_UPDATE=true
-    fi
-
-    # Supervisor
-    if command -v supervisorctl &>/dev/null && systemctl is-active --quiet supervisor 2>/dev/null; then
-        log "  Supervisor  : ✅ installé et actif"
-    elif command -v supervisorctl &>/dev/null; then
-        warn "  Supervisor  : ⚠️  installé mais inactif"
-        NEED_SUPERVISOR=true
-    else
-        warn "  Supervisor  : ❌ à installer"
-        NEED_SUPERVISOR=true
-        NEED_SYSTEM_UPDATE=true
-    fi
-
-    # Node.js
-    if command -v node &>/dev/null; then
-        log "  Node.js     : ✅ installé"
-    else
-        warn "  Node.js     : ❌ à installer"
-        NEED_NODE=true
-        NEED_SYSTEM_UPDATE=true
-    fi
-
-    # Pladigit
-    if [[ -d "${PLADIGIT_DIR}/.git" ]]; then
-        log "  Pladigit    : ✅ déjà cloné"
-    else
-        warn "  Pladigit    : ❌ à cloner"
-    fi
-
-    echo ""
-
-    # ── Décision globale ─────────────────────────────────────────────────────
     if [[ "$NEED_PHP" == false && "$NEED_MYSQL" == false && \
           "$NEED_REDIS" == false && "$NEED_NGINX" == false && \
           "$NEED_SUPERVISOR" == false && "$NEED_NODE" == false ]]; then
         ALL_INSTALLED=true
-        log "Tous les composants sont déjà installés."
-    else
-        info "Composants manquants détectés — installation en cours..."
     fi
 
-    # ── Ports 80 et 443 ──────────────────────────────────────────────────────
     for port in 80 443; do
-        if ss -tlnp | grep -q ":${port} "; then
-            warn "Port ${port} déjà utilisé."
-        fi
+        ss -tlnp | grep -q ":${port} " && warn "Port ${port} déjà utilisé." || true
     done
-
-    progress 1 7 "Inventaire système"
 }
 
 # ── 1. Mise à jour système ────────────────────────────────────────────────────
 update_system() {
-    if [[ "$NEED_SYSTEM_UPDATE" == false ]]; then
-        log "Mise à jour système : non nécessaire — on continue"
-        progress 2 7 "Mise à jour système (ignorée)"
-        return
-    fi
+    [[ "$NEED_SYSTEM_UPDATE" == false ]] && { log "Mise à jour système : non nécessaire"; return; }
 
-    # Attendre que le verrou apt soit libéré (unattended-upgrades au boot)
+    wt_info "Installation (1/7)" "📦 Mise à jour du système en cours...\n\nCela peut prendre quelques minutes." 8 60
+
     local waited=0
     while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-        if [ "$waited" -eq 0 ]; then
-            info "Mise à jour du système en attente (apt en cours d'utilisation)..."
-        fi
-        sleep 5
-        waited=$((waited + 5))
+        sleep 5; waited=$((waited + 5))
         if [ "$waited" -gt 300 ]; then
-            warn "apt toujours occupé après 5 minutes — on force..."
             rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock
             dpkg --configure -a >> "$LOG_FILE" 2>&1 || true
             break
         fi
     done
-
-    step "Étape 2/7 — Mise à jour du système"
-    info "Mise à jour des paquets (peut prendre quelques minutes)..."
 
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq >> "$LOG_FILE" 2>&1 || die "Impossible de mettre à jour les sources apt."
@@ -296,19 +377,16 @@ update_system() {
         >> "$LOG_FILE" 2>&1 || die "Impossible d'installer les outils de base."
 
     log "Système mis à jour"
-    progress 2 7 "Mise à jour système"
 }
 
 # ── 2. PHP 8.4 ────────────────────────────────────────────────────────────────
 install_php() {
-    step "Étape 3/7 — Installation de PHP ${PHP_VERSION}"
+    wt_info "Installation (2/7)" "🐘 Installation de PHP ${PHP_VERSION}...\n\nCela peut prendre 3 à 5 minutes." 8 60
 
-    # Vérifier si PHP est déjà installé à la bonne version
-    if command -v "php${PHP_VERSION}" &>/dev/null || php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
-        log "PHP ${PHP_VERSION} déjà installé — on continue"
+    if command -v "php${PHP_VERSION}" &>/dev/null || \
+       php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
+        log "PHP ${PHP_VERSION} déjà installé"
     else
-        # Ajouter le dépôt sury.org (source de référence pour PHP 8.4 sur Ubuntu/Mint)
-        info "Ajout du dépôt PHP sury.org..."
         curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg \
             >> "$LOG_FILE" 2>&1 || die "Impossible de télécharger la clé GPG sury.org."
         echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" \
@@ -316,32 +394,20 @@ install_php() {
         apt-get update -qq >> "$LOG_FILE" 2>&1
 
         local php_packages=(
-            "php${PHP_VERSION}-fpm"
-            "php${PHP_VERSION}-cli"
-            "php${PHP_VERSION}-mysql"
-            "php${PHP_VERSION}-xml"
-            "php${PHP_VERSION}-curl"
-            "php${PHP_VERSION}-mbstring"
-            "php${PHP_VERSION}-zip"
-            "php${PHP_VERSION}-gd"
-            "php${PHP_VERSION}-intl"
-            "php${PHP_VERSION}-bcmath"
-            "php${PHP_VERSION}-opcache"
-            "php${PHP_VERSION}-ldap"
+            "php${PHP_VERSION}-fpm" "php${PHP_VERSION}-cli" "php${PHP_VERSION}-mysql"
+            "php${PHP_VERSION}-xml" "php${PHP_VERSION}-curl" "php${PHP_VERSION}-mbstring"
+            "php${PHP_VERSION}-zip" "php${PHP_VERSION}-gd" "php${PHP_VERSION}-intl"
+            "php${PHP_VERSION}-bcmath" "php${PHP_VERSION}-opcache" "php${PHP_VERSION}-ldap"
         )
-
-        info "Installation de PHP ${PHP_VERSION} et extensions (peut prendre 3-4 minutes)..."
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
 
-        # ── Extension redis ───────────────────────────────────────────────────
-        # Tentative 1 : paquet apt sury.org (instantané, pas de compilation)
-        # Tentative 2 : PECL en fallback (compile depuis les sources, ~5-10 min)
+        # ── Extension redis : apt d'abord, PECL en fallback ───────────────────
         if ! php -m 2>/dev/null | grep -qi redis; then
             if apt-get install -y -qq "php${PHP_VERSION}-redis" >> "$LOG_FILE" 2>&1; then
                 log "Extension redis installée (apt)"
             else
-                info "php${PHP_VERSION}-redis absent du dépôt — compilation PECL (5-10 min)..."
+                wt_info "Installation (2/7)" "⏳ Compilation de l'extension redis...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" >> "$LOG_FILE" 2>&1 || true
                 if pecl install redis >> "$LOG_FILE" 2>&1; then
                     echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini"
@@ -351,19 +417,15 @@ install_php() {
                     warn "Extension redis non installée — à configurer manuellement."
                 fi
             fi
-        else
-            log "Extension redis déjà active"
         fi
 
-        # ── Extension imagick ─────────────────────────────────────────────────
-        # Tentative 1 : paquet apt (php-imagick ou php${VERSION}-imagick)
-        # Tentative 2 : PECL en fallback
+        # ── Extension imagick : apt d'abord, PECL en fallback ────────────────
         if ! php -m 2>/dev/null | grep -qi imagick; then
             if apt-get install -y -qq "php${PHP_VERSION}-imagick" >> "$LOG_FILE" 2>&1 \
             || apt-get install -y -qq php-imagick >> "$LOG_FILE" 2>&1; then
                 log "Extension imagick installée (apt)"
             else
-                info "php-imagick absent du dépôt — compilation PECL (5-10 min)..."
+                wt_info "Installation (2/7)" "⏳ Compilation de l'extension imagick...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
                 if pecl install imagick >> "$LOG_FILE" 2>&1; then
                     echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini"
@@ -373,8 +435,6 @@ install_php() {
                     warn "Extension imagick non installée — à configurer manuellement."
                 fi
             fi
-        else
-            log "Extension imagick déjà active"
         fi
 
         log "PHP ${PHP_VERSION} installé"
@@ -384,87 +444,68 @@ install_php() {
     if command -v composer &>/dev/null; then
         log "Composer déjà installé"
     else
-        info "Installation de Composer..."
+        wt_info "Installation (2/7)" "📦 Installation de Composer..." 6 60
         curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer \
             >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Composer."
         log "Composer installé"
     fi
-
-    progress 3 7 "PHP ${PHP_VERSION} + Composer"
 }
 
 # ── 3. MySQL 8 ────────────────────────────────────────────────────────────────
 install_mysql() {
-    step "Étape 4/7 — Installation de MySQL 8"
+    wt_info "Installation (3/7)" "🗄  Installation de MySQL 8..." 6 60
 
     if command -v mysql &>/dev/null; then
-        log "MySQL déjà installé : $(mysql --version 2>/dev/null | head -1)"
+        log "MySQL déjà installé"
     else
-        info "Installation de MySQL Server..."
         apt-get install -y -qq mysql-server >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer MySQL."
         systemctl enable mysql >> "$LOG_FILE" 2>&1
         systemctl start mysql >> "$LOG_FILE" 2>&1
-        log "MySQL installé : $(mysql --version 2>/dev/null | head -1)"
+        log "MySQL installé"
     fi
 
-    # S'assurer que MySQL tourne
-    if ! systemctl is-active --quiet mysql; then
-        info "Démarrage de MySQL..."
-        systemctl start mysql >> "$LOG_FILE" 2>&1 || die "Impossible de démarrer MySQL."
-    fi
+    systemctl is-active --quiet mysql || systemctl start mysql >> "$LOG_FILE" 2>&1 \
+        || die "Impossible de démarrer MySQL."
 
-    # Construire la commande mysql selon qu'on a un mot de passe root ou non
     local mysql_cmd="mysql -u root"
     [[ -n "${MYSQL_ROOT_PASSWORD}" ]] && mysql_cmd="mysql -u root -p${MYSQL_ROOT_PASSWORD}"
 
-    # Sur une fresh install Ubuntu, root utilise auth_socket — on passe en mot de passe vide
     if [[ -z "${MYSQL_ROOT_PASSWORD}" ]]; then
         ${mysql_cmd} -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" \
             >> "$LOG_FILE" 2>&1 || warn "ALTER USER root ignoré — déjà configuré."
     fi
 
     log "Authentification MySQL configurée"
-    progress 4 7 "MySQL 8"
 }
 
-# ── 4. Redis + Nginx + Supervisor + Node.js ───────────────────────────────────
+# ── 4. Services (Redis, Nginx, Supervisor, Node.js, Certbot) ──────────────────
 install_services() {
-    step "Étape 5/7 — Installation Redis, Nginx, Supervisor, Node.js"
+    wt_info "Installation (4/7)" "⚙️  Installation des services...\n\nRedis, Nginx, Supervisor, Node.js, Certbot" 8 60
 
     # Redis
-    if command -v redis-server &>/dev/null; then
-        log "Redis déjà installé : $(redis-server --version 2>/dev/null | head -1)"
-    else
-        info "Installation de Redis..."
+    command -v redis-server &>/dev/null || {
         apt-get install -y -qq redis-server >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Redis."
         log "Redis installé"
-    fi
+    }
     systemctl enable redis-server >> "$LOG_FILE" 2>&1
     systemctl is-active --quiet redis-server || systemctl start redis-server >> "$LOG_FILE" 2>&1
 
     # Nginx
-    if command -v nginx &>/dev/null; then
-        log "Nginx déjà installé : $(nginx -v 2>&1 | head -1)"
-    else
-        info "Installation de Nginx..."
+    command -v nginx &>/dev/null || {
         apt-get install -y -qq nginx >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Nginx."
         log "Nginx installé"
-    fi
+    }
     systemctl enable nginx >> "$LOG_FILE" 2>&1
 
     # Supervisor
-    if command -v supervisorctl &>/dev/null; then
-        log "Supervisor déjà installé"
-    else
-        info "Installation de Supervisor..."
+    command -v supervisorctl &>/dev/null || {
         apt-get install -y -qq supervisor >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Supervisor."
         log "Supervisor installé"
-    fi
+    }
     systemctl enable supervisor >> "$LOG_FILE" 2>&1
     systemctl is-active --quiet supervisor || systemctl start supervisor >> "$LOG_FILE" 2>&1 || true
 
-    # Configuration Supervisor (toujours réécrite pour garantir la cohérence)
     cat > /etc/supervisor/conf.d/pladigit.conf << SUPERVISOR
 [program:pladigit-worker]
 process_name=%(program_name)s_%(process_num)02d
@@ -479,17 +520,14 @@ redirect_stderr=true
 stdout_logfile=${PLADIGIT_DIR}/storage/logs/worker.log
 stopwaitsecs=3600
 SUPERVISOR
-    log "Supervisor configuré (user=www-data)"
+    log "Supervisor configuré"
 
     # Node.js 20
-    if command -v node &>/dev/null; then
-        log "Node.js déjà installé : $(node --version 2>/dev/null)"
-    else
-        info "Installation de Node.js 20..."
+    command -v node &>/dev/null || {
         curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >> "$LOG_FILE" 2>&1
         apt-get install -y -qq nodejs >> "$LOG_FILE" 2>&1 || die "Impossible d'installer Node.js."
-        log "Node.js installé : $(node --version 2>/dev/null)"
-    fi
+        log "Node.js installé"
+    }
 
     # UFW
     if command -v ufw &>/dev/null; then
@@ -501,21 +539,15 @@ SUPERVISOR
     fi
 
     # Certbot
-    if command -v certbot &>/dev/null; then
-        log "Certbot déjà installé"
-    else
-        info "Installation de Certbot..."
-        apt-get install -y -qq certbot python3-certbot-nginx >> "$LOG_FILE" 2>&1             || warn "Impossible d'installer Certbot — SSL à configurer manuellement."
+    command -v certbot &>/dev/null || {
+        apt-get install -y -qq certbot python3-certbot-nginx >> "$LOG_FILE" 2>&1 \
+            || warn "Impossible d'installer Certbot — SSL à configurer manuellement."
         log "Certbot installé"
-    fi
+    }
 
-    # Autoriser www-data à exécuter les commandes root nécessaires à provisionSsl :
-    #   - certbot              : obtenir le cert SSL du sous-domaine tenant
-    #   - cp / ln              : écrire le vhost Nginx temporaire du tenant
-    #   - nginx                : valider la config
-    #   - systemctl reload nginx : activer le cert sans interruption
-    #   - chmod                : ajuster les permissions /etc/letsencrypt/live/
-    CERTBOT_SUDOERS="/etc/sudoers.d/pladigit-certbot"
+    # Sudoers pour www-data (bandeau SSL Super Admin)
+    local CERTBOT_SUDOERS="/etc/sudoers.d/pladigit-certbot"
+    local CERTBOT_PATH
     CERTBOT_PATH=$(command -v certbot || echo "/usr/bin/certbot")
     cat > "$CERTBOT_SUDOERS" << SUDOERS_EOF
 www-data ALL=(root) NOPASSWD: ${CERTBOT_PATH} *
@@ -527,16 +559,14 @@ www-data ALL=(root) NOPASSWD: /bin/chmod 755 /etc/letsencrypt/live/*
 SUDOERS_EOF
     chmod 440 "$CERTBOT_SUDOERS"
     visudo -c -f "$CERTBOT_SUDOERS" >> "$LOG_FILE" 2>&1 \
-        && log "Règle sudoers provisionSsl configurée (www-data)" \
+        && log "Règle sudoers SSL configurée" \
         || { warn "Règle sudoers invalide — suppression."; rm -f "$CERTBOT_SUDOERS"; }
 
-    progress 5 7 "Services (Redis, Nginx, Supervisor, Node.js)"
+    log "Services installés"
 }
 
-# ── 5. Clonage et dépendances Pladigit ───────────────────────────────────────
-setup_logrotate() {
-    step "Logrotate Nginx — rétention 90 jours"
-
+# ── 5. Logrotate + MySQL logs ─────────────────────────────────────────────────
+setup_logs() {
     cat > /etc/logrotate.d/nginx-pladigit << 'LOGROTATE'
 /var/log/nginx/*.log {
     daily
@@ -551,16 +581,9 @@ setup_logrotate() {
     endscript
 }
 LOGROTATE
-
     log "Logrotate Nginx configuré (90 jours)"
-}
-
-# ── MySQL slow query log ──────────────────────────────────────────────────────
-setup_mysql_logs() {
-    step "MySQL — slow query log + error log"
 
     local mycnf="/etc/mysql/mysql.conf.d/mysqld.cnf"
-
     if ! grep -q "slow_query_log" "$mycnf" 2>/dev/null; then
         cat >> "$mycnf" << 'MYCNF'
 
@@ -571,214 +594,84 @@ long_query_time      = 2
 log_error            = /var/log/mysql/error.log
 MYCNF
         systemctl restart mysql >> "$LOG_FILE" 2>&1 || warn "Redémarrage MySQL ignoré."
-        log "MySQL slow query log activé (seuil 2s)"
-    else
-        log "MySQL slow query log déjà configuré"
+        log "MySQL slow query log activé"
     fi
 }
 
+# ── 6. Clonage et dépendances Pladigit ───────────────────────────────────────
 install_pladigit() {
-    step "Étape 6/7 — Installation de Pladigit"
+    wt_info "Installation (5/7)" "📥 Téléchargement de Pladigit...\n\nClonage du code source depuis GitHub." 8 60
 
-    # Clonage
-    # Rendre le répertoire safe pour git (évite l'erreur dubious ownership root vs www-data)
     git config --global --add safe.directory "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 || true
 
     if [[ -d "$PLADIGIT_DIR/.git" ]]; then
-        info "Répertoire existant détecté — mise à jour..."
         git -C "$PLADIGIT_DIR" pull origin main >> "$LOG_FILE" 2>&1 || warn "git pull échoué — on continue."
     else
-        info "Clonage du dépôt..."
         git clone "$PLADIGIT_REPO" "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
             || die "Impossible de cloner le dépôt. Vérifiez votre connexion."
     fi
-    log "Code source Pladigit : $PLADIGIT_DIR"
+    log "Code source Pladigit cloné"
 
-    # Permissions
     chown -R www-data:www-data "$PLADIGIT_DIR"
     chmod -R 755 "$PLADIGIT_DIR"
     chmod -R 775 "$PLADIGIT_DIR/storage" "$PLADIGIT_DIR/bootstrap/cache"
-
-    # Répertoire de sauvegarde (non couvert par le chmod -R 775 générique)
     mkdir -p "${PLADIGIT_DIR}/storage/app/private/backup"
     chown www-data:www-data "${PLADIGIT_DIR}/storage/app/private/backup"
     chmod 750 "${PLADIGIT_DIR}/storage/app/private/backup"
-
     log "Permissions configurées"
 
-    # Dépendances PHP
-    info "Installation des dépendances PHP (Composer)..."
+    wt_info "Installation (6/7)" "📦 Installation des dépendances PHP...\n\nCela peut prendre 2 à 3 minutes." 8 60
     sudo -u www-data composer install \
         --no-dev --optimize-autoloader --no-interaction \
         --working-dir="$PLADIGIT_DIR" \
         >> "$LOG_FILE" 2>&1 || die "Composer install échoué."
     log "Dépendances PHP installées"
 
-    # Dépendances JS
-    info "Installation des dépendances JS (npm)..."
+    wt_info "Installation (6/7)" "🔨 Compilation des assets (JS/CSS)...\n\nCela peut prendre 1 à 2 minutes." 8 60
     mkdir -p /var/www/.npm
     chown -R www-data:www-data /var/www/.npm
     sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
         || die "npm install échoué."
     sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
         || die "npm build échoué."
-    log "Assets JS compilés"
+    log "Assets compilés"
 
-    # Téléchargement du wizard d'installation
-    info "Téléchargement du wizard d'installation..."
-    mkdir -p "${PLADIGIT_DIR}/install"
-    log "Wizard d'installation inclus dans le dépôt cloné"
-    chown www-data:www-data "${PLADIGIT_DIR}/install/index.php" 2>/dev/null || true
-    log "Wizard d'installation téléchargé"
-
-    # Téléchargement du wizard d'installation
-    info "Téléchargement du wizard..."
-    mkdir -p "${PLADIGIT_DIR}/install"
-    log "Wizard d'installation inclus dans le dépôt cloné"
+    # Écrire config.json pour le wizard
+    write_wizard_config
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
-    log "Wizard téléchargé"
 
-    # Déploiement du script d'installation Collabora (exécuté en root via sudo)
-    info "Déploiement du script Collabora..."
-    curl -fsSL https://pladigit.fr/get-collabora-installer -o "${PLADIGIT_DIR}/install/install-collabora.sh" \
-        >> "$LOG_FILE" 2>&1 || warn "Script Collabora non disponible depuis le serveur — copie locale utilisée."
+    # Script Collabora
+    curl -fsSL https://pladigit.fr/get-collabora-installer \
+        -o "${PLADIGIT_DIR}/install/install-collabora.sh" \
+        >> "$LOG_FILE" 2>&1 \
+        || warn "Script Collabora non disponible — copie locale utilisée."
     chmod +x "${PLADIGIT_DIR}/install/install-collabora.sh"
     chown root:root "${PLADIGIT_DIR}/install/install-collabora.sh"
-    log "Script Collabora déployé"
 
-    # Autoriser www-data à exécuter install-collabora.sh en root sans mot de passe
-    SUDOERS_LINE="www-data ALL=(root) NOPASSWD: ${PLADIGIT_DIR}/install/install-collabora.sh"
-    SUDOERS_FILE="/etc/sudoers.d/pladigit-collabora"
-    echo "$SUDOERS_LINE" > "$SUDOERS_FILE"
-    chmod 440 "$SUDOERS_FILE"
-    # Valider la syntaxe sudoers
-    visudo -c -f "$SUDOERS_FILE" >> "$LOG_FILE" 2>&1 \
+    local SUDOERS_COLLAB="/etc/sudoers.d/pladigit-collabora"
+    echo "www-data ALL=(root) NOPASSWD: ${PLADIGIT_DIR}/install/install-collabora.sh" > "$SUDOERS_COLLAB"
+    chmod 440 "$SUDOERS_COLLAB"
+    visudo -c -f "$SUDOERS_COLLAB" >> "$LOG_FILE" 2>&1 \
         && log "Règle sudoers Collabora configurée" \
-        || { warn "Règle sudoers invalide — suppression."; rm -f "$SUDOERS_FILE"; }
+        || { warn "Règle sudoers Collabora invalide — suppression."; rm -f "$SUDOERS_COLLAB"; }
 
-    # Activation des workers Supervisor (le code et storage/ sont prêts)
     supervisorctl reread >> "$LOG_FILE" 2>&1 || true
     supervisorctl update >> "$LOG_FILE" 2>&1 || true
     log "Workers Supervisor activés"
-
-    progress 6 7 "Pladigit installé"
 }
 
-# ── 6. Cron Laravel scheduler ────────────────────────────────────────────────
-setup_cron() {
-    local CRON_ENTRY="* * * * * cd ${PLADIGIT_DIR} && php artisan schedule:run >> /dev/null 2>&1"
+# ── 7. Nginx ──────────────────────────────────────────────────────────────────
+configure_nginx() {
+    wt_info "Installation (7/7)" "🌐 Configuration de Nginx..." 6 60
 
-    if crontab -u www-data -l 2>/dev/null | grep -qF "schedule:run"; then
-        log "Cron Laravel scheduler : déjà configuré"
-    else
-        (crontab -u www-data -l 2>/dev/null || true; echo "$CRON_ENTRY") | crontab -u www-data -
-        log "Cron Laravel scheduler configuré (www-data)"
-    fi
-}
+    local nginx_server_name="_"
+    [[ -n "${DOMAIN}" ]] && nginx_server_name="${DOMAIN} *.${DOMAIN}"
 
-# ── 6b. IPs autorisées Super Admin ───────────────────────────────────────────
-setup_super_admin_ip() {
-    local env_file="${PLADIGIT_DIR}/.env"
-
-    # Détecter l'IP publique de l'administrateur (best-effort)
-    local detected_ip
-    detected_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || curl -4 -sf --max-time 5 https://api.ipify.org 2>/dev/null || true)
-
-    echo ""
-    info "Restriction d'accès au Super Admin par IP (ADR-027)"
-    echo ""
-
-    # Toujours demander depuis /dev/tty — fonctionne même via curl | bash
-    echo -e "  ${BOLD}Sécurité — Accès à l'interface Super Administrateur${NC}"
-    echo ""
-    echo -e "  Pour protéger l'accès Super Admin, seules certaines adresses IP"
-    echo -e "  seront autorisées à s'y connecter."
-    echo ""
-    echo -e "  ${YELLOW}⚠  L'IP détectée est celle de ce serveur, pas la vôtre.${NC}"
-    echo -e "  Entrez l'IP publique de ${BOLD}votre ordinateur${NC} (celle depuis laquelle"
-    echo -e "  vous administrez ce serveur)."
-    echo -e "  Pour connaître votre IP : ${CYAN}https://www.whatismyip.com${NC}"
-    if [[ -n "${detected_ip}" ]]; then
-        echo -e "  IP de ce serveur (pour référence) : ${detected_ip}"
-    fi
-    echo ""
-    local admin_ips=""
-    while [[ -z "$admin_ips" ]]; do
-        echo -n "  IP(s) autorisée(s) (obligatoire) : "
-        read -r admin_ips </dev/tty || true
-        [[ -z "$admin_ips" ]] && warn "L'IP est obligatoire pour accéder au Super Admin."
-    done
-
-    # Créer le .env depuis .env.example s'il n'existe pas encore
-    if [[ ! -f "$env_file" ]]; then
-        if [[ -f "${PLADIGIT_DIR}/.env.example" ]]; then
-            cp "${PLADIGIT_DIR}/.env.example" "$env_file"
-            log ".env initialisé depuis .env.example"
-        else
-            touch "$env_file"
-        fi
-        chown www-data:www-data "$env_file"
-        chmod 640 "$env_file"
-    fi
-
-    if grep -q "^SUPER_ADMIN_ALLOWED_IPS=" "$env_file" 2>/dev/null; then
-        sed -i "s|^SUPER_ADMIN_ALLOWED_IPS=.*|SUPER_ADMIN_ALLOWED_IPS=${admin_ips}|" "$env_file"
-    else
-        echo "SUPER_ADMIN_ALLOWED_IPS=${admin_ips}" >> "$env_file"
-    fi
-
-    log "SUPER_ADMIN_ALLOWED_IPS configuré : ${admin_ips}"
-}
-
-# ── 6b. SSL / HTTPS ──────────────────────────────────────────────────────────
-setup_ssl() {
-    local env_file="${PLADIGIT_DIR}/.env"
-    local domain="${DOMAIN}"
-    local ssl_email="${SSL_EMAIL}"
-
-    echo ""
-    info "Configuration SSL / HTTPS (Certbot Let's Encrypt)"
-    echo ""
-
-    if [[ -z "$domain" ]]; then
-        warn "Aucun domaine configuré — SSL ignoré."
-        warn "Vous pourrez configurer HTTPS ultérieurement avec : certbot --nginx -d votre-domaine.fr"
-        return
-    fi
-
-    # Certificat déjà présent — s'assurer que le bloc HTTPS Nginx existe quand même
-    if [[ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]]; then
-        log "Certificat SSL déjà présent pour ${domain}"
-
-        # Vérifier si le bloc 443 est déjà dans la config Nginx
-        if grep -q "listen 443" /etc/nginx/sites-available/pladigit 2>/dev/null; then
-            log "Bloc HTTPS Nginx déjà présent — rien à faire"
-            return
-        fi
-
-        # Le cert existe mais Nginx n'a pas de bloc 443 (cas réinstallation / cert manuel)
-        info "Bloc HTTPS absent — injection du bloc 443 dans la config Nginx..."
-        local nginx_server_name="${domain} *.${domain}"
-
-        cat > /etc/nginx/sites-available/pladigit << NGINX_SSL
-# Redirection HTTP → HTTPS
+    cat > /etc/nginx/sites-available/pladigit << NGINX
 server {
-    listen 80;
-    listen [::]:80;
+    listen 80 default_server;
+    listen [::]:80 default_server;
     server_name ${nginx_server_name};
-    return 301 https://\$host\$request_uri;
-}
-
-server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
-    server_name ${nginx_server_name};
-
-    ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
-    include             /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
 
     root ${PLADIGIT_DIR}/public;
     index index.php index.html;
@@ -820,155 +713,65 @@ server {
         }
     }
 }
-NGINX_SSL
+NGINX
 
-        nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
-            && log "Bloc HTTPS Nginx injecté et rechargé" \
-            || warn "Config Nginx invalide après injection SSL — vérifiez manuellement."
-
-        # Mettre à jour APP_URL / SESSION dans .env si besoin
-        if [[ -f "$env_file" ]]; then
-            sed -i "s|^APP_URL=.*|APP_URL=https://${domain}|" "$env_file"
-            grep -q "^SESSION_DOMAIN="       "$env_file" \
-                && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${domain}|" "$env_file" \
-                || echo "SESSION_DOMAIN=.${domain}" >> "$env_file"
-            grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
-                && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file" \
-                || echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
-            log "APP_URL et SESSION mis à jour pour HTTPS"
-        fi
-
-        # Cron renouvellement
-        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
-            log "Renouvellement automatique SSL configuré (cron 3h)"
-        fi
-
-        # Permissions lecture cert par www-data
-        chmod 755 /etc/letsencrypt/                          2>/dev/null || true
-        chmod 755 /etc/letsencrypt/live/                     2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/live/${domain}/"          2>/dev/null || true
-        chmod 755 /etc/letsencrypt/archive/                  2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/archive/${domain}/"       2>/dev/null || true
-
-        return
-    fi
-
-    info "Obtention du certificat SSL pour ${domain}..."
-
-    # Vérifier que le domaine résout bien vers ce serveur avant de lancer Certbot
-    local server_ip
-    server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk "{print \$1}")
-    local dns_ip
-    dns_ip=$(dig +short "${domain}" A 2>/dev/null | tail -1)
-
-    if [[ -n "$dns_ip" && "$dns_ip" != "$server_ip" ]]; then
-        warn "DNS : ${domain} pointe vers ${dns_ip} mais ce serveur est ${server_ip}."
-        warn "SSL ignoré — mettez à jour votre DNS puis relancez : certbot --nginx -d ${domain}"
-        return
-    fi
-
-    if certbot --nginx         -d "${domain}"         --non-interactive --agree-tos         --email "${ssl_email}"         --redirect >> "$LOG_FILE" 2>&1; then
-
-        log "Certificat SSL obtenu pour ${domain}"
-
-        # Permettre à www-data de vérifier l'existence des certificats
-        chmod 755 /etc/letsencrypt/                          2>/dev/null || true
-        chmod 755 /etc/letsencrypt/live/                     2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/live/${domain}/"          2>/dev/null || true
-        chmod 755 /etc/letsencrypt/archive/                  2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/archive/${domain}/"       2>/dev/null || true
-
-        # Mettre à jour APP_URL et SESSION dans .env
-        if [[ -f "$env_file" ]]; then
-            sed -i "s|^APP_URL=.*|APP_URL=https://${domain}|" "$env_file"
-            if grep -q "^SESSION_DOMAIN=" "$env_file"; then
-                sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${domain}|" "$env_file"
-            else
-                echo "SESSION_DOMAIN=.${domain}" >> "$env_file"
-            fi
-            if grep -q "^SESSION_SECURE_COOKIE=" "$env_file"; then
-                sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file"
-            else
-                echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
-            fi
-            log "APP_URL mis à jour : https://${domain}"
-            log "SESSION_DOMAIN et SESSION_SECURE_COOKIE configurés"
-        fi
-
-        # Renouvellement automatique
-        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook '"'"'systemctl reload nginx'"'"'") | crontab -
-            log "Renouvellement automatique SSL configuré (cron 3h)"
-        fi
-
-    else
-        local vps_ip
-        vps_ip=$(hostname -I | awk "{print \$1}")
-        warn "Échec de l'obtention du certificat SSL."
-        warn "Vérifiez que ${domain} pointe vers ce serveur (IP: ${vps_ip})."
-        warn "Relancez manuellement : certbot --nginx -d ${domain}"
-    fi
+    ln -sf /etc/nginx/sites-available/pladigit /etc/nginx/sites-enabled/pladigit
+    rm -f /etc/nginx/sites-enabled/default
+    nginx -t >> "$LOG_FILE" 2>&1 || die "Configuration Nginx invalide."
+    systemctl restart nginx >> "$LOG_FILE" 2>&1 || die "Impossible de redémarrer Nginx."
+    systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1
+    log "Nginx configuré"
 }
 
-# ── 7. Configuration Nginx ────────────────────────────────────────────────────
-configure_nginx() {
-    step "Étape 7/7 — Configuration Nginx"
+# ── SSL ───────────────────────────────────────────────────────────────────────
+setup_ssl() {
+    local env_file="${PLADIGIT_DIR}/.env"
 
-    # Récupérer l'IP locale
-    local server_ip
-    server_ip=$(hostname -I | awk '{print $1}')
+    [[ -z "$DOMAIN" ]] && { warn "Aucun domaine — SSL ignoré."; return; }
 
-    # Utiliser le domaine saisi en début d'installation pour le wildcard
-    local nginx_server_name="_"
-    if [[ -n "${DOMAIN}" ]]; then
-        nginx_server_name="${DOMAIN} *.${DOMAIN}"
-        log "Nginx server_name : ${nginx_server_name}"
-    fi
-
-    cat > /etc/nginx/sites-available/pladigit << NGINX
+    # Cert déjà présent — vérifier que le bloc 443 existe
+    if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
+        log "Certificat SSL déjà présent pour ${DOMAIN}"
+        if grep -q "listen 443" /etc/nginx/sites-available/pladigit 2>/dev/null; then
+            log "Bloc HTTPS Nginx déjà présent"
+        else
+            wt_info "SSL" "🔒 Injection du bloc HTTPS Nginx..." 6 60
+            local nginx_server_name="${DOMAIN} *.${DOMAIN}"
+            cat > /etc/nginx/sites-available/pladigit << NGINX_SSL
 server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
+    listen 80;
+    listen [::]:80;
     server_name ${nginx_server_name};
-
+    return 301 https://\$host\$request_uri;
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${nginx_server_name};
+    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
     root ${PLADIGIT_DIR}/public;
     index index.php index.html;
-
     client_max_body_size 100M;
-
-    # Masquer la version Nginx
     server_tokens off;
-
-    # ── Headers HTTP de sécurité ──────────────────────────────────────────
     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
     add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
+    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
     location ~ \.php\$ {
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
         fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
         include fastcgi_params;
         fastcgi_read_timeout 300;
     }
-
-    location ~ /\.(?!well-known).* {
-        deny all;
-    }
-
-    # Bloquer les fichiers sensibles (défense en profondeur)
-    location ~ ^/(\.env|\.git|composer\.(json|lock)) {
-        deny all;
-    }
-
-    # Wizard d'installation
+    location ~ /\.(?!well-known).* { deny all; }
+    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
     location = /install { return 301 /install/; }
     location /install/ {
         root /var/www/pladigit;
@@ -981,25 +784,108 @@ server {
         }
     }
 }
-NGINX
+NGINX_SSL
+            nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
+                && log "Bloc HTTPS Nginx injecté"
+        fi
 
-    # Activer le site
-    ln -sf /etc/nginx/sites-available/pladigit /etc/nginx/sites-enabled/pladigit
-    rm -f /etc/nginx/sites-enabled/default
+        # Permissions letsencrypt
+        chmod 755 /etc/letsencrypt/                             2>/dev/null || true
+        chmod 755 /etc/letsencrypt/live/                        2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/live/${DOMAIN}/"            2>/dev/null || true
+        chmod 755 /etc/letsencrypt/archive/                     2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/archive/${DOMAIN}/"         2>/dev/null || true
 
-    nginx -t >> "$LOG_FILE" 2>&1 || die "Configuration Nginx invalide."
-    systemctl restart nginx >> "$LOG_FILE" 2>&1 || die "Impossible de redémarrer Nginx."
-    systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1
+        # Mettre à jour .env
+        if [[ -f "$env_file" ]]; then
+            sed -i "s|^APP_URL=.*|APP_URL=https://${DOMAIN}|" "$env_file"
+            grep -q "^SESSION_DOMAIN=" "$env_file" \
+                && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${DOMAIN}|" "$env_file" \
+                || echo "SESSION_DOMAIN=.${DOMAIN}" >> "$env_file"
+            grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
+                && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file" \
+                || echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
+        fi
+        return
+    fi
 
-    log "Nginx configuré et démarré"
-    progress 7 7 "Configuration finale"
+    wt_info "SSL" "🔒 Obtention du certificat HTTPS (Let's Encrypt)...\n\nCela prend généralement moins d'une minute." 8 60
+
+    # Vérification DNS
+    local server_ip dns_ip
+    server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    dns_ip=$(dig +short "${DOMAIN}" A 2>/dev/null | tail -1)
+    if [[ -n "$dns_ip" && "$dns_ip" != "$server_ip" ]]; then
+        warn "DNS : ${DOMAIN} pointe vers ${dns_ip} mais ce serveur est ${server_ip}."
+        warn "SSL ignoré — mettez à jour votre DNS puis relancez : certbot --nginx -d ${DOMAIN}"
+        return
+    fi
+
+    if certbot --nginx -d "${DOMAIN}" --non-interactive --agree-tos \
+        --email "${SSL_EMAIL}" --redirect >> "$LOG_FILE" 2>&1; then
+
+        log "Certificat SSL obtenu pour ${DOMAIN}"
+
+        chmod 755 /etc/letsencrypt/                             2>/dev/null || true
+        chmod 755 /etc/letsencrypt/live/                        2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/live/${DOMAIN}/"            2>/dev/null || true
+        chmod 755 /etc/letsencrypt/archive/                     2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/archive/${DOMAIN}/"         2>/dev/null || true
+
+        if [[ -f "$env_file" ]]; then
+            sed -i "s|^APP_URL=.*|APP_URL=https://${DOMAIN}|" "$env_file"
+            grep -q "^SESSION_DOMAIN=" "$env_file" \
+                && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${DOMAIN}|" "$env_file" \
+                || echo "SESSION_DOMAIN=.${DOMAIN}" >> "$env_file"
+            grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
+                && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file" \
+                || echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
+            log "APP_URL et SESSION mis à jour"
+        fi
+
+        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
+            log "Renouvellement SSL automatique configuré"
+        fi
+    else
+        warn "Échec SSL — tenant actif en HTTP. Relancez : certbot --nginx -d ${DOMAIN}"
+    fi
 }
 
-# ── 7. Écran de succès ────────────────────────────────────────────────────────
+# ── Cron Laravel ──────────────────────────────────────────────────────────────
+setup_cron() {
+    local CRON_ENTRY="* * * * * cd ${PLADIGIT_DIR} && php artisan schedule:run >> /dev/null 2>&1"
+    if crontab -u www-data -l 2>/dev/null | grep -qF "schedule:run"; then
+        log "Cron Laravel : déjà configuré"
+    else
+        (crontab -u www-data -l 2>/dev/null || true; echo "$CRON_ENTRY") | crontab -u www-data -
+        log "Cron Laravel configuré"
+    fi
+}
 
+# ── IP Super Admin dans .env ──────────────────────────────────────────────────
+setup_super_admin_ip() {
+    local env_file="${PLADIGIT_DIR}/.env"
+
+    if [[ ! -f "$env_file" ]]; then
+        [[ -f "${PLADIGIT_DIR}/.env.example" ]] \
+            && cp "${PLADIGIT_DIR}/.env.example" "$env_file" \
+            || touch "$env_file"
+        chown www-data:www-data "$env_file"
+        chmod 640 "$env_file"
+    fi
+
+    if grep -q "^SUPER_ADMIN_ALLOWED_IPS=" "$env_file" 2>/dev/null; then
+        sed -i "s|^SUPER_ADMIN_ALLOWED_IPS=.*|SUPER_ADMIN_ALLOWED_IPS=${ADMIN_IPS}|" "$env_file"
+    else
+        echo "SUPER_ADMIN_ALLOWED_IPS=${ADMIN_IPS}" >> "$env_file"
+    fi
+
+    log "SUPER_ADMIN_ALLOWED_IPS configuré : ${ADMIN_IPS}"
+}
+
+# ── Écran de succès ───────────────────────────────────────────────────────────
 show_success() {
-    local server_ip
-    # Détecter si SSL est configuré
     local install_url
     if ls /etc/letsencrypt/live/*/fullchain.pem > /dev/null 2>&1; then
         local ssl_domain
@@ -1008,172 +894,85 @@ show_success() {
     else
         install_url="http://$(hostname -I | awk '{print $1}')/install/"
     fi
-    server_ip=$(hostname -I | awk '{print $1}')
-    echo ""
-    echo -e "${GREEN}${BOLD}"
-    echo "  ╔══════════════════════════════════════════════════════════╗"
-    echo "  ║        ✅  Environnement prêt !                          ║"
-    echo "  ║        🚀  Pladigit est installé sur ce serveur.         ║"
-    echo "  ╚══════════════════════════════════════════════════════════╝"
-    echo -e "${NC}"
-    echo -e "  ${BOLD}Ce qui vient d'être installé :${NC}"
-    echo -e "  • PHP ${PHP_VERSION}, MySQL 8, Redis, Nginx, Supervisor, Node.js"
-    echo -e "  • Logrotate Nginx (90 jours), MySQL slow query log"
-    echo -e "  • Code source Pladigit et toutes ses dépendances"
-    echo ""
-    echo -e "  ${BOLD}Étape suivante — Configuration :${NC}"
-    echo ""
-    echo -e "  Sur votre ordinateur, ouvrez un navigateur et accédez à :"
-    echo ""
-    echo -e "  ${CYAN}${BOLD}  ➜  ${install_url}${NC}"
-    echo ""
-    echo -e "  L'assistant de configuration vous guidera pour :"
-    echo -e "  • Configurer la base de données"
-    echo -e "  • Définir l'adresse de votre plateforme"
-    echo -e "  • Configurer l'envoi d'emails (optionnel)"
-    echo -e "  • Créer le premier compte administrateur"
-    echo ""
-    echo -e "  ${YELLOW}Journal d'installation : ${LOG_FILE}${NC}"
-    echo ""
-    echo -e "  ${YELLOW}${BOLD}Note TDE (chiffrement MySQL au repos) :${NC}"
-    echo -e "  Le chiffrement InnoDB TDE n'est pas automatisé."
-    echo -e "  Voir docs/deploy/tde-mysql.md et ADR-041 §1.1."
-    echo -e "  Contribution communauté bienvenue (label 'help wanted / security')."
-    echo ""
+
+    local msg_success
+    case "$PROFIL" in
+        1) msg_success="🎉 Votre plateforme Pladigit est prête !\n\nÉtape suivante — ouvrez votre navigateur et accédez à :\n\n  ${install_url}\n\nL'assistant de configuration vous guidera pour :\n  • Configurer la base de données\n  • Créer votre compte administrateur\n  • Configurer l'envoi d'emails (optionnel)\n\n💡 Durée : environ 5 minutes." ;;
+        2) msg_success="🎉 Pladigit est installé en mode multi-organisations !\n\nÉtape suivante — ouvrez votre navigateur :\n\n  ${install_url}\n\nUne fois le wizard terminé, connectez-vous au Super Admin\npour créer les organisations (communes).\n\nPour chaque nouvelle commune, un bandeau SSL\nvous indiquera la commande certbot à lancer." ;;
+        3) msg_success="🎉 Pladigit est installé !\n\nÉtape suivante :\n\n  ${install_url}\n\nConnectez-vous au Super Admin pour créer\nles communes membres.\n\nPour le SSL de chaque commune : la commande\ncertbot sera affichée automatiquement." ;;
+    esac
+
+    whiptail --title "✅ Installation terminée !" \
+        --msgbox "${msg_success}" 22 70 2>/dev/tty
+
+    log "Installation terminée — ${install_url}"
+
+    # Ouvrir le navigateur si interface graphique disponible
     if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
         xdg-open "${install_url}" 2>/dev/null &
     fi
 }
 
+# ── Mise à jour ───────────────────────────────────────────────────────────────
+do_update() {
+    whiptail --title "Pladigit — Mise à jour" \
+        --yesno "Une installation Pladigit a été détectée sur ce serveur.\n\nSouhaitez-vous la mettre à jour ?\n\n• Le code sera mis à jour (git pull)\n• Les dépendances seront mises à jour\n• Les migrations seront appliquées\n• Vos données ne seront PAS supprimées" \
+        16 70 2>/dev/tty || { log "Mise à jour annulée."; exit 0; }
+
+    wt_info "Mise à jour" "⬆️  Mise à jour en cours..." 6 60
+    cd "$PLADIGIT_DIR" || die "Impossible d'accéder à ${PLADIGIT_DIR}"
+
+    git pull origin main >> "$LOG_FILE" 2>&1 || warn "git pull échoué"
+    sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction \
+        --working-dir="$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 || warn "composer install échoué"
+    sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
+        && sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
+        || warn "npm build échoué"
+    sudo -u www-data php "$PLADIGIT_DIR/artisan" migrate --force >> "$LOG_FILE" 2>&1 || warn "migrate échoué"
+    sudo -u www-data php "$PLADIGIT_DIR/artisan" migrate \
+        --path=database/migrations/platform --force >> "$LOG_FILE" 2>&1 || warn "migrate platform échoué"
+    sudo -u www-data php "$PLADIGIT_DIR/artisan" config:cache >> "$LOG_FILE" 2>&1
+    sudo -u www-data php "$PLADIGIT_DIR/artisan" route:cache  >> "$LOG_FILE" 2>&1
+    sudo -u www-data php "$PLADIGIT_DIR/artisan" view:cache   >> "$LOG_FILE" 2>&1
+    supervisorctl restart pladigit-worker:* >> "$LOG_FILE" 2>&1 || true
+    setup_cron
+
+    wt_msg "✅ Mise à jour terminée" "Pladigit a été mis à jour avec succès.\n\nAucune reconfiguration nécessaire." 10 60
+    exit 0
+}
+
 # ── Point d'entrée ────────────────────────────────────────────────────────────
 main() {
-    # Initialiser le journal
     mkdir -p "$(dirname "$LOG_FILE")"
-    echo "=== Pladigit Install Log — $(date) ===" > "$LOG_FILE"
+    echo "=== Pladigit Install Log v${INSTALL_VERSION} — $(date) ===" > "$LOG_FILE"
 
-    banner
-    echo -e "  Démarrage de l'installation..."
-    echo -e "  Journal : ${LOG_FILE}"
-    echo ""
-
-    # ── Domaine et email — saisies obligatoires ─────────────────────────────────
-    # Lecture depuis /dev/tty : fonctionne même via curl | bash (stdin = pipe)
-    echo -e "  ${BOLD}Deux informations sont nécessaires pour démarrer.${NC}"
-    echo ""
-    echo -e "  Entrez votre nom de domaine principal."
-    echo -e "  Exemple : pladigit.macommune.fr"
-    echo ""
-    while [[ -z "$DOMAIN" ]]; do
-        echo -n "  Nom de domaine (obligatoire) : "
-        read -r DOMAIN </dev/tty || true
-        DOMAIN="${DOMAIN// /}"
-        [[ -z "$DOMAIN" ]] && warn "Le domaine est obligatoire pour continuer."
-    done
-
-    # Email : valeur par défaut proposée, Entrée pour accepter
-    local default_email="contact@${DOMAIN}"
-    echo ""
-    echo -e "  Email Let's Encrypt [${default_email}] :"
-    echo -n "  > "
-    read -r SSL_EMAIL </dev/tty || true
-    [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
-    log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
-    echo ""
-
-    # ── Vérification installation existante ──────────────────────────────────────
-    if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
-        echo ""
-        echo -e "${YELLOW}${BOLD}  ⚠️  Pladigit est déjà installé sur ce serveur.${NC}"
-        echo ""
-        echo -e "  Que souhaitez-vous faire ?"
-        echo ""
-        echo -e "  ${BOLD}1)${NC} Mettre à jour  — git pull + migrations + cache (recommandé)"
-        echo -e "  ${BOLD}2)${NC} Réinstaller    — repart de zéro (réécrit le .env)"
-        echo -e "  ${BOLD}3)${NC} Annuler        — ne rien faire"
-        echo ""
-        echo -n "  Votre choix [1/2/3] : "
-        read -r choix
-
-        case "$choix" in
-            1)
-                echo ""
-                echo -e "${CYAN}${BOLD}  ── Mise à jour de Pladigit ──${NC}"
-                echo ""
-                cd "$PLADIGIT_DIR" || die "Impossible d'accéder à ${PLADIGIT_DIR}"
-
-                step "Récupération du code..."
-                git pull origin main >> "$LOG_FILE" 2>&1 \
-                    && log "Code mis à jour" \
-                    || warn "git pull échoué — on continue avec la version actuelle"
-
-                step "Mise à jour des dépendances PHP..."
-                sudo -u www-data composer install \
-                    --no-dev --optimize-autoloader --no-interaction \
-                    --working-dir="$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
-                    || warn "composer install échoué"
-
-                step "Compilation des assets..."
-                sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
-                    && sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
-                    || warn "npm build échoué"
-
-                step "Migrations base de données..."
-                sudo -u www-data php "$PLADIGIT_DIR/artisan" migrate --force >> "$LOG_FILE" 2>&1 \
-                    || warn "migrate échoué"
-                sudo -u www-data php "$PLADIGIT_DIR/artisan" migrate \
-                    --path=database/migrations/platform --force >> "$LOG_FILE" 2>&1 \
-                    || warn "migrate platform échoué"
-
-                step "Optimisation du cache..."
-                sudo -u www-data php "$PLADIGIT_DIR/artisan" config:cache >> "$LOG_FILE" 2>&1
-                sudo -u www-data php "$PLADIGIT_DIR/artisan" route:cache  >> "$LOG_FILE" 2>&1
-                sudo -u www-data php "$PLADIGIT_DIR/artisan" view:cache   >> "$LOG_FILE" 2>&1
-
-                step "Redémarrage des workers..."
-                supervisorctl restart pladigit-worker:* >> "$LOG_FILE" 2>&1 || true
-
-                step "Vérification du cron scheduler..."
-                setup_cron
-
-                echo ""
-                echo -e "${GREEN}${BOLD}  ✅  Mise à jour terminée !${NC}"
-                echo ""
-                echo -e "  Pladigit est à jour. Aucune reconfiguration nécessaire."
-                echo ""
-                exit 0
-                ;;
-            2)
-                echo ""
-                echo -e "  ${RED}Réinstallation — le fichier .env sera réécrit.${NC}"
-                echo -e "  Vos données ne seront PAS supprimées."
-                echo ""
-                echo -e "  Pour confirmer, tapez exactement : ${BOLD}je confirme la réinstallation${NC}"
-                echo -n "  > "
-                read -r confirm
-                if [[ "$confirm" != "je confirme la réinstallation" ]]; then
-                    echo ""
-                    echo -e "  ${GREEN}Annulé. Votre installation est préservée.${NC}"
-                    echo ""
-                    exit 0
-                fi
-                echo ""
-                warn "Réinstallation confirmée — poursuite..."
-                echo ""
-                ;;
-            *)
-                echo ""
-                echo -e "  ${GREEN}Annulé. Votre installation est préservée.${NC}"
-                echo ""
-                exit 0
-                ;;
-        esac
+    # Vérifier que whiptail est disponible (préinstallé sur Ubuntu)
+    if ! command -v whiptail &>/dev/null; then
+        apt-get install -y -qq whiptail >> "$LOG_FILE" 2>&1 || true
     fi
 
+    # Vérifier les droits root en amont
+    [[ $EUID -ne 0 ]] && { echo "Ce script doit être exécuté en tant que root (sudo)."; exit 1; }
+
+    show_welcome
+
+    # Installation existante détectée ?
+    if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
+        do_update
+    fi
+
+    # Saisies interactives
+    choose_profil
+    ask_domain
+    ask_email
+    ask_admin_ip
+    show_recap
+
+    # Installation
     check_prerequisites
 
-    # ── Court-circuit si tout est déjà installé ──────────────────────────────
     if [[ "$ALL_INSTALLED" == true ]] && [[ -d "${PLADIGIT_DIR}/.git" ]]; then
-        install_pladigit   # git pull + assets + permissions
+        install_pladigit
         configure_nginx
         set +e; setup_ssl; set -e
         setup_cron
@@ -1186,8 +985,7 @@ main() {
     install_php
     install_mysql
     install_services
-    setup_logrotate
-    setup_mysql_logs
+    setup_logs
     install_pladigit
     configure_nginx
     set +e; setup_ssl; set -e
