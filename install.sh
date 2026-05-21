@@ -485,14 +485,26 @@ SUPERVISOR
         log "Certbot installé"
     fi
 
-    # Autoriser www-data à exécuter certbot en root sans mot de passe (provisionSsl)
+    # Autoriser www-data à exécuter les commandes root nécessaires à provisionSsl :
+    #   - certbot              : obtenir le cert SSL du sous-domaine tenant
+    #   - cp / ln              : écrire le vhost Nginx temporaire du tenant
+    #   - nginx                : valider la config
+    #   - systemctl reload nginx : activer le cert sans interruption
+    #   - chmod                : ajuster les permissions /etc/letsencrypt/live/
     CERTBOT_SUDOERS="/etc/sudoers.d/pladigit-certbot"
     CERTBOT_PATH=$(command -v certbot || echo "/usr/bin/certbot")
-    echo "www-data ALL=(root) NOPASSWD: ${CERTBOT_PATH}" > "$CERTBOT_SUDOERS"
+    cat > "$CERTBOT_SUDOERS" << SUDOERS_EOF
+www-data ALL=(root) NOPASSWD: ${CERTBOT_PATH} *
+www-data ALL=(root) NOPASSWD: /bin/cp *
+www-data ALL=(root) NOPASSWD: /bin/ln *
+www-data ALL=(root) NOPASSWD: /usr/sbin/nginx *
+www-data ALL=(root) NOPASSWD: /bin/systemctl reload nginx
+www-data ALL=(root) NOPASSWD: /bin/chmod 755 /etc/letsencrypt/live/*
+SUDOERS_EOF
     chmod 440 "$CERTBOT_SUDOERS"
     visudo -c -f "$CERTBOT_SUDOERS" >> "$LOG_FILE" 2>&1 \
-        && log "Règle sudoers certbot configurée (www-data)" \
-        || { warn "Règle sudoers certbot invalide — suppression."; rm -f "$CERTBOT_SUDOERS"; }
+        && log "Règle sudoers provisionSsl configurée (www-data)" \
+        || { warn "Règle sudoers invalide — suppression."; rm -f "$CERTBOT_SUDOERS"; }
 
     progress 5 7 "Services (Redis, Nginx, Supervisor, Node.js)"
 }
@@ -716,9 +728,108 @@ setup_ssl() {
         return
     fi
 
-    # Certificat déjà présent — rien à faire
+    # Certificat déjà présent — s'assurer que le bloc HTTPS Nginx existe quand même
     if [[ -f "/etc/letsencrypt/live/${domain}/fullchain.pem" ]]; then
-        log "Certificat SSL déjà présent pour ${domain} — ignoré"
+        log "Certificat SSL déjà présent pour ${domain}"
+
+        # Vérifier si le bloc 443 est déjà dans la config Nginx
+        if grep -q "listen 443" /etc/nginx/sites-available/pladigit 2>/dev/null; then
+            log "Bloc HTTPS Nginx déjà présent — rien à faire"
+            return
+        fi
+
+        # Le cert existe mais Nginx n'a pas de bloc 443 (cas réinstallation / cert manuel)
+        info "Bloc HTTPS absent — injection du bloc 443 dans la config Nginx..."
+        local nginx_server_name="${domain} *.${domain}"
+
+        cat > /etc/nginx/sites-available/pladigit << NGINX_SSL
+# Redirection HTTP → HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${nginx_server_name};
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${nginx_server_name};
+
+    ssl_certificate     /etc/letsencrypt/live/${domain}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${domain}/privkey.pem;
+    include             /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
+
+    root ${PLADIGIT_DIR}/public;
+    index index.php index.html;
+
+    client_max_body_size 100M;
+    server_tokens off;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+
+    location ~ \.php\$ {
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_read_timeout 300;
+    }
+
+    location ~ /\.(?!well-known).* { deny all; }
+
+    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
+
+    location = /install { return 301 /install/; }
+    location /install/ {
+        root /var/www/pladigit;
+        index index.php;
+        location ~ \.php$ {
+            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME /var/www/pladigit\$fastcgi_script_name;
+            include fastcgi_params;
+            fastcgi_read_timeout 300;
+        }
+    }
+}
+NGINX_SSL
+
+        nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
+            && log "Bloc HTTPS Nginx injecté et rechargé" \
+            || warn "Config Nginx invalide après injection SSL — vérifiez manuellement."
+
+        # Mettre à jour APP_URL / SESSION dans .env si besoin
+        if [[ -f "$env_file" ]]; then
+            sed -i "s|^APP_URL=.*|APP_URL=https://${domain}|" "$env_file"
+            grep -q "^SESSION_DOMAIN="       "$env_file" \
+                && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${domain}|" "$env_file" \
+                || echo "SESSION_DOMAIN=.${domain}" >> "$env_file"
+            grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
+                && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file" \
+                || echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
+            log "APP_URL et SESSION mis à jour pour HTTPS"
+        fi
+
+        # Cron renouvellement
+        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
+            log "Renouvellement automatique SSL configuré (cron 3h)"
+        fi
+
+        # Permissions lecture cert par www-data
+        chmod 755 /etc/letsencrypt/live/ 2>/dev/null || true
+        chmod 755 "/etc/letsencrypt/live/${domain}/" 2>/dev/null || true
+
         return
     fi
 
@@ -938,7 +1049,7 @@ main() {
         # Email : proposer contact@domaine par défaut
         local default_email="contact@${DOMAIN}"
         echo ""
-        echo -n "  Email Let\'s Encrypt [${default_email}] : "
+        echo -n "  Email Let's Encrypt [${default_email}] : "
         read -r SSL_EMAIL || SSL_EMAIL=""
         [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
         log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
