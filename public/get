@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# ==============================================================================
+#  Pladigit — Lanceur d'installation
+#  Usage : curl -fsSL https://pladigit.fr/get | sudo bash
+# ==============================================================================
+
+# Vérifier les droits root
+if [[ $EUID -ne 0 ]]; then
+    echo "Ce script doit être exécuté en tant que root."
+    echo "Relancez avec : curl -fsSL https://pladigit.fr/get | sudo bash"
+    exit 1
+fi
+
+# Télécharger install.sh dans /tmp/
+_tmp="/tmp/pladigit-install.sh"
+
+echo ""
+echo "  Pladigit — Téléchargement du script d'installation..."
+echo ""
+
+if ! curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh \
+        -o "$_tmp" 2>/dev/null; then
+    echo "  ✗ Impossible de télécharger install.sh"
+    echo "  Vérifiez votre connexion internet et réessayez."
+    exit 1
+fi
+
+chmod +x "$_tmp"
+echo "  ✓ Script téléchargé — démarrage de l'installation..."
+echo ""
+
+# Lancer install.sh avec un vrai TTY
+exec bash "$_tmp"

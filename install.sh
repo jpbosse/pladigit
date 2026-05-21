@@ -4,14 +4,17 @@
 #  Version : 2.0.0
 #  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
 
-# ── Téléchargement automatique si lancé via curl | bash ──────────────────────
+# ── Vérification TTY ─────────────────────────────────────────────────────────
 # Whiptail nécessite un TTY réel — incompatible avec curl | bash.
-# Si stdin n'est pas un TTY, on télécharge le script et on le relance.
-if [ ! -t 0 ]; then
-    _tmp=$(mktemp /tmp/pladigit-install-XXXXXX.sh)
-    curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh         -o "$_tmp" 2>/dev/null         || { echo "Impossible de télécharger install.sh"; exit 1; }
-    chmod +x "$_tmp"
-    exec bash "$_tmp" "$@"
+# Ce script doit être lancé via : curl -fsSL https://pladigit.fr/get | sudo bash
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+    echo ""
+    echo "  ✗ Ce script nécessite un terminal interactif."
+    echo ""
+    echo "  Utilisez la commande suivante :"
+    echo "  curl -fsSL https://pladigit.fr/get | sudo bash"
+    echo ""
+    exit 1
 fi
 #  Usage   : curl -fsSL https://pladigit.fr/install.sh | sudo bash
 # ==============================================================================
