@@ -334,23 +334,47 @@ install_php() {
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
 
-        # Extensions PECL (redis + imagick non fournies par sury.org)
-        apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
-        if ! php -m 2>/dev/null | grep -q redis; then
-            info "Installation de l'extension redis (PECL) — patience..."
-            pecl install redis >> "$LOG_FILE" 2>&1 \
-                && echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini" \
-                && phpenmod -v "${PHP_VERSION}" redis \
-                && log "Extension redis installée" \
-                || warn "Extension redis non installée — à configurer manuellement."
+        # ── Extension redis ───────────────────────────────────────────────────
+        # Tentative 1 : paquet apt sury.org (instantané, pas de compilation)
+        # Tentative 2 : PECL en fallback (compile depuis les sources, ~5-10 min)
+        if ! php -m 2>/dev/null | grep -qi redis; then
+            if apt-get install -y -qq "php${PHP_VERSION}-redis" >> "$LOG_FILE" 2>&1; then
+                log "Extension redis installée (apt)"
+            else
+                info "php${PHP_VERSION}-redis absent du dépôt — compilation PECL (5-10 min)..."
+                apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" >> "$LOG_FILE" 2>&1 || true
+                if pecl install redis >> "$LOG_FILE" 2>&1; then
+                    echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini"
+                    phpenmod -v "${PHP_VERSION}" redis
+                    log "Extension redis installée (PECL)"
+                else
+                    warn "Extension redis non installée — à configurer manuellement."
+                fi
+            fi
+        else
+            log "Extension redis déjà active"
         fi
-        if ! php -m 2>/dev/null | grep -q imagick; then
-            info "Installation de l'extension imagick (PECL) — patience..."
-            pecl install imagick >> "$LOG_FILE" 2>&1 \
-                && echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini" \
-                && phpenmod -v "${PHP_VERSION}" imagick \
-                && log "Extension imagick installée" \
-                || warn "Extension imagick non installée — à configurer manuellement."
+
+        # ── Extension imagick ─────────────────────────────────────────────────
+        # Tentative 1 : paquet apt (php-imagick ou php${VERSION}-imagick)
+        # Tentative 2 : PECL en fallback
+        if ! php -m 2>/dev/null | grep -qi imagick; then
+            if apt-get install -y -qq "php${PHP_VERSION}-imagick" >> "$LOG_FILE" 2>&1 \
+            || apt-get install -y -qq php-imagick >> "$LOG_FILE" 2>&1; then
+                log "Extension imagick installée (apt)"
+            else
+                info "php-imagick absent du dépôt — compilation PECL (5-10 min)..."
+                apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
+                if pecl install imagick >> "$LOG_FILE" 2>&1; then
+                    echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini"
+                    phpenmod -v "${PHP_VERSION}" imagick
+                    log "Extension imagick installée (PECL)"
+                else
+                    warn "Extension imagick non installée — à configurer manuellement."
+                fi
+            fi
+        else
+            log "Extension imagick déjà active"
         fi
 
         log "PHP ${PHP_VERSION} installé"
