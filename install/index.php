@@ -966,7 +966,9 @@ function page_database(array $e): void
 
 function page_app(array $e): void
 {
-    $savedDomain = $_SESSION['app']['domain'] ?? '';
+    // Pré-remplir depuis config.json (domaine saisi dans install.sh)
+    $cfg = load_config();
+    $savedDomain = $_SESSION['app']['domain'] ?? $cfg['install']['domain'] ?? '';
     $savedMode = $_SESSION['app']['mode'] ?? 'domain';
     $savedIp = ($_SESSION['app']['mode'] ?? '') === 'ip' ? ($_SESSION['app']['domain'] ?? '') : ($_SERVER['SERVER_ADDR'] ?? '');
     ?>
@@ -1287,7 +1289,7 @@ function generatePassphrase() {
     var w3 = words[Math.floor(Math.random() * words.length)];
     var num = Math.floor(Math.random() * 90) + 10;
     var year = new Date().getFullYear();
-    currentPassphrase = w1 + '-' + num + '-' + w2 + '-' + w3 + '-' + year + '-Pladigit';
+    currentPassphrase = w1 + '-' + num + '-' + w2 + '-' + w3 + '-' + year;
     document.getElementById('passphrase-display').textContent = currentPassphrase;
     document.getElementById('gpg_passphrase_input').value = currentPassphrase;
     // Réinitialiser les cases à cocher si on régénère
