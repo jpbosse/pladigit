@@ -66,12 +66,13 @@ wt_info() {
 
 wt_input() {
     # wt_input "Titre" "Question" "Valeur par défaut" → stdout
-    whiptail --title "${1}" --inputbox "${2}" 10 70 "${3}" 2>/dev/tty
+    # whiptail écrit la valeur sur stderr — 3>&1 1>/dev/tty 2>&3
+    whiptail --title "${1}" --inputbox "${2}" 10 70 "${3}" 3>&1 1>/dev/tty 2>&3
 }
 
 wt_yesno() {
     # wt_yesno "Titre" "Question" → 0=oui 1=non
-    whiptail --title "${1}" --yesno "${2}" 10 70 2>/dev/tty
+    whiptail --title "${1}" --yesno "${2}" 10 70 >/dev/tty 2>&1
 }
 
 wt_gauge() {
@@ -112,6 +113,7 @@ Appuyez sur Entrée pour commencer." 20 70 2>/dev/tty
 # ── Choix du profil ───────────────────────────────────────────────────────────
 choose_profil() {
     local choice
+    # whiptail écrit le choix sur stderr — redirection 3>&1 1>/dev/tty 2>&3
     choice=$(whiptail --title "Pladigit — Qui êtes-vous ?" \
         --menu "\
 Choisissez votre situation pour adapter l'installation :" \
@@ -119,7 +121,7 @@ Choisissez votre situation pour adapter l'installation :" \
         "1" "Je suis une commune ou une petite collectivité" \
         "2" "Je gère l'informatique de plusieurs communes (maison des communes...)" \
         "3" "Je suis technicien d'une communauté de communes" \
-        2>/dev/tty) || die "Installation annulée."
+        3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
 
     PROFIL="$choice"
 
@@ -183,7 +185,7 @@ ask_domain() {
 
     while [[ -z "$DOMAIN" ]]; do
         DOMAIN=$(whiptail --title "Pladigit — Nom de domaine" \
-            --inputbox "${msg_domaine}" 18 70 "" 2>/dev/tty) || die "Installation annulée."
+            --inputbox "${msg_domaine}" 18 70 "" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
         DOMAIN="${DOMAIN// /}"
         if [[ -z "$DOMAIN" ]]; then
             wt_msg "Champ obligatoire" "⚠ Le nom de domaine est obligatoire.\n\nSans domaine, le certificat HTTPS ne peut pas être obtenu\net votre installation ne sera pas sécurisée." 10 60
@@ -205,7 +207,7 @@ Cet email recevra des alertes si votre certificat approche
 de sa date d'expiration (renouvellement automatique prévu).
 
 Laissez vide pour utiliser : ${default_email}" \
-        14 70 "" 2>/dev/tty) || die "Installation annulée."
+        14 70 "" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
 
     [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
     log "Email SSL : ${SSL_EMAIL}"
@@ -226,7 +228,7 @@ ask_admin_ip() {
 
     while [[ -z "$ADMIN_IPS" ]]; do
         ADMIN_IPS=$(whiptail --title "Pladigit — IP Super Admin" \
-            --inputbox "${msg_ip}" 18 70 "" 2>/dev/tty) || die "Installation annulée."
+            --inputbox "${msg_ip}" 18 70 "" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
         ADMIN_IPS="${ADMIN_IPS// /}"
         if [[ -z "$ADMIN_IPS" ]]; then
             wt_msg "Champ obligatoire" "⚠ L'adresse IP est obligatoire.\n\nSans restriction d'IP, n'importe qui pourrait tenter\nd'accéder à l'administration de votre plateforme." 10 60
@@ -264,7 +266,7 @@ Ce qui sera installé sur ce serveur :
 ⏱  Durée estimée : 15 à 30 minutes
 
 Lancer l'installation ?" \
-        24 70 2>/dev/tty || die "Installation annulée par l'utilisateur."
+        24 70 >/dev/tty 2>&1 || die "Installation annulée par l'utilisateur."
 }
 
 # ── Écrire config.json pour le wizard ────────────────────────────────────────
@@ -338,7 +340,7 @@ check_prerequisites() {
         if ! mysql -u root --connect-timeout=3 -e "SELECT 1;" >> "$LOG_FILE" 2>&1; then
             MYSQL_ROOT_PASSWORD=$(whiptail --title "MySQL — Mot de passe root" \
                 --passwordbox "MySQL est déjà installé.\n\nEntrez le mot de passe root MySQL :" \
-                10 60 2>/dev/tty) || die "Installation annulée."
+                10 60 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
             mysql -u root --connect-timeout=3 -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1;" >> "$LOG_FILE" 2>&1 \
                 || die "Mot de passe MySQL root incorrect."
         fi
@@ -971,6 +973,7 @@ main() {
     [[ $EUID -ne 0 ]] && { echo "Ce script doit être exécuté en tant que root (sudo)."; exit 1; }
 
     show_welcome
+    _log "DEBUG: show_welcome OK"
 
     # Installation existante détectée ?
     if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
@@ -978,6 +981,7 @@ main() {
     fi
 
     # Saisies interactives
+    set +e
     choose_profil
     ask_domain
     ask_email
