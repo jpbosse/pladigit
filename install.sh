@@ -3,6 +3,14 @@
 #  Pladigit — Script d'installation automatique
 #  Version : 2.0.0
 #  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
+
+# ── Relancement avec TTY forcé (indispensable via curl | bash) ────────────────
+# Whiptail nécessite stdin/stdout/stderr connectés au terminal réel.
+# Si le script est lancé via un pipe (curl | bash), on se relance
+# en lisant et écrivant directement sur /dev/tty.
+if [ ! -t 0 ] || [ ! -t 1 ]; then
+    exec bash "$0" "$@" </dev/tty >/dev/tty 2>/dev/tty
+fi
 #  Usage   : curl -fsSL https://pladigit.fr/install.sh | sudo bash
 # ==============================================================================
 set -euo pipefail
