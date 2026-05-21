@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
 #  Pladigit — Script d'installation automatique
-#  Version : 1.0.0
+#  Version : 1.1.0
 #  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
 #  Usage   : curl -fsSL https://pladigit.fr/get-install | sudo bash
 # ==============================================================================
@@ -688,32 +688,26 @@ setup_super_admin_ip() {
     info "Restriction d'accès au Super Admin par IP (ADR-027)"
     echo ""
 
-    # Détection TTY — si pas de terminal interactif, valeur par défaut sans bloquer.
-    if [ -t 0 ]; then
-        echo -e "  ${BOLD}Sécurité — Accès à l'interface Super Administrateur${NC}"
-        echo ""
-        echo -e "  Pour protéger l'accès Super Admin, seules certaines adresses IP"
-        echo -e "  seront autorisées à s'y connecter."
-        echo ""
-        echo -e "  ${YELLOW}⚠  L'IP détectée est celle de ce serveur, pas la vôtre.${NC}"
-        echo -e "  Entrez l'IP publique de ${BOLD}votre ordinateur${NC} (celle depuis laquelle"
-        echo -e "  vous administrez ce serveur)."
-        echo -e "  Pour connaître votre IP : ${CYAN}https://www.whatismyip.com${NC}"
-        if [[ -n "${detected_ip}" ]]; then
-            echo -e "  IP de ce serveur (pour référence) : ${detected_ip}"
-        fi
-        echo ""
-        echo ""
-        local admin_ips=""
-        while [[ -z "$admin_ips" ]]; do
-            echo -n "  IP(s) autorisée(s) (obligatoire) : "
-            read -r admin_ips || admin_ips=""
-            [[ -z "$admin_ips" ]] && warn "L'IP est obligatoire pour accéder au Super Admin."
-        done
-    else
-        admin_ips="${detected_ip:-127.0.0.1,::1}"
-        info "Pas de terminal interactif — SUPER_ADMIN_ALLOWED_IPS par défaut (${admin_ips})"
+    # Toujours demander depuis /dev/tty — fonctionne même via curl | bash
+    echo -e "  ${BOLD}Sécurité — Accès à l'interface Super Administrateur${NC}"
+    echo ""
+    echo -e "  Pour protéger l'accès Super Admin, seules certaines adresses IP"
+    echo -e "  seront autorisées à s'y connecter."
+    echo ""
+    echo -e "  ${YELLOW}⚠  L'IP détectée est celle de ce serveur, pas la vôtre.${NC}"
+    echo -e "  Entrez l'IP publique de ${BOLD}votre ordinateur${NC} (celle depuis laquelle"
+    echo -e "  vous administrez ce serveur)."
+    echo -e "  Pour connaître votre IP : ${CYAN}https://www.whatismyip.com${NC}"
+    if [[ -n "${detected_ip}" ]]; then
+        echo -e "  IP de ce serveur (pour référence) : ${detected_ip}"
     fi
+    echo ""
+    local admin_ips=""
+    while [[ -z "$admin_ips" ]]; do
+        echo -n "  IP(s) autorisée(s) (obligatoire) : "
+        read -r admin_ips </dev/tty || true
+        [[ -z "$admin_ips" ]] && warn "L'IP est obligatoire pour accéder au Super Admin."
+    done
 
     # Créer le .env depuis .env.example s'il n'existe pas encore
     if [[ ! -f "$env_file" ]]; then
@@ -1056,29 +1050,29 @@ main() {
     echo -e "  Journal : ${LOG_FILE}"
     echo ""
 
-    # ── Domaine et email — seules saisies requises ───────────────────────────────
-    if [ -t 0 ]; then
-        echo -e "  ${BOLD}Deux informations sont nécessaires pour démarrer.${NC}"
-        echo ""
-        echo -e "  Entrez votre nom de domaine principal."
-        echo -e "  Exemple : pladigit.macommune.fr"
-        echo ""
-        while [[ -z "$DOMAIN" ]]; do
-            echo -n "  Nom de domaine (obligatoire) : "
-            read -r DOMAIN || DOMAIN=""
-            DOMAIN="${DOMAIN// /}"
-            [[ -z "$DOMAIN" ]] && warn "Le domaine est obligatoire pour continuer."
-        done
+    # ── Domaine et email — saisies obligatoires ─────────────────────────────────
+    # Lecture depuis /dev/tty : fonctionne même via curl | bash (stdin = pipe)
+    echo -e "  ${BOLD}Deux informations sont nécessaires pour démarrer.${NC}"
+    echo ""
+    echo -e "  Entrez votre nom de domaine principal."
+    echo -e "  Exemple : pladigit.macommune.fr"
+    echo ""
+    while [[ -z "$DOMAIN" ]]; do
+        echo -n "  Nom de domaine (obligatoire) : "
+        read -r DOMAIN </dev/tty || true
+        DOMAIN="${DOMAIN// /}"
+        [[ -z "$DOMAIN" ]] && warn "Le domaine est obligatoire pour continuer."
+    done
 
-        # Email : proposer contact@domaine par défaut
-        local default_email="contact@${DOMAIN}"
-        echo ""
-        echo -n "  Email Let's Encrypt [${default_email}] : "
-        read -r SSL_EMAIL || SSL_EMAIL=""
-        [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
-        log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
-        echo ""
-    fi
+    # Email : valeur par défaut proposée, Entrée pour accepter
+    local default_email="contact@${DOMAIN}"
+    echo ""
+    echo -e "  Email Let's Encrypt [${default_email}] :"
+    echo -n "  > "
+    read -r SSL_EMAIL </dev/tty || true
+    [[ -z "$SSL_EMAIL" ]] && SSL_EMAIL="$default_email"
+    log "Domaine : ${DOMAIN} — Email SSL : ${SSL_EMAIL}"
+    echo ""
 
     # ── Vérification installation existante ──────────────────────────────────────
     if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
