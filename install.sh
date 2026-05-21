@@ -943,6 +943,9 @@ do_update() {
 
 # ── Point d'entrée ────────────────────────────────────────────────────────────
 main() {
+    # Forcer stdin sur le terminal — indispensable via curl | bash
+    exec < /dev/tty
+
     mkdir -p "$(dirname "$LOG_FILE")"
     echo "=== Pladigit Install Log v${INSTALL_VERSION} — $(date) ===" > "$LOG_FILE"
 
