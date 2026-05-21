@@ -18,6 +18,47 @@
         </div>
     @endif
 
+
+    {{-- Bloc SSL — affiché uniquement si pas de certificat HTTPS actif --}}
+    @php
+        $rootHost = parse_url(config('app.url'), PHP_URL_HOST);
+        $tenantDomain = $organization->slug . '.' . $rootHost;
+        $certExists = file_exists('/etc/letsencrypt/live/' . $tenantDomain . '/fullchain.pem');
+        $superAdminEmail = config('superadmin.email', 'contact@' . $rootHost);
+    @endphp
+
+    @if(! $certExists && str_starts_with(config('app.url'), 'https://'))
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+        <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="font-size:22px;flex-shrink:0;">🔒</div>
+            <div style="flex:1;">
+                <div style="font-size:14px;font-weight:700;color:#92400e;margin-bottom:4px;">
+                    HTTPS non activé pour {{ $tenantDomain }}
+                </div>
+                <p style="font-size:13px;color:#78350f;line-height:1.6;margin:0 0 14px;">
+                    Pour que les agents de cette organisation puissent se connecter en toute sécurité,
+                    vous devez activer le chiffrement HTTPS. C'est une opération unique, rapide,
+                    et entièrement gratuite.<br>
+                    <strong>Copiez la commande ci-dessous et collez-la dans votre terminal SSH.</strong>
+                </p>
+                <div style="background:#1e1e1e;border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                    <code id="ssl-cmd-{{ $organization->slug }}" style="font-size:12px;color:#86efac;word-break:break-all;background:transparent;padding:0;">
+                        sudo certbot --nginx -d {{ $tenantDomain }} --non-interactive --agree-tos --email {{ $superAdminEmail }} --redirect
+                    </code>
+                    <button onclick="copySslCmd('{{ $organization->slug }}')"
+                            id="copy-ssl-{{ $organization->slug }}"
+                            style="flex-shrink:0;background:#f59e0b;color:#1c1917;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">
+                        📋 Copier
+                    </button>
+                </div>
+                <p style="font-size:12px;color:#92400e;margin:0;">
+                    ✅ Après avoir lancé cette commande, rechargez cette page — le cadenas vert apparaîtra.
+                </p>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Header --}}
     <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
         <div>
@@ -337,6 +378,22 @@
 
 @push('scripts')
 <script>
+
+function copySslCmd(slug) {
+    var cmd = document.getElementById('ssl-cmd-' + slug).textContent.trim();
+    var btn = document.getElementById('copy-ssl-' + slug);
+    navigator.clipboard.writeText(cmd).then(function() {
+        btn.textContent = '✅ Copié !';
+        setTimeout(function() { btn.textContent = '📋 Copier'; }, 2500);
+    }).catch(function() {
+        var ta = document.createElement('textarea');
+        ta.value = cmd; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        btn.textContent = '✅ Copié !';
+        setTimeout(function() { btn.textContent = '📋 Copier'; }, 2500);
+    });
+}
+
 function saShowTab(id) {
     document.querySelectorAll('.sa-tab-panel').forEach(p => p.style.display = 'none');
     document.querySelectorAll('.sa-tab-btn').forEach(b => {
