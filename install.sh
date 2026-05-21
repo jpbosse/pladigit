@@ -424,10 +424,15 @@ install_php() {
             else
                 wt_info "Installation (2/7)" "⏳ Compilation de l'extension redis...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" >> "$LOG_FILE" 2>&1 || true
-                if printf "\n" | pecl install redis >> "$LOG_FILE" 2>&1; then
-                    echo "extension=redis.so" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini"
+                printf "\n" | pecl install redis >> "$LOG_FILE" 2>&1 || true
+                # Trouver le .so compilé et l'activer
+                local redis_so
+                redis_so=$(find /usr/lib/php -name "redis.so" 2>/dev/null | head -1)
+                if [[ -n "$redis_so" ]]; then
+                    echo "extension=${redis_so}" > "/etc/php/${PHP_VERSION}/mods-available/redis.ini"
                     phpenmod -v "${PHP_VERSION}" redis
-                    log "Extension redis installée (PECL)"
+                    systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1 || true
+                    log "Extension redis installée (PECL) : ${redis_so}"
                 else
                     warn "Extension redis non installée — à configurer manuellement."
                 fi
@@ -442,10 +447,14 @@ install_php() {
             else
                 wt_info "Installation (2/7)" "⏳ Compilation de l'extension imagick...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
-                if printf "\n" | pecl install imagick >> "$LOG_FILE" 2>&1; then
-                    echo "extension=imagick.so" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini"
+                printf "\n" | pecl install imagick >> "$LOG_FILE" 2>&1 || true
+                local imagick_so
+                imagick_so=$(find /usr/lib/php -name "imagick.so" 2>/dev/null | head -1)
+                if [[ -n "$imagick_so" ]]; then
+                    echo "extension=${imagick_so}" > "/etc/php/${PHP_VERSION}/mods-available/imagick.ini"
                     phpenmod -v "${PHP_VERSION}" imagick
-                    log "Extension imagick installée (PECL)"
+                    systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1 || true
+                    log "Extension imagick installée (PECL) : ${imagick_so}"
                 else
                     warn "Extension imagick non installée — à configurer manuellement."
                 fi
