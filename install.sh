@@ -221,9 +221,9 @@ ask_admin_ip() {
 
     local msg_ip
     case "$PROFIL" in
-        1) msg_ip="Pour protéger l'accès à l'administration de Pladigit,\nentrez l'adresse IP de votre ordinateur.\n\n⚠ Attention : l'IP affichée ci-dessous est celle du SERVEUR,\n  pas la vôtre !\n\nPour connaître votre IP, visitez : https://www.whatismyip.com\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
-        2) msg_ip="Entrez la ou les adresses IP autorisées à accéder\nau Super Admin (interface de gestion des communes).\n\nVous pouvez saisir plusieurs IP séparées par des virgules :\n  88.123.45.67,192.168.1.10\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
-        3) msg_ip="Entrez l'adresse IP du ou des techniciens autorisés\nà accéder au Super Admin.\n\nSéparez plusieurs IP par des virgules :\n  88.123.45.67,88.123.45.68\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+        1) msg_ip="Pour protéger l'accès à l'administration de Pladigit,\nentrez l'adresse IP de votre ordinateur.\n\n⚠ Attention : l'IP ci-dessous est celle du SERVEUR, pas la vôtre !\n\n👉 Pour connaître votre IP, ouvrez dans un navigateur :\n   https://www.mon-ip.com\n   https://ifconfig.me\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+        2) msg_ip="Entrez la ou les adresses IP autorisées à accéder\nau Super Admin (interface de gestion des communes).\n\n👉 Pour connaître votre IP, ouvrez dans un navigateur :\n   https://www.mon-ip.com\n   https://ifconfig.me\n\nVous pouvez saisir plusieurs IP séparées par des virgules :\n  88.123.45.67,192.168.1.10\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+        3) msg_ip="Entrez l'adresse IP du ou des techniciens autorisés\nà accéder au Super Admin.\n\n👉 Pour connaître votre IP, ouvrez dans un navigateur :\n   https://www.mon-ip.com\n   https://ifconfig.me\n\nSéparez plusieurs IP par des virgules :\n  88.123.45.67,88.123.45.68\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
     esac
 
     while [[ -z "$ADMIN_IPS" ]]; do
