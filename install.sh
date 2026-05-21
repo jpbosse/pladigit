@@ -973,7 +973,6 @@ main() {
     [[ $EUID -ne 0 ]] && { echo "Ce script doit être exécuté en tant que root (sudo)."; exit 1; }
 
     show_welcome
-    _log "DEBUG: show_welcome OK"
 
     # Installation existante détectée ?
     if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
