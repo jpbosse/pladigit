@@ -3,21 +3,24 @@
 #  Pladigit — Script d'installation automatique
 #  Version : 2.0.0
 #  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
+#
+#  Usage :
+#    curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh -o /tmp/install.sh
+#    sudo bash /tmp/install.sh
+# ==============================================================================
 
 # ── Vérification TTY ─────────────────────────────────────────────────────────
-# Whiptail nécessite un TTY réel — incompatible avec curl | bash.
-# Ce script doit être lancé via : curl -fsSL https://pladigit.fr/get | sudo bash
+# Ce script nécessite un terminal interactif — incompatible avec curl | bash.
 if [ ! -t 0 ] || [ ! -t 1 ]; then
     echo ""
     echo "  ✗ Ce script nécessite un terminal interactif."
     echo ""
-    echo "  Utilisez la commande suivante :"
-    echo "  curl -fsSL https://pladigit.fr/get | sudo bash"
+    echo "  Lancez les commandes suivantes :"
+    echo "  curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh -o /tmp/install.sh"
+    echo "  sudo bash /tmp/install.sh"
     echo ""
     exit 1
 fi
-#  Usage   : curl -fsSL https://pladigit.fr/install.sh | sudo bash
-# ==============================================================================
 set -euo pipefail
 
 # ── Configuration ─────────────────────────────────────────────────────────────

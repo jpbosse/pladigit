@@ -420,12 +420,12 @@
                         </div>
                         <div style="display:flex;gap:.875rem;align-items:flex-start">
                             <div style="width:28px;height:28px;border-radius:50%;background:var(--gold);color:var(--navy);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;flex-shrink:0">2</div>
-                            <div><div style="font-size:.875rem;font-weight:600;color:white;margin-bottom:.2rem">Copiez cette commande</div><div style="font-size:.8rem;color:rgba(255,255,255,.5)">Le script installe tout et ouvre l'assistant web.</div></div>
+                            <div><div style="font-size:.875rem;font-weight:600;color:white;margin-bottom:.2rem">Collez ceci dans votre terminal</div><div style="font-size:.8rem;color:rgba(255,255,255,.5)">Une seule commande — le script fait tout le reste.</div></div>
                         </div>
                     </div>
-                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:1.25rem">
-                        <code id="install-cmd" style="font-size:.78rem;color:#86efac;background:transparent;padding:0;word-break:break-all">curl -fsSL https://pladigit.fr/install.sh | sudo bash</code>
-                        <button onclick="copyCmd()" id="copy-btn" style="flex-shrink:0;background:var(--gold);color:var(--navy);border:none;border-radius:4px;padding:.35rem .75rem;font-size:.75rem;font-weight:700;cursor:pointer;white-space:nowrap">📋 Copier</button>
+                    <div style="background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:.875rem 1rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;gap:.75rem">
+                        <code id="install-cmd" style="font-size:.72rem;color:#86efac;background:transparent;padding:0;word-break:break-all;flex:1">curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh -o /tmp/install.sh &amp;&amp; sudo bash /tmp/install.sh</code>
+                        <button onclick="copyCmd()" id="copy-btn" style="flex-shrink:0;background:var(--gold);color:var(--navy);border:none;border-radius:4px;padding:.5rem 1rem;font-size:.8rem;font-weight:700;cursor:pointer;white-space:nowrap">📋 Copier</button>
                     </div>
                     <div style="font-size:.75rem;color:rgba(255,255,255,.35)">⚠️ Ne lancez pas cette commande si Pladigit est déjà installé.</div>
                 </div>
@@ -673,7 +673,7 @@
 <script>
 // ── Copier la commande ───────────────────────────────────────
 function copyCmd() {
-    var cmd = document.getElementById('install-cmd').textContent;
+    var cmd = "curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh -o /tmp/install.sh && sudo bash /tmp/install.sh";
     var btn = document.getElementById('copy-btn');
     navigator.clipboard.writeText(cmd).then(function() {
         btn.textContent = '✅ Copié !';
