@@ -438,7 +438,7 @@ check_prerequisites() {
 update_system() {
     [[ "$NEED_SYSTEM_UPDATE" == false ]] && { log "Mise à jour système : non nécessaire"; return; }
 
-    update_progress 5 "Mise à jour du système..."
+    update_progress 5 "Mise à jour du système... ⏳ Merci de patienter (2 à 5 min)"
 
     local waited=0
     while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
@@ -467,7 +467,7 @@ update_system() {
 
 # ── 2. PHP 8.4 ────────────────────────────────────────────────────────────────
 install_php() {
-    update_progress 15 "Installation de PHP ${PHP_VERSION}..."
+    update_progress 15 "Installation de PHP ${PHP_VERSION}... ⏳ Merci de patienter (3 à 5 min)"
 
     if command -v "php${PHP_VERSION}" &>/dev/null || \
        php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
@@ -493,7 +493,7 @@ install_php() {
             if apt-get install -y -qq "php${PHP_VERSION}-redis" >> "$LOG_FILE" 2>&1; then
                 log "Extension redis installée (apt)"
             else
-                update_progress 18 "Compilation extension redis (PECL)..."
+                update_progress 18 "Compilation extension redis... ⏳ Cela peut prendre 5 à 10 min"
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" >> "$LOG_FILE" 2>&1 || true
                 printf "\n" | pecl install redis >> "$LOG_FILE" 2>&1 || true
                 # Trouver le .so compilé et l'activer
@@ -516,7 +516,7 @@ install_php() {
             || apt-get install -y -qq php-imagick >> "$LOG_FILE" 2>&1; then
                 log "Extension imagick installée (apt)"
             else
-                update_progress 21 "Compilation extension imagick (PECL)..."
+                update_progress 21 "Compilation extension imagick... ⏳ Cela peut prendre 5 à 10 min"
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
                 printf "\n" | pecl install imagick >> "$LOG_FILE" 2>&1 || true
                 local imagick_so
@@ -548,7 +548,7 @@ install_php() {
 
 # ── 3. MySQL 8 ────────────────────────────────────────────────────────────────
 install_mysql() {
-    update_progress 29 "Installation de MySQL 8..."
+    update_progress 29 "Installation de MySQL 8... ⏳ Merci de patienter (2 à 4 min)"
 
     if command -v mysql &>/dev/null; then
         log "MySQL déjà installé"
@@ -578,7 +578,7 @@ install_mysql() {
 
 # ── 4. Services (Redis, Nginx, Supervisor, Node.js, Certbot) ──────────────────
 install_services() {
-    update_progress 43 "Installation des services (Redis, Nginx, Supervisor)..."
+    update_progress 43 "Installation des services... ⏳ Merci de patienter"
 
     # Redis
     command -v redis-server &>/dev/null || {
@@ -719,14 +719,14 @@ install_pladigit() {
     chmod 750 "${PLADIGIT_DIR}/storage/app/private/backup"
     log "Permissions configurées"
 
-    update_progress 65 "Installation des dépendances PHP (Composer)..."
+    update_progress 65 "Installation des dépendances PHP... ⏳ Merci de patienter (2 à 3 min)"
     sudo -u www-data composer install \
         --no-dev --optimize-autoloader --no-interaction \
         --working-dir="$PLADIGIT_DIR" \
         >> "$LOG_FILE" 2>&1 || die "Composer install échoué."
     log "Dépendances PHP installées"
 
-    update_progress 75 "Compilation des assets JS/CSS (npm)..."
+    update_progress 75 "Compilation des assets JS/CSS... ⏳ Merci de patienter (1 à 2 min)"
     mkdir -p /var/www/.npm
     chown -R www-data:www-data /var/www/.npm
     sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
@@ -912,7 +912,7 @@ NGINX_SSL
         return
     fi
 
-    update_progress 91 "Obtention du certificat HTTPS (Let's Encrypt)..."
+    update_progress 91 "Obtention du certificat HTTPS... ⏳ Merci de patienter"
 
     # Vérification DNS
     local server_ip dns_ip
