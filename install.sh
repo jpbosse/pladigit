@@ -46,7 +46,7 @@ MYSQL_ROOT_PASSWORD=""
 
 # ── Helpers log (sans Whiptail — pour le journal) ─────────────────────────────
 LOG_FILE="/var/log/pladigit-install.log"
-_log() { echo -e "$*" | tee -a "$LOG_FILE"; }
+_log() { echo -e "$*" >> "$LOG_FILE"; }
 log()  { _log "✓ $*"; }
 warn() { _log "⚠  $*"; }
 info() { _log "→  $*"; }
@@ -135,12 +135,10 @@ update_progress() {
     local pct="${1}"
     local msg="${2}"
     _log "[${pct}%] ${msg}"
-    # Mettre à jour le gauge via le pipe nommé
-    printf "XXX
-%s
-%s
-XXX
-" "$pct" "$msg" >&3 2>/dev/null || true
+    # Écrire dans le gauge uniquement si le pipe est ouvert (start_progress appelé)
+    if [[ -n "${PROGRESS_PIPE:-}" && -p "${PROGRESS_PIPE:-}" ]]; then
+        printf "XXX\n%s\n%s\nXXX\n" "$pct" "$msg" >&3 2>/dev/null || true
+    fi
 }
 
 step_done() {
@@ -440,7 +438,7 @@ check_prerequisites() {
 update_system() {
     [[ "$NEED_SYSTEM_UPDATE" == false ]] && { log "Mise à jour système : non nécessaire"; return; }
 
-    wt_info "Installation (1/7)" "📦 Mise à jour du système en cours...\n\nCela peut prendre quelques minutes." 8 60
+    update_progress 5 "Mise à jour du système..."
 
     local waited=0
     while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
@@ -469,7 +467,7 @@ update_system() {
 
 # ── 2. PHP 8.4 ────────────────────────────────────────────────────────────────
 install_php() {
-    wt_info "Installation (2/7)" "🐘 Installation de PHP ${PHP_VERSION}...\n\nCela peut prendre 3 à 5 minutes." 8 60
+    update_progress 15 "Installation de PHP ${PHP_VERSION}..."
 
     if command -v "php${PHP_VERSION}" &>/dev/null || \
        php -r "echo PHP_MAJOR_VERSION.'.'.PHP_MINOR_VERSION;" 2>/dev/null | grep -q "^${PHP_VERSION}"; then
@@ -495,7 +493,7 @@ install_php() {
             if apt-get install -y -qq "php${PHP_VERSION}-redis" >> "$LOG_FILE" 2>&1; then
                 log "Extension redis installée (apt)"
             else
-                wt_info "Installation (2/7)" "⏳ Compilation de l'extension redis...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
+                update_progress 18 "Compilation extension redis (PECL)..."
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" >> "$LOG_FILE" 2>&1 || true
                 printf "\n" | pecl install redis >> "$LOG_FILE" 2>&1 || true
                 # Trouver le .so compilé et l'activer
@@ -518,7 +516,7 @@ install_php() {
             || apt-get install -y -qq php-imagick >> "$LOG_FILE" 2>&1; then
                 log "Extension imagick installée (apt)"
             else
-                wt_info "Installation (2/7)" "⏳ Compilation de l'extension imagick...\n\nCette étape peut durer 5 à 10 minutes.\nNe fermez pas ce terminal." 8 60
+                update_progress 21 "Compilation extension imagick (PECL)..."
                 apt-get install -y -qq php-pear "php${PHP_VERSION}-dev" libmagickwand-dev >> "$LOG_FILE" 2>&1 || true
                 printf "\n" | pecl install imagick >> "$LOG_FILE" 2>&1 || true
                 local imagick_so
@@ -580,7 +578,7 @@ install_mysql() {
 
 # ── 4. Services (Redis, Nginx, Supervisor, Node.js, Certbot) ──────────────────
 install_services() {
-    wt_info "Installation (4/7)" "⚙️  Installation des services...\n\nRedis, Nginx, Supervisor, Node.js, Certbot" 8 60
+    update_progress 43 "Installation des services (Redis, Nginx, Supervisor)..."
 
     # Redis
     command -v redis-server &>/dev/null || {
@@ -701,7 +699,7 @@ MYCNF
 
 # ── 6. Clonage et dépendances Pladigit ───────────────────────────────────────
 install_pladigit() {
-    wt_info "Installation (5/7)" "📥 Téléchargement de Pladigit...\n\nClonage du code source depuis GitHub." 8 60
+    update_progress 58 "Téléchargement de Pladigit depuis GitHub..."
 
     git config --global --add safe.directory "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 || true
 
@@ -721,14 +719,14 @@ install_pladigit() {
     chmod 750 "${PLADIGIT_DIR}/storage/app/private/backup"
     log "Permissions configurées"
 
-    wt_info "Installation (6/7)" "📦 Installation des dépendances PHP...\n\nCela peut prendre 2 à 3 minutes." 8 60
+    update_progress 65 "Installation des dépendances PHP (Composer)..."
     sudo -u www-data composer install \
         --no-dev --optimize-autoloader --no-interaction \
         --working-dir="$PLADIGIT_DIR" \
         >> "$LOG_FILE" 2>&1 || die "Composer install échoué."
     log "Dépendances PHP installées"
 
-    wt_info "Installation (6/7)" "🔨 Compilation des assets (JS/CSS)...\n\nCela peut prendre 1 à 2 minutes." 8 60
+    update_progress 75 "Compilation des assets JS/CSS (npm)..."
     mkdir -p /var/www/.npm
     chown -R www-data:www-data /var/www/.npm
     sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
@@ -914,7 +912,7 @@ NGINX_SSL
         return
     fi
 
-    wt_info "SSL" "🔒 Obtention du certificat HTTPS (Let's Encrypt)...\n\nCela prend généralement moins d'une minute." 8 60
+    update_progress 91 "Obtention du certificat HTTPS (Let's Encrypt)..."
 
     # Vérification DNS
     local server_ip dns_ip
@@ -992,10 +990,12 @@ setup_super_admin_ip() {
 # ── Écran de succès ───────────────────────────────────────────────────────────
 show_success() {
     local install_url
-    if ls /etc/letsencrypt/live/*/fullchain.pem > /dev/null 2>&1; then
-        local ssl_domain
-        ssl_domain=$(ls /etc/letsencrypt/live/ | grep -v README | head -1)
-        install_url="https://${ssl_domain}/install/"
+    if [[ -n "$DOMAIN" ]]; then
+        if ls /etc/letsencrypt/live/"${DOMAIN}"/fullchain.pem > /dev/null 2>&1; then
+            install_url="https://${DOMAIN}/install/"
+        else
+            install_url="http://${DOMAIN}/install/"
+        fi
     else
         install_url="http://$(hostname -I | awk '{print $1}')/install/"
     fi

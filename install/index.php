@@ -160,7 +160,7 @@ function api_run(): void
     @unlink(LOG_FILE);
     @unlink(DONE_FILE);
     @unlink(FAIL_FILE);
-    @unlink(CONFIG_FILE);
+    // CONFIG_FILE conservé : contient le domaine et les choix du wizard (pré-remplissage)
 
     // Lancer l'installation en arrière-plan
     $script = escapeshellarg(INSTALL_DIR.'/runner.php');
