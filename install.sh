@@ -783,7 +783,6 @@ server {
     client_max_body_size 100M;
     server_tokens off;
 
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -835,9 +834,23 @@ setup_ssl() {
 
     [[ -z "$DOMAIN" ]] && { warn "Aucun domaine — SSL ignoré."; return; }
 
-    # Cert déjà présent — vérifier que le bloc 443 existe
+    # Vérifier si le certificat est valide (pas expiré, pas dans moins de 30 jours)
+    local cert_valid=false
     if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
-        log "Certificat SSL déjà présent pour ${DOMAIN}"
+        if openssl x509 -checkend 2592000 -noout \
+            -in "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" >> "$LOG_FILE" 2>&1; then
+            cert_valid=true
+        else
+            warn "Certificat présent mais expiré ou expirant sous 30 jours — renouvellement."
+            certbot renew --cert-name "${DOMAIN}" --non-interactive >> "$LOG_FILE" 2>&1 \
+                && cert_valid=true \
+                || warn "Renouvellement échoué — on continue."
+        fi
+    fi
+
+    # Cert valide — vérifier que le bloc 443 existe dans Nginx
+    if [[ "$cert_valid" == true ]]; then
+        log "Certificat SSL valide pour ${DOMAIN}"
         if grep -q "listen 443" /etc/nginx/sites-available/pladigit 2>/dev/null; then
             log "Bloc HTTPS Nginx déjà présent"
         else
@@ -915,9 +928,10 @@ NGINX_SSL
         return
     fi
 
+    # Cert absent ou invalide — on demande un nouveau certificat
     update_progress 91 "Obtention du certificat HTTPS... ⏳ Merci de patienter"
 
-    # Vérification DNS
+    # Vérification DNS avant de contacter Let's Encrypt
     local server_ip dns_ip
     server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
     dns_ip=$(dig +short "${DOMAIN}" A 2>/dev/null | tail -1)
@@ -954,8 +968,93 @@ NGINX_SSL
             log "Renouvellement SSL automatique configuré"
         fi
     else
-        warn "Échec SSL — tenant actif en HTTP. Relancez : certbot --nginx -d ${DOMAIN}"
+        warn "Échec Let's Encrypt — génération d'un certificat auto-signé temporaire."
+        setup_self_signed_cert
     fi
+}
+
+# ── Certificat auto-signé (fallback si Let's Encrypt échoue) ─────────────────
+setup_self_signed_cert() {
+    local env_file="${PLADIGIT_DIR}/.env"
+    local key_path="/etc/ssl/private/pladigit-selfsigned.key"
+    local cert_path="/etc/ssl/certs/pladigit-selfsigned.crt"
+
+    update_progress 93 "Génération d'un certificat de sécurité temporaire..."
+
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+        -keyout "$key_path" \
+        -out "$cert_path" \
+        -subj "/CN=${DOMAIN}" >> "$LOG_FILE" 2>&1 || { warn "Impossible de créer le certificat auto-signé."; return; }
+
+    # Config Nginx avec certificat auto-signé
+    local nginx_server_name="${DOMAIN} *.${DOMAIN}"
+    cat > /etc/nginx/sites-available/pladigit << NGINX_SELFSIGNED
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${nginx_server_name};
+    return 301 https://\$host\$request_uri;
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${nginx_server_name};
+    ssl_certificate     ${cert_path};
+    ssl_certificate_key ${key_path};
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    root ${PLADIGIT_DIR}/public;
+    index index.php index.html;
+    client_max_body_size 100M;
+    server_tokens off;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
+    location ~ \.php\$ {
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_read_timeout 300;
+    }
+    location ~ /\.(?!well-known).* { deny all; }
+    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
+    location = /install { return 301 /install/; }
+    location /install/ {
+        root /var/www/pladigit;
+        index index.php;
+        location ~ \.php$ {
+            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME /var/www/pladigit\$fastcgi_script_name;
+            include fastcgi_params;
+            fastcgi_read_timeout 300;
+        }
+    }
+}
+NGINX_SELFSIGNED
+
+    nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
+        && log "Nginx configuré avec certificat auto-signé"
+
+    # .env : HTTPS activé mais SESSION_SECURE_COOKIE=false (cert non reconnu par navigateur)
+    if [[ -f "$env_file" ]]; then
+        sed -i "s|^APP_URL=.*|APP_URL=https://${DOMAIN}|" "$env_file"
+        grep -q "^SESSION_DOMAIN=" "$env_file" \
+            && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${DOMAIN}|" "$env_file" \
+            || echo "SESSION_DOMAIN=.${DOMAIN}" >> "$env_file"
+        grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
+            && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=false|" "$env_file" \
+            || echo "SESSION_SECURE_COOKIE=false" >> "$env_file"
+        # Marquer le type de certificat pour Pladigit
+        grep -q "^SSL_TYPE=" "$env_file" \
+            && sed -i "s|^SSL_TYPE=.*|SSL_TYPE=self_signed|" "$env_file" \
+            || echo "SSL_TYPE=self_signed" >> "$env_file"
+        log ".env mis à jour (auto-signé)"
+    fi
+
+    log "Certificat auto-signé généré — HTTPS temporaire actif."
 }
 
 # ── Cron Laravel ──────────────────────────────────────────────────────────────
@@ -993,29 +1092,40 @@ setup_super_admin_ip() {
 # ── Écran de succès ───────────────────────────────────────────────────────────
 show_success() {
     local install_url
+    local ssl_mode="none"
+
     if [[ -n "$DOMAIN" ]]; then
         if ls /etc/letsencrypt/live/"${DOMAIN}"/fullchain.pem > /dev/null 2>&1; then
             install_url="https://${DOMAIN}/install/"
+            ssl_mode="letsencrypt"
+        elif ls /etc/ssl/certs/pladigit-selfsigned.crt > /dev/null 2>&1; then
+            install_url="https://${DOMAIN}/install/"
+            ssl_mode="selfsigned"
         else
             install_url="http://${DOMAIN}/install/"
+            ssl_mode="none"
         fi
     else
         install_url="http://$(hostname -I | awk '{print $1}')/install/"
     fi
 
+    local ssl_note=""
+    if [[ "$ssl_mode" == "selfsigned" ]]; then
+        ssl_note="\n\n⚠️  HTTPS temporaire activé (certificat auto-signé).\nVotre navigateur affichera un avertissement — cliquez\nsur 'Avancé' puis 'Continuer' pour accéder au site.\nL'activation HTTPS définitive se fait depuis le Super Admin."
+    fi
+
     local msg_success
     case "$PROFIL" in
-        1) msg_success="🎉 Votre plateforme Pladigit est prête !\n\nÉtape suivante — ouvrez votre navigateur et accédez à :\n\n  ${install_url}\n\nL'assistant de configuration vous guidera pour :\n  • Configurer la base de données\n  • Créer votre compte administrateur\n  • Configurer l'envoi d'emails (optionnel)\n\n💡 Durée : environ 5 minutes." ;;
-        2) msg_success="🎉 Pladigit est installé en mode multi-organisations !\n\nÉtape suivante — ouvrez votre navigateur :\n\n  ${install_url}\n\nUne fois le wizard terminé, connectez-vous au Super Admin\npour créer les organisations (communes).\n\nPour chaque nouvelle commune, un bandeau SSL\nvous indiquera la commande certbot à lancer." ;;
-        3) msg_success="🎉 Pladigit est installé !\n\nÉtape suivante :\n\n  ${install_url}\n\nConnectez-vous au Super Admin pour créer\nles communes membres.\n\nPour le SSL de chaque commune : la commande\ncertbot sera affichée automatiquement." ;;
+        1) msg_success="🎉 Votre plateforme Pladigit est prête !\n\nÉtape suivante — ouvrez votre navigateur et accédez à :\n\n  ${install_url}\n\nL'assistant de configuration vous guidera pour :\n  • Configurer la base de données\n  • Créer votre compte administrateur\n  • Configurer l'envoi d'emails (optionnel)\n\n💡 Durée : environ 5 minutes.${ssl_note}" ;;
+        2) msg_success="🎉 Pladigit est installé en mode multi-organisations !\n\nÉtape suivante — ouvrez votre navigateur :\n\n  ${install_url}\n\nUne fois le wizard terminé, connectez-vous au Super Admin\npour créer les organisations (communes).${ssl_note}" ;;
+        3) msg_success="🎉 Pladigit est installé !\n\nÉtape suivante :\n\n  ${install_url}\n\nConnectez-vous au Super Admin pour créer\nles communes membres.${ssl_note}" ;;
     esac
 
     dialog --title "✅ Installation terminée !" \
-        --msgbox "${msg_success}" 22 70 2>/dev/tty
+        --msgbox "${msg_success}" 26 70 2>/dev/tty
 
-    log "Installation terminée — ${install_url}"
+    log "Installation terminée — ${install_url} (ssl: ${ssl_mode})"
 
-    # Ouvrir le navigateur si interface graphique disponible
     if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
         xdg-open "${install_url}" 2>/dev/null &
     fi
@@ -1067,8 +1177,8 @@ main() {
 
     show_welcome
 
-    # Installation existante détectée ?
-    if [[ -f "${PLADIGIT_DIR}/.env" ]] && [[ -f "${PLADIGIT_DIR}/install/.lock" ]]; then
+    # Installation existante détectée ? (suffit que .env existe — pas besoin du .lock)
+    if [[ -f "${PLADIGIT_DIR}/.env" ]]; then
         do_update
     fi
 
