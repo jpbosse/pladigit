@@ -31,6 +31,8 @@
 
 <body class="pd-no-transition">
 
+@include('partials.ssl-banner-superadmin')
+
 @php
     $route = request()->route()?->getName() ?? '';
 

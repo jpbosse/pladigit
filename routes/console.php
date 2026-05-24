@@ -112,3 +112,18 @@ Schedule::command('pladigit:purge-audit-logs')
     ->onFailure(function () {
         Log::error('Purge RGPD audit_logs échouée');
     });
+
+// SSL auto-provision — tente Let's Encrypt automatiquement J+7, J+14, J+21
+Schedule::command('ssl:auto-provision')
+    ->dailyAt('04:00')
+    ->withoutOverlapping()
+    ->runInBackground()
+    ->onFailure(function () {
+        Log::error('ssl:auto-provision échoué');
+    });
+
+// Renouvellement certificat auto-signé — tous les 6 mois
+Schedule::command('ssl:renew-self-signed')
+    ->monthlyOn(1, '03:00')
+    ->withoutOverlapping()
+    ->runInBackground();

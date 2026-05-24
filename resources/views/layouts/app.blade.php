@@ -320,6 +320,8 @@
     </div>
     @endif
 
+    @include('partials.ssl-banner-tenant')
+
     @yield('content')
 </main>
 

@@ -35,10 +35,12 @@ use App\Http\Controllers\SuperAdmin\BackupController;
 use App\Http\Controllers\SuperAdmin\DatagridController;
 use App\Http\Controllers\SuperAdmin\OrganizationController;
 use App\Http\Controllers\SuperAdmin\SecurityController;
+use App\Http\Controllers\SuperAdmin\SslController;
 use App\Http\Controllers\SuperAdmin\StatsController;
 use App\Http\Controllers\SuperAdmin\UpdateController;
 use App\Http\Controllers\Tenant\Admin\DatagridAdminController;
 use App\Http\Controllers\Tenant\DatagridPdfController;
+use App\Http\Controllers\Tenant\SslRequestController;
 
 // ── Page d'accueil publique ───────────────────────────────
 Route::get('/health', [HealthController::class, 'check'])->name('health');
@@ -473,10 +475,15 @@ Route::middleware('tenant')->group(function () {
         ]);
     })->name('install.collabora');
 
+    Route::post('ssl/activate', [SslController::class, 'activate'])
+        ->name('ssl.activate');
+
 });
 
 // PDF Datagrid
 Route::middleware(['auth', 'tenant'])->group(function () {
     Route::get('/datagrid/{table}/pdf/fiche/{rowId}', [DatagridPdfController::class, 'fiche'])->name('datagrid.pdf.fiche');
     Route::get('/datagrid/{table}/pdf/liste', [DatagridPdfController::class, 'liste'])->name('datagrid.pdf.liste');
+    Route::post('/tenant/ssl/request', [SslRequestController::class, 'request'])
+        ->name('tenant.ssl.request');
 });
