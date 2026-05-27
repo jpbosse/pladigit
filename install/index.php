@@ -717,11 +717,12 @@ function render_page(string $action): void
     html_open();
     html_steps($step, $steps);
 
-    // Profil 1 : sauter la page Collabora
+    // Profil 1 (ou absent) : sauter la page Collabora
     if ($action === 'collabora') {
         $cfg = load_config();
-        $profil = $cfg['install']['profil'] ?? '1';
-        if ($profil === '1') {
+        // Par défaut profil 1 — le profil est absent si le wizard est lancé sans install.sh
+        $profil = $cfg['install']['profil'] ?? '';
+        if ($profil === '1' || $profil === '') {
             $_SESSION['collabora'] = ['mode' => 'local', 'url' => ''];
             save_config(['collabora' => ['mode' => 'local', 'url' => '']]);
             redirect('admin');
