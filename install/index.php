@@ -717,6 +717,17 @@ function render_page(string $action): void
     html_open();
     html_steps($step, $steps);
 
+    // Profil 1 : sauter la page Collabora
+    if ($action === 'collabora') {
+        $cfg = load_config();
+        $profil = $cfg['install']['profil'] ?? '1';
+        if ($profil === '1') {
+            $_SESSION['collabora'] = ['mode' => 'local', 'url' => ''];
+            save_config(['collabora' => ['mode' => 'local', 'url' => '']]);
+            redirect('admin');
+        }
+    }
+
     switch ($action) {
         case 'welcome':  page_welcome();
             break;
@@ -1108,15 +1119,7 @@ function page_collabora(): void
     $savedMode = $cfg['collabora']['mode'] ?? ($_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip'));
     $savedUrl = $cfg['collabora']['url'] ?? ($_SESSION['collabora']['url'] ?? '');
 
-    // Profil 1 (commune) : Collabora local forcé, page simplifiée
-    if ($profil === '1') {
-        // Forcer mode local silencieusement et passer à la suite
-        $_SESSION['collabora'] = ['mode' => 'local', 'url' => ''];
-        save_config(['collabora' => ['mode' => 'local', 'url' => '']]);
-        redirect('admin');
-
-        return;
-    }
+    // Profil 1 : déjà géré dans render_page() avant html_open()
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F4DD; Collabora Online</div>
