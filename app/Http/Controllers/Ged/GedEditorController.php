@@ -54,7 +54,9 @@ class GedEditorController extends Controller
         // contient déjà une query string (ex. "?tenant=slug"), ce qui crée une URL
         // invalide avec deux "?". En mettant le tenant dans le chemin, le WOPISrc
         // n'a aucun "?" et Collabora peut ajouter son access_token sans corruption.
-        $wopiBase = rtrim((string) config('collabora.wopi_url', config('app.url', '')), '/');
+        // On utilise le domaine courant de la requête (ex. https://demo.pladigit.fr)
+        // plutôt qu'une valeur fixe du .env — garantit le bon WOPISrc pour tous les tenants.
+        $wopiBase = rtrim(request()->getSchemeAndHttpHost(), '/');
         $orgSlug = app(TenantManager::class)->currentOrFail()->slug;
         $wopiSrc = $wopiBase.'/wopi/'.$orgSlug.'/files/'.$document->id;
         $accessToken = $wopiToken->token;
