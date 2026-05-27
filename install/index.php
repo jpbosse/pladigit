@@ -1114,6 +1114,7 @@ function page_collabora(): void
         $_SESSION['collabora'] = ['mode' => 'local', 'url' => ''];
         save_config(['collabora' => ['mode' => 'local', 'url' => '']]);
         redirect('admin');
+
         return;
     }
     ?>
