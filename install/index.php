@@ -714,9 +714,6 @@ function render_page(string $action): void
     unset($_SESSION['errors']);
     $steps = ['Bienvenue', 'Vérification', 'Base de données', 'Application', 'Email', 'Collabora', 'Administrateur', 'Sécurité', 'Installation'];
 
-    html_open();
-    html_steps($step, $steps);
-
     // Profil 1 (ou absent) : sauter la page Collabora
     if ($action === 'collabora') {
         $cfg = load_config();
@@ -728,6 +725,9 @@ function render_page(string $action): void
             redirect('admin');
         }
     }
+
+    html_open();
+    html_steps($step, $steps);
 
     switch ($action) {
         case 'welcome':  page_welcome();
