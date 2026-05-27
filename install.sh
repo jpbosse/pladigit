@@ -106,7 +106,7 @@ PROGRESS_PIPE=""
 PROGRESS_PID=""
 
 STEPS_DONE=()
-STEPS_TODO=("Mise à jour système" "PHP 8.4 + Composer" "MySQL 8" "Services (Redis, Nginx...)" "Pladigit" "Configuration Nginx" "SSL + finalisation")
+STEPS_TODO=("Mise à jour système" "PHP 8.4 + Composer" "MySQL 8" "Services (Redis, Nginx...)" "Pladigit" "Configuration Nginx" "SSL + finalisation" "Collabora Online")
 
 _render_steps() {
     local current_msg="${1}"
@@ -742,20 +742,7 @@ install_pladigit() {
     write_wizard_config
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
 
-    # Script Collabora
-    curl -fsSL https://pladigit.fr/get-collabora-installer \
-        -o "${PLADIGIT_DIR}/install/install-collabora.sh" \
-        >> "$LOG_FILE" 2>&1 \
-        || warn "Script Collabora non disponible — copie locale utilisée."
-    chmod +x "${PLADIGIT_DIR}/install/install-collabora.sh"
-    chown root:root "${PLADIGIT_DIR}/install/install-collabora.sh"
-
-    local SUDOERS_COLLAB="/etc/sudoers.d/pladigit-collabora"
-    echo "www-data ALL=(root) NOPASSWD: ${PLADIGIT_DIR}/install/install-collabora.sh" > "$SUDOERS_COLLAB"
-    chmod 440 "$SUDOERS_COLLAB"
-    visudo -c -f "$SUDOERS_COLLAB" >> "$LOG_FILE" 2>&1 \
-        && log "Règle sudoers Collabora configurée" \
-        || { warn "Règle sudoers Collabora invalide — suppression."; rm -f "$SUDOERS_COLLAB"; }
+    log "Script Collabora intégré — sera installé après SSL"
 
     supervisorctl reread >> "$LOG_FILE" 2>&1 || true
     supervisorctl update >> "$LOG_FILE" 2>&1 || true
@@ -787,7 +774,7 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
@@ -881,7 +868,7 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
     location / { try_files \$uri \$uri/ /index.php?\$query_string; }
     location ~ \.php\$ {
         fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
@@ -1089,6 +1076,185 @@ setup_super_admin_ip() {
     log "SUPER_ADMIN_ALLOWED_IPS configuré : ${ADMIN_IPS}"
 }
 
+# ── Collabora Online — installation intégrée ─────────────────────────────────
+install_collabora() {
+    # Appelé uniquement si l'utilisateur a choisi "local" dans le wizard
+    # (COLLABORA_MODE est positionné par le wizard via config.json)
+    # En mode install.sh seul (sans wizard), on installe toujours Collabora.
+
+    update_progress 95 "Collabora Online : installation Docker... ⏳ 10 à 20 min"
+
+    # ── 1. Docker ──────────────────────────────────────────────────────────
+    if ! command -v docker &>/dev/null; then
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io >> "$LOG_FILE" 2>&1             || { warn "Docker non installé — Collabora ignoré."; return; }
+    fi
+    systemctl enable docker >> "$LOG_FILE" 2>&1
+    systemctl start  docker >> "$LOG_FILE" 2>&1
+    sleep 2
+    if ! systemctl is-active --quiet docker; then
+        warn "Docker ne démarre pas — Collabora ignoré."
+        return
+    fi
+    log "Docker prêt"
+
+    # ── 2. Image Docker ────────────────────────────────────────────────────
+    if ! docker image inspect collabora/code &>/dev/null; then
+        log "Collabora : téléchargement de l'image (~1.5 Go, 10-20 min)..."
+        docker pull collabora/code >> "$LOG_FILE" 2>&1 &
+        PULL_PID=$!
+        ELAPSED=0
+        while kill -0 "$PULL_PID" 2>/dev/null; do
+            sleep 15
+            ELAPSED=$((ELAPSED + 15))
+            MINUTES=$((ELAPSED / 60))
+            SECS=$((ELAPSED % 60))
+            update_progress 95 "Collabora : téléchargement en cours... ${MINUTES}m${SECS}s ⏳"
+            [[ "$ELAPSED" -gt 1800 ]] && { kill "$PULL_PID" 2>/dev/null; warn "Timeout pull Docker."; return; }
+        done
+        wait "$PULL_PID"
+        [[ $? -ne 0 ]] && { warn "docker pull échoué — Collabora ignoré."; return; }
+    fi
+    log "✓ Image Collabora présente"
+
+    # ── 3. coolwsd.xml ─────────────────────────────────────────────────────
+    mkdir -p /opt/collabora
+    local APP_WILDCARD
+    APP_WILDCARD=$(echo "https://${DOMAIN}" | sed 's|://|://*.|')
+
+    cat > /opt/collabora/coolwsd.xml << XML
+<coolwsd>
+  <net>
+    <content_security_policy>frame-ancestors https://${DOMAIN} ${APP_WILDCARD}</content_security_policy>
+  </net>
+  <ssl>
+    <enable>false</enable>
+    <termination>true</termination>
+    <as_scheme>true</as_scheme>
+  </ssl>
+  <logging>
+    <level>warning</level>
+  </logging>
+  <user_interface>
+    <mode>compact</mode>
+  </user_interface>
+  <storage>
+    <wopi allow="true">
+      <alias_groups mode="groups">
+        <group>
+          <host allow="true">https://${DOMAIN}</host>
+          <alias>${APP_WILDCARD}</alias>
+        </group>
+      </alias_groups>
+    </wopi>
+  </storage>
+</coolwsd>
+XML
+    log "✓ coolwsd.xml créé"
+
+    # ── 4. Conteneur Docker ────────────────────────────────────────────────
+    docker rm -f collabora >> "$LOG_FILE" 2>&1 || true
+
+    docker run -d         --name collabora         --restart always         -p 127.0.0.1:9980:9980         -v /opt/collabora/coolwsd.xml:/etc/coolwsd/coolwsd.xml:ro         --cap-add MKNOD         collabora/code >> "$LOG_FILE" 2>&1         || { warn "docker run échoué — Collabora ignoré."; return; }
+
+    # Attendre que Collabora soit prêt (max 60s)
+    update_progress 96 "Collabora : démarrage en cours..."
+    local READY=0
+    for i in $(seq 1 12); do
+        sleep 5
+        if curl -sk http://127.0.0.1:9980/hosting/discovery 2>/dev/null | grep -q "wopi-discovery"; then
+            READY=1; break
+        fi
+    done
+    [[ "$READY" -eq 0 ]] && { warn "Collabora ne répond pas — blocs Nginx ajoutés quand même."; }
+    log "✓ Conteneur Collabora démarré"
+
+    # ── 5. Blocs Nginx proxy ───────────────────────────────────────────────
+    local NGINX_CONF="/etc/nginx/sites-available/pladigit"
+    if grep -q "location ^~ /browser" "$NGINX_CONF" 2>/dev/null; then
+        log "Blocs Nginx Collabora déjà présents"
+    else
+        local TMPFILE
+        TMPFILE=$(mktemp)
+        local INSERTED=0
+        while IFS= read -r line; do
+            if [[ "$INSERTED" -eq 0 ]] && echo "$line" | grep -qF 'location ~ /\.(?!well-known)'; then
+                cat >> "$TMPFILE" << 'NGINX_BLOCKS'
+    # ── Collabora Online ─────────────────────────────────────────────────────
+    location ^~ /browser {
+        proxy_pass         http://127.0.0.1:9980;
+        proxy_set_header   Host              $http_host;
+        proxy_set_header   X-Forwarded-Proto https;
+        proxy_read_timeout 600s;
+    }
+
+    location ^~ /hosting/discovery {
+        proxy_pass       http://127.0.0.1:9980;
+        proxy_set_header Host              $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location ^~ /hosting/capabilities {
+        proxy_pass       http://127.0.0.1:9980;
+        proxy_set_header Host              $http_host;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location ^~ /cool {
+        proxy_pass             http://127.0.0.1:9980;
+        proxy_http_version     1.1;
+        proxy_set_header       Upgrade    $http_upgrade;
+        proxy_set_header       Connection "Upgrade";
+        proxy_set_header       Host       $http_host;
+        proxy_set_header       X-Forwarded-Proto https;
+        proxy_read_timeout     36000s;
+        proxy_send_timeout     36000s;
+        proxy_connect_timeout  36000s;
+    }
+
+NGINX_BLOCKS
+                INSERTED=1
+            fi
+            echo "$line" >> "$TMPFILE"
+        done < "$NGINX_CONF"
+
+        if [[ "$INSERTED" -eq 1 ]]; then
+            mv "$TMPFILE" "$NGINX_CONF"
+            nginx -t >> "$LOG_FILE" 2>&1                 && systemctl reload nginx >> "$LOG_FILE" 2>&1                 && log "✓ Blocs Nginx Collabora injectés et rechargés"                 || warn "Nginx invalide après injection — vérifiez $NGINX_CONF"
+        else
+            rm -f "$TMPFILE"
+            warn "Marqueur Nginx non trouvé — blocs Collabora non injectés."
+        fi
+    fi
+
+    # ── 6. .env ────────────────────────────────────────────────────────────
+    local ENV_FILE="${PLADIGIT_DIR}/.env"
+    if [[ -f "$ENV_FILE" ]]; then
+        grep -q "^COLLABORA_URL=" "$ENV_FILE"             && sed -i "s|^COLLABORA_URL=.*|COLLABORA_URL=https://${DOMAIN}|" "$ENV_FILE"             || echo "COLLABORA_URL=https://${DOMAIN}" >> "$ENV_FILE"
+        grep -q "^COLLABORA_INTERNAL_URL=" "$ENV_FILE"             && sed -i "s|^COLLABORA_INTERNAL_URL=.*|COLLABORA_INTERNAL_URL=http://127.0.0.1:9980|" "$ENV_FILE"             || echo "COLLABORA_INTERNAL_URL=http://127.0.0.1:9980" >> "$ENV_FILE"
+    fi
+    sudo -u www-data php "${PLADIGIT_DIR}/artisan" config:cache >> "$LOG_FILE" 2>&1 || true
+    sudo -u www-data php "${PLADIGIT_DIR}/artisan" cache:forget collabora.discovery_editor_path >> "$LOG_FILE" 2>&1 || true
+    log "✓ .env Collabora configuré"
+
+    # ── 7. Vérification finale ─────────────────────────────────────────────
+    local ERRORS=0
+    docker ps --filter "name=collabora" --filter "status=running" | grep -q collabora         && log "✓ Conteneur Collabora : actif"         || { log "✗ Conteneur Collabora : ARRÊTÉ"; ERRORS=$((ERRORS+1)); }
+
+    curl -sk http://127.0.0.1:9980/hosting/discovery 2>/dev/null | grep -q "wopi-discovery"         && log "✓ Collabora discovery (interne) : OK"         || { log "✗ Collabora discovery interne : ÉCHEC"; ERRORS=$((ERRORS+1)); }
+
+    curl -sk "https://${DOMAIN}/hosting/discovery" 2>/dev/null | grep -q "wopi-discovery"         && log "✓ Collabora discovery (public) : OK"         || { log "✗ Collabora discovery public : ÉCHEC — vérifiez Nginx"; ERRORS=$((ERRORS+1)); }
+
+    grep -q "location ^~ /browser" "$NGINX_CONF"         && log "✓ Blocs Nginx Collabora : présents"         || { log "✗ Blocs Nginx Collabora : ABSENTS"; ERRORS=$((ERRORS+1)); }
+
+    if [[ "$ERRORS" -eq 0 ]]; then
+        log "✅ Collabora Online installé et opérationnel"
+        step_done "Collabora Online"
+        update_progress 98 "Collabora Online ✅"
+    else
+        log "⚠ Collabora installé avec ${ERRORS} problème(s) — Pladigit fonctionne sans."
+    fi
+}
+
 # ── Écran de succès ───────────────────────────────────────────────────────────
 show_success() {
     local install_url
@@ -1161,6 +1327,19 @@ do_update() {
 
 # ── Point d'entrée ────────────────────────────────────────────────────────────
 main() {
+    # ── Mode --collabora-only (appelé depuis le wizard PHP) ───────────────
+    if [[ "${1:-}" == "--collabora-only" ]]; then
+        APP_URL="${2:-}"
+        PLADIGIT_DIR="${3:-/var/www/pladigit}"
+        # Extraire le domaine depuis l'URL
+        DOMAIN=$(echo "$APP_URL" | sed 's|https\?://||' | sed 's|/.*||')
+        LOG_FILE="/var/log/pladigit-install.log"
+        mkdir -p "$(dirname "$LOG_FILE")"
+        log "Mode --collabora-only : DOMAIN=${DOMAIN}, DIR=${PLADIGIT_DIR}"
+        install_collabora
+        exit $?
+    fi
+
     # Forcer stdin sur le terminal — indispensable via curl | bash
     exec < /dev/tty
 
@@ -1198,6 +1377,7 @@ main() {
         install_pladigit
         configure_nginx
         set +e; setup_ssl; set -e
+        set +e; install_collabora; set -e
         setup_cron
         setup_super_admin_ip
         update_progress 100 "Installation terminée !"
@@ -1215,6 +1395,7 @@ main() {
     install_pladigit
     configure_nginx
     set +e; setup_ssl; set -e
+    set +e; install_collabora; set -e
     setup_cron
     setup_super_admin_ip
     update_progress 100 "Installation terminée !"

@@ -520,14 +520,16 @@ try {
         ilog('Collabora : démarrage de l\'installation Docker...');
         ilog('Collabora : cette étape peut durer 10 à 20 minutes (téléchargement ~1.5 Go)');
 
-        \$collaboraScript = '{$root}/install/install-collabora.sh';
-        \$logFile = dirname('{$done}') . '/install.log';
+        // Appel à install.sh en mode --collabora-only
+        \$installScript = '/tmp/install.sh';
+        if (!file_exists(\$installScript)) {
+            \$installScript = '{$root}/install.sh';
+        }
 
-        if (!file_exists(\$collaboraScript) || !is_executable(\$collaboraScript)) {
-            ilog('✗ ERREUR : install-collabora.sh absent ou non exécutable.');
-            ilog('  → Collabora non installé. Activez-le manuellement depuis les paramètres.');
-        } else {
-            \$cmd = "sudo {$root}/install/install-collabora.sh {\$logFile} {$appUrl} {$root} 2>&1";
+        if (file_exists(\$installScript) && is_readable(\$installScript)) {
+            \$logFile = dirname('{$done}') . '/install.log';
+            \$cmd = "sudo bash {\$installScript} --collabora-only {$appUrl} {$root} >> {\$logFile} 2>&1";
+            \$exitCode = 0;
             \$handle = popen(\$cmd, 'r');
             if (\$handle) {
                 while (!feof(\$handle)) {
@@ -535,14 +537,14 @@ try {
                     usleep(500000);
                 }
                 \$exitCode = pclose(\$handle);
-                if (\$exitCode !== 0) {
-                    ilog('⚠ Collabora : installation incomplète (code ' . \$exitCode . ')');
-                    ilog('  → Pladigit fonctionnera sans Collabora. Activez-le depuis les paramètres.');
-                }
-            } else {
-                ilog('✗ Impossible de lancer install-collabora.sh (sudo non configuré ?)');
-                ilog('  → Collabora non installé. Activez-le depuis les paramètres.');
             }
+            if (\$exitCode !== 0) {
+                ilog('⚠ Collabora : installation incomplète (code ' . \$exitCode . ')');
+                ilog('  → Pladigit fonctionnera sans Collabora. Activez-le depuis les paramètres.');
+            }
+        } else {
+            ilog('⚠ install.sh non trouvé — Collabora ignoré.');
+            ilog('  → Activez-le manuellement depuis les paramètres Super Admin.');
         }
     } elseif (\$collaboraMode === 'external' && !empty('{$collaboraUrl}')) {
         \$env = file_get_contents('{$root}/.env');
@@ -1102,8 +1104,18 @@ function page_collabora(): void
     $enough = $freeGb >= 4;
     $tight = $freeGb >= 2 && $freeGb < 4;
     $cfg = load_config();
+    $profil = $cfg['install']['profil'] ?? '1';
     $savedMode = $cfg['collabora']['mode'] ?? ($_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip'));
     $savedUrl = $cfg['collabora']['url'] ?? ($_SESSION['collabora']['url'] ?? '');
+
+    // Profil 1 (commune) : Collabora local forcé, page simplifiée
+    if ($profil === '1') {
+        // Forcer mode local silencieusement et passer à la suite
+        $_SESSION['collabora'] = ['mode' => 'local', 'url' => ''];
+        save_config(['collabora' => ['mode' => 'local', 'url' => '']]);
+        redirect('admin');
+        return;
+    }
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F4DD; Collabora Online</div>
@@ -1179,6 +1191,35 @@ function page_admin(array $e): void
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F464; Compte Super Administrateur</div>
 <p class="card-sub">Ce compte permet d'administrer toute la plateforme Pladigit (création des organisations, gestion des accès et des plans).</p>
+
+<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.85rem">
+  <div style="font-weight:700;color:#1d4ed8;margin-bottom:.875rem">&#x1F4CB; Deux niveaux d'administration dans Pladigit</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+    <div style="background:#fff;border-radius:6px;padding:.875rem;border:1px solid #BFDBFE">
+      <div style="font-weight:700;color:#1E3A5F;margin-bottom:.4rem">&#x1F512; Super Administrateur</div>
+      <div style="font-size:.78rem;color:#374151;line-height:1.6">
+        <strong>Vous</strong> (ou votre prestataire informatique)<br>
+        • Crée les organisations (communes)<br>
+        • Gère les modules et les plans<br>
+        • Accès limité à vos IP uniquement<br>
+        • URL : <code>/super-admin</code>
+      </div>
+    </div>
+    <div style="background:#fff;border-radius:6px;padding:.875rem;border:1px solid #BFDBFE">
+      <div style="font-weight:700;color:#1E3A5F;margin-bottom:.4rem">&#x1F464; Administrateur de commune</div>
+      <div style="font-size:.78rem;color:#374151;line-height:1.6">
+        <strong>Le SGM ou DGS</strong> de la commune<br>
+        • Gère les utilisateurs de SA commune<br>
+        • Configure NAS, LDAP, emails...<br>
+        • N'accède qu'à sa propre commune<br>
+        • URL : <code>macommune.domaine.fr</code>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:.75rem;color:#6B7A8D;margin-top:.75rem">
+    &#x1F4A1; Le compte créé ici est le Super Administrateur. Vous créerez ensuite les organisations et leurs administrateurs depuis l'interface.
+  </div>
+</div>
 <?php errs($e) ?>
 <form method="POST"><input type="hidden" name="action" value="admin">
 <div class="fg"><label class="lbl">Nom complet</label><input type="text" name="admin_name" class="inp" placeholder="Marie Dupont" required></div>
