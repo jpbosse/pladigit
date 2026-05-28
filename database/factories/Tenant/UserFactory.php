@@ -18,7 +18,7 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => Str::uuid() . '@example.com',
+            'email' => Str::uuid().'@example.com',
             'password_hash' => Hash::make('password'),
             'role' => UserRole::USER->value,
             'status' => 'active',
