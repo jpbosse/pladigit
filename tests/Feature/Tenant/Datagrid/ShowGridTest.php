@@ -4,6 +4,7 @@ namespace Tests\Feature\Tenant\Datagrid;
 
 use App\Enums\DatagridColumnType;
 use App\Enums\ModuleKey;
+use App\Livewire\Tenant\Datagrid\ShowGrid;
 use App\Models\Tenant\DatagridColumn;
 use App\Models\Tenant\DatagridSavedView;
 use App\Models\Tenant\DatagridTable;
@@ -11,6 +12,7 @@ use App\Models\Tenant\User;
 use App\Services\TenantManager;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class ShowGridTest extends TestCase
@@ -115,17 +117,27 @@ class ShowGridTest extends TestCase
 
     public function test_tri_par_colonne(): void
     {
-        $response = $this->actingAs($this->admin, 'tenant')
-            ->get(route('datagrid.show', $this->table).'?sort=nom&direction=asc')
-            ->assertOk();
+        // Le tri est géré par le composant Livewire ShowGrid — on teste via Livewire::test()
+        // pour avoir le rendu réel avec orderBy appliqué, plutôt qu'un get() HTTP
+        // qui ne déclenche pas la query Livewire côté serveur.
+        $this->actingAs($this->admin, 'tenant');
 
-        $content = $response->getContent();
-        $posAlice = strpos($content, 'Alice');
-        $posBob = strpos($content, 'Bob');
-        $posCarla = strpos($content, 'Carla');
+        $component = Livewire::test(ShowGrid::class, [
+            'table' => $this->table,
+            'initialFilters' => [],
+            'initialSort' => ['column' => 'nom', 'direction' => 'asc'],
+        ]);
 
-        $this->assertLessThan($posBob, $posAlice);
-        $this->assertLessThan($posCarla, $posBob);
+        $html = $component->html();
+        $posAlice = strpos($html, 'Alice');
+        $posBob = strpos($html, 'Bob');
+        $posCarla = strpos($html, 'Carla');
+
+        $this->assertNotFalse($posAlice, 'Alice introuvable dans le rendu');
+        $this->assertNotFalse($posBob, 'Bob introuvable dans le rendu');
+        $this->assertNotFalse($posCarla, 'Carla introuvable dans le rendu');
+        $this->assertLessThan($posBob, $posAlice, 'Alice devrait apparaître avant Bob');
+        $this->assertLessThan($posCarla, $posBob, 'Bob devrait apparaître avant Carla');
     }
 
     // ── storeView() ───────────────────────────────────────────────────────────
