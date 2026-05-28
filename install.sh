@@ -294,11 +294,21 @@ ask_admin_ip() {
         || hostname -I | awk '{print $1}')
 
     # Récupérer l'IP du poste qui a lancé la connexion SSH
+    # SSH_CLIENT/SSH_CONNECTION peuvent être absents sous sudo — on cherche aussi via who/ss
     local ssh_client_ip=""
     if [[ -n "${SSH_CLIENT:-}" ]]; then
         ssh_client_ip=$(echo "$SSH_CLIENT" | awk '{print $1}')
     elif [[ -n "${SSH_CONNECTION:-}" ]]; then
         ssh_client_ip=$(echo "$SSH_CONNECTION" | awk '{print $1}')
+    else
+        # Fallback : dernière connexion SSH active via who ou ss
+        ssh_client_ip=$(who | grep -oE '\([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+\)' | head -1 | tr -d '()')
+        if [[ -z "$ssh_client_ip" ]]; then
+            ssh_client_ip=$(ss -tnp 2>/dev/null | grep ':22 ' | grep ESTAB | awk '{print $5}' | cut -d: -f1 | head -1)
+        fi
+        if [[ -z "$ssh_client_ip" ]]; then
+            ssh_client_ip=$(last -n1 -i "$USER" 2>/dev/null | awk 'NR==1{print $3}' | grep -E '^[0-9]+\.')
+        fi
     fi
 
     if [[ "$PROFIL" == "1" ]]; then
