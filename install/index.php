@@ -580,7 +580,9 @@ try {
         . '<div class="row"><span class="lbl">Utilisateur</span><span><code>' . '{$dbUsr}' . '</code></span></div>'
         . '</div>'
         . '<div class="box" style="background:#fffbeb;border:1px solid #fde68a;"><div class="bt" style="color:#92400e;">&#x26A0; S&#233;curit&#233; — Mots de passe</div><p style="font-size:.82rem;color:#78350f;line-height:1.5;">Plusieurs mots de passe ont &#233;t&#233; saisis durant l\'installation (MySQL, Super Admin, GPG...). <strong>Stockez-les imm&#233;diatement</strong> dans un gestionnaire de mots de passe : <strong>Bitwarden</strong>, KeePass, Vaultwarden ou similaire. Ne les notez jamais en clair par email ou SMS.</p></div>'
-        . '<a href="' . '{$appUrl}' . '/super-admin" class="btn">Acc&#233;der &#224; Pladigit &#x2192;</a>'
+        . '<a id="btn-acc" href="' . '{$appUrl}' . '/super-admin" class="btn" style="opacity:.4;pointer-events:none">&#x23F3; V&#233;rification en cours...</a>'
+        . '<p id="hs" style="text-align:center;font-size:.8rem;color:#6B7A8D;margin-top:.75rem">En attente de l&#39;application&hellip;</p>'
+        . '<script>(function(){var u="' . '{$appUrl}' . '",b=document.getElementById("btn-acc"),s=document.getElementById("hs"),t=0;function ok(){b.style.opacity="1";b.style.pointerEvents="auto";b.textContent="Acc\u00e9der \u00e0 Pladigit \u2192";s.style.color="#16A34A";s.textContent="\u2713 Application pr\u00eate";setTimeout(function(){location.href=u+"/super-admin"},5000);}function chk(){t++;fetch(u+"/health",{cache:"no-store"}).then(function(r){if(r.ok)ok();else retry();}).catch(retry);}function retry(){if(t>=30){ok();return;}s.textContent="Tentative "+t+"/30...";setTimeout(chk,3000);}setTimeout(chk,4000);})();<\/script>'
         . '</div></body></html>';
     file_put_contents('{$root}/public/install-success.html', \$successHtml);
     ilog('✓ Page de succes generee');
@@ -882,22 +884,30 @@ function page_welcome(): void
   <div class="card-title" style="font-size:1.5rem">Bienvenue dans Pladigit</div>
   <p class="card-sub" style="max-width:460px;margin:.5rem auto 0">Cet assistant configure votre plateforme en quelques minutes.<br><strong>Aucune connaissance technique requise.</strong></p>
 </div>
+<?php
+    $cfgWelcome = load_config();
+    $profilWelcome = $cfgWelcome['install']['profil'] ?? '';
+    $showCollabora = ($profilWelcome !== '1' && $profilWelcome !== '');
+    $welcomeSteps = [
+        ['&#x1F5C4;', 'Connecter la base de données MySQL'],
+        ['&#x1F310;', "Définir l'adresse de votre plateforme"],
+        ['&#x1F4E7;', "Configurer l'envoi d'emails (optionnel)"],
+        ['&#x1F464;', 'Créer votre compte administrateur'],
+        ['&#x1F680;', "Lancer l'installation automatique"],
+    ];
+    if ($showCollabora) {
+        array_splice($welcomeSteps, 3, 0, [['&#x1F4DD;', 'Choisir les options (Collabora Online)']]);
+    }
+    ?>
 <div style="background:var(--light);border-radius:8px;padding:1.25rem;margin-bottom:1.5rem">
   <div style="font-weight:700;color:var(--navy);margin-bottom:.75rem">Ce que nous allons faire :</div>
-  <?php foreach ([
-      ['&#x1F5C4;', 'Connecter la base de données MySQL'],
-      ['&#x1F310;', "Définir l'adresse de votre plateforme"],
-      ['&#x1F4E7;', "Configurer l'envoi d'emails (optionnel)"],
-      ['&#x1F4DD;', 'Choisir les options (Collabora Online)'],
-      ['&#x1F464;', 'Créer votre compte administrateur'],
-      ['&#x1F680;', "Lancer l'installation automatique"],
-  ] as [$icon, $label]) { ?>
+  <?php foreach ($welcomeSteps as [$icon, $label]) { ?>
   <div style="display:flex;align-items:center;gap:.6rem;padding:.35rem 0;font-size:.875rem">
     <span><?= $icon ?></span><span><?= htmlspecialchars($label) ?></span>
   </div>
   <?php } ?>
 </div>
-<div class="alert ai"><strong>Durée estimée :</strong> 5 à 10 minutes (30 minutes si Collabora Online est installé).</div>
+<div class="alert ai"><strong>Durée estimée :</strong> <?= $showCollabora ? '5 à 10 minutes (30 minutes si Collabora Online est installé)' : '5 à 10 minutes' ?>.</div>
 <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.875rem;color:#78350f;">
   <div style="font-weight:700;margin-bottom:.5rem;">&#x1F511; Conseil sécurité — Gestionnaire de mots de passe</div>
   <p>Plusieurs mots de passe vous seront demandés durant cette installation (base de données, compte administrateur, chiffrement des sauvegardes...).</p>
@@ -1659,8 +1669,71 @@ function page_success(): void
 <?php } ?>
 
 <div class="btns" style="justify-content:center;margin-top:2rem">
-  <a href="<?= htmlspecialchars($url) ?>/super-admin" class="btn btn-p" target="_blank">Accéder à Pladigit &#x2192;</a>
+  <a id="btn-access" href="<?= htmlspecialchars($url) ?>/super-admin"
+     class="btn btn-p"
+     target="_blank"
+     style="opacity:.4;pointer-events:none;cursor:not-allowed"
+     aria-disabled="true">
+    <span id="btn-access-label">&#x23F3; Vérification de l'application...</span>
+  </a>
 </div>
+<p id="health-status" style="text-align:center;font-size:.8rem;color:var(--grey);margin-top:.75rem">
+  En attente que l'application réponde&hellip;
+</p>
 </div></div>
-<script>setTimeout(function(){window.location.href='<?= htmlspecialchars($url) ?>/super-admin';}, 60000);</script>
+<script>
+(function() {
+    var appUrl  = '<?= htmlspecialchars($url, ENT_QUOTES) ?>';
+    var btn     = document.getElementById('btn-access');
+    var status  = document.getElementById('health-status');
+    var label   = document.getElementById('btn-access-label');
+    var tries   = 0;
+    var maxTries = 30; // 30 × 3s = 90s max
+
+    function enableBtn() {
+        btn.style.opacity = '1';
+        btn.style.pointerEvents = 'auto';
+        btn.style.cursor = 'pointer';
+        btn.removeAttribute('aria-disabled');
+        label.textContent = 'Accéder à Pladigit →';
+        status.style.color = '#16A34A';
+        status.textContent = '✓ Application prête — vous pouvez vous connecter.';
+        // Redirection automatique 5s après confirmation
+        setTimeout(function() { window.location.href = appUrl + '/super-admin'; }, 5000);
+    }
+
+    function checkHealth() {
+        tries++;
+        fetch(appUrl + '/up', { method: 'GET', cache: 'no-store', mode: 'no-cors' })
+            .then(function() {
+                // no-cors : on ne peut pas lire le statut, mais l'absence d'erreur réseau
+                // signifie que le serveur répond. On vérifie en cors-safe avec /health.
+                return fetch(appUrl + '/health', { cache: 'no-store' });
+            })
+            .then(function(r) {
+                if (r.ok || r.status === 200) {
+                    enableBtn();
+                } else {
+                    retry();
+                }
+            })
+            .catch(function() { retry(); });
+    }
+
+    function retry() {
+        if (tries >= maxTries) {
+            status.style.color = '#D97706';
+            status.textContent = '⚠ L'application met du temps à démarrer. Le bouton est activé — vérifiez que Nginx et PHP-FPM sont actifs.';
+            // Activer quand même après timeout
+            enableBtn();
+            return;
+        }
+        status.textContent = 'Vérification ' + tries + '/' + maxTries + ' — nouvelle tentative dans 3 s…';
+        setTimeout(checkHealth, 3000);
+    }
+
+    // Premier essai après 4s (laisser le temps au cache artisan de se générer)
+    setTimeout(checkHealth, 4000);
+})();
+</script>
 <?php }

@@ -1242,7 +1242,13 @@ NGINX_BLOCKS
 
     curl -sk http://127.0.0.1:9980/hosting/discovery 2>/dev/null | grep -q "wopi-discovery"         && log "✓ Collabora discovery (interne) : OK"         || { log "✗ Collabora discovery interne : ÉCHEC"; ERRORS=$((ERRORS+1)); }
 
-    curl -sk "https://${DOMAIN}/hosting/discovery" 2>/dev/null | grep -q "wopi-discovery"         && log "✓ Collabora discovery (public) : OK"         || { log "✗ Collabora discovery public : ÉCHEC — vérifiez Nginx"; ERRORS=$((ERRORS+1)); }
+    # Discovery public : non bloquant (SSL peut ne pas être actif au moment de l'install)
+    if curl -sk "https://${DOMAIN}/hosting/discovery" 2>/dev/null | grep -q "wopi-discovery"; then
+        log "✓ Collabora discovery (public) : OK"
+    else
+        log "⚠ Collabora discovery public : non joignable — normal si SSL pas encore actif."
+        log "  → Vérifiez après activation SSL : curl -sk https://${DOMAIN}/hosting/discovery | grep wopi-discovery"
+    fi
 
     grep -q "location ^~ /browser" "$NGINX_CONF"         && log "✓ Blocs Nginx Collabora : présents"         || { log "✗ Blocs Nginx Collabora : ABSENTS"; ERRORS=$((ERRORS+1)); }
 

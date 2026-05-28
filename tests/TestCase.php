@@ -4,6 +4,7 @@ namespace Tests;
 
 use App\Models\Platform\Organization;
 use App\Services\TenantManager;
+use Faker\Factory;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Support\Facades\DB;
 
@@ -109,6 +110,14 @@ abstract class TestCase extends BaseTestCase
                 // Connexion perdue (ex: artisan command a appelé connectTo()) — on ignore.
             }
         }
+
+        // Réinitialiser le compteur unique() de Faker entre chaque test
+        // pour éviter les collisions d'email (UniqueConstraintViolationException)
+        // lorsque plusieurs tests créent des User::factory() dans le même run.
+        if (isset($this->faker)) {
+            $this->faker->unique(true);
+        }
+        Factory::create()->unique(true);
 
         parent::tearDown();
     }
