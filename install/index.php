@@ -467,7 +467,10 @@ try {
     ilog('✓ Base de données créée');
 
     ilog("Création de l'utilisateur MySQL {$appUser}...");
+    // CREATE USER IF NOT EXISTS puis ALTER USER pour forcer le bon mot de passe
+    // même si l'utilisateur existait déjà d'une installation précédente
     \$pdo->exec("CREATE USER IF NOT EXISTS '{$appUser}'@'localhost' IDENTIFIED BY '{$appPwd}'");
+    \$pdo->exec("ALTER USER '{$appUser}'@'localhost' IDENTIFIED BY '{$appPwd}'");
     \$pdo->exec("GRANT ALL PRIVILEGES ON *.* TO '{$appUser}'@'localhost' WITH GRANT OPTION");
     \$pdo->exec("FLUSH PRIVILEGES");
     ilog('✓ Utilisateur MySQL créé');
