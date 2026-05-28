@@ -210,7 +210,9 @@ Vous n'aurez pas besoin de connaissances techniques particulières.
 
 👉 Deux informations vous seront demandées :
    • Votre nom de domaine (ex: pladigit.macommune.fr)
-   • Une adresse email (pour le certificat de sécurité HTTPS)" 18 70
+   • Une adresse email (pour le certificat de sécurité HTTPS)
+
+Votre adresse IP sera détectée automatiquement." 18 70
             ;;
         2)
             wt_msg "Profil — Maison des communes" "\
@@ -291,21 +293,79 @@ ask_admin_ip() {
     server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null \
         || hostname -I | awk '{print $1}')
 
-    local msg_ip
-    case "$PROFIL" in
-        1) msg_ip="Pour protéger l'accès à l'administration de Pladigit,\nentrez l'adresse IP de votre ordinateur.\n\n⚠ Attention : l'IP ci-dessous est celle du SERVEUR, pas la vôtre !\n\n👉 Pour connaître votre IP, ouvrez dans un navigateur :\n   https://www.mon-ip.com\n   https://ifconfig.me\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
-        2) msg_ip="Entrez la ou les adresses IP autorisées à accéder\nau Super Admin (interface de gestion des communes).\n\n👉 Pour connaître votre IP, ouvrez dans un navigateur :\n   https://www.mon-ip.com\n   https://ifconfig.me\n\nVous pouvez saisir plusieurs IP séparées par des virgules :\n  88.123.45.67,192.168.1.10\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
-        3) msg_ip="Entrez l'adresse IP du ou des techniciens autorisés\nà accéder au Super Admin.\n\n👉 Pour connaître votre IP, ouvrez dans un navigateur :\n   https://www.mon-ip.com\n   https://ifconfig.me\n\nSéparez plusieurs IP par des virgules :\n  88.123.45.67,88.123.45.68\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
-    esac
+    # Récupérer l'IP du poste qui a lancé la connexion SSH
+    local ssh_client_ip=""
+    if [[ -n "${SSH_CLIENT:-}" ]]; then
+        ssh_client_ip=$(echo "$SSH_CLIENT" | awk '{print $1}')
+    elif [[ -n "${SSH_CONNECTION:-}" ]]; then
+        ssh_client_ip=$(echo "$SSH_CONNECTION" | awk '{print $1}')
+    fi
 
-    while [[ -z "$ADMIN_IPS" ]]; do
-        ADMIN_IPS=$(dialog --title "Pladigit — IP Super Admin" \
-            --inputbox "${msg_ip}" 18 70 "" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
-        ADMIN_IPS="${ADMIN_IPS// /}"
-        if [[ -z "$ADMIN_IPS" ]]; then
-            wt_msg "Champ obligatoire" "⚠ L'adresse IP est obligatoire.\n\nSans restriction d'IP, n'importe qui pourrait tenter\nd'accéder à l'administration de votre plateforme." 10 60
+    if [[ "$PROFIL" == "1" ]]; then
+        # Profil commune : on connaît déjà l'IP — confirmation simple
+        if [[ -n "$ssh_client_ip" ]]; then
+            dialog --title "Pladigit — Accès administrateur" \
+                --yesno "\
+Votre adresse IP a été détectée automatiquement :
+
+  👤 IP de votre ordinateur : ${ssh_client_ip}
+
+Seul votre ordinateur pourra accéder à l'interface
+d'administration de Pladigit.
+
+Si vous changez de réseau (ex: connexion depuis chez vous
+puis depuis la mairie), il faudra mettre à jour cette IP
+depuis l'interface Super Admin.
+
+✅ Confirmer cette adresse IP ?" \
+                16 70 >/dev/tty 2>&1
+            local ret=$?
+            clear
+            if [[ $ret -eq 0 ]]; then
+                ADMIN_IPS="$ssh_client_ip"
+            else
+                # Refus — saisie manuelle
+                ADMIN_IPS=""
+            fi
         fi
-    done
+
+        # Si pas de SSH_CLIENT ou refus de confirmation → saisie manuelle
+        if [[ -z "$ADMIN_IPS" ]]; then
+            while [[ -z "$ADMIN_IPS" ]]; do
+                ADMIN_IPS=$(dialog --title "Pladigit — IP de votre ordinateur" \
+                    --inputbox "\
+Entrez l'adresse IP de votre ordinateur.
+
+👉 Pour la connaître, ouvrez dans un navigateur :
+   https://www.mon-ip.com
+
+Exemple : 88.123.45.67
+
+IP de ce serveur (pour référence) : ${server_ip}" \
+                    16 70 "${ssh_client_ip}" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
+                ADMIN_IPS="${ADMIN_IPS// /}"
+                if [[ -z "$ADMIN_IPS" ]]; then
+                    wt_msg "Champ obligatoire" "⚠ L'adresse IP est obligatoire.\n\nSans restriction d'IP, n'importe qui pourrait tenter\nd'accéder à l'administration de votre plateforme." 10 60
+                fi
+            done
+        fi
+    else
+        # Profils 2 et 3 : saisie manuelle avec pré-remplissage SSH si disponible
+        local msg_ip
+        case "$PROFIL" in
+            2) msg_ip="Entrez la ou les adresses IP autorisées à accéder\nau Super Admin (interface de gestion des communes).\n\n👉 Pour connaître votre IP : https://www.mon-ip.com\n\nVous pouvez saisir plusieurs IP séparées par des virgules :\n  88.123.45.67,192.168.1.10\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+            3) msg_ip="Entrez l'adresse IP du ou des techniciens autorisés\nà accéder au Super Admin.\n\n👉 Pour connaître votre IP : https://www.mon-ip.com\n\nSéparez plusieurs IP par des virgules :\n  88.123.45.67,88.123.45.68\n\nIP de ce serveur (pour référence) : ${server_ip}" ;;
+        esac
+
+        while [[ -z "$ADMIN_IPS" ]]; do
+            ADMIN_IPS=$(dialog --title "Pladigit — IP Super Admin" \
+                --inputbox "${msg_ip}" 18 70 "${ssh_client_ip}" 3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
+            ADMIN_IPS="${ADMIN_IPS// /}"
+            if [[ -z "$ADMIN_IPS" ]]; then
+                wt_msg "Champ obligatoire" "⚠ L'adresse IP est obligatoire.\n\nSans restriction d'IP, n'importe qui pourrait tenter\nd'accéder à l'administration de votre plateforme." 10 60
+            fi
+        done
+    fi
 
     log "IP Super Admin : ${ADMIN_IPS}"
 }
@@ -350,6 +410,7 @@ write_wizard_config() {
         "domain": "${DOMAIN}",
         "email": "${SSL_EMAIL}",
         "profil": "${PROFIL}",
+        "admin_ips": "${ADMIN_IPS}",
         "version": "${INSTALL_VERSION}",
         "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     }
@@ -1297,6 +1358,19 @@ show_success() {
         --msgbox "${msg_success}" 26 70 2>/dev/tty
 
     log "Installation terminée — ${install_url} (ssl: ${ssl_mode})"
+
+    # Afficher l'URL en clair dans le terminal pour copier-coller facile
+    echo ""
+    echo "╔══════════════════════════════════════════════════════════════════════╗"
+    echo "║                   ✅  INSTALLATION TERMINÉE                         ║"
+    echo "╠══════════════════════════════════════════════════════════════════════╣"
+    echo "║                                                                      ║"
+    printf "║  👉  Ouvrez cette adresse dans votre navigateur :                    ║\n"
+    printf "║                                                                      ║\n"
+    printf "║      %-66s║\n" "${install_url}"
+    echo "║                                                                      ║"
+    echo "╚══════════════════════════════════════════════════════════════════════╝"
+    echo ""
 
     if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
         xdg-open "${install_url}" 2>/dev/null &

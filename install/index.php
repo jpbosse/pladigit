@@ -479,15 +479,13 @@ try {
     }
     ilog('✓ Configuration présente');
 
-    // 3. Migrations
-    ilog('Création des tables (migrations)...');
-    \$out = shell_exec('cd {$root} && php artisan migrate --force 2>&1');
-    ilog(\$out ?? '');
-    ilog('✓ Tables créées');
-
-    ilog('Migrations plateforme...');
+    // 3. Migrations platform (organizations, platform_settings, etc.)
+    ilog('Création des tables plateforme...');
     \$out = shell_exec('cd {$root} && php artisan migrate --path=database/migrations/platform --force 2>&1');
     ilog(\$out ?? '');
+    if (empty(\$out) || str_contains((string)\$out, 'ERROR') || str_contains((string)\$out, 'SQLSTATE')) {
+        fail('Migrations platform échouées : ' . (\$out ?? 'aucune sortie'));
+    }
     ilog('✓ Tables plateforme créées');
 
     // 4. Optimisation
@@ -582,7 +580,11 @@ try {
         . '<div class="box" style="background:#fffbeb;border:1px solid #fde68a;"><div class="bt" style="color:#92400e;">&#x26A0; S&#233;curit&#233; — Mots de passe</div><p style="font-size:.82rem;color:#78350f;line-height:1.5;">Plusieurs mots de passe ont &#233;t&#233; saisis durant l\'installation (MySQL, Super Admin, GPG...). <strong>Stockez-les imm&#233;diatement</strong> dans un gestionnaire de mots de passe : <strong>Bitwarden</strong>, KeePass, Vaultwarden ou similaire. Ne les notez jamais en clair par email ou SMS.</p></div>'
         . '<a id="btn-acc" href="' . '{$appUrl}' . '/super-admin" class="btn" style="opacity:.4;pointer-events:none">&#x23F3; V&#233;rification en cours...</a>'
         . '<p id="hs" style="text-align:center;font-size:.8rem;color:#6B7A8D;margin-top:.75rem">En attente de l&#39;application&hellip;</p>'
-        . '<script>(function(){var u="' . '{$appUrl}' . '",b=document.getElementById("btn-acc"),s=document.getElementById("hs"),t=0;function ok(){b.style.opacity="1";b.style.pointerEvents="auto";b.textContent="Acc\u00e9der \u00e0 Pladigit \u2192";s.style.color="#16A34A";s.textContent="\u2713 Application pr\u00eate";setTimeout(function(){location.href=u+"/super-admin"},5000);}function chk(){t++;fetch(u+"/health",{cache:"no-store"}).then(function(r){if(r.ok)ok();else retry();}).catch(retry);}function retry(){if(t>=30){ok();return;}s.textContent="Tentative "+t+"/30...";setTimeout(chk,3000);}setTimeout(chk,4000);})();<\/script>'
+        . '<div style="text-align:center;margin-top:1rem;padding:.75rem;background:#F4F6F9;border-radius:6px">'
+        . '<div style="font-size:.72rem;color:#6B7A8D;margin-bottom:.35rem">Ou copiez-collez ce lien dans votre navigateur :</div>'
+        . '<code style="font-size:.85rem;color:#1E3A5F;word-break:break-all;user-select:all">' . '{$appUrl}' . '/super-admin</code>'
+        . '</div>'
+        . '<script>(function(){var u="' . '{$appUrl}' . '",b=document.getElementById("btn-acc"),s=document.getElementById("hs"),t=0;function ok(){b.style.opacity="1";b.style.pointerEvents="auto";b.textContent="Acc\u00e9der \u00e0 Pladigit \u2192";s.style.color="#16A34A";s.textContent="\u2713 Application pr\u00eate";setTimeout(function(){location.href=u+"/super-admin"},3000);}function chk(){t++;fetch(u+"/health/ping",{cache:"no-store"}).then(function(r){if(r.ok)ok();else retry();}).catch(retry);}function retry(){if(t>=40){ok();return;}s.textContent="D\u00e9marrage en cours... ("+t+"/40)";setTimeout(chk,3000);}setTimeout(chk,2000);})();<\/script>'
         . '</div></body></html>';
     file_put_contents('{$root}/public/install-success.html', \$successHtml);
     ilog('✓ Page de succes generee');
@@ -1638,12 +1640,27 @@ function page_success(): void
 
 <div class="alert as">Installation réussie ! Le dossier d'installation sera supprimé dans 60 secondes.</div>
 
+<?php
+    $adminIp = $cfg['install']['admin_ips'] ?? '';
+    ?>
 <div class="cred-box">
   <div style="font-size:.8rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">Accès à la plateforme</div>
   <div class="cred-row"><span class="cred-label">URL</span><a href="<?= htmlspecialchars($url) ?>" target="_blank"><?= htmlspecialchars($url) ?></a></div>
   <div class="cred-row"><span class="cred-label">Super Admin</span><code><?= htmlspecialchars($admin['email'] ?? '') ?></code></div>
   <div class="cred-row"><span class="cred-label">Mot de passe</span><em>Celui que vous avez défini</em></div>
 </div>
+
+<?php if ($adminIp) { ?>
+<div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem;font-size:.85rem">
+  <div style="font-size:.8rem;font-weight:700;color:#1E40AF;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem">&#x1F512; IP autorisée pour l'administration</div>
+  <div style="font-family:monospace;font-size:.95rem;font-weight:700;color:#1E3A5F;margin-bottom:.5rem"><?= htmlspecialchars($adminIp) ?></div>
+  <div style="font-size:.78rem;color:#3B82F6;line-height:1.6">
+    Seul l'ordinateur avec cette adresse IP peut accéder au Super Admin.<br>
+    Si vous changez de réseau, modifiez-la depuis :<br>
+    <strong><?= htmlspecialchars($url) ?>/super-admin → Sécurité → IP autorisées</strong>
+  </div>
+</div>
+<?php } ?>
 
 <div class="cred-box">
   <div style="font-size:.8rem;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem">Base de données</div>
@@ -1680,6 +1697,10 @@ function page_success(): void
 <p id="health-status" style="text-align:center;font-size:.8rem;color:var(--grey);margin-top:.75rem">
   En attente que l'application réponde&hellip;
 </p>
+<div style="text-align:center;margin-top:1rem;padding:.75rem;background:var(--light);border-radius:6px">
+  <div style="font-size:.72rem;color:var(--grey);margin-bottom:.35rem">Ou copiez-collez ce lien dans votre navigateur :</div>
+  <code style="font-size:.85rem;color:var(--navy);word-break:break-all;user-select:all"><?= htmlspecialchars($url) ?>/super-admin</code>
+</div>
 </div></div>
 <script>
 (function() {
@@ -1704,14 +1725,9 @@ function page_success(): void
 
     function checkHealth() {
         tries++;
-        fetch(appUrl + '/up', { method: 'GET', cache: 'no-store', mode: 'no-cors' })
-            .then(function() {
-                // no-cors : on ne peut pas lire le statut, mais l'absence d'erreur réseau
-                // signifie que le serveur répond. On vérifie en cors-safe avec /health.
-                return fetch(appUrl + '/health', { cache: 'no-store' });
-            })
+        fetch(appUrl + '/health/ping', { cache: 'no-store' })
             .then(function(r) {
-                if (r.ok || r.status === 200) {
+                if (r.ok) {
                     enableBtn();
                 } else {
                     retry();
@@ -1724,16 +1740,15 @@ function page_success(): void
         if (tries >= maxTries) {
             status.style.color = '#D97706';
             status.textContent = '⚠ L'application met du temps à démarrer. Le bouton est activé — vérifiez que Nginx et PHP-FPM sont actifs.';
-            // Activer quand même après timeout
             enableBtn();
             return;
         }
-        status.textContent = 'Vérification ' + tries + '/' + maxTries + ' — nouvelle tentative dans 3 s…';
+        status.textContent = 'Démarrage en cours... (' + tries + '/' + maxTries + ')';
         setTimeout(checkHealth, 3000);
     }
 
-    // Premier essai après 4s (laisser le temps au cache artisan de se générer)
-    setTimeout(checkHealth, 4000);
+    // Premier essai après 2s
+    setTimeout(checkHealth, 2000);
 })();
 </script>
 <?php }
