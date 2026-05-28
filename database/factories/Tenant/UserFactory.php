@@ -7,6 +7,7 @@ use App\Models\Tenant\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
 
 class UserFactory extends Factory
@@ -17,7 +18,7 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
+            'email' => Str::uuid() . '@example.com',
             'password_hash' => Hash::make('password'),
             'role' => UserRole::USER->value,
             'status' => 'active',
