@@ -878,7 +878,19 @@ NGINX
 
     ln -sf /etc/nginx/sites-available/pladigit /etc/nginx/sites-enabled/pladigit
     rm -f /etc/nginx/sites-enabled/default
-    nginx -t >> "$LOG_FILE" 2>&1 || die "Configuration Nginx invalide."
+    # Test et correction automatique si http2 on incompatible (Nginx < 1.25.1)
+    if ! nginx -t >> "$LOG_FILE" 2>&1; then
+        if nginx -t 2>&1 | grep -q "http2"; then
+            log "Nginx < 1.25.1 détecté — correction directive http2"
+            sed -i 's/    http2 on;//g' /etc/nginx/sites-available/pladigit
+            sed -i 's/listen 443 ssl http2;/listen 443 ssl;/g' /etc/nginx/sites-available/pladigit
+            sed -i 's/listen \[::\]:443 ssl http2;/listen [::]:443 ssl;/g' /etc/nginx/sites-available/pladigit
+            # Utiliser la syntaxe http2 sur le listen pour les versions intermédiaires
+            nginx -t >> "$LOG_FILE" 2>&1 || die "Configuration Nginx invalide même après correction http2."
+        else
+            die "Configuration Nginx invalide."
+        fi
+    fi
     systemctl restart nginx >> "$LOG_FILE" 2>&1 || die "Impossible de redémarrer Nginx."
     systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1
     log "Nginx configuré"
@@ -922,9 +934,8 @@ server {
     return 301 https://\$host\$request_uri;
 }
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name ${nginx_server_name};
     ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
@@ -1054,9 +1065,8 @@ server {
     return 301 https://\$host\$request_uri;
 }
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name ${nginx_server_name};
     ssl_certificate     ${cert_path};
     ssl_certificate_key ${key_path};
@@ -1093,6 +1103,13 @@ server {
 }
 NGINX_SELFSIGNED
 
+    # Correction automatique http2 si nécessaire
+    if ! nginx -t >> "$LOG_FILE" 2>&1; then
+        sed -i 's/    http2 on;//g' /etc/nginx/sites-available/pladigit
+        sed -i 's/listen 443 ssl http2;/listen 443 ssl;/g' /etc/nginx/sites-available/pladigit
+        sed -i 's/listen \[::\]:443 ssl http2;/listen [::]:443 ssl;/g' /etc/nginx/sites-available/pladigit
+        log "http2 corrigé pour compatibilité Nginx"
+    fi
     nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
         && log "Nginx configuré avec certificat auto-signé"
 
@@ -1367,6 +1384,9 @@ show_success() {
     dialog --title "✅ Installation terminée !" \
         --msgbox "${msg_success}" 26 70 2>/dev/tty
 
+    # Nettoyer l'écran après fermeture de la boîte dialog
+    clear
+
     log "Installation terminée — ${install_url} (ssl: ${ssl_mode})"
 
     # Afficher l'URL en clair dans le terminal pour copier-coller facile
@@ -1386,6 +1406,93 @@ show_success() {
         xdg-open "${install_url}" 2>/dev/null &
     fi
 }
+
+# ── Vérification finale de l'installation ─────────────────────────────────────
+check_install_ok() {
+    local errors=0
+    local warnings=""
+    local app_url
+
+    # Déterminer l'URL de base
+    if [[ -n "$DOMAIN" ]]; then
+        if ls /etc/letsencrypt/live/"${DOMAIN}"/fullchain.pem > /dev/null 2>&1 \
+            || ls /etc/ssl/certs/pladigit-selfsigned.crt > /dev/null 2>&1; then
+            app_url="https://${DOMAIN}"
+        else
+            app_url="http://${DOMAIN}"
+        fi
+    else
+        app_url="http://$(hostname -I | awk '{print $1}')"
+    fi
+
+    # 1. Nginx actif
+    if systemctl is-active --quiet nginx 2>/dev/null; then
+        log "✓ Nginx : actif"
+    else
+        log "✗ Nginx : ARRÊTÉ"
+        warnings+="\n• Nginx n'est pas démarré"
+        errors=$((errors+1))
+    fi
+
+    # 2. Nginx écoute sur le bon port (443 si SSL, sinon 80)
+    if echo "$app_url" | grep -q "^https"; then
+        if ss -tlnp 2>/dev/null | grep -q ':443 '; then
+            log "✓ Nginx port 443 : ouvert"
+        else
+            log "✗ Nginx port 443 : FERMÉ — vérifier la config SSL"
+            warnings+="\n• Nginx n'écoute pas sur le port 443"
+            errors=$((errors+1))
+        fi
+    else
+        if ss -tlnp 2>/dev/null | grep -q ':80 '; then
+            log "✓ Nginx port 80 : ouvert"
+        else
+            log "✗ Nginx port 80 : FERMÉ"
+            warnings+="\n• Nginx n'écoute pas sur le port 80"
+            errors=$((errors+1))
+        fi
+    fi
+
+    # 3. PHP-FPM actif
+    if systemctl is-active --quiet "php${PHP_VERSION}-fpm" 2>/dev/null; then
+        log "✓ PHP-FPM ${PHP_VERSION} : actif"
+    else
+        log "✗ PHP-FPM ${PHP_VERSION} : ARRÊTÉ"
+        warnings+="\n• PHP-FPM n'est pas démarré"
+        errors=$((errors+1))
+    fi
+
+    # 4. Laravel répond sur /health/ping (max 10s)
+    local http_code
+    http_code=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 10 "${app_url}/health/ping" 2>/dev/null || echo "000")
+    if [[ "$http_code" == "200" ]]; then
+        log "✓ Application Laravel : répond (HTTP 200)"
+    else
+        log "✗ Application Laravel : ne répond pas (HTTP ${http_code})"
+        warnings+="\n• L'application ne répond pas encore (HTTP ${http_code})"
+        # Non bloquant — le runner peut encore tourner en arrière-plan
+    fi
+
+    # 5. Nginx -t (config valide)
+    if nginx -t >> "$LOG_FILE" 2>&1; then
+        log "✓ Configuration Nginx : valide"
+    else
+        log "✗ Configuration Nginx : INVALIDE"
+        warnings+="\n• La configuration Nginx contient des erreurs (voir le log)"
+        errors=$((errors+1))
+    fi
+
+    # Bilan
+    if [[ $errors -gt 0 ]]; then
+        log "⚠ Installation terminée avec ${errors} problème(s) — voir ${LOG_FILE}"
+        dialog --title "⚠ Points à vérifier" \
+            --msgbox "L'installation s'est terminée mais ${errors} problème(s) ont été détectés :\n${warnings}\n\nConsultez le journal : ${LOG_FILE}\n\nVous pouvez contacter le support avec ce fichier." \
+            16 70 2>/dev/tty
+    else
+        log "✓ Vérification finale : tout est OK"
+    fi
+}
+
 
 # ── Mise à jour ───────────────────────────────────────────────────────────────
 do_update() {
@@ -1472,6 +1579,7 @@ main() {
         setup_super_admin_ip
         update_progress 100 "Installation terminée !"
         stop_progress
+        check_install_ok
         show_success
         return
     fi
@@ -1490,6 +1598,7 @@ main() {
     setup_super_admin_ip
     update_progress 100 "Installation terminée !"
     stop_progress
+    check_install_ok
     show_success
     rm -f "$DIALOGRC" 2>/dev/null || true
 }
