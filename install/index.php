@@ -406,7 +406,9 @@ function write_runner(): void
     $appKey = 'base64:'.base64_encode(random_bytes(32));
     $passwordHash = password_hash($admin['password'], PASSWORD_BCRYPT);
 
-    $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash, $appVersion);
+    $sslMode = $cfg['install']['ssl_mode'] ?? 'none';
+    $officeExtra = office_extra_env($collabora, $app['domain'] ?? '');
+    $envContent = build_env($db, $app, $smtp, $admin, $appKey, $passwordHash, $appVersion, $sslMode, $officeExtra);
 
     // Écriture directe du .env depuis le wizard (fiable, pas d'échappement)
     file_put_contents(PLADIGIT_ROOT.'/.env', $envContent);
@@ -453,6 +455,32 @@ function fail(string \$msg): void {
 \$logFile = dirname('{$done}') . '/install.log';
 
 try {
+    // 0. Preflight — vérifier l'environnement AVANT toute écriture
+    ilog('Vérification de l\'environnement (preflight)...');
+    \$missingExt = [];
+    foreach (['pdo_mysql', 'redis', 'mbstring', 'openssl', 'json', 'curl'] as \$ext) {
+        if (!extension_loaded(\$ext)) {
+            \$missingExt[] = \$ext;
+        }
+    }
+    if (\$missingExt) {
+        fail('Extensions PHP manquantes : ' . implode(', ', \$missingExt));
+    }
+    try {
+        \$r = new Redis();
+        \$r->connect('127.0.0.1', 6379, 2.0);
+        \$r->ping();
+        \$r->close();
+    } catch (\Throwable \$e) {
+        fail('Redis injoignable sur 127.0.0.1:6379 — ' . \$e->getMessage());
+    }
+    foreach (['{$root}/storage', '{$root}/bootstrap/cache', '{$root}'] as \$dir) {
+        if (!is_writable(\$dir)) {
+            fail('Répertoire non accessible en écriture : ' . \$dir);
+        }
+    }
+    ilog('✓ Preflight OK');
+
     // 1. Créer la base et l'utilisateur MySQL
     ilog('Connexion à MySQL...');
     \$pdo = new PDO(
@@ -481,6 +509,12 @@ try {
         fail('.env absent ou vide.');
     }
     ilog('✓ Configuration présente');
+
+    // 2b. Vider le cache de configuration pour forcer la lecture du nouveau .env
+    // (un cache résiduel d'une installation précédente masquerait DB_PASSWORD)
+    shell_exec('cd {$root} && php artisan config:clear 2>&1');
+    shell_exec('cd {$root} && php artisan cache:clear 2>&1');
+    ilog('✓ Cache vidé');
 
     // 3. Migrations platform (organizations, platform_settings, etc.)
     ilog('Création des tables plateforme...');
@@ -547,16 +581,6 @@ try {
             ilog('⚠ install.sh non trouvé — Collabora ignoré.');
             ilog('  → Activez-le manuellement depuis les paramètres Super Admin.');
         }
-    } elseif (\$collaboraMode === 'external' && !empty('{$collaboraUrl}')) {
-        \$env = file_get_contents('{$root}/.env');
-        \$collUrl = '{$collaboraUrl}';
-        if (strpos(\$env, 'COLLABORA_URL') === false) {
-            \$env .= "\nCOLLABORA_URL={\$collUrl}\n";
-        } else {
-            \$env = preg_replace('/COLLABORA_URL=.*/', "COLLABORA_URL={\$collUrl}", \$env);
-        }
-        file_put_contents('{$root}/.env', \$env);
-        ilog('✓ COLLABORA_URL externe configurée dans .env');
     }
 
     file_put_contents('{$lock}', date('d/m/Y H:i:s'));
@@ -657,9 +681,63 @@ RUNNER;
     file_put_contents(INSTALL_DIR.'/runner.php', $script);
 }
 
-function build_env(array $db, array $app, array $smtp, array $admin, string $key, string $hash, string $version = '0.0.0'): string
+/**
+ * Lit les variables d'environnement déclarées par le descriptif d'un module
+ * (install/modules/<id>/module.json), en substituant {{DOMAIN}}.
+ */
+function module_env(string $moduleId, string $domain): array
 {
-    return 'APP_NAME="'.addslashes($app['name']).'"'."\n"
+    $file = PLADIGIT_ROOT.'/install/modules/'.$moduleId.'/module.json';
+    if (! is_file($file)) {
+        return [];
+    }
+    $desc = json_decode((string) file_get_contents($file), true);
+    $env = $desc['env'] ?? [];
+    $out = [];
+    foreach ($env as $k => $v) {
+        $out[$k] = str_replace('{{DOMAIN}}', $domain, (string) $v);
+    }
+
+    return $out;
+}
+
+/**
+ * Variables « édition de documents » à injecter dans le .env selon le choix :
+ *   - local    : Collabora installé sur ce serveur (clés issues du descriptif)
+ *   - external : Collabora accessible sur une URL distante
+ *   - skip     : aucun fournisseur (activable plus tard)
+ */
+function office_extra_env(array $collabora, string $domain): array
+{
+    $mode = $collabora['mode'] ?? 'skip';
+
+    if ($mode === 'local') {
+        $extra = module_env('collabora', $domain);
+        $extra['OFFICE_DRIVER'] = 'collabora';
+
+        return $extra;
+    }
+
+    if ($mode === 'external' && ! empty($collabora['url'])) {
+        $extra = module_env('collabora', $domain);
+        $extra['COLLABORA_URL'] = rtrim($collabora['url'], '/');
+        unset($extra['COLLABORA_INTERNAL_URL']);
+        $extra['OFFICE_DRIVER'] = 'collabora';
+
+        return $extra;
+    }
+
+    return ['OFFICE_DRIVER' => 'none'];
+}
+
+function build_env(array $db, array $app, array $smtp, array $admin, string $key, string $hash, string $version, string $sslMode, array $extra): string
+{
+    $secureCookie = ($sslMode !== 'none') ? 'true' : 'false';
+    $sessionBlock = (($app['mode'] ?? 'domain') === 'domain')
+        ? 'SESSION_DOMAIN=.'.$app['domain']."\n".'SESSION_SECURE_COOKIE='.$secureCookie."\n"
+        : 'SESSION_SECURE_COOKIE='.$secureCookie."\n";
+
+    $env = 'APP_NAME="'.addslashes($app['name']).'"'."\n"
         .'APP_ENV=production'."\n"
         .'APP_KEY='.$key."\n"
         .'APP_DEBUG=false'."\n"
@@ -669,18 +747,19 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'APP_FALLBACK_LOCALE=fr'."\n"
         .'APP_FAKER_LOCALE=fr_FR'."\n\n"
         .'BCRYPT_ROUNDS=12'."\n\n"
-        .'LOG_CHANNEL=daily'."\n"
+        .'LOG_CHANNEL=stack'."\n"
+        .'LOG_STACK=daily'."\n"
         .'LOG_LEVEL=error'."\n\n"
         .'DB_CONNECTION=mysql'."\n"
         .'DB_HOST='.$db['host']."\n"
         .'DB_PORT='.$db['port']."\n"
         .'DB_DATABASE='.$db['name']."\n"
         .'DB_USERNAME='.$db['app_user']."\n"
-        .'DB_PASSWORD='.$db['app_password']."\n\n"
+        .'DB_PASSWORD="'.str_replace('"', '\\"', $db['app_password']).'"'."\n\n"
         .'TENANT_DB_HOST='.$db['host']."\n"
         .'TENANT_DB_PORT='.$db['port']."\n"
         .'TENANT_DB_USERNAME='.$db['app_user']."\n"
-        .'TENANT_DB_PASSWORD='.$db['app_password']."\n\n"
+        .'TENANT_DB_PASSWORD="'.str_replace('"', '\\"', $db['app_password']).'"'."\n\n"
         .'REDIS_CLIENT=phpredis'."\n"
         .'REDIS_HOST=127.0.0.1'."\n"
         .'REDIS_PASSWORD=null'."\n"
@@ -688,7 +767,7 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'SESSION_DRIVER=redis'."\n"
         .'SESSION_LIFETIME=120'."\n"
         .'SESSION_ENCRYPT=true'."\n"
-        .(($app['mode'] ?? 'domain') === 'domain' ? 'SESSION_DOMAIN=.'.$app['domain']."\n".'SESSION_SECURE_COOKIE=true'."\n" : 'SESSION_SECURE_COOKIE=false'."\n")."\n"
+        .$sessionBlock."\n"
         .'CACHE_STORE=redis'."\n"
         .'QUEUE_CONNECTION=redis'."\n\n"
         .'MAIL_MAILER=smtp'."\n"
@@ -696,13 +775,23 @@ function build_env(array $db, array $app, array $smtp, array $admin, string $key
         .'MAIL_HOST='.$smtp['host']."\n"
         .'MAIL_PORT='.$smtp['port']."\n"
         .'MAIL_USERNAME='.$smtp['username']."\n"
-        .'MAIL_PASSWORD='.$smtp['password']."\n"
+        .'MAIL_PASSWORD="'.str_replace('"', '\\"', $smtp['password']).'"'."\n"
         .'MAIL_FROM_ADDRESS='.$smtp['from']."\n"
         .'MAIL_FROM_NAME="'.addslashes($smtp['from_name']).'"'."\n\n"
+        .'APP_MAINTENANCE_DRIVER=file'."\n\n"
         .'APP_VERSION='.$version."\n"
         .'SUPER_ADMIN_EMAIL='.$admin['email']."\n"
         .'SUPER_ADMIN_PASSWORD_HASH='.$hash."\n"
         .'SUPER_ADMIN_ALLOWED_IPS='.($_SERVER['REMOTE_ADDR'] ?? '127.0.0.1')."\n";
+
+    if (! empty($extra)) {
+        $env .= "\n";
+        foreach ($extra as $k => $v) {
+            $env .= $k.'='.$v."\n";
+        }
+    }
+
+    return $env;
 }
 
 function redirect(string $a): void

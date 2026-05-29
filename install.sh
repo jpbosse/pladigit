@@ -46,6 +46,7 @@ NEED_SUPERVISOR=false
 NEED_NODE=false
 ALL_INSTALLED=false
 MYSQL_ROOT_PASSWORD=""
+SSL_MODE=""
 
 # ── Helpers log (sans Whiptail — pour le journal) ─────────────────────────────
 LOG_FILE="/var/log/pladigit-install.log"
@@ -106,7 +107,7 @@ PROGRESS_PIPE=""
 PROGRESS_PID=""
 
 STEPS_DONE=()
-STEPS_TODO=("Mise à jour système" "PHP 8.4 + Composer" "MySQL 8" "Services (Redis, Nginx...)" "Pladigit" "Configuration Nginx" "SSL + finalisation" "Collabora Online")
+STEPS_TODO=("Mise à jour système" "PHP 8.4 + Composer" "MySQL 8" "Services (Redis, Nginx...)" "Pladigit" "Configuration Nginx" "SSL + finalisation")
 
 _render_steps() {
     local current_msg="${1}"
@@ -182,71 +183,6 @@ sur votre serveur Ubuntu automatiquement.
 Appuyez sur Entrée pour commencer." 20 70 2>/dev/tty
 }
 
-# ── Choix du profil ───────────────────────────────────────────────────────────
-choose_profil() {
-    local choice
-    # dialog écrit le choix sur stderr — redirection 3>&1 1>/dev/tty 2>&3
-    choice=$(dialog --title "Pladigit — Qui êtes-vous ?" \
-        --menu "\
-Choisissez votre situation pour adapter l'installation :" \
-        20 78 3 \
-        "1" "Je suis une commune ou une petite collectivité" \
-        "2" "Je gère l'informatique de plusieurs communes (maison des communes...)" \
-        "3" "Je suis technicien d'une communauté de communes" \
-        3>&1 1>/dev/tty 2>&3) || die "Installation annulée."
-
-    PROFIL="$choice"
-
-    case "$PROFIL" in
-        1)
-            wt_msg "Profil — Commune" "\
-✅ Parfait !
-
-Pladigit sera installé pour votre commune uniquement.
-Aucune autre organisation ne partagera votre serveur.
-
-L'installation sera la plus simple possible.
-Vous n'aurez pas besoin de connaissances techniques particulières.
-
-👉 Deux informations vous seront demandées :
-   • Votre nom de domaine (ex: pladigit.macommune.fr)
-   • Une adresse email (pour le certificat de sécurité HTTPS)
-
-Votre adresse IP sera détectée automatiquement." 18 70
-            ;;
-        2)
-            wt_msg "Profil — Maison des communes" "\
-✅ Parfait !
-
-Pladigit sera installé en mode multi-organisations.
-Vous pourrez gérer plusieurs communes depuis un seul serveur
-via l'interface Super Administrateur.
-
-Ce mode nécessite :
-   • Un nom de domaine principal (ex: pladigit.maison85.fr)
-   • Un accès SSH au serveur
-   • Pour chaque nouvelle commune : lancer une commande SSL
-     (affichée automatiquement dans l'interface)" 18 70
-            ;;
-        3)
-            wt_msg "Profil — Communauté de communes" "\
-✅ Parfait !
-
-Pladigit sera installé en mode multi-organisations.
-Vous pourrez administrer les communes membres depuis un seul serveur.
-
-Ce mode suppose que vous savez :
-   • Installer Ubuntu Server
-   • Utiliser un terminal SSH
-   • Configurer un nom de domaine (enregistrement DNS)
-
-Une commande SSL sera à lancer pour chaque nouvelle commune
-(affichée automatiquement dans l'interface)." 18 70
-            ;;
-    esac
-
-    log "Profil sélectionné : ${PROFIL}"
-}
 
 # ── Saisie domaine ────────────────────────────────────────────────────────────
 ask_domain() {
@@ -421,6 +357,7 @@ write_wizard_config() {
         "email": "${SSL_EMAIL}",
         "profil": "${PROFIL}",
         "admin_ips": "${ADMIN_IPS}",
+        "ssl_mode": "${SSL_MODE:-none}",
         "version": "${INSTALL_VERSION}",
         "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     }
@@ -677,21 +614,7 @@ install_services() {
     systemctl enable supervisor >> "$LOG_FILE" 2>&1
     systemctl is-active --quiet supervisor || systemctl start supervisor >> "$LOG_FILE" 2>&1 || true
 
-    cat > /etc/supervisor/conf.d/pladigit.conf << SUPERVISOR
-[program:pladigit-worker]
-process_name=%(program_name)s_%(process_num)02d
-command=php ${PLADIGIT_DIR}/artisan queue:work --sleep=3 --tries=3 --max-time=3600
-autostart=true
-autorestart=true
-stopasgroup=true
-killasgroup=true
-user=www-data
-numprocs=2
-redirect_stderr=true
-stdout_logfile=${PLADIGIT_DIR}/storage/logs/worker.log
-stopwaitsecs=3600
-SUPERVISOR
-    log "Supervisor configuré"
+    log "Supervisor installé (workers configurés par le wizard)"
 
     # Node.js 20
     command -v node &>/dev/null || {
@@ -809,11 +732,7 @@ install_pladigit() {
         || die "npm build échoué."
     log "Assets compilés"
 
-    # Écrire config.json pour le wizard
-    write_wizard_config
     chown -R www-data:www-data "${PLADIGIT_DIR}/install"
-
-    log "Script Collabora intégré — sera installé après SSL"
 
     supervisorctl reread >> "$LOG_FILE" 2>&1 || true
     supervisorctl update >> "$LOG_FILE" 2>&1 || true
@@ -822,315 +741,6 @@ install_pladigit() {
     update_progress 85 "Pladigit ✅"
 }
 
-# ── 7. Nginx ──────────────────────────────────────────────────────────────────
-configure_nginx() {
-    update_progress 86 "Configuration de Nginx..."
-
-    local nginx_server_name="_"
-    [[ -n "${DOMAIN}" ]] && nginx_server_name="${DOMAIN} *.${DOMAIN}"
-
-    cat > /etc/nginx/sites-available/pladigit << NGINX
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-    server_name ${nginx_server_name};
-
-    root ${PLADIGIT_DIR}/public;
-    index index.php index.html;
-
-    client_max_body_size 100M;
-    server_tokens off;
-
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
-
-    location / {
-        try_files \$uri \$uri/ /index.php?\$query_string;
-    }
-
-    location ~ \.php\$ {
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_read_timeout 300;
-    }
-
-    location ~ /\.(?!well-known).* { deny all; }
-
-    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
-
-    location = /install { return 301 /install/; }
-    location /install/ {
-        root /var/www/pladigit;
-        index index.php;
-        location ~ \.php$ {
-            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-            fastcgi_param SCRIPT_FILENAME /var/www/pladigit\$fastcgi_script_name;
-            include fastcgi_params;
-            fastcgi_read_timeout 300;
-        }
-    }
-}
-NGINX
-
-    ln -sf /etc/nginx/sites-available/pladigit /etc/nginx/sites-enabled/pladigit
-    rm -f /etc/nginx/sites-enabled/default
-    # Test et correction automatique si http2 on incompatible (Nginx < 1.25.1)
-    if ! nginx -t >> "$LOG_FILE" 2>&1; then
-        if nginx -t 2>&1 | grep -q "http2"; then
-            log "Nginx < 1.25.1 détecté — correction directive http2"
-            sed -i 's/    http2 on;//g' /etc/nginx/sites-available/pladigit
-            sed -i 's/listen 443 ssl http2;/listen 443 ssl;/g' /etc/nginx/sites-available/pladigit
-            sed -i 's/listen \[::\]:443 ssl http2;/listen [::]:443 ssl;/g' /etc/nginx/sites-available/pladigit
-            # Utiliser la syntaxe http2 sur le listen pour les versions intermédiaires
-            nginx -t >> "$LOG_FILE" 2>&1 || die "Configuration Nginx invalide même après correction http2."
-        else
-            die "Configuration Nginx invalide."
-        fi
-    fi
-    systemctl restart nginx >> "$LOG_FILE" 2>&1 || die "Impossible de redémarrer Nginx."
-    systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1
-    log "Nginx configuré"
-    step_done "Configuration Nginx"
-    update_progress 90 "Nginx ✅"
-}
-
-# ── SSL ───────────────────────────────────────────────────────────────────────
-setup_ssl() {
-    local env_file="${PLADIGIT_DIR}/.env"
-
-    [[ -z "$DOMAIN" ]] && { warn "Aucun domaine — SSL ignoré."; return; }
-
-    # Vérifier si le certificat est valide (pas expiré, pas dans moins de 30 jours)
-    local cert_valid=false
-    if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]]; then
-        if openssl x509 -checkend 2592000 -noout \
-            -in "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" >> "$LOG_FILE" 2>&1; then
-            cert_valid=true
-        else
-            warn "Certificat présent mais expiré ou expirant sous 30 jours — renouvellement."
-            certbot renew --cert-name "${DOMAIN}" --non-interactive >> "$LOG_FILE" 2>&1 \
-                && cert_valid=true \
-                || warn "Renouvellement échoué — on continue."
-        fi
-    fi
-
-    # Cert valide — vérifier que le bloc 443 existe dans Nginx
-    if [[ "$cert_valid" == true ]]; then
-        log "Certificat SSL valide pour ${DOMAIN}"
-        if grep -q "listen 443" /etc/nginx/sites-available/pladigit 2>/dev/null; then
-            log "Bloc HTTPS Nginx déjà présent"
-        else
-            update_progress 92 "Injection du bloc HTTPS Nginx..."
-            local nginx_server_name="${DOMAIN} *.${DOMAIN}"
-            cat > /etc/nginx/sites-available/pladigit << NGINX_SSL
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${nginx_server_name};
-    return 301 https://\$host\$request_uri;
-}
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name ${nginx_server_name};
-    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    include             /etc/letsencrypt/options-ssl-nginx.conf;
-    ssl_dhparam         /etc/letsencrypt/ssl-dhparams.pem;
-    root ${PLADIGIT_DIR}/public;
-    index index.php index.html;
-    client_max_body_size 100M;
-    server_tokens off;
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
-    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
-    location ~ \.php\$ {
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_read_timeout 300;
-    }
-    location ~ /\.(?!well-known).* { deny all; }
-    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
-    location = /install { return 301 /install/; }
-    location /install/ {
-        root /var/www/pladigit;
-        index index.php;
-        location ~ \.php$ {
-            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-            fastcgi_param SCRIPT_FILENAME /var/www/pladigit\$fastcgi_script_name;
-            include fastcgi_params;
-            fastcgi_read_timeout 300;
-        }
-    }
-}
-NGINX_SSL
-            nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
-                && log "Bloc HTTPS Nginx injecté"
-        fi
-
-        # Permissions letsencrypt
-        chmod 755 /etc/letsencrypt/                             2>/dev/null || true
-        chmod 755 /etc/letsencrypt/live/                        2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/live/${DOMAIN}/"            2>/dev/null || true
-        chmod 755 /etc/letsencrypt/archive/                     2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/archive/${DOMAIN}/"         2>/dev/null || true
-
-        # Mettre à jour .env
-        if [[ -f "$env_file" ]]; then
-            sed -i "s|^APP_URL=.*|APP_URL=https://${DOMAIN}|" "$env_file"
-            grep -q "^SESSION_DOMAIN=" "$env_file" \
-                && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${DOMAIN}|" "$env_file" \
-                || echo "SESSION_DOMAIN=.${DOMAIN}" >> "$env_file"
-            grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
-                && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file" \
-                || echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
-        fi
-        return
-    fi
-
-    # Cert absent ou invalide — on demande un nouveau certificat
-    update_progress 91 "Obtention du certificat HTTPS... ⏳ Merci de patienter"
-
-    # Vérification DNS avant de contacter Let's Encrypt
-    local server_ip dns_ip
-    server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
-    dns_ip=$(dig +short "${DOMAIN}" A 2>/dev/null | tail -1)
-    if [[ -n "$dns_ip" && "$dns_ip" != "$server_ip" ]]; then
-        warn "DNS : ${DOMAIN} pointe vers ${dns_ip} mais ce serveur est ${server_ip}."
-        warn "SSL ignoré — mettez à jour votre DNS puis relancez : certbot --nginx -d ${DOMAIN}"
-        return
-    fi
-
-    if certbot --nginx -d "${DOMAIN}" --non-interactive --agree-tos \
-        --email "${SSL_EMAIL}" --redirect >> "$LOG_FILE" 2>&1; then
-
-        log "Certificat SSL obtenu pour ${DOMAIN}"
-
-        chmod 755 /etc/letsencrypt/                             2>/dev/null || true
-        chmod 755 /etc/letsencrypt/live/                        2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/live/${DOMAIN}/"            2>/dev/null || true
-        chmod 755 /etc/letsencrypt/archive/                     2>/dev/null || true
-        chmod 755 "/etc/letsencrypt/archive/${DOMAIN}/"         2>/dev/null || true
-
-        if [[ -f "$env_file" ]]; then
-            sed -i "s|^APP_URL=.*|APP_URL=https://${DOMAIN}|" "$env_file"
-            grep -q "^SESSION_DOMAIN=" "$env_file" \
-                && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${DOMAIN}|" "$env_file" \
-                || echo "SESSION_DOMAIN=.${DOMAIN}" >> "$env_file"
-            grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
-                && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=true|" "$env_file" \
-                || echo "SESSION_SECURE_COOKIE=true" >> "$env_file"
-            log "APP_URL et SESSION mis à jour"
-        fi
-
-        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
-            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
-            log "Renouvellement SSL automatique configuré"
-        fi
-    else
-        warn "Échec Let's Encrypt — génération d'un certificat auto-signé temporaire."
-        setup_self_signed_cert
-    fi
-}
-
-# ── Certificat auto-signé (fallback si Let's Encrypt échoue) ─────────────────
-setup_self_signed_cert() {
-    local env_file="${PLADIGIT_DIR}/.env"
-    local key_path="/etc/ssl/private/pladigit-selfsigned.key"
-    local cert_path="/etc/ssl/certs/pladigit-selfsigned.crt"
-
-    update_progress 93 "Génération d'un certificat de sécurité temporaire..."
-
-    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-        -keyout "$key_path" \
-        -out "$cert_path" \
-        -subj "/CN=${DOMAIN}" >> "$LOG_FILE" 2>&1 || { warn "Impossible de créer le certificat auto-signé."; return; }
-
-    # Config Nginx avec certificat auto-signé
-    local nginx_server_name="${DOMAIN} *.${DOMAIN}"
-    cat > /etc/nginx/sites-available/pladigit << NGINX_SELFSIGNED
-server {
-    listen 80;
-    listen [::]:80;
-    server_name ${nginx_server_name};
-    return 301 https://\$host\$request_uri;
-}
-server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name ${nginx_server_name};
-    ssl_certificate     ${cert_path};
-    ssl_certificate_key ${key_path};
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         HIGH:!aNULL:!MD5;
-    root ${PLADIGIT_DIR}/public;
-    index index.php index.html;
-    client_max_body_size 100M;
-    server_tokens off;
-    add_header X-Frame-Options "SAMEORIGIN" always;
-    add_header X-Content-Type-Options "nosniff" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    location / { try_files \$uri \$uri/ /index.php?\$query_string; }
-    location ~ \.php\$ {
-        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
-        include fastcgi_params;
-        fastcgi_read_timeout 300;
-    }
-    location ~ /\.(?!well-known).* { deny all; }
-    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
-    location = /install { return 301 /install/; }
-    location /install/ {
-        root /var/www/pladigit;
-        index index.php;
-        location ~ \.php$ {
-            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
-            fastcgi_param SCRIPT_FILENAME /var/www/pladigit\$fastcgi_script_name;
-            include fastcgi_params;
-            fastcgi_read_timeout 300;
-        }
-    }
-}
-NGINX_SELFSIGNED
-
-    # Correction automatique http2 si nécessaire
-    if ! nginx -t >> "$LOG_FILE" 2>&1; then
-        sed -i 's/    http2 on;//g' /etc/nginx/sites-available/pladigit
-        sed -i 's/listen 443 ssl http2;/listen 443 ssl;/g' /etc/nginx/sites-available/pladigit
-        sed -i 's/listen \[::\]:443 ssl http2;/listen [::]:443 ssl;/g' /etc/nginx/sites-available/pladigit
-        log "http2 corrigé pour compatibilité Nginx"
-    fi
-    nginx -t >> "$LOG_FILE" 2>&1 && systemctl reload nginx >> "$LOG_FILE" 2>&1 \
-        && log "Nginx configuré avec certificat auto-signé"
-
-    # .env : HTTPS activé mais SESSION_SECURE_COOKIE=false (cert non reconnu par navigateur)
-    if [[ -f "$env_file" ]]; then
-        sed -i "s|^APP_URL=.*|APP_URL=https://${DOMAIN}|" "$env_file"
-        grep -q "^SESSION_DOMAIN=" "$env_file" \
-            && sed -i "s|^SESSION_DOMAIN=.*|SESSION_DOMAIN=.${DOMAIN}|" "$env_file" \
-            || echo "SESSION_DOMAIN=.${DOMAIN}" >> "$env_file"
-        grep -q "^SESSION_SECURE_COOKIE=" "$env_file" \
-            && sed -i "s|^SESSION_SECURE_COOKIE=.*|SESSION_SECURE_COOKIE=false|" "$env_file" \
-            || echo "SESSION_SECURE_COOKIE=false" >> "$env_file"
-        # Marquer le type de certificat pour Pladigit
-        grep -q "^SSL_TYPE=" "$env_file" \
-            && sed -i "s|^SSL_TYPE=.*|SSL_TYPE=self_signed|" "$env_file" \
-            || echo "SSL_TYPE=self_signed" >> "$env_file"
-        log ".env mis à jour (auto-signé)"
-    fi
-
-    log "Certificat auto-signé généré — HTTPS temporaire actif."
-}
 
 # ── Cron Laravel ──────────────────────────────────────────────────────────────
 setup_cron() {
@@ -1143,211 +753,6 @@ setup_cron() {
     fi
 }
 
-# ── IP Super Admin dans .env ──────────────────────────────────────────────────
-setup_super_admin_ip() {
-    local env_file="${PLADIGIT_DIR}/.env"
-
-    if [[ ! -f "$env_file" ]]; then
-        [[ -f "${PLADIGIT_DIR}/.env.example" ]] \
-            && cp "${PLADIGIT_DIR}/.env.example" "$env_file" \
-            || touch "$env_file"
-        chown www-data:www-data "$env_file"
-        chmod 640 "$env_file"
-    fi
-
-    if grep -q "^SUPER_ADMIN_ALLOWED_IPS=" "$env_file" 2>/dev/null; then
-        sed -i "s|^SUPER_ADMIN_ALLOWED_IPS=.*|SUPER_ADMIN_ALLOWED_IPS=${ADMIN_IPS}|" "$env_file"
-    else
-        echo "SUPER_ADMIN_ALLOWED_IPS=${ADMIN_IPS}" >> "$env_file"
-    fi
-
-    log "SUPER_ADMIN_ALLOWED_IPS configuré : ${ADMIN_IPS}"
-}
-
-# ── Collabora Online — installation intégrée ─────────────────────────────────
-install_collabora() {
-    # Appelé uniquement si l'utilisateur a choisi "local" dans le wizard
-    # (COLLABORA_MODE est positionné par le wizard via config.json)
-    # En mode install.sh seul (sans wizard), on installe toujours Collabora.
-
-    update_progress 95 "Collabora Online : installation Docker... ⏳ 10 à 20 min"
-
-    # ── 1. Docker ──────────────────────────────────────────────────────────
-    if ! command -v docker &>/dev/null; then
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io >> "$LOG_FILE" 2>&1             || { warn "Docker non installé — Collabora ignoré."; return; }
-    fi
-    systemctl enable docker >> "$LOG_FILE" 2>&1
-    systemctl start  docker >> "$LOG_FILE" 2>&1
-    sleep 2
-    if ! systemctl is-active --quiet docker; then
-        warn "Docker ne démarre pas — Collabora ignoré."
-        return
-    fi
-    log "Docker prêt"
-
-    # ── 2. Image Docker ────────────────────────────────────────────────────
-    if ! docker image inspect collabora/code &>/dev/null; then
-        log "Collabora : téléchargement de l'image (~1.5 Go, 10-20 min)..."
-        docker pull collabora/code >> "$LOG_FILE" 2>&1 &
-        PULL_PID=$!
-        ELAPSED=0
-        while kill -0 "$PULL_PID" 2>/dev/null; do
-            sleep 15
-            ELAPSED=$((ELAPSED + 15))
-            MINUTES=$((ELAPSED / 60))
-            SECS=$((ELAPSED % 60))
-            update_progress 95 "Collabora : téléchargement en cours... ${MINUTES}m${SECS}s ⏳"
-            [[ "$ELAPSED" -gt 1800 ]] && { kill "$PULL_PID" 2>/dev/null; warn "Timeout pull Docker."; return; }
-        done
-        wait "$PULL_PID"
-        [[ $? -ne 0 ]] && { warn "docker pull échoué — Collabora ignoré."; return; }
-    fi
-    log "✓ Image Collabora présente"
-
-    # ── 3. coolwsd.xml ─────────────────────────────────────────────────────
-    mkdir -p /opt/collabora
-    local APP_WILDCARD
-    APP_WILDCARD=$(echo "https://${DOMAIN}" | sed 's|://|://*.|')
-
-    cat > /opt/collabora/coolwsd.xml << XML
-<coolwsd>
-  <net>
-    <content_security_policy>frame-ancestors https://${DOMAIN} ${APP_WILDCARD}</content_security_policy>
-  </net>
-  <ssl>
-    <enable>false</enable>
-    <termination>true</termination>
-    <as_scheme>true</as_scheme>
-  </ssl>
-  <logging>
-    <level>warning</level>
-  </logging>
-  <user_interface>
-    <mode>compact</mode>
-  </user_interface>
-  <storage>
-    <wopi allow="true">
-      <alias_groups mode="groups">
-        <group>
-          <host allow="true">https://${DOMAIN}</host>
-          <alias>${APP_WILDCARD}</alias>
-        </group>
-      </alias_groups>
-    </wopi>
-  </storage>
-</coolwsd>
-XML
-    log "✓ coolwsd.xml créé"
-
-    # ── 4. Conteneur Docker ────────────────────────────────────────────────
-    docker rm -f collabora >> "$LOG_FILE" 2>&1 || true
-
-    docker run -d         --name collabora         --restart always         -p 127.0.0.1:9980:9980         -v /opt/collabora/coolwsd.xml:/etc/coolwsd/coolwsd.xml:ro         --cap-add MKNOD         collabora/code >> "$LOG_FILE" 2>&1         || { warn "docker run échoué — Collabora ignoré."; return; }
-
-    # Attendre que Collabora soit prêt (max 60s)
-    update_progress 96 "Collabora : démarrage en cours..."
-    local READY=0
-    for i in $(seq 1 12); do
-        sleep 5
-        if curl -sk http://127.0.0.1:9980/hosting/discovery 2>/dev/null | grep -q "wopi-discovery"; then
-            READY=1; break
-        fi
-    done
-    [[ "$READY" -eq 0 ]] && { warn "Collabora ne répond pas — blocs Nginx ajoutés quand même."; }
-    log "✓ Conteneur Collabora démarré"
-
-    # ── 5. Blocs Nginx proxy ───────────────────────────────────────────────
-    local NGINX_CONF="/etc/nginx/sites-available/pladigit"
-    if grep -q "location ^~ /browser" "$NGINX_CONF" 2>/dev/null; then
-        log "Blocs Nginx Collabora déjà présents"
-    else
-        local TMPFILE
-        TMPFILE=$(mktemp)
-        local INSERTED=0
-        while IFS= read -r line; do
-            if [[ "$INSERTED" -eq 0 ]] && echo "$line" | grep -qF 'location ~ /\.(?!well-known)'; then
-                cat >> "$TMPFILE" << 'NGINX_BLOCKS'
-    # ── Collabora Online ─────────────────────────────────────────────────────
-    location ^~ /browser {
-        proxy_pass         http://127.0.0.1:9980;
-        proxy_set_header   Host              $http_host;
-        proxy_set_header   X-Forwarded-Proto https;
-        proxy_read_timeout 600s;
-    }
-
-    location ^~ /hosting/discovery {
-        proxy_pass       http://127.0.0.1:9980;
-        proxy_set_header Host              $http_host;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-
-    location ^~ /hosting/capabilities {
-        proxy_pass       http://127.0.0.1:9980;
-        proxy_set_header Host              $http_host;
-        proxy_set_header X-Forwarded-Proto https;
-    }
-
-    location ^~ /cool {
-        proxy_pass             http://127.0.0.1:9980;
-        proxy_http_version     1.1;
-        proxy_set_header       Upgrade    $http_upgrade;
-        proxy_set_header       Connection "Upgrade";
-        proxy_set_header       Host       $http_host;
-        proxy_set_header       X-Forwarded-Proto https;
-        proxy_read_timeout     36000s;
-        proxy_send_timeout     36000s;
-        proxy_connect_timeout  36000s;
-    }
-
-NGINX_BLOCKS
-                INSERTED=1
-            fi
-            echo "$line" >> "$TMPFILE"
-        done < "$NGINX_CONF"
-
-        if [[ "$INSERTED" -eq 1 ]]; then
-            mv "$TMPFILE" "$NGINX_CONF"
-            nginx -t >> "$LOG_FILE" 2>&1                 && systemctl reload nginx >> "$LOG_FILE" 2>&1                 && log "✓ Blocs Nginx Collabora injectés et rechargés"                 || warn "Nginx invalide après injection — vérifiez $NGINX_CONF"
-        else
-            rm -f "$TMPFILE"
-            warn "Marqueur Nginx non trouvé — blocs Collabora non injectés."
-        fi
-    fi
-
-    # ── 6. .env ────────────────────────────────────────────────────────────
-    local ENV_FILE="${PLADIGIT_DIR}/.env"
-    if [[ -f "$ENV_FILE" ]]; then
-        grep -q "^COLLABORA_URL=" "$ENV_FILE"             && sed -i "s|^COLLABORA_URL=.*|COLLABORA_URL=https://${DOMAIN}|" "$ENV_FILE"             || echo "COLLABORA_URL=https://${DOMAIN}" >> "$ENV_FILE"
-        grep -q "^COLLABORA_INTERNAL_URL=" "$ENV_FILE"             && sed -i "s|^COLLABORA_INTERNAL_URL=.*|COLLABORA_INTERNAL_URL=http://127.0.0.1:9980|" "$ENV_FILE"             || echo "COLLABORA_INTERNAL_URL=http://127.0.0.1:9980" >> "$ENV_FILE"
-    fi
-    sudo -u www-data php "${PLADIGIT_DIR}/artisan" config:cache >> "$LOG_FILE" 2>&1 || true
-    sudo -u www-data php "${PLADIGIT_DIR}/artisan" cache:forget collabora.discovery_editor_path >> "$LOG_FILE" 2>&1 || true
-    log "✓ .env Collabora configuré"
-
-    # ── 7. Vérification finale ─────────────────────────────────────────────
-    local ERRORS=0
-    docker ps --filter "name=collabora" --filter "status=running" | grep -q collabora         && log "✓ Conteneur Collabora : actif"         || { log "✗ Conteneur Collabora : ARRÊTÉ"; ERRORS=$((ERRORS+1)); }
-
-    curl -sk http://127.0.0.1:9980/hosting/discovery 2>/dev/null | grep -q "wopi-discovery"         && log "✓ Collabora discovery (interne) : OK"         || { log "✗ Collabora discovery interne : ÉCHEC"; ERRORS=$((ERRORS+1)); }
-
-    # Discovery public : non bloquant (SSL peut ne pas être actif au moment de l'install)
-    if curl -sk "https://${DOMAIN}/hosting/discovery" 2>/dev/null | grep -q "wopi-discovery"; then
-        log "✓ Collabora discovery (public) : OK"
-    else
-        log "⚠ Collabora discovery public : non joignable — normal si SSL pas encore actif."
-        log "  → Vérifiez après activation SSL : curl -sk https://${DOMAIN}/hosting/discovery | grep wopi-discovery"
-    fi
-
-    grep -q "location ^~ /browser" "$NGINX_CONF"         && log "✓ Blocs Nginx Collabora : présents"         || { log "✗ Blocs Nginx Collabora : ABSENTS"; ERRORS=$((ERRORS+1)); }
-
-    if [[ "$ERRORS" -eq 0 ]]; then
-        log "✅ Collabora Online installé et opérationnel"
-        step_done "Collabora Online"
-        update_progress 98 "Collabora Online ✅"
-    else
-        log "⚠ Collabora installé avec ${ERRORS} problème(s) — Pladigit fonctionne sans."
-    fi
-}
 
 # ── Écran de succès ───────────────────────────────────────────────────────────
 show_success() {
@@ -1358,7 +763,7 @@ show_success() {
         if ls /etc/letsencrypt/live/"${DOMAIN}"/fullchain.pem > /dev/null 2>&1; then
             install_url="https://${DOMAIN}/install/"
             ssl_mode="letsencrypt"
-        elif ls /etc/ssl/certs/pladigit-selfsigned.crt > /dev/null 2>&1; then
+        elif ls /etc/ssl/pladigit/${DOMAIN}.crt > /dev/null 2>&1; then
             install_url="https://${DOMAIN}/install/"
             ssl_mode="selfsigned"
         else
@@ -1416,7 +821,7 @@ check_install_ok() {
     # Déterminer l'URL de base
     if [[ -n "$DOMAIN" ]]; then
         if ls /etc/letsencrypt/live/"${DOMAIN}"/fullchain.pem > /dev/null 2>&1 \
-            || ls /etc/ssl/certs/pladigit-selfsigned.crt > /dev/null 2>&1; then
+            || ls /etc/ssl/pladigit/${DOMAIN}.crt > /dev/null 2>&1; then
             app_url="https://${DOMAIN}"
         else
             app_url="http://${DOMAIN}"
@@ -1522,81 +927,367 @@ do_update() {
     exit 0
 }
 
+# ==============================================================================
+#  REFONTE — Registre de modules, rendu Nginx central, SSL, points d'entrée
+# ==============================================================================
+
+ensure_jq() {
+    command -v jq >/dev/null 2>&1 && return 0
+    apt-get install -y -qq jq >> "${LOG_FILE:-/var/log/pladigit-install.log}" 2>&1 \
+        || warn "jq introuvable — lecture des descriptifs de modules indisponible."
+}
+
+config_get() {
+    local f="${PLADIGIT_DIR}/install/config.json"
+    [[ -f "$f" ]] && jq -r "$1 // empty" "$f" 2>/dev/null || true
+}
+
+# ── Registre de modules ───────────────────────────────────────────────────────
+MODULES_DIR="${PLADIGIT_DIR}/install/modules"
+ACTIVE_MODULES_FILE="${PLADIGIT_DIR}/install/active-modules"
+
+mj() { jq -r "$2" "${MODULES_DIR}/$1/module.json" 2>/dev/null; }
+
+module_exists()    { [[ -f "${MODULES_DIR}/$1/module.json" ]]; }
+is_module_active() { [[ -f "$ACTIVE_MODULES_FILE" ]] && grep -qxF "$1" "$ACTIVE_MODULES_FILE"; }
+
+mark_module_active() {
+    mkdir -p "$(dirname "$ACTIVE_MODULES_FILE")"
+    is_module_active "$1" || echo "$1" >> "$ACTIVE_MODULES_FILE"
+    sort -u -o "$ACTIVE_MODULES_FILE" "$ACTIVE_MODULES_FILE" 2>/dev/null || true
+    chown www-data:www-data "$ACTIVE_MODULES_FILE" 2>/dev/null || true
+}
+
+# Vérifie les préconditions du descriptif. 0 = tout passe, 1 = au moins un échec.
+module_preflight() {
+    local mod="$1" n i type val label ok=0
+    module_exists "$mod" || { warn "Module ${mod} introuvable."; return 1; }
+    n=$(mj "$mod" '.preflight | length'); [[ "$n" =~ ^[0-9]+$ ]] || n=0
+    for ((i=0; i<n; i++)); do
+        type=$(mj "$mod" ".preflight[$i].type")
+        val=$(mj  "$mod" ".preflight[$i].value")
+        label=$(mj "$mod" ".preflight[$i].label")
+        case "$type" in
+            disk_gb)
+                local free_gb
+                free_gb=$(df -BG --output=avail "$PLADIGIT_DIR" 2>/dev/null | tail -1 | tr -dc '0-9')
+                [[ -n "$free_gb" && "$free_gb" -ge "$val" ]] \
+                    || { warn "Preflight ${mod} : ${label} (dispo ${free_gb:-?} Go)"; ok=1; } ;;
+            ram_mb)
+                local ram_mb; ram_mb=$(free -m | awk '/^Mem:/{print $2}')
+                [[ -n "$ram_mb" && "$ram_mb" -ge "$val" ]] \
+                    || { warn "Preflight ${mod} : ${label}"; ok=1; } ;;
+            command)
+                command -v "$val" >/dev/null 2>&1 \
+                    || { warn "Preflight ${mod} : ${label} ('${val}' absent)"; ok=1; } ;;
+            *) warn "Preflight ${mod} : type inconnu '${type}' ignoré." ;;
+        esac
+    done
+    return $ok
+}
+
+# Provisionnement système d'un module : preflight → provision.sh → marque actif.
+provision_module() {
+    local mod="$1" dir prov
+    [[ -z "$mod" ]] && { warn "provision_module : identifiant manquant."; return 1; }
+    module_exists "$mod" || { warn "Module ${mod} introuvable — ignoré."; return 1; }
+    dir="${MODULES_DIR}/${mod}"
+
+    if ! module_preflight "$mod"; then
+        warn "Preflight du module ${mod} non satisfait — module non installé."
+        return 1
+    fi
+
+    prov=$(mj "$mod" '.provision // empty')
+    if [[ -n "$prov" && -f "${dir}/${prov}" ]]; then
+        info "Provisionnement du module ${mod}..."
+        DOMAIN="$DOMAIN" LOG_FILE="$LOG_FILE" bash "${dir}/${prov}" "$DOMAIN" >> "$LOG_FILE" 2>&1 \
+            || { warn "Provisionnement du module ${mod} incomplet."; return 1; }
+    fi
+
+    mark_module_active "$mod"
+    log "Module ${mod} provisionné et actif."
+}
+
+# Insère ou met à jour une clé dans le .env (sans réécrire le reste).
+env_upsert() {
+    local key="$1" val="$2" env="${PLADIGIT_DIR}/.env"
+    [[ -f "$env" ]] || return 0
+    if grep -q "^${key}=" "$env"; then
+        sed -i "s|^${key}=.*|${key}=${val}|" "$env"
+    else
+        echo "${key}=${val}" >> "$env"
+    fi
+}
+
+# Fusionne les variables d'environnement déclarées par un module dans le .env.
+env_upsert_module() {
+    local mod="$1" keys k v drv
+    keys=$(mj "$mod" '.env | keys[]' 2>/dev/null) || return 0
+    while IFS= read -r k; do
+        [[ -z "$k" ]] && continue
+        v=$(mj "$mod" ".env[\"$k\"]")
+        v="${v//\{\{DOMAIN\}\}/$DOMAIN}"
+        env_upsert "$k" "$v"
+    done <<< "$keys"
+    drv=$(mj "$mod" '.capability.driver_var // empty')
+    [[ -n "$drv" ]] && env_upsert "$drv" "$mod"
+}
+
+# Exécute les commandes artisan post-installation déclarées par le module.
+run_post_install() {
+    local mod="$1" n i cmd
+    n=$(mj "$mod" '.post_install | length'); [[ "$n" =~ ^[0-9]+$ ]] || n=0
+    for ((i=0; i<n; i++)); do
+        cmd=$(mj "$mod" ".post_install[$i]")
+        [[ -z "$cmd" ]] && continue
+        sudo -u www-data php "${PLADIGIT_DIR}/artisan" $cmd >> "$LOG_FILE" 2>&1 || true
+    done
+}
+
+# Activation autonome et complète d'un module (DGS après coup / ligne de commande).
+add_module() {
+    local mod="$1"
+    [[ -z "$DOMAIN" ]] && DOMAIN=$(config_get '.install.domain')
+    provision_module "$mod" || return 1
+    env_upsert_module "$mod"
+    render_nginx "${SSL_MODE:-none}"
+    run_post_install "$mod"
+    sudo -u www-data php "${PLADIGIT_DIR}/artisan" config:cache >> "$LOG_FILE" 2>&1 || true
+    log "Module ${mod} activé."
+}
+
+# ── Rendu Nginx central — déterministe à partir de l'état { SSL, modules } ─────
+render_nginx() {
+    local ssl_mode="${1:-none}"
+    local conf="/etc/nginx/sites-available/pladigit"
+    local server_name="_"
+    [[ -n "$DOMAIN" ]] && server_name="${DOMAIN} *.${DOMAIN}"
+
+    local module_blocks="" mod tpl
+    if [[ -f "$ACTIVE_MODULES_FILE" ]]; then
+        while IFS= read -r mod; do
+            [[ -z "$mod" ]] && continue
+            tpl="${MODULES_DIR}/${mod}/nginx.conf.tpl"
+            [[ -f "$tpl" ]] && module_blocks+=$'\n'"$(cat "$tpl")"
+        done < "$ACTIVE_MODULES_FILE"
+    fi
+
+    local body
+    read -r -d '' body <<NGINX_BODY || true
+    root ${PLADIGIT_DIR}/public;
+    index index.php index.html;
+    client_max_body_size 100M;
+    server_tokens off;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
+
+    location / {
+        try_files \$uri \$uri/ /index.php?\$query_string;
+    }
+    location ~ \.php\$ {
+        fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME \$realpath_root\$fastcgi_script_name;
+        include fastcgi_params;
+        fastcgi_read_timeout 300;
+    }
+    location ~ /\.(?!well-known).* { deny all; }
+    location ~ ^/(\.env|\.git|composer\.(json|lock)) { deny all; }
+    location = /install { return 301 /install/; }
+    location /install/ {
+        root ${PLADIGIT_DIR};
+        index index.php;
+        location ~ \.php\$ {
+            fastcgi_pass unix:/run/php/php${PHP_VERSION}-fpm.sock;
+            fastcgi_param SCRIPT_FILENAME ${PLADIGIT_DIR}\$fastcgi_script_name;
+            include fastcgi_params;
+            fastcgi_read_timeout 300;
+        }
+    }
+${module_blocks}
+NGINX_BODY
+
+    if [[ "$ssl_mode" == "none" || -z "$DOMAIN" ]]; then
+        cat > "$conf" <<NGINX
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name ${server_name};
+${body}
+}
+NGINX
+    else
+        local cert key extra=""
+        if [[ "$ssl_mode" == "letsencrypt" ]]; then
+            cert="/etc/letsencrypt/live/${DOMAIN}/fullchain.pem"
+            key="/etc/letsencrypt/live/${DOMAIN}/privkey.pem"
+            extra="    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+    add_header Strict-Transport-Security \"max-age=31536000; includeSubDomains\" always;"
+        else
+            cert="/etc/ssl/pladigit/${DOMAIN}.crt"
+            key="/etc/ssl/pladigit/${DOMAIN}.key"
+        fi
+        cat > "$conf" <<NGINX
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${server_name};
+    return 301 https://\$host\$request_uri;
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${server_name};
+    ssl_certificate     ${cert};
+    ssl_certificate_key ${key};
+${extra}
+${body}
+}
+NGINX
+    fi
+
+    ln -sf "$conf" /etc/nginx/sites-enabled/pladigit
+    rm -f /etc/nginx/sites-enabled/default
+    if ! nginx -t >> "$LOG_FILE" 2>&1; then
+        sed -i 's/^    http2 on;//' "$conf"
+        sed -i 's/listen 443 ssl;/listen 443 ssl http2;/' "$conf"
+        nginx -t >> "$LOG_FILE" 2>&1 || { warn "Configuration Nginx invalide après rendu."; return 1; }
+    fi
+    systemctl reload nginx >> "$LOG_FILE" 2>&1 || systemctl restart nginx >> "$LOG_FILE" 2>&1
+    systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1 || true
+    log "Nginx rendu (ssl=${ssl_mode})"
+}
+
+# ── Certificat auto-signé (repli si Let's Encrypt indisponible) ───────────────
+setup_self_signed_cert() {
+    mkdir -p /etc/ssl/pladigit
+    if [[ ! -f "/etc/ssl/pladigit/${DOMAIN}.crt" ]]; then
+        openssl req -x509 -nodes -newkey rsa:2048 -days 825 \
+            -keyout "/etc/ssl/pladigit/${DOMAIN}.key" \
+            -out    "/etc/ssl/pladigit/${DOMAIN}.crt" \
+            -subj "/CN=${DOMAIN}" \
+            -addext "subjectAltName=DNS:${DOMAIN},DNS:*.${DOMAIN}" >> "$LOG_FILE" 2>&1 \
+            || warn "Génération du certificat auto-signé échouée."
+    fi
+    chmod 600 "/etc/ssl/pladigit/${DOMAIN}.key" 2>/dev/null || true
+    log "Certificat auto-signé prêt (${DOMAIN})."
+}
+
+# ── SSL : décide le mode puis délègue le rendu Nginx ──────────────────────────
+setup_ssl() {
+    render_nginx none
+
+    if [[ -z "$DOMAIN" ]]; then
+        SSL_MODE="none"; warn "Aucun domaine — SSL ignoré."; return
+    fi
+
+    if [[ -f "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" ]] \
+       && openssl x509 -checkend 2592000 -noout -in "/etc/letsencrypt/live/${DOMAIN}/fullchain.pem" >/dev/null 2>&1; then
+        SSL_MODE="letsencrypt"; render_nginx letsencrypt
+        log "Certificat Let's Encrypt déjà valide."
+        return
+    fi
+
+    update_progress 92 "Obtention du certificat HTTPS... ⏳"
+    local server_ip dns_ip
+    server_ip=$(curl -4 -sf --max-time 5 https://ifconfig.me 2>/dev/null || hostname -I | awk '{print $1}')
+    dns_ip=$(dig +short "${DOMAIN}" A 2>/dev/null | tail -1)
+
+    if [[ -n "$dns_ip" && "$dns_ip" != "$server_ip" ]]; then
+        warn "DNS : ${DOMAIN} pointe vers ${dns_ip} mais ce serveur est ${server_ip}."
+    fi
+
+    if [[ -z "$dns_ip" || "$dns_ip" == "$server_ip" ]] \
+       && certbot certonly --nginx -d "${DOMAIN}" --non-interactive --agree-tos \
+            --email "${SSL_EMAIL}" >> "$LOG_FILE" 2>&1; then
+        SSL_MODE="letsencrypt"; render_nginx letsencrypt
+        if ! crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (crontab -l 2>/dev/null; echo "0 3 * * * certbot renew --quiet --post-hook 'systemctl reload nginx'") | crontab -
+        fi
+        log "Certificat Let's Encrypt obtenu."
+    else
+        warn "Let's Encrypt indisponible — repli sur certificat auto-signé."
+        setup_self_signed_cert
+        SSL_MODE="selfsigned"; render_nginx selfsigned
+    fi
+}
+
 # ── Point d'entrée ────────────────────────────────────────────────────────────
 main() {
-    # ── Mode --collabora-only (appelé depuis le wizard PHP) ───────────────
-    if [[ "${1:-}" == "--collabora-only" ]]; then
-        APP_URL="${2:-}"
-        PLADIGIT_DIR="${3:-/var/www/pladigit}"
-        # Extraire le domaine depuis l'URL
-        DOMAIN=$(echo "$APP_URL" | sed 's|https\?://||' | sed 's|/.*||')
-        LOG_FILE="/var/log/pladigit-install.log"
-        mkdir -p "$(dirname "$LOG_FILE")"
-        log "Mode --collabora-only : DOMAIN=${DOMAIN}, DIR=${PLADIGIT_DIR}"
-        install_collabora
-        exit $?
-    fi
+    # Modes non interactifs (appelés par le wizard ou en ligne de commande)
+    case "${1:-}" in
+        --provision-module|--add-module|--collabora-only)
+            [[ $EUID -ne 0 ]] && { echo "Mode ${1} : root requis (sudo)."; exit 1; }
+            LOG_FILE="/var/log/pladigit-install.log"; mkdir -p "$(dirname "$LOG_FILE")"
+            ensure_jq
+            case "$1" in
+                --collabora-only)
+                    # Compatibilité ascendante avec l'ancien wizard
+                    APP_URL="${2:-}"; PLADIGIT_DIR="${3:-/var/www/pladigit}"
+                    DOMAIN=$(echo "$APP_URL" | sed -e 's|https\?://||' -e 's|/.*||')
+                    MODULES_DIR="${PLADIGIT_DIR}/install/modules"
+                    ACTIVE_MODULES_FILE="${PLADIGIT_DIR}/install/active-modules"
+                    SSL_MODE=$(config_get '.install.ssl_mode'); [[ -z "$SSL_MODE" ]] && SSL_MODE="letsencrypt"
+                    add_module collabora; exit $?
+                    ;;
+                --provision-module)
+                    DOMAIN=$(config_get '.install.domain')
+                    SSL_MODE=$(config_get '.install.ssl_mode'); [[ -z "$SSL_MODE" ]] && SSL_MODE="none"
+                    provision_module "${2:-}" || exit 1
+                    render_nginx "$SSL_MODE"; exit 0
+                    ;;
+                --add-module)
+                    DOMAIN=$(config_get '.install.domain')
+                    SSL_MODE=$(config_get '.install.ssl_mode'); [[ -z "$SSL_MODE" ]] && SSL_MODE="none"
+                    add_module "${2:-}"; exit $?
+                    ;;
+            esac
+            ;;
+    esac
 
-    # Forcer stdin sur le terminal — indispensable via curl | bash
     exec < /dev/tty
-
     mkdir -p "$(dirname "$LOG_FILE")"
     echo "=== Pladigit Install Log v${INSTALL_VERSION} — $(date) ===" > "$LOG_FILE"
-
-    # Vérifier que dialog est disponible (préinstallé sur Ubuntu)
-    if ! command -v dialog &>/dev/null; then
-        apt-get install -y -qq dialog >> "$LOG_FILE" 2>&1 || true
-    fi
-
-    # Vérifier les droits root en amont
+    command -v dialog &>/dev/null || apt-get install -y -qq dialog >> "$LOG_FILE" 2>&1 || true
     [[ $EUID -ne 0 ]] && { echo "Ce script doit être exécuté en tant que root (sudo)."; exit 1; }
+    ensure_jq
 
     show_welcome
 
-    # Installation existante détectée ? (suffit que .env existe — pas besoin du .lock)
-    if [[ -f "${PLADIGIT_DIR}/.env" ]]; then
-        do_update
-    fi
+    # Installation existante détectée ? (suffit que .env existe)
+    [[ -f "${PLADIGIT_DIR}/.env" ]] && do_update
 
-    # Saisies interactives
+    # Public unique (commune) — le multi-organisations est géré par le wizard
+    PROFIL=1
+
     set +e
-    choose_profil
     ask_domain
     ask_email
     ask_admin_ip
     show_recap
 
-    # Installation
     check_prerequisites
-
-    if [[ "$ALL_INSTALLED" == true ]] && [[ -d "${PLADIGIT_DIR}/.git" ]]; then
-        start_progress
-        install_pladigit
-        configure_nginx
-        set +e; setup_ssl; set -e
-        set +e; install_collabora; set -e
-        setup_cron
-        setup_super_admin_ip
-        update_progress 100 "Installation terminée !"
-        stop_progress
-        check_install_ok
-        show_success
-        return
-    fi
-
     start_progress
-    update_system
-    install_php
-    install_mysql
-    install_services
-    setup_logs
-    install_pladigit
-    configure_nginx
-    set +e; setup_ssl; set -e
-    set +e; install_collabora; set -e
+    if [[ "$ALL_INSTALLED" == true ]] && [[ -d "${PLADIGIT_DIR}/.git" ]]; then
+        install_pladigit
+    else
+        update_system
+        install_php
+        install_mysql
+        install_services
+        setup_logs
+        install_pladigit
+    fi
+    setup_ssl
     setup_cron
-    setup_super_admin_ip
-    update_progress 100 "Installation terminée !"
+    write_wizard_config
+    update_progress 100 "Préparation terminée — finalisez dans le navigateur"
     stop_progress
     check_install_ok
     show_success

@@ -1,0 +1,26 @@
+{
+    "id": "collabora",
+    "label": "Collabora Online",
+    "description": "Édition collaborative des documents bureautiques (protocole WOPI).",
+    "capability": {
+        "id": "office",
+        "label": "Édition de documents",
+        "driver_var": "OFFICE_DRIVER",
+        "default_provider": true
+    },
+    "provision": "provision.sh",
+    "preflight": [
+        { "type": "disk_gb", "value": 3, "label": "3 Go d'espace disque libre (image ~1,5 Go)" }
+    ],
+    "env": {
+        "COLLABORA_URL": "https://{{DOMAIN}}",
+        "COLLABORA_INTERNAL_URL": "http://127.0.0.1:9980",
+        "WOPI_URL": "https://{{DOMAIN}}",
+        "COLLABORA_EDITOR_PATH": "/browser/dist/cool.html",
+        "COLLABORA_TOKEN_TTL": "14400"
+    },
+    "nginx": "nginx.conf.tpl",
+    "post_install": [
+        "cache:forget collabora.discovery_editor_path"
+    ]
+}
