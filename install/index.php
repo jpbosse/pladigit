@@ -516,7 +516,12 @@ try {
     shell_exec('cd {$root} && php artisan cache:clear 2>&1');
     ilog('✓ Cache vidé');
 
-    // 3. Migrations platform (organizations, platform_settings, etc.)
+    // 3. Migrations de base (jobs, cache, users) — racine de migrations/
+    ilog('Création des tables de base...');
+    \$outBase = shell_exec('cd {$root} && php artisan migrate --path=database/migrations --force 2>&1');
+    ilog(\$outBase ?? '');
+
+    // 3b. Migrations platform (organizations, platform_settings, etc.)
     ilog('Création des tables plateforme...');
     \$out = shell_exec('cd {$root} && php artisan migrate --path=database/migrations/platform --force 2>&1');
     ilog(\$out ?? '');
@@ -537,50 +542,24 @@ try {
     shell_exec('cd {$root} && php artisan storage:link 2>&1');
     ilog('✓ Storage configuré');
 
-    // 6. Supervisor
-    ilog('Configuration des workers...');
-    \$supervisorConf = "[program:pladigit-worker]\nprocess_name=%(program_name)s_%(process_num)02d\ncommand=php {$root}/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600\nautostart=true\nautorestart=true\nstopasgroup=true\nkillasgroup=true\nuser=www-data\nnumprocs=2\nredirect_stderr=true\nstdout_logfile=/var/log/pladigit-worker.log\nstopwaitsecs=3600\n";
-    @file_put_contents('/etc/supervisor/conf.d/pladigit.conf', \$supervisorConf);
-    shell_exec('supervisorctl reread 2>&1 && supervisorctl update 2>&1 && supervisorctl restart all 2>&1');
-    ilog('✓ Workers configurés et démarrés');
+    // 6. Workers : posés par install.sh (root). Le wizard ne configure pas Supervisor.
+    ilog('Workers : configurés par install.sh (étape système).');
 
     // 6bis. Migrations tenant (initialise les bases existantes)
     ilog('Migrations tenant...');
     shell_exec('cd {$root} && php artisan migrate:tenants --force 2>&1');
     ilog('✓ Migrations tenant appliquées');
 
-    // 7. Collabora Online (si demandé)
+    // 7. Édition de documents : choix enregistré pour install.sh (qui provisionne en root).
+    //    Le wizard n'installe RIEN qui exige root — il note seulement le choix.
     \$collaboraMode = '{$collaboraMode}';
     if (\$collaboraMode === 'local') {
-        ilog('Collabora : démarrage de l\'installation Docker...');
-        ilog('Collabora : cette étape peut durer 10 à 20 minutes (téléchargement ~1.5 Go)');
-
-        // Appel à install.sh en mode --collabora-only
-        \$installScript = '/tmp/install.sh';
-        if (!file_exists(\$installScript)) {
-            \$installScript = '{$root}/install.sh';
-        }
-
-        if (file_exists(\$installScript) && is_readable(\$installScript)) {
-            \$logFile = dirname('{$done}') . '/install.log';
-            \$cmd = "sudo bash {\$installScript} --collabora-only {$appUrl} {$root} >> {\$logFile} 2>&1";
-            \$exitCode = 0;
-            \$handle = popen(\$cmd, 'r');
-            if (\$handle) {
-                while (!feof(\$handle)) {
-                    fread(\$handle, 1024);
-                    usleep(500000);
-                }
-                \$exitCode = pclose(\$handle);
-            }
-            if (\$exitCode !== 0) {
-                ilog('⚠ Collabora : installation incomplète (code ' . \$exitCode . ')');
-                ilog('  → Pladigit fonctionnera sans Collabora. Activez-le depuis les paramètres.');
-            }
-        } else {
-            ilog('⚠ install.sh non trouvé — Collabora ignoré.');
-            ilog('  → Activez-le manuellement depuis les paramètres Super Admin.');
-        }
+        ilog('Collabora : à installer en root après le wizard avec la commande :');
+        ilog('  sudo bash install.sh --add-module collabora');
+    } elseif (\$collaboraMode === 'external') {
+        ilog('Collabora externe : configuré via le .env (aucune installation locale).');
+    } else {
+        ilog('Édition de documents : aucun fournisseur (activable plus tard).');
     }
 
     file_put_contents('{$lock}', date('d/m/Y H:i:s'));

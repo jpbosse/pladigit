@@ -47,6 +47,8 @@ log "✓ Image Collabora présente."
 # ── 3. coolwsd.xml ────────────────────────────────────────────────────────────
 mkdir -p "$(dirname "$COOLWSD_PATH")"
 APP_WILDCARD="https://*.${DOMAIN}"
+# Regex Collabora : host nu avec points échappés (ex: pladigit\.fr)
+DOMAIN_RE="${DOMAIN//./\\.}"
 cat > "$COOLWSD_PATH" <<XML
 <coolwsd>
   <net>
@@ -67,8 +69,8 @@ cat > "$COOLWSD_PATH" <<XML
     <wopi allow="true">
       <alias_groups mode="groups">
         <group>
-          <host allow="true">https://${DOMAIN}</host>
-          <alias>${APP_WILDCARD}</alias>
+          <host allow="true">${DOMAIN_RE}</host>
+          <host allow="true">.*\\.${DOMAIN_RE}</host>
         </group>
       </alias_groups>
     </wopi>

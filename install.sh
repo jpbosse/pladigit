@@ -613,8 +613,7 @@ install_services() {
     }
     systemctl enable supervisor >> "$LOG_FILE" 2>&1
     systemctl is-active --quiet supervisor || systemctl start supervisor >> "$LOG_FILE" 2>&1 || true
-
-    log "Supervisor installé (workers configurés par le wizard)"
+    log "Supervisor installé (worker posé après le clonage)"
 
     # Node.js 20
     command -v node &>/dev/null || {
@@ -1084,7 +1083,7 @@ render_nginx() {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' wss: ws:; frame-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://${DOMAIN} https://*.${DOMAIN} wss://${DOMAIN} wss://*.${DOMAIN} wss: ws:; frame-src 'self' https://${DOMAIN} https://*.${DOMAIN} blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self';" always;
 
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
@@ -1218,6 +1217,27 @@ setup_ssl() {
     fi
 }
 
+# ── Worker de queue (posé en root, après le clonage du code) ──────────────────
+setup_worker() {
+    cat > /etc/supervisor/conf.d/pladigit-worker.conf <<WORKER
+[program:pladigit-worker]
+process_name=%(program_name)s_%(process_num)02d
+command=php ${PLADIGIT_DIR}/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=2
+redirect_stderr=true
+stdout_logfile=/var/log/pladigit-worker.log
+stopwaitsecs=3600
+WORKER
+    supervisorctl reread >> "$LOG_FILE" 2>&1 || true
+    supervisorctl update >> "$LOG_FILE" 2>&1 || true
+    log "Worker de queue Pladigit configuré"
+}
+
 # ── Point d'entrée ────────────────────────────────────────────────────────────
 main() {
     # Modes non interactifs (appelés par le wizard ou en ligne de commande)
@@ -1284,6 +1304,7 @@ main() {
         setup_logs
         install_pladigit
     fi
+    setup_worker
     setup_ssl
     setup_cron
     write_wizard_config
