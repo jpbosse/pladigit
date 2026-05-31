@@ -47,6 +47,9 @@ class OrganizationController extends Controller
         $validated['db_name'] = Organization::dbNameFromSlug($validated['slug']);
         $validated['max_users'] = $this->maxUsersFromPlan($validated['plan']);
         $validated['storage_quota_mb'] = $validated['storage_quota_mb'] ?? 10240;
+        // Si un certificat wildcard couvre le serveur, toute nouvelle organisation
+        // est en HTTPS dès sa création (pas d'activation manuelle nécessaire).
+        $validated['ssl_type'] = config('app.wildcard_ssl', false) ? 'letsencrypt' : 'none';
         $org = Organization::create($validated);
 
         try {

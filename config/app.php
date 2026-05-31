@@ -42,6 +42,11 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+    // Vrai lorsque le serveur dispose d'un certificat wildcard *.domaine
+    // (positionné par « install.sh --setup-wildcard »). Les nouvelles
+    // organisations naissent alors directement en HTTPS (ssl_type=letsencrypt).
+    'wildcard_ssl' => env('WILDCARD_SSL', false),
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode

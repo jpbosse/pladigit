@@ -1058,6 +1058,19 @@ add_module() {
 
 # ── Rendu Nginx central — déterministe à partir de l'état { SSL, modules } ─────
 render_nginx() {
+    # Détection de la syntaxe HTTP/2 selon la version de Nginx.
+    # Nginx >= 1.25.1 : directive « http2 on; ». Avant : « listen ... ssl http2; ».
+    local _nginx_ver _http2_line _listen443 _listen443_6
+    _nginx_ver=$(nginx -v 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+    if [[ -n "$_nginx_ver" ]] && dpkg --compare-versions "$_nginx_ver" ge "1.25.1"; then
+        _listen443="listen 443 ssl;"
+        _listen443_6="listen [::]:443 ssl;"
+        _http2_line="    http2 on;"
+    else
+        _listen443="listen 443 ssl http2;"
+        _listen443_6="listen [::]:443 ssl;"
+        _http2_line=""
+    fi
     local ssl_mode="${1:-none}"
     local conf="/etc/nginx/sites-available/pladigit"
     local server_name="_"
@@ -1139,9 +1152,9 @@ server {
     return 301 https://\$host\$request_uri;
 }
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    ${_listen443}
+    ${_listen443_6}
+${_http2_line}
     server_name ${server_name};
     ssl_certificate     ${cert};
     ssl_certificate_key ${key};
@@ -1154,9 +1167,7 @@ NGINX
     ln -sf "$conf" /etc/nginx/sites-enabled/pladigit
     rm -f /etc/nginx/sites-enabled/default
     if ! nginx -t >> "$LOG_FILE" 2>&1; then
-        sed -i 's/^    http2 on;//' "$conf"
-        sed -i 's/listen 443 ssl;/listen 443 ssl http2;/' "$conf"
-        nginx -t >> "$LOG_FILE" 2>&1 || { warn "Configuration Nginx invalide après rendu."; return 1; }
+        warn "Configuration Nginx invalide après rendu."; return 1
     fi
     systemctl reload nginx >> "$LOG_FILE" 2>&1 || systemctl restart nginx >> "$LOG_FILE" 2>&1
     systemctl restart "php${PHP_VERSION}-fpm" >> "$LOG_FILE" 2>&1 || true
@@ -1217,6 +1228,81 @@ setup_ssl() {
     fi
 }
 
+# ── Certificat wildcard *.DOMAIN via OVH DNS-01 (mutualisé) ───────────────────
+# Lancé UNE FOIS par l'hébergeur du mutualisé (jamais par le prestataire de base).
+# Demande les 3 clés API OVH en interactif — elles ne sont JAMAIS stockées dans le dépôt.
+setup_wildcard() {
+    local domain="$1"
+    local cred="/etc/letsencrypt/ovh-${domain}.ini"
+
+    echo ""
+    echo "=== Configuration du certificat wildcard *.${domain} (OVH DNS) ==="
+    echo "Cette étape obtient un certificat couvrant ${domain} ET tous ses sous-domaines"
+    echo "(une commune = un sous-domaine). À lancer une seule fois, par l'hébergeur."
+    echo ""
+    echo "Prérequis : un token API OVH créé sur https://api.ovh.com/createToken/"
+    echo "  Validité : illimitée"
+    echo "  Droits   : GET, POST, PUT, DELETE sur /domain/zone/*"
+    echo ""
+
+    # Plugin certbot OVH (absent par défaut)
+    if ! certbot plugins 2>/dev/null | grep -q 'dns-ovh'; then
+        log "Installation du plugin certbot-dns-ovh..."
+        apt-get install -y -qq python3-certbot-dns-ovh >> "$LOG_FILE" 2>&1 \
+            || { warn "Échec installation du plugin certbot-dns-ovh."; return 1; }
+    fi
+
+    # Saisie interactive des 3 clés (jamais journalisées)
+    local ak as ck
+    read -rp "OVH Application Key    : " ak
+    read -rp "OVH Application Secret : " as
+    read -rp "OVH Consumer Key       : " ck
+    if [[ -z "$ak" || -z "$as" || -z "$ck" ]]; then
+        warn "Les trois clés sont requises. Abandon."; return 1
+    fi
+
+    # Fichier de credentials, lisible par root seul
+    umask 077
+    cat > "$cred" <<OVH
+dns_ovh_endpoint = ovh-eu
+dns_ovh_application_key = ${ak}
+dns_ovh_application_secret = ${as}
+dns_ovh_consumer_key = ${ck}
+OVH
+    chmod 600 "$cred"
+    log "Credentials OVH écrits (${cred}, chmod 600)."
+
+    # Obtention du certificat wildcard
+    log "Demande du certificat wildcard *.${domain} (peut prendre 1-2 min)..."
+    if certbot certonly --dns-ovh \
+        --dns-ovh-credentials "$cred" \
+        --dns-ovh-propagation-seconds 60 \
+        -d "${domain}" -d "*.${domain}" \
+        --non-interactive --agree-tos --email "${SSL_EMAIL:-contact@${domain}}" \
+        --cert-name "${domain}" >> "$LOG_FILE" 2>&1; then
+        log "Certificat wildcard obtenu."
+        # Drapeau applicatif : les nouvelles organisations naîtront en HTTPS.
+        if grep -q '^WILDCARD_SSL=' "${PLADIGIT_DIR}/.env" 2>/dev/null; then
+            sed -i 's/^WILDCARD_SSL=.*/WILDCARD_SSL=true/' "${PLADIGIT_DIR}/.env"
+        else
+            echo "WILDCARD_SSL=true" >> "${PLADIGIT_DIR}/.env"
+        fi
+        # Les organisations existantes encore en 'none' passent en letsencrypt.
+        sudo -u www-data php "${PLADIGIT_DIR}/artisan" tinker --execute="\App\Models\Platform\Organization::where('ssl_type','none')->update(['ssl_type'=>'letsencrypt']);" >> "$LOG_FILE" 2>&1 || true
+        sudo -u www-data php "${PLADIGIT_DIR}/artisan" config:cache >> "$LOG_FILE" 2>&1 || true
+        SSL_MODE="letsencrypt"; render_nginx letsencrypt
+        systemctl restart nginx >> "$LOG_FILE" 2>&1 || true
+        echo ""
+        echo "✓ Wildcard *.${domain} actif. Tous les sous-domaines sont désormais en HTTPS."
+        echo "  Le renouvellement automatique est géré par certbot."
+        return 0
+    else
+        warn "Échec de l'obtention du wildcard. Voir ${LOG_FILE}."
+        echo "  Vérifiez les droits du token OVH : GET/POST/PUT/DELETE sur /domain/zone/*"
+        return 1
+    fi
+}
+
 # ── Worker de queue (posé en root, après le clonage du code) ──────────────────
 setup_worker() {
     cat > /etc/supervisor/conf.d/pladigit-worker.conf <<WORKER
@@ -1242,6 +1328,14 @@ WORKER
 main() {
     # Modes non interactifs (appelés par le wizard ou en ligne de commande)
     case "${1:-}" in
+        --setup-wildcard)
+            [[ $EUID -ne 0 ]] && { echo "Mode --setup-wildcard : root requis (sudo)."; exit 1; }
+            LOG_FILE="/var/log/pladigit-install.log"; mkdir -p "$(dirname "$LOG_FILE")"
+            ensure_jq
+            DOMAIN=$(config_get '.install.domain')
+            [[ -z "$DOMAIN" ]] && { echo "Domaine introuvable dans config.json. Installation d'abord."; exit 1; }
+            setup_wildcard "$DOMAIN"; exit $?
+            ;;
         --provision-module|--add-module|--collabora-only)
             [[ $EUID -ne 0 ]] && { echo "Mode ${1} : root requis (sudo)."; exit 1; }
             LOG_FILE="/var/log/pladigit-install.log"; mkdir -p "$(dirname "$LOG_FILE")"

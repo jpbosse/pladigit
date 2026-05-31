@@ -584,13 +584,13 @@ try {
         . '<div class="row"><span class="lbl">Utilisateur</span><span><code>' . '{$dbUsr}' . '</code></span></div>'
         . '</div>'
         . '<div class="box" style="background:#fffbeb;border:1px solid #fde68a;"><div class="bt" style="color:#92400e;">&#x26A0; S&#233;curit&#233; — Mots de passe</div><p style="font-size:.82rem;color:#78350f;line-height:1.5;">Plusieurs mots de passe ont &#233;t&#233; saisis durant l\'installation (MySQL, Super Admin, GPG...). <strong>Stockez-les imm&#233;diatement</strong> dans un gestionnaire de mots de passe : <strong>Bitwarden</strong>, KeePass, Vaultwarden ou similaire. Ne les notez jamais en clair par email ou SMS.</p></div>'
-        . '<a id="btn-acc" href="' . '{$appUrl}' . '/super-admin" class="btn" style="opacity:.4;pointer-events:none">&#x23F3; V&#233;rification en cours...</a>'
+        . '<a id="btn-acc" href="' . '{$appUrl}' . '/super-admin" class="btn">Acc&#233;der &#224; Pladigit &#x2192;</a>'
         . '<p id="hs" style="text-align:center;font-size:.8rem;color:#6B7A8D;margin-top:.75rem">En attente de l&#39;application&hellip;</p>'
         . '<div style="text-align:center;margin-top:1rem;padding:.75rem;background:#F4F6F9;border-radius:6px">'
         . '<div style="font-size:.72rem;color:#6B7A8D;margin-bottom:.35rem">Ou copiez-collez ce lien dans votre navigateur :</div>'
         . '<code style="font-size:.85rem;color:#1E3A5F;word-break:break-all;user-select:all">' . '{$appUrl}' . '/super-admin</code>'
         . '</div>'
-        . '<script>(function(){var u="' . '{$appUrl}' . '",b=document.getElementById("btn-acc"),s=document.getElementById("hs"),t=0;function ok(){b.style.opacity="1";b.style.pointerEvents="auto";b.textContent="Acc\u00e9der \u00e0 Pladigit \u2192";s.style.color="#16A34A";s.textContent="\u2713 Application pr\u00eate";setTimeout(function(){location.href=u+"/super-admin"},3000);}function chk(){t++;fetch(u+"/health/ping",{cache:"no-store"}).then(function(r){if(r.ok)ok();else retry();}).catch(retry);}function retry(){if(t>=40){ok();return;}s.textContent="D\u00e9marrage en cours... ("+t+"/40)";setTimeout(chk,3000);}setTimeout(chk,2000);})();<\/script>'
+        . '<script>(function(){var u="' . '{$appUrl}' . '",s=document.getElementById("hs"),t=0;function chk(){t++;fetch(u+"/health/ping",{cache:"no-store"}).then(function(r){if(r.ok){s.style.color="#16A34A";s.textContent="\u2713 Application pr\u00eate";}else next();}).catch(next);}function next(){if(t>=60){s.textContent="Si la page ne r\u00e9pond pas, patientez une minute puis cliquez sur le bouton.";return;}setTimeout(chk,3000);}setTimeout(chk,2000);})();<\/script>'
         . '</div></body></html>';
     file_put_contents('{$root}/public/install-success.html', \$successHtml);
     ilog('✓ Page de succes generee');
