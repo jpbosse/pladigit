@@ -886,6 +886,20 @@ check_install_ok() {
         errors=$((errors+1))
     fi
 
+    # 6. Worker de queue : configuré et planifié pour démarrage automatique.
+    #    Le worker ne tourne PAS encore à ce stade (l'application est finalisée
+    #    dans le wizard navigateur, après ce script). Le watchdog le démarrera
+    #    automatiquement dans les 2 minutes suivant la fin du wizard. On vérifie
+    #    donc la présence du dispositif, pas l'état RUNNING immédiat.
+    if [[ -f /etc/supervisor/conf.d/pladigit-worker.conf ]] \
+        && [[ -f /etc/cron.d/pladigit-worker-watchdog ]]; then
+        log "✓ Worker de queue : configuré (démarrage auto après le wizard)"
+    else
+        log "✗ Worker de queue : dispositif INCOMPLET"
+        warnings+="\n• Le worker de file d'attente n'est pas correctement configuré"
+        errors=$((errors+1))
+    fi
+
     # Bilan
     if [[ $errors -gt 0 ]]; then
         log "⚠ Installation terminée avec ${errors} problème(s) — voir ${LOG_FILE}"
@@ -1304,13 +1318,25 @@ OVH
 }
 
 # ── Worker de queue (posé en root, après le clonage du code) ──────────────────
+#
+# Important : pendant l'installation, l'application n'est PAS encore finalisée
+# (APP_KEY définitive, migrations et premier admin sont créés par le wizard
+# navigateur, APRÈS la fin de ce script). Démarrer le worker maintenant le ferait
+# échouer et passer en FATAL définitif sous supervisor.
+#
+# Stratégie retenue :
+#   - autostart=false  → supervisor ne tente PAS de lancer le worker pendant l'install
+#   - un watchdog cron  → démarre/maintient le worker dès que l'application répond,
+#                         c.-à-d. une fois le wizard navigateur terminé, puis le
+#                         surveille en permanence (auto-réparation à vie).
 setup_worker() {
     cat > /etc/supervisor/conf.d/pladigit-worker.conf <<WORKER
 [program:pladigit-worker]
 process_name=%(program_name)s_%(process_num)02d
-command=php ${PLADIGIT_DIR}/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
-autostart=true
+command=/usr/bin/php${PHP_VERSION} ${PLADIGIT_DIR}/artisan queue:work redis --sleep=3 --tries=3 --max-time=3600
+autostart=false
 autorestart=true
+startretries=3
 stopasgroup=true
 killasgroup=true
 user=www-data
@@ -1321,7 +1347,31 @@ stopwaitsecs=3600
 WORKER
     supervisorctl reread >> "$LOG_FILE" 2>&1 || true
     supervisorctl update >> "$LOG_FILE" 2>&1 || true
-    log "Worker de queue Pladigit configuré"
+
+    # Watchdog : toutes les 2 minutes, si l'application est finalisée
+    # (présence d'une APP_KEY non vide dans .env), s'assure que le worker tourne.
+    # « supervisorctl start » est sans effet si le worker tourne déjà → aucune
+    # interruption des jobs en cours.
+    cat > /usr/local/bin/pladigit-worker-watchdog.sh <<'WATCHDOG'
+#!/bin/bash
+# Démarre le worker Pladigit dès que l'application est prête, puis le maintient.
+ENV_FILE="/var/www/pladigit/.env"
+# Ne rien faire tant que l'application n'est pas finalisée (APP_KEY absente/vide).
+if ! grep -qE '^APP_KEY=base64:.+' "$ENV_FILE" 2>/dev/null; then
+    exit 0
+fi
+/usr/bin/supervisorctl start pladigit-worker:* >/dev/null 2>&1
+exit 0
+WATCHDOG
+    chmod 755 /usr/local/bin/pladigit-worker-watchdog.sh
+
+    cat > /etc/cron.d/pladigit-worker-watchdog <<'CRON'
+# Maintien du worker de queue Pladigit (auto-démarrage après le wizard + auto-réparation)
+*/2 * * * * root /usr/local/bin/pladigit-worker-watchdog.sh
+CRON
+    chmod 644 /etc/cron.d/pladigit-worker-watchdog
+
+    log "Worker de queue Pladigit configuré (démarrage différé via watchdog)"
 }
 
 # ── Point d'entrée ────────────────────────────────────────────────────────────
