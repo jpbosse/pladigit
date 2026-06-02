@@ -2,7 +2,7 @@
 # ==============================================================================
 #  Pladigit — Script d'installation automatique
 #  Version : 2.0.0
-#  Cible   : Ubuntu 22.04 LTS / 24.04 LTS
+#  Cible   : Ubuntu 22.04 LTS / 24.04 LTS / 26.04 LTS
 #
 #  Usage :
 #    curl -fsSL https://raw.githubusercontent.com/jpbosse/pladigit/main/install.sh -o /tmp/install.sh
@@ -378,8 +378,8 @@ check_prerequisites() {
         die "Système d'exploitation non reconnu."
     fi
     source /etc/os-release
-    [[ "$ID" != "ubuntu" ]] && die "Pladigit nécessite Ubuntu 22.04 ou 24.04. Système détecté : $ID $VERSION_ID"
-    [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" ]] && die "Version Ubuntu non supportée : $VERSION_ID"
+    [[ "$ID" != "ubuntu" ]] && die "Pladigit nécessite Ubuntu 22.04, 24.04 ou 26.04 LTS. Système détecté : $ID $VERSION_ID"
+    [[ "$VERSION_ID" != "22.04" && "$VERSION_ID" != "24.04" && "$VERSION_ID" != "26.04" ]] && die "Version Ubuntu non supportée : $VERSION_ID (versions supportées : 22.04, 24.04, 26.04 LTS)"
     log "Système : Ubuntu $VERSION_ID — OK"
 
     local ram_mb
