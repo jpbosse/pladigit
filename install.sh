@@ -499,6 +499,16 @@ install_php() {
         apt-get install -y -qq "${php_packages[@]}" >> "$LOG_FILE" 2>&1 \
             || die "Impossible d'installer PHP ${PHP_VERSION}."
 
+        # ── Forcer php${PHP_VERSION} comme version PHP par défaut du système ──
+        # Sur Ubuntu 26.04, PHP 8.5 est natif et reste le « php » par défaut.
+        # Sans cela, composer/artisan et les vérifications ci-dessous
+        # s'exécuteraient sous 8.5 (mauvaises extensions, incompatibilités).
+        if [[ -x "/usr/bin/php${PHP_VERSION}" ]]; then
+            update-alternatives --set php "/usr/bin/php${PHP_VERSION}" >> "$LOG_FILE" 2>&1 \
+                || update-alternatives --install /usr/bin/php php "/usr/bin/php${PHP_VERSION}" 90 >> "$LOG_FILE" 2>&1 || true
+            log "PHP par défaut forcé sur ${PHP_VERSION} (php -> /usr/bin/php${PHP_VERSION})"
+        fi
+
         # ── Extension redis : apt d'abord, PECL en fallback ───────────────────
         if ! php -m 2>/dev/null | grep -qi redis; then
             if apt-get install -y -qq "php${PHP_VERSION}-redis" >> "$LOG_FILE" 2>&1; then
@@ -716,7 +726,7 @@ install_pladigit() {
     log "Permissions configurées"
 
     update_progress 65 "Installation des dépendances PHP... ⏳ Merci de patienter (2 à 3 min)"
-    sudo -u www-data composer install \
+    sudo -u www-data "php${PHP_VERSION}" /usr/local/bin/composer install \
         --no-dev --optimize-autoloader --no-interaction \
         --working-dir="$PLADIGIT_DIR" \
         >> "$LOG_FILE" 2>&1 || die "Composer install échoué."
@@ -922,7 +932,7 @@ do_update() {
     cd "$PLADIGIT_DIR" || die "Impossible d'accéder à ${PLADIGIT_DIR}"
 
     git pull origin main >> "$LOG_FILE" 2>&1 || warn "git pull échoué"
-    sudo -u www-data composer install --no-dev --optimize-autoloader --no-interaction \
+    sudo -u www-data "php${PHP_VERSION}" /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction \
         --working-dir="$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 || warn "composer install échoué"
     sudo -u www-data npm ci --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
         && sudo -u www-data npm run build --prefix "$PLADIGIT_DIR" >> "$LOG_FILE" 2>&1 \
