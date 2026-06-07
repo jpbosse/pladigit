@@ -85,6 +85,13 @@ class AppServiceProvider extends ServiceProvider
         // Un attaquant sur IP fixe testant le même compte est bloqué après 10 essais.
         // Un credential stuffing distribué (1 essai / IP / compte) est détecté par le limiter IP seul.
         RateLimiter::for('login', function (Request $request) {
+            // Tests E2E (Playwright) : on neutralise le throttle pour éviter les 429
+            // parasites dus à la réutilisation des mêmes identifiants/IP par la suite.
+            // Le brute-force reste couvert par LoginThrottleTest (PHPUnit / CI).
+            if (config('app.disable_login_throttle')) {
+                return Limit::none();
+            }
+
             return [
                 // Clé 1 : IP + email — bloque le bourrage par dictionnaire ciblé
                 // Retourne 429 nativement (pas de ->response() custom)

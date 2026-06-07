@@ -17,6 +17,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Désactivation du throttle de login (tests E2E uniquement)
+    |--------------------------------------------------------------------------
+    |
+    | Neutralise le RateLimiter 'login' lorsqu'il est à true. RÉSERVÉ aux
+    | environnements de test E2E (Playwright sur poste local / VM), où la
+    | suite réutilise les mêmes identifiants depuis la même IP et déclenche
+    | sinon des 429 parasites. NE JAMAIS activer en production : le throttle
+    | brute-force reste couvert par les tests PHPUnit (LoginThrottleTest).
+    | Valeur par défaut : false.
+    |
+    */
+
+    'disable_login_throttle' => env('DISABLE_LOGIN_THROTTLE', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Version
     |--------------------------------------------------------------------------
     |
