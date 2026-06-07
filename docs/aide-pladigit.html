@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aide Pladigit — Découvrir · Utiliser · Administrer</title>
+<style>
+  :root{
+    --paper:#f6f3ec; --paper-2:#fffdf8; --ink:#1b2230; --muted:#5d6675;
+    --line:#e4ddcd; --line-2:#efe9db;
+    --primary:#1a4d6b; --accent:#bf5a26; --accent-soft:#fbeede; --mark:#ffe9a8;
+    --shadow:0 1px 2px rgba(20,30,45,.04),0 6px 22px rgba(20,30,45,.06);
+    --radius:14px;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SFMono-Regular","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(rgba(26,77,107,.025) 1px,transparent 1px);background-size:22px 22px;}
+  a{color:var(--primary)}
+
+  header.mast{border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--paper-2),var(--paper));}
+  .mast-inner{max-width:1040px;margin:0 auto;padding:36px 24px 26px}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:var(--primary);color:#fff;
+    font-family:var(--serif);font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center;
+    letter-spacing:-1px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);}
+  .brand .logo small{color:var(--accent);font-size:20px}
+  .brand .name{font-weight:600;letter-spacing:.02em;font-size:15px}
+  .brand .name span{color:var(--muted);font-weight:500}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(28px,4.6vw,40px);line-height:1.06;margin:0 0 14px;letter-spacing:-.01em}
+  h1 em{font-style:italic;color:var(--primary)}
+
+  /* Sélecteur de public */
+  .modes{display:flex;gap:10px;flex-wrap:wrap}
+  .mode{flex:1 1 0;min-width:220px;text-align:left;cursor:pointer;background:var(--paper-2);
+    border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;display:flex;gap:12px;align-items:center;
+    transition:all .15s;font-family:var(--sans)}
+  .mode:hover{border-color:#cfc6b2;transform:translateY(-1px)}
+  .mode.active{border-color:var(--mc);box-shadow:0 0 0 3px color-mix(in srgb,var(--mc) 16%,transparent),var(--shadow);background:var(--paper-2)}
+  .mode .ico{flex:none;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    background:color-mix(in srgb,var(--mc) 12%,#fff);color:var(--mc)}
+  .mode .t{font-family:var(--serif);font-size:18px;font-weight:600;line-height:1.1;color:var(--ink)}
+  .mode .s{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .mode.active .t{color:var(--mc)}
+
+  .lead{max-width:1040px;margin:20px auto 0;padding:0 24px;color:var(--muted);font-size:16px}
+  .lead b{color:var(--ink)}
+
+  .searchwrap{max-width:1040px;margin:14px auto 0;padding:0 24px}
+  .searchbox{background:var(--paper-2);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:12px;padding:6px 6px 6px 18px;transition:border-color .15s,box-shadow .15s}
+  .searchbox:focus-within{border-color:var(--primary);box-shadow:0 0 0 4px rgba(26,77,107,.10),var(--shadow)}
+  .searchbox svg{flex:none;color:var(--muted)}
+  #q{flex:1;border:0;background:transparent;outline:none;font-family:var(--sans);font-size:18px;color:var(--ink);padding:14px 0}
+  #q::placeholder{color:#9aa3b0}
+  .kbd{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);border:1px solid var(--line);
+    background:var(--paper);border-radius:7px;padding:6px 9px;margin-right:6px}
+  #clear{flex:none;border:0;background:var(--paper);color:var(--muted);cursor:pointer;border-radius:9px;
+    padding:11px 14px;font-size:15px;margin-right:4px;display:none}
+  #clear:hover{color:var(--ink);background:var(--line-2)}
+
+  .filters{max-width:1040px;margin:16px auto 0;padding:0 24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{border:1px solid var(--line);background:var(--paper-2);color:var(--muted);border-radius:999px;
+    padding:7px 14px;font-size:13.5px;cursor:pointer;font-family:var(--sans);transition:all .12s;white-space:nowrap;font-weight:500}
+  .chip:hover{color:var(--ink);border-color:#cfc6b2}
+  .chip .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px}
+  .chip.active{background:var(--ink);color:var(--paper-2);border-color:var(--ink)}
+
+  .meta{max-width:1040px;margin:22px auto 0;padding:0 24px;color:var(--muted);font-size:14px}
+  main{max-width:1040px;margin:0 auto;padding:14px 24px 80px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px;margin-top:14px}
+  .card{background:var(--paper-2);border:1px solid var(--line);border-left:3px solid var(--cat,#ccc);
+    border-radius:var(--radius);padding:20px 20px 18px;box-shadow:var(--shadow);display:flex;flex-direction:column;animation:rise .4s both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .badge{align-self:flex-start;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--cat,#666);margin-bottom:11px;display:inline-flex;align-items:center;gap:6px}
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--cat,#666)}
+  .card h3{font-family:var(--serif);font-weight:600;font-size:19px;line-height:1.25;margin:0 0 8px}
+  .card p{margin:0;color:#39414f;font-size:14.7px}
+  .act{margin-top:13px;padding-top:12px;border-top:1px dashed var(--line);font-size:14px;color:var(--accent);
+    display:flex;gap:8px;align-items:flex-start}
+  .act b{font-weight:600}.act .arrow{flex:none;font-weight:700}
+  .src{margin-top:12px;font-family:var(--mono);font-size:11.5px;color:#9aa3b0}
+  mark{background:var(--mark);color:inherit;border-radius:3px;padding:0 2px}
+  .empty{text-align:center;padding:70px 20px;color:var(--muted)}
+  .empty .big{font-family:var(--serif);font-size:24px;color:var(--ink);margin-bottom:8px}
+
+  footer{border-top:1px solid var(--line);background:var(--paper-2)}
+  .foot-inner{max-width:1040px;margin:0 auto;padding:26px 24px;color:var(--muted);font-size:13px;
+    display:flex;flex-wrap:wrap;gap:16px;justify-content:space-between}
+  .foot-inner b{color:var(--ink);font-weight:600}
+  .pill{display:inline-flex;gap:7px;align-items:center;background:var(--accent-soft);color:var(--accent);
+    border-radius:999px;padding:5px 12px;font-weight:600;font-size:12.5px}
+  @media (max-width:560px){.kbd{display:none}.mast-inner{padding:30px 18px 22px}
+    .searchwrap,.filters,.meta,main,.foot-inner,.lead{padding-left:18px;padding-right:18px}}
+</style>
+</head>
+<body>
+
+<header class="mast">
+  <div class="mast-inner">
+    <div class="brand">
+      <div class="logo">D<small>i</small>T</div>
+      <div class="name">Pladigit <span>· Centre d'aide</span></div>
+    </div>
+    <h1>Que cherchez-vous à <em>faire</em> ?</h1>
+    <div class="modes" id="modes"></div>
+  </div>
+</header>
+
+<p class="lead" id="lead"></p>
+
+<div class="searchwrap">
+  <div class="searchbox">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+    <input id="q" type="search" autocomplete="off" placeholder="Tapez un mot…" aria-label="Rechercher">
+    <button id="clear" aria-label="Effacer">Effacer</button>
+    <span class="kbd">/</span>
+  </div>
+</div>
+
+<div class="filters" id="filters"></div>
+<div class="meta" id="meta"></div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">
+    <div class="big">Aucune fiche ne correspond</div>
+    <div>Essayez un mot plus simple, ou changez de public / de thème.</div>
+  </div>
+</main>
+
+<footer>
+  <div class="foot-inner">
+    <div>Centre d'aide <b>Pladigit</b> — réécrit en langage clair à partir des guides, de l'argumentaire et des FAQ.</div>
+    <div><span class="pill">● Hors-ligne · aucune ressource externe</span></div>
+  </div>
+</footer>
+
+<script>
+/* ---- Publics ---- */
+const MODES = {
+  decouvrir:{label:"Découvrir",sub:"Je choisis Pladigit",color:"#1a6b5a",
+    ico:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2.2 5.3-5.3 2.2 2.2-5.3z"/></svg>`,
+    lead:`<b>Vous évaluez Pladigit ?</b> Voici en clair ce qu'il fait, ce qu'il remplace, ce qu'il coûte et ce qu'il garantit.`,
+    ph:`Ex. « coût », « RGPD », « Teams », « pérennité »…`},
+  utiliser:{label:"Utiliser",sub:"Au quotidien",color:"#1a4d6b",
+    ico:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M9 11.5V5.5a1.8 1.8 0 0 1 3.6 0V11"/><path d="M12.6 11V9.2a1.7 1.7 0 0 1 3.4 0V11"/><path d="M16 11v-1a1.7 1.7 0 0 1 3.3 0v5.5a5 5 0 0 1-5 5h-2.2c-1.7 0-2.7-.6-3.7-1.9L5 17.6c-.9-1.2.8-2.7 1.9-1.7L9 18"/></svg>`,
+    lead:`<b>Vous utilisez Pladigit ?</b> Tapez ce que vous voulez faire — connexion, document, photo, projet — et suivez la ligne « Pour agir ».`,
+    ph:`Ex. « mot de passe », « photo », « version », « exporter »…`},
+  administrer:{label:"Administrer",sub:"J'organise l'espace",color:"#8a3a4a",
+    ico:`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><line x1="4" y1="7" x2="20" y2="7"/><circle cx="9" cy="7" r="2.3" fill="var(--paper-2)"/><line x1="4" y1="17" x2="20" y2="17"/><circle cx="15" cy="17" r="2.3" fill="var(--paper-2)"/></svg>`,
+    lead:`<b>Vous administrez un espace ?</b> Comptes, rôles, organigramme, annuaire et sécurité — pour bien structurer dès le départ.`,
+    ph:`Ex. « utilisateur », « rôle », « LDAP », « sauvegarde »…`},
+};
+
+/* ---- Thèmes ---- */
+const CATS = {
+  pourquoi:{label:"Pourquoi Pladigit",color:"#1a6b5a"},
+  cout:{label:"Coût & licence",color:"#a85b1f"},
+  confiance:{label:"Confiance & pérennité",color:"#6b4ea3"},
+  garanties:{label:"Garanties",color:"#143a52"},
+  "premiers-pas":{label:"Premiers pas",color:"#1a4d6b"},
+  securite:{label:"Sécurité",color:"#b23a2e"},
+  ged:{label:"Documents (GED)",color:"#2c7a6b"},
+  phototheque:{label:"Photothèque",color:"#7a4ea3"},
+  projets:{label:"Projets",color:"#3f7d34"},
+  datagrid:{label:"Listes (DataGrid)",color:"#b9881f"},
+  comprendre:{label:"Comprendre",color:"#566273"},
+  comptes:{label:"Comptes & rôles",color:"#2c5f7a"},
+  config:{label:"Configuration",color:"#7a5a2c"},
+  gouvernance:{label:"Gouvernance",color:"#8a3a4a"},
+};
+const CAT_ORDER = Object.keys(CATS);
+
+/* ---- Fiches ---- */
+const DATA = [
+ // ===== DÉCOUVRIR =====
+ {c:"pourquoi",aud:["decouvrir"],q:`Que remplace Pladigit ?`,
+  a:`Planner → la gestion de projet (Kanban, Gantt, budget) ; OneDrive/Photos → la photothèque sur votre serveur ; SharePoint → la GED ; Word/Excel/PowerPoint → Collabora Online en formats ouverts. La messagerie et l'agenda type Teams/Outlook sont prévus.`,
+  src:`ARGUMENTAIRE · README`,k:`remplace microsoft 365 planner onedrive sharepoint word teams outlook equivalent alternative`},
+ {c:"cout",aud:["decouvrir"],q:`Combien ça coûte vraiment ?`,
+  a:`Le logiciel est libre : aucune licence, aucun abonnement. Les seuls coûts sont l'hébergement (un serveur) et le temps d'installation/maintenance. Pas de facturation par utilisateur, et aucune dépendance captive à un éditeur.`,
+  src:`OBJECTIONS — coût · README`,k:`prix cout gratuit licence abonnement tarif budget combien payer`},
+ {c:"confiance",aud:["decouvrir"],q:`Et si le projet s'arrête un jour ?`,
+  a:`Vous gardez tout : le code est ouvert (AGPL-3.0) et installé sur vos serveurs, les données sont en formats ouverts. Rien n'est verrouillé chez un éditeur — n'importe quel prestataire peut reprendre l'installation.`,
+  src:`OBJECTIONS — pérennité`,k:`arret projet perennite abandon reversibilite donnees recuperer fin essouffle`},
+ {c:"confiance",aud:["decouvrir"],q:`Un seul développeur, est-ce fiable ?`,
+  a:`Le code est protégé par plus de 750 tests automatisés et une analyse statique, chaque évolution passant des vérifications obligatoires. Tout est auditable, et le projet cherche des collectivités pilotes et des partenaires pour durer.`,
+  src:`ARGUMENTAIRE — chiffres · OBJECTIONS`,k:`developpeur seul fiable solo une personne fiabilite tests qualite retraite`},
+ {c:"confiance",aud:["decouvrir"],q:`La version 0.8 est-elle utilisable en vrai ?`,
+  a:`Sept phases sont déjà livrées : authentification, projets, photothèque, documents, édition collaborative et assistant d'installation. Une démonstration en ligne sur pladigit.fr permet de juger sur pièces.`,
+  src:`ARGUMENTAIRE — chiffres`,k:`version 0.8 production utilisable mature stable demo essayer test`},
+ {c:"pourquoi",aud:["decouvrir"],q:`Pourquoi pas Nextcloud ou la Suite de l'État ?`,
+  a:`Pladigit est pensé pour les petites collectivités françaises : la hiérarchie Direction › Service › Agent est native, le vocabulaire est celui des mairies, et l'installation vise une trentaine de minutes. Un outil ciblé, pas une boîte à outils générique.`,
+  src:`OBJECTIONS — alternatives`,k:`nextcloud suite numerique etat dinum alternative difference choisir comparaison concurrent`},
+ {c:"garanties",aud:["decouvrir"],q:`Aide pour le RGPD et l'analyse d'impact (AIPD) ?`,
+  a:`Oui : le journal d'audit complet, l'hébergement maîtrisé et le code auditable facilitent le travail de votre délégué à la protection des données pour documenter une analyse d'impact.`,
+  src:`OBJECTIONS — RGPD · ADR-037`,k:`rgpd aipd dpo dpd analyse impact cnil delegue protection donnees registre`},
+ {c:"confiance",aud:["decouvrir"],q:`Qui assure le support ?`,
+  a:`Le support s'appuie sur la communauté et sur des prestataires informatiques — les centres de gestion et syndicats informatiques territoriaux sont des partenaires naturels. Un accord de niveau de service (SLA) reste possible via un prestataire.`,
+  src:`OBJECTIONS — support`,k:`support assistance aide depannage sla prestataire maintenance qui contrat`},
+ {c:"pourquoi",aud:["decouvrir"],q:`Pour quelles structures est-ce conçu ?`,
+  a:`Pour les collectivités françaises de moins de 20 000 habitants — mairies, communautés de communes, associations, secteur parapublic — et pour un déploiement mutualisé via les centres de gestion ou syndicats informatiques.`,
+  src:`ARGUMENTAIRE · README`,k:`pour qui cible commune mairie collectivite association comcom taille habitants public`},
+ {c:"garanties",aud:["decouvrir"],q:`Homologué ANSSI ou SecNumCloud ?`,
+  a:`Pas de qualification formelle à ce stade (version 0.8). En revanche, l'hébergement auto-géré en France ou en Europe, associé aux bonnes pratiques de sécurité intégrées, offre une base conforme aux attentes des collectivités.`,
+  src:`OBJECTIONS — maturité · glossaire`,k:`anssi secnumcloud homologation qualification certification securite norme label`},
+
+ // ===== UTILISER =====
+ {c:"premiers-pas",aud:["utiliser","decouvrir"],q:`Qu'est-ce que Pladigit ?`,
+  a:`Un espace de travail unique et sécurisé qui regroupe vos documents, vos photos, vos projets et l'édition de fichiers bureautiques. Hébergé en France et propre à votre collectivité, il remplace des outils comme Teams, SharePoint ou OneDrive.`,
+  act:`Demandez vos identifiants à l'administrateur de votre organisation.`,src:`README · guide-utilisateurs §1`,k:`pladigit c'est quoi plateforme outil microsoft presentation`},
+ {c:"premiers-pas",aud:["utiliser"],q:`Comment me connecter la première fois ?`,
+  a:`Ouvrez l'adresse fournie par votre administrateur (https://votre-organisation.pladigit.fr/login), saisissez votre e-mail et votre mot de passe, puis changez le mot de passe s'il vous est demandé.`,
+  act:`Utilisez un navigateur récent : Chrome, Firefox ou Edge.`,src:`guide-utilisateurs §2`,k:`login adresse url premiere connexion identifiant navigateur connecter`},
+ {c:"premiers-pas",aud:["utiliser"],q:`J'ai oublié mon mot de passe`,
+  a:`Vous ne pouvez pas le réinitialiser seul. C'est l'administrateur de votre organisation qui le remet à zéro et vous communique un mot de passe temporaire à changer ensuite.`,
+  act:`Contactez votre administrateur organisation.`,src:`guide-utilisateurs §2.4`,k:`mot de passe oublie reinitialiser perdu reset oublier`},
+ {c:"premiers-pas",aud:["utiliser"],q:`Puis-je utiliser mes identifiants Windows ?`,
+  a:`Oui, si votre collectivité a relié Pladigit à son annuaire (Active Directory). Vous vous connectez alors avec vos identifiants Windows habituels, sans nouveau mot de passe à retenir.`,
+  src:`guide-utilisateurs §2.2`,k:`active directory windows ldap annuaire sso identifiant`},
+ {c:"securite",aud:["utiliser"],q:`À quoi sert la double authentification (2FA) ?`,
+  a:`Elle ajoute une seconde clé en plus du mot de passe : un code à 6 chiffres lu sur votre téléphone. Même si quelqu'un découvrait votre mot de passe, il ne pourrait pas entrer sans votre téléphone.`,
+  act:`Activez-la dans Mon profil → Sécurité.`,src:`guide-utilisateurs §3 · glossaire TOTP`,k:`2fa double authentification securite code totp protection`},
+ {c:"securite",aud:["utiliser"],q:`Comment activer la double authentification ?`,
+  a:`Mon profil → Sécurité → « Activer la double authentification », installez une application comme Google Authenticator ou Authy, scannez le QR-code, puis saisissez le code à 6 chiffres pour confirmer.`,
+  act:`Installez l'appli AVANT de cliquer, pour scanner le QR-code dans la foulée.`,src:`guide-utilisateurs §3.1`,k:`activer 2fa qr code authenticator authy aegis configurer`},
+ {c:"securite",aud:["utiliser"],q:`Le code à 6 chiffres change tout le temps`,
+  a:`C'est normal et voulu : chaque code n'est valable que 30 secondes, puis un nouveau s'affiche. C'est ce qui le rend sûr.`,
+  act:`Saisissez le code juste après l'avoir lu, sans attendre.`,src:`guide-utilisateurs §3.2`,k:`code expire 30 secondes change totp temps`},
+ {c:"securite",aud:["utiliser"],q:`Les codes de secours, c'est quoi ?`,
+  a:`Une liste de codes à usage unique remis à l'activation du 2FA. Ils vous permettent d'entrer si vous perdez ou changez de téléphone.`,
+  act:`Imprimez-les et rangez-les ailleurs que sur votre téléphone.`,src:`guide-utilisateurs §3.3`,k:`code secours recovery perte telephone backup`},
+ {c:"ged",aud:["utiliser"],q:`Qu'est-ce que la GED ?`,
+  a:`La Gestion Électronique de Documents : l'espace où vos fichiers sont classés dans des dossiers et partagés selon les droits de votre service. L'équivalent d'un SharePoint, mais chez vous.`,
+  src:`guide-utilisateur-ged §1`,k:`ged document fichier dossier sharepoint gestion electronique`},
+ {c:"ged",aud:["utiliser"],q:`Comment déposer un document ?`,
+  a:`Ouvrez le dossier voulu, puis faites glisser votre fichier dessus, ou utilisez le bouton d'ajout. Il devient aussitôt accessible aux personnes autorisées.`,
+  act:`Pour mettre à jour un fichier, déposez-le par-dessus : il garde son historique.`,src:`guide-utilisateur-ged §4`,k:`deposer uploader ajouter document glisser fichier`},
+ {c:"ged",aud:["utiliser"],q:`Modifier un Word ou un Excel en ligne`,
+  a:`Cliquez sur le document : il s'ouvre dans Collabora Online, directement dans le navigateur, sans rien installer. Vos modifications sont enregistrées automatiquement.`,
+  src:`guide-utilisateur-ged §6`,k:`collabora editer word excel modifier en ligne bureautique odf ouvrir`},
+ {c:"ged",aud:["utiliser"],q:`Retrouver une ancienne version d'un document`,
+  a:`Chaque document conserve l'historique de ses versions. Vous pouvez consulter une version antérieure et la restaurer si une modification récente pose problème.`,
+  act:`Document → Historique des versions → Restaurer.`,src:`guide-utilisateur-ged §8`,k:`version historique restaurer ancienne revenir versioning`},
+ {c:"ged",aud:["utiliser"],q:`Travailler à plusieurs sur le même fichier`,
+  a:`L'édition simultanée est possible. Un système de verrou empêche que deux personnes écrasent leurs modifications en même temps.`,
+  src:`guide-utilisateur-ged §6.4`,k:`simultane plusieurs verrou lock edition collaboration meme temps`},
+ {c:"ged",aud:["utiliser"],q:`Rechercher un document précis`,
+  a:`Utilisez la recherche globale en haut de la GED. Vous pouvez affiner par type de fichier (PDF, Word…) et par dossier.`,
+  src:`guide-utilisateur-ged §9`,k:`rechercher trouver document filtre recherche globale`},
+ {c:"phototheque",aud:["utiliser"],q:`À quoi sert la photothèque ?`,
+  a:`À stocker et organiser les photos de la collectivité en albums, avec des droits par service. Les images restent sur votre propre serveur de stockage (NAS), pas sur un cloud extérieur.`,
+  src:`guide-utilisateur-phototheque §1`,k:`photo image album nas onedrive photos stockage`},
+ {c:"phototheque",aud:["utiliser"],q:`Importer beaucoup de photos d'un coup`,
+  a:`Faites glisser vos images dans l'album, ou importez une archive ZIP complète. Une barre de progression indique l'avancement et l'espace restant.`,
+  act:`L'import ZIP est le plus rapide pour vider un appareil photo.`,src:`guide-utilisateur-phototheque §4`,k:`importer upload zip photos lot glisser quota`},
+ {c:"phototheque",aud:["utiliser"],q:`Partager un album ou une photo`,
+  a:`Vous pouvez générer un lien de partage, éventuellement protégé par mot de passe, pour donner accès à un album ou une photo sans créer de compte.`,
+  src:`guide-utilisateur-phototheque`,k:`partage lien partager album photo externe mot de passe`},
+ {c:"phototheque",aud:["utiliser"],q:`Pourquoi des photos sont signalées « en double » ?`,
+  a:`La photothèque calcule une empreinte unique de chaque image et repère les copies identiques, pour vous éviter d'occuper inutilement de l'espace.`,
+  act:`Vous décidez de garder ou de supprimer les doublons détectés.`,src:`guide-utilisateur-phototheque §4.4`,k:`doublon duplicate sha256 meme photo espace identique`},
+ {c:"projets",aud:["utiliser"],q:`À quoi sert le module Gestion de projet ?`,
+  a:`À suivre les projets et marchés de la collectivité : tâches, échéances, budget et jalons. Il remplace un outil comme Planner.`,
+  src:`guide-utilisateur-gestion-projet §1`,k:`projet planner gestion tache marche suivi jalon`},
+ {c:"projets",aud:["utiliser"],q:`Voir les tâches en colonnes (Kanban)`,
+  a:`La vue Kanban affiche les tâches en colonnes « à faire / en cours / fait », par jalon. On déplace une tâche d'une colonne à l'autre pour la faire avancer.`,
+  src:`guide-utilisateur-gestion-projet §6.2`,k:`kanban colonne tache avancer carte tableau`},
+ {c:"projets",aud:["utiliser"],q:`Visualiser le planning (Gantt)`,
+  a:`La vue Gantt présente les tâches en barres sur un calendrier, pour voir d'un coup d'œil durées, chevauchements et dépendances.`,
+  src:`guide-utilisateur-gestion-projet §6.3`,k:`gantt planning calendrier diagramme echeance duree`},
+ {c:"projets",aud:["utiliser","decouvrir"],q:`Suivre un marché public (MAPA)`,
+  a:`Le module accompagne les marchés à procédure adaptée des petites communes : étapes, pièces, budget et historique au même endroit.`,
+  src:`glossaire MAPA · annexe-t`,k:`marche public mapa achat budget commune procedure`},
+ {c:"datagrid",aud:["utiliser"],q:`Qu'est-ce qu'une DataGrid ?`,
+  a:`Un tableau partagé, façon Excel, pour gérer des listes : annuaires, inventaires, suivis. Les droits se règlent par colonne et par service, et chaque modification est tracée.`,
+  src:`Guide-utilisateur-datagrid`,k:`datagrid tableau liste excel annuaire inventaire grille`},
+ {c:"datagrid",aud:["utiliser"],q:`Importer un fichier Excel ou CSV`,
+  a:`L'import se fait par morceaux avec barre de progression, et le séparateur du CSV est détecté automatiquement. Vous pouvez convertir le type d'une colonne (texte → date, nombre…) avec confirmation.`,
+  act:`Vérifiez l'aperçu des colonnes avant de valider.`,src:`Guide-utilisateur-datagrid §1`,k:`importer csv xlsx ods excel fichier colonne separateur`},
+ {c:"datagrid",aud:["utiliser"],q:`Exporter mes données`,
+  a:`Vous pouvez exporter la grille en Excel, ODS ou PDF (fiche ou liste). Les filtres appliqués sont conservés dans l'export.`,
+  src:`Guide-utilisateur-datagrid §4`,k:`exporter excel ods pdf telecharger sortie filtre`},
+ {c:"datagrid",aud:["utiliser"],q:`Fusionner les doublons d'une liste`,
+  a:`DataGrid repère les lignes qui se ressemblent (même personne, même adresse) grâce à une comparaison intelligente, et propose de les fusionner.`,
+  src:`Guide-utilisateur-datagrid · README`,k:`doublon fusion levenshtein ligne identique nettoyer`},
+ {c:"comprendre",aud:["utiliser","decouvrir"],q:`ODF / ODT / ODS, c'est quoi ?`,
+  a:`Des formats de fichiers ouverts et normalisés (texte, tableur, présentation). Leur intérêt : vos archives resteront lisibles dans 20 ans, quel que soit le logiciel.`,
+  src:`glossaire ODF`,k:`odf odt ods format ouvert libreoffice archive perennite`},
+ {c:"comprendre",aud:["utiliser","decouvrir"],q:`Le RGPD, en pratique`,
+  a:`Le règlement européen sur les données personnelles. Les collectivités doivent tenir un registre des traitements et protéger les données. Pladigit y aide via son journal d'audit complet.`,
+  src:`glossaire RGPD`,k:`rgpd donnees personnelles cnil audit registre conformite`},
+ {c:"comprendre",aud:["utiliser","decouvrir"],q:`Direction, Service, Agent : la hiérarchie`,
+  a:`Les trois niveaux de l'organigramme dans Pladigit. Les droits d'accès aux documents et projets suivent cette hiérarchie : on voit ce que son service est autorisé à voir.`,
+  src:`glossaire · ADR-006`,k:`direction service agent organigramme hierarchie droits role`},
+ {c:"comprendre",aud:["utiliser","decouvrir"],q:`C'est quoi un NAS ?`,
+  a:`Un serveur de stockage qui reste physiquement chez vous (en mairie ou chez votre hébergeur). Vos fichiers et photos y sont rangés, sans transiter par un cloud d'un grand éditeur.`,
+  src:`glossaire · ADR-012`,k:`nas stockage serveur local cloud fichier disque`},
+ {c:"comprendre",aud:["utiliser"],q:`TOTP, Authenticator… ces mots du 2FA`,
+  a:`TOTP désigne le code temporaire à 6 chiffres généré par une appli (Google Authenticator, Authy…). Pladigit l'utilise plutôt que le SMS, jugé moins sûr.`,
+  src:`glossaire TOTP · ADR-017`,k:`totp authenticator code 2fa sms application mobile`},
+
+ // ===== ADMINISTRER =====
+ {c:"comptes",aud:["administrer"],q:`Créer un compte utilisateur`,
+  a:`Espace admin → Utilisateurs → Créer : renseignez l'e-mail, le nom, le rôle et le ou les services. La personne reçoit ses identifiants et change son mot de passe à la première connexion.`,
+  act:`Espace admin → Utilisateurs → Créer un utilisateur.`,src:`guide-admin-organisation §4.2`,k:`creer utilisateur compte ajouter agent nouvel membre admin`},
+ {c:"comptes",aud:["administrer"],q:`Bien structurer l'organigramme`,
+  a:`L'organigramme Direction › Service › Agent commande tous les droits d'accès. C'est la première chose à soigner : un document ou un projet se partage au niveau d'une direction ou d'un service, pas individu par individu.`,
+  act:`Définissez directions et services AVANT de créer les comptes.`,src:`ADR-006 · annexe-d`,k:`organigramme structure direction service hierarchie organiser droits`},
+ {c:"comptes",aud:["administrer"],q:`Attribuer les rôles et permissions`,
+  a:`Chaque utilisateur a un rôle (Président, DGS, Responsable de direction, Responsable de service, Utilisateur) qui détermine ce qu'il peut voir et faire. Appliquez le moindre privilège : le rôle le plus restreint qui suffit.`,
+  src:`guide-admin-organisation §6`,k:`role permission droit dgs responsable utilisateur attribuer moindre privilege`},
+ {c:"config",aud:["administrer"],q:`Personnaliser l'espace (logo, couleurs)`,
+  a:`Le branding affiche le logo, les couleurs et le nom de votre collectivité, pour que les agents reconnaissent leur espace.`,
+  act:`Espace admin → Paramètres → Personnalisation.`,src:`guide-admin-organisation §5`,k:`branding logo couleur personnaliser identite charte nom espace`},
+ {c:"config",aud:["administrer"],q:`Relier Pladigit à l'annuaire (Active Directory)`,
+  a:`La connexion LDAP permet aux agents de se connecter avec leurs identifiants Windows. Seul le LDAPS (chiffré) est autorisé, et les rôles peuvent être synchronisés depuis l'annuaire.`,
+  src:`guide-super-admin §6 · ADR-005`,k:`ldap active directory annuaire ldaps windows synchronisation sso configurer`},
+ {c:"config",aud:["administrer"],q:`Configurer l'envoi des e-mails (SMTP)`,
+  a:`Les paramètres SMTP servent aux invitations, réinitialisations de mot de passe et notifications. Renseignez serveur, port et identifiants fournis par votre fournisseur de messagerie.`,
+  src:`guide-super-admin §5`,k:`smtp email courriel envoi serveur mail notification invitation configurer`},
+ {c:"comptes",aud:["administrer"],q:`Que faire du compte d'un agent qui part ?`,
+  a:`Désactivez le compte plutôt que de le supprimer : l'accès est coupé immédiatement, mais l'historique de ses actions reste tracé — important pour l'audit.`,
+  act:`Utilisateurs → … → Désactiver (ne pas supprimer).`,src:`guide-admin-organisation §4.4`,k:`depart agent desactiver supprimer compte quitter mutation audit`},
+ {c:"gouvernance",aud:["administrer"],q:`Gérer la conservation des journaux (RGPD)`,
+  a:`Les journaux d'audit ont une durée de conservation plafonnée, avec purge automatique des entrées trop anciennes. Cela évite de conserver des données personnelles au-delà du nécessaire.`,
+  src:`ADR-037 · pladigit:purge-audit-logs`,k:`retention conservation journal audit purge rgpd duree log donnees`},
+ {c:"gouvernance",aud:["administrer"],q:`Vérifier les sauvegardes et la restauration`,
+  a:`Un tableau de bord de sécurité indique l'état des sauvegardes. Au-delà de sauvegarder, l'essentiel est de tester une restauration : une sauvegarde jamais testée n'en est pas une.`,
+  act:`Testez une restauration sur un environnement de test, pas en production.`,src:`annexe-m-pra · ADR-041`,k:`sauvegarde backup restauration restaurer pra securite tester perte`},
+ {c:"gouvernance",aud:["administrer"],q:`Bonnes pratiques de sécurité pour un admin`,
+  a:`Activez la double authentification sur les comptes à privilèges, appliquez le moindre privilège, et n'utilisez pas un compte admin pour le travail quotidien. L'accès super-admin est en outre restreint par adresse IP.`,
+  src:`guide-admin §8 · ADR-027`,k:`securite admin bonnes pratiques 2fa moindre privilege ip super-admin compte`},
+
+ // Garanties partagées
+ {c:"garanties",aud:["decouvrir","utiliser"],q:`Où sont stockées mes données ?`,
+  a:`En France, ou sur les propres serveurs de votre collectivité. Chaque organisation a son espace isolé : les données ne sont jamais mélangées entre collectivités, et restent hors de portée des lois étrangères.`,
+  src:`README · annexe-b`,k:`donnees ou stockees france hebergement souverainete cloud act isolation`},
+ {c:"garanties",aud:["decouvrir"],q:`Pourquoi quitter Microsoft ou Google ?`,
+  a:`Pour reprendre la maîtrise : pas d'abonnement, un code ouvert et vérifiable, des formats ouverts. Les services américains sont soumis au Cloud Act, qui peut donner accès aux données même hébergées en Europe.`,
+  src:`README · glossaire Cloud Act`,k:`microsoft google amazon cloud act souverainete abonnement gafam pourquoi`},
+ {c:"garanties",aud:["decouvrir"],q:`Le code est-il vraiment vérifiable ?`,
+  a:`Oui. Pladigit est open source sous licence AGPL-3.0 : n'importe quel prestataire peut auditer le code, et vous n'êtes pas prisonnier d'un fournisseur unique.`,
+  src:`README · LICENSE`,k:`open source code agpl auditer licence verifiable libre`},
+ {c:"garanties",aud:["decouvrir","administrer"],q:`Comment le serveur est-il protégé ?`,
+  a:`Par plusieurs couches : un pare-feu (UFW) n'ouvre que les ports utiles, un outil (Fail2ban) bannit les tentatives d'intrusion, les mots de passe sont hachés (bcrypt) et les secrets sensibles chiffrés (AES-256).`,
+  src:`glossaire · annexe sécurité`,k:`securite serveur pare-feu firewall ufw fail2ban bcrypt aes chiffrement protection`},
+ {c:"garanties",aud:["decouvrir","administrer"],q:`Que se passe-t-il en cas de panne ou de perte ?`,
+  a:`Des sauvegardes régulières sont prévues, avec un plan de reprise d'activité. L'intégrité des archives est vérifiée automatiquement pour s'assurer qu'aucun fichier n'a été altéré.`,
+  src:`annexe-m-pra · ADR-041`,k:`sauvegarde panne perte restauration pra backup integrite reprise`},
+];
+
+/* ---- Logique ---- */
+const norm=s=>s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const grid=document.getElementById("grid"),meta=document.getElementById("meta"),empty=document.getElementById("empty"),
+  qIn=document.getElementById("q"),clearBtn=document.getElementById("clear"),filters=document.getElementById("filters"),
+  modesEl=document.getElementById("modes"),lead=document.getElementById("lead");
+let mode="decouvrir",activeCat="all";
+
+// Construire le sélecteur de public
+Object.entries(MODES).forEach(([id,m])=>{
+  const b=document.createElement("button");
+  b.className="mode"+(id===mode?" active":"");b.style.setProperty("--mc",m.color);b.dataset.mode=id;
+  b.innerHTML=`<span class="ico" style="--mc:${m.color}">${m.ico}</span><span><span class="t">${m.label}</span><span class="s">${m.sub}</span></span>`;
+  b.onclick=()=>{mode=id;activeCat="all";[...modesEl.children].forEach(x=>x.classList.toggle("active",x===b));
+    lead.innerHTML=m.lead;qIn.placeholder=m.ph;buildChips();render();};
+  modesEl.appendChild(b);
+});
+
+function buildChips(){
+  filters.innerHTML="";
+  const present=new Set(DATA.filter(d=>d.aud.includes(mode)).map(d=>d.c));
+  filters.appendChild(mkChip("all","Tout",null));
+  CAT_ORDER.filter(id=>present.has(id)).forEach(id=>filters.appendChild(mkChip(id,CATS[id].label,CATS[id].color)));
+}
+function mkChip(id,label,color){
+  const b=document.createElement("button");
+  b.className="chip"+(id===activeCat?" active":"");b.dataset.cat=id;
+  b.innerHTML=(color?`<span class="dot" style="background:${color}"></span>`:"")+label;
+  b.onclick=()=>{activeCat=id;[...filters.children].forEach(x=>x.classList.toggle("active",x===b));render();};
+  return b;
+}
+
+function esc(s){return s.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
+function highlight(text,tokens){
+  if(!tokens.length)return esc(text);
+  const nText=norm(text),ranges=[];let out="",i=0;
+  tokens.forEach(t=>{let from=0,idx;while((idx=nText.indexOf(t,from))!==-1){ranges.push([idx,idx+t.length]);from=idx+t.length;}});
+  ranges.sort((a,b)=>a[0]-b[0]);
+  const merged=[];ranges.forEach(r=>{const l=merged[merged.length-1];if(l&&r[0]<=l[1])l[1]=Math.max(l[1],r[1]);else merged.push(r.slice());});
+  merged.forEach(([s,e])=>{out+=esc(text.slice(i,s))+"<mark>"+esc(text.slice(s,e))+"</mark>";i=e;});
+  return out+esc(text.slice(i));
+}
+
+function render(){
+  const raw=qIn.value.trim();clearBtn.style.display=raw?"block":"none";
+  const tokens=norm(raw).split(/\s+/).filter(Boolean);
+  let items=DATA.map((d,i)=>({d,i})).filter(o=>o.d.aud.includes(mode));
+  if(activeCat!=="all")items=items.filter(o=>o.d.c===activeCat);
+  if(tokens.length){
+    items=items.map(o=>{
+      const hay=norm(o.d.q+" "+o.d.a+" "+(o.d.act||"")+" "+(o.d.k||"")),inT=norm(o.d.q);
+      if(!tokens.every(t=>hay.includes(t)))return null;
+      let score=0;tokens.forEach(t=>score+=inT.includes(t)?3:1);return{...o,score};
+    }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  }
+  grid.innerHTML="";
+  if(!items.length){empty.style.display="block";meta.textContent="";return;}
+  empty.style.display="none";
+  const n=items.length;
+  meta.innerHTML=`<b>${n}</b> fiche${n>1?"s":""}${raw?` pour « ${esc(raw)} »`:""}${activeCat!=="all"?` · ${CATS[activeCat].label}`:""}`;
+  items.forEach((o,idx)=>{
+    const d=o.d,cat=CATS[d.c],el=document.createElement("article");
+    el.className="card";el.style.cssText=`--cat:${cat.color};animation-delay:${Math.min(idx*22,260)}ms`;
+    el.innerHTML=`<span class="badge"><span class="dot"></span>${cat.label}</span>`+
+      `<h3>${highlight(d.q,tokens)}</h3><p>${highlight(d.a,tokens)}</p>`+
+      (d.act?`<div class="act"><span class="arrow">→</span><span><b>Pour agir :</b> ${highlight(d.act,tokens)}</span></div>`:"")+
+      `<div class="src">Source : ${esc(d.src)}</div>`;
+    grid.appendChild(el);
+  });
+}
+
+qIn.addEventListener("input",render);
+clearBtn.onclick=()=>{qIn.value="";qIn.focus();render();};
+document.addEventListener("keydown",e=>{
+  if(e.key==="/"&&document.activeElement!==qIn){e.preventDefault();qIn.focus();}
+  if(e.key==="Escape"&&document.activeElement===qIn){qIn.value="";render();qIn.blur();}
+});
+lead.innerHTML=MODES[mode].lead;qIn.placeholder=MODES[mode].ph;buildChips();render();
+</script>
+</body>
+</html>
