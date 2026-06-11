@@ -34,6 +34,10 @@ class GedCollaboraTest extends TestCase
     {
         parent::setUp();
         Storage::fake('local');
+
+        // La suite teste le comportement AVEC éditeur installé ;
+        // le défaut applicatif est 'none' (aucun éditeur).
+        config(['collabora.driver' => 'collabora']);
     }
 
     // ── Helpers ──────────────────────────────────────────────
@@ -317,6 +321,34 @@ class GedCollaboraTest extends TestCase
         $doc = $this->makeDocument($folder, $user, 'image/jpeg');
 
         $this->assertFalse($doc->isCollaboraSupported());
+    }
+
+    // ── OFFICE_DRIVER : aucun éditeur installé ────────────────
+
+    public function test_is_collabora_supported_false_si_driver_none(): void
+    {
+        config(['collabora.driver' => 'none', 'collabora.url' => 'https://collabora.test']);
+
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user, 'application/vnd.oasis.opendocument.text');
+
+        $this->assertFalse($doc->isCollaboraSupported());
+    }
+
+    public function test_editor_redirige_si_driver_none(): void
+    {
+        config(['collabora.driver' => 'none', 'collabora.url' => 'https://collabora.test']);
+
+        $user = $this->admin();
+        $folder = $this->makeFolder($user);
+        $doc = $this->makeDocument($folder, $user);
+        $this->actingAs($user, 'tenant');
+
+        $response = $this->get(route('ged.documents.editor', $doc));
+
+        $response->assertRedirect(route('ged.folders.show', $folder->id));
+        $response->assertSessionHas('error');
     }
 
     // ── ValidateWopiRequest middleware ────────────────────────

@@ -33,6 +33,10 @@ class ModuleAccessTest extends TestCase
             'role' => 'admin',
             'status' => 'active',
         ]);
+
+        // Les tests d'accès éditeur supposent un fournisseur actif ;
+        // le défaut applicatif est 'none' (aucun éditeur installé).
+        config(['collabora.driver' => 'collabora']);
     }
 
     /**

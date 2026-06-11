@@ -133,7 +133,6 @@ function api_status(): void
     $error = file_exists(FAIL_FILE);
     if ($done) {
         $_SESSION['install_success'] = true;
-        $_SESSION['app_url'] = $_SESSION['app']['url'] ?? '';
         $_SESSION['step'] = 7;
     }
     echo json_encode([
@@ -197,7 +196,6 @@ function handle_post(string $action): void
                 'app_user' => trim($_POST['db_app_user'] ?? 'pladigit'),
                 'app_password' => $_POST['db_app_password'] ?? '',
             ];
-            $_SESSION['db'] = $db;
             save_config(['db' => $db]);
             $_SESSION['step'] = 3;
             redirect('app');
@@ -229,7 +227,6 @@ function handle_post(string $action): void
                     'timezone' => trim($_POST['app_timezone'] ?? 'Europe/Paris'),
                 ];
             }
-            $_SESSION['app'] = $app;
             save_config(['app' => $app]);
             $_SESSION['step'] = 4;
             redirect('smtp');
@@ -245,7 +242,6 @@ function handle_post(string $action): void
                 'from_name' => trim($_POST['smtp_from_name'] ?? 'Pladigit'),
                 'encryption' => trim($_POST['smtp_encryption'] ?? 'tls'),
             ];
-            $_SESSION['smtp'] = $smtp;
             save_config(['smtp' => $smtp]);
             $_SESSION['step'] = 5;
             redirect('collabora');
@@ -256,7 +252,6 @@ function handle_post(string $action): void
                 'mode' => $_POST['collabora_mode'] ?? 'skip',
                 'url' => trim($_POST['collabora_url'] ?? ''),
             ];
-            $_SESSION['collabora'] = $collabora;
             save_config(['collabora' => $collabora]);
             $_SESSION['step'] = 7;
             redirect('admin');
@@ -273,7 +268,6 @@ function handle_post(string $action): void
                 'email' => trim($_POST['admin_email'] ?? ''),
                 'password' => $_POST['admin_password'] ?? '',
             ];
-            $_SESSION['admin'] = $admin;
             save_config(['admin' => $admin]);
             $_SESSION['step'] = 7;
             redirect('security');
@@ -296,7 +290,6 @@ function handle_post(string $action): void
                 redirect('security');
             }
             $security = ['gpg_passphrase' => $passphrase];
-            $_SESSION['security'] = $security;
             save_config(['security' => $security]);
             $_SESSION['step'] = 8;
             redirect('install');
@@ -391,14 +384,14 @@ function validate_admin(array $p): array
 function write_runner(): void
 {
     $cfg = load_config();
-    $db = $cfg['db'] ?? $_SESSION['db'] ?? [];
-    $app = $cfg['app'] ?? $_SESSION['app'] ?? [];
-    $smtp = $cfg['smtp'] ?? $_SESSION['smtp'] ?? [];
-    $admin = $cfg['admin'] ?? $_SESSION['admin'] ?? [];
-    $collabora = $cfg['collabora'] ?? $_SESSION['collabora'] ?? [];
+    $db = $cfg['db'] ?? [];
+    $app = $cfg['app'] ?? [];
+    $smtp = $cfg['smtp'] ?? [];
+    $admin = $cfg['admin'] ?? [];
+    $collabora = $cfg['collabora'] ?? [];
     $collaboraMode = $collabora['mode'] ?? 'skip';
     $collaboraUrl = $collabora['url'] ?? '';
-    $security = $cfg['security'] ?? $_SESSION['security'] ?? [];
+    $security = $cfg['security'] ?? [];
     $gpgPassphrase = addslashes($security['gpg_passphrase'] ?? '');
 
     $composerJson = json_decode(file_get_contents(PLADIGIT_ROOT.'/composer.json'), true);
@@ -795,7 +788,6 @@ function render_page(string $action): void
         // Par défaut profil 1 — le profil est absent si le wizard est lancé sans install.sh
         $profil = $cfg['install']['profil'] ?? '';
         if ($profil === '1' || $profil === '') {
-            $_SESSION['collabora'] = ['mode' => 'local', 'url' => ''];
             save_config(['collabora' => ['mode' => 'local', 'url' => '']]);
             redirect('admin');
         }
@@ -1072,11 +1064,11 @@ function page_database(array $e): void
 
 function page_app(array $e): void
 {
-    // Pré-remplir depuis config.json (domaine saisi dans install.sh)
+    // Pré-remplir depuis config.json (saisies wizard, ou domaine fourni par install.sh)
     $cfg = load_config();
-    $savedDomain = $_SESSION['app']['domain'] ?? $cfg['install']['domain'] ?? '';
-    $savedMode = $_SESSION['app']['mode'] ?? 'domain';
-    $savedIp = ($_SESSION['app']['mode'] ?? '') === 'ip' ? ($_SESSION['app']['domain'] ?? '') : ($_SERVER['SERVER_ADDR'] ?? '');
+    $savedDomain = $cfg['app']['domain'] ?? $cfg['install']['domain'] ?? '';
+    $savedMode = $cfg['app']['mode'] ?? 'domain';
+    $savedIp = ($cfg['app']['mode'] ?? '') === 'ip' ? ($cfg['app']['domain'] ?? '') : ($_SERVER['SERVER_ADDR'] ?? '');
     ?>
 <div class="wrap"><div class="card">
 <div class="card-title">&#x1F310; Paramètres de l'application</div>
@@ -1200,8 +1192,8 @@ function page_collabora(): void
     $tight = $freeGb >= 2 && $freeGb < 4;
     $cfg = load_config();
     $profil = $cfg['install']['profil'] ?? '1';
-    $savedMode = $cfg['collabora']['mode'] ?? ($_SESSION['collabora']['mode'] ?? ($enough ? 'local' : 'skip'));
-    $savedUrl = $cfg['collabora']['url'] ?? ($_SESSION['collabora']['url'] ?? '');
+    $savedMode = $cfg['collabora']['mode'] ?? ($enough ? 'local' : 'skip');
+    $savedUrl = $cfg['collabora']['url'] ?? '';
 
     // Profil 1 : déjà géré dans render_page() avant html_open()
     ?>
@@ -1467,8 +1459,8 @@ generatePassphrase();
 function page_install(): void
 {
     $cfg = load_config();
-    $collaboraMode = $cfg['collabora']['mode'] ?? $_SESSION['collabora']['mode'] ?? 'skip';
-    $appUrl = $cfg['app']['url'] ?? $_SESSION['app']['url'] ?? '';
+    $collaboraMode = $cfg['collabora']['mode'] ?? 'skip';
+    $appUrl = $cfg['app']['url'] ?? '';
     $isLocal = preg_match('/^https?:\/\/(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.|localhost|127\.)/', $appUrl);
     ?>
 <div class="wrap"><div class="card" id="install-card">
@@ -1698,11 +1690,11 @@ function escHtml(s) {
 
 function page_success(): void
 {
-    $url = $_SESSION['app_url'] ?? '';
-    $admin = $_SESSION['admin'] ?? [];
-    $db = $_SESSION['db'] ?? [];
     $cfg = load_config();
-    $gpgPassphrase = $cfg['security']['gpg_passphrase'] ?? ($_SESSION['security']['gpg_passphrase'] ?? '');
+    $url = $cfg['app']['url'] ?? '';
+    $admin = $cfg['admin'] ?? [];
+    $db = $cfg['db'] ?? [];
+    $gpgPassphrase = $cfg['security']['gpg_passphrase'] ?? '';
     ?>
 <div class="wrap"><div class="card">
 <div style="text-align:center;font-size:3.5rem;margin-bottom:1.25rem">&#x1F389;</div>

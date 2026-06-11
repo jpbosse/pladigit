@@ -29,6 +29,14 @@ class GedEditorController extends Controller
      */
     public function show(GedDocument $document): View|RedirectResponse
     {
+        // Aucun fournisseur d'édition installé (OFFICE_DRIVER ≠ collabora) :
+        // on ne tente jamais d'ouvrir l'iframe — couvre aussi l'URL tapée à la main.
+        if (config('collabora.driver', 'none') !== 'collabora') {
+            return redirect()
+                ->route('ged.folders.show', $document->folder_id)
+                ->with('error', 'Aucun éditeur de documents n\'est installé sur ce serveur.');
+        }
+
         $collaboraUrl = rtrim((string) config('collabora.url', ''), '/');
 
         // URL vide = Collabora proxyfié sous le même vhost que l'app.

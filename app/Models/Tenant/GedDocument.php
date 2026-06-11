@@ -212,9 +212,17 @@ class GedDocument extends Model
 
     /**
      * True si le document peut être ouvert dans Collabora Online.
+     *
+     * Exige un fournisseur d'édition réellement actif (OFFICE_DRIVER) :
+     * sans lui, le bouton "Ouvrir dans Collabora" mènerait à un serveur
+     * inexistant (iframe refusée).
      */
     public function isCollaboraSupported(): bool
     {
+        if (config('collabora.driver', 'none') !== 'collabora') {
+            return false;
+        }
+
         $mimes = (array) config('collabora.supported_mimes', []);
 
         return ! empty($mimes) && in_array($this->mime_type, $mimes, true);

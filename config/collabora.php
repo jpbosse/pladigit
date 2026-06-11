@@ -4,6 +4,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Fournisseur d'édition de documents actif
+    |--------------------------------------------------------------------------
+    | Écrit par l'installeur (OFFICE_DRIVER dans .env) :
+    |   - 'collabora' : Collabora Online installé (local ou externe)
+    |   - 'none'      : aucun éditeur — boutons "Ouvrir dans..." masqués
+    | Défaut 'none' : sans éditeur réellement installé, la GED ne doit
+    | proposer aucune édition (sinon iframe vers un serveur inexistant).
+    */
+    'driver' => env('OFFICE_DRIVER', 'none'),
+
+    /*
+    |--------------------------------------------------------------------------
     | URL de l'instance Collabora Online (CODE)
     |--------------------------------------------------------------------------
     | Ex : https://collabora.mairie.fr
