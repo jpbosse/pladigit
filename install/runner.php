@@ -93,30 +93,44 @@ try {
     }
     ilog('✓ Preflight OK');
 
-    // 1. Créer la base et l'utilisateur MySQL
-    ilog('Connexion à MySQL...');
-    $pdo = new PDO(
-        "mysql:host={$dbHost};port={$dbPort};charset=utf8mb4",
-        $rootUser,
-        $rootPwd,
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
-    ilog('✓ Connexion MySQL OK');
+    // 1. Base et utilisateur MySQL
+    if (! empty($db['provisioned'])) {
+        // Provisionné par install.sh (root via auth_socket, jamais de mot de
+        // passe root) : on vérifie simplement la connexion applicative.
+        ilog('Base provisionnée par install.sh — vérification de la connexion applicative...');
+        $pdo = new PDO(
+            "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
+            $appUser,
+            $appPwd,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+        ilog('✓ Connexion applicative OK (base et utilisateur en place)');
+    } else {
+        // Mode autonome (wizard lancé sans install.sh) : création via root.
+        ilog('Connexion à MySQL...');
+        $pdo = new PDO(
+            "mysql:host={$dbHost};port={$dbPort};charset=utf8mb4",
+            $rootUser,
+            $rootPwd,
+            [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+        );
+        ilog('✓ Connexion MySQL OK');
 
-    ilog('Création de la base de données...');
-    $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    ilog('✓ Base de données créée');
+        ilog('Création de la base de données...');
+        $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+        ilog('✓ Base de données créée');
 
-    ilog("Création de l'utilisateur MySQL {$appUser}...");
-    // CREATE USER IF NOT EXISTS puis ALTER USER pour forcer le bon mot de passe
-    // même si l'utilisateur existait déjà d'une installation précédente
-    $appPwdSql = str_replace("'", "''", $appPwd);
-    $appUserSql = str_replace("'", "''", $appUser);
-    $pdo->exec("CREATE USER IF NOT EXISTS '{$appUserSql}'@'localhost' IDENTIFIED BY '{$appPwdSql}'");
-    $pdo->exec("ALTER USER '{$appUserSql}'@'localhost' IDENTIFIED BY '{$appPwdSql}'");
-    $pdo->exec("GRANT ALL PRIVILEGES ON *.* TO '{$appUserSql}'@'localhost' WITH GRANT OPTION");
-    $pdo->exec('FLUSH PRIVILEGES');
-    ilog('✓ Utilisateur MySQL créé');
+        ilog("Création de l'utilisateur MySQL {$appUser}...");
+        // CREATE USER IF NOT EXISTS puis ALTER USER pour forcer le bon mot de passe
+        // même si l'utilisateur existait déjà d'une installation précédente
+        $appPwdSql = str_replace("'", "''", $appPwd);
+        $appUserSql = str_replace("'", "''", $appUser);
+        $pdo->exec("CREATE USER IF NOT EXISTS '{$appUserSql}'@'localhost' IDENTIFIED BY '{$appPwdSql}'");
+        $pdo->exec("ALTER USER '{$appUserSql}'@'localhost' IDENTIFIED BY '{$appPwdSql}'");
+        $pdo->exec("GRANT ALL PRIVILEGES ON *.* TO '{$appUserSql}'@'localhost' WITH GRANT OPTION");
+        $pdo->exec('FLUSH PRIVILEGES');
+        ilog('✓ Utilisateur MySQL créé');
+    }
 
     // 2. Vérifier le .env (écrit directement par le wizard avant le lancement)
     ilog('Vérification de la configuration...');

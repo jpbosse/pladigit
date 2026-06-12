@@ -553,6 +553,17 @@ function render_page(string $action): void
         }
     }
 
+    // Base provisionnée par install.sh (utilisateur applicatif créé, root jamais
+    // sollicité) : le wizard n'a plus besoin d'AUCUN accès MySQL — l'étape est
+    // sautée. La page reste disponible pour un wizard lancé sans install.sh.
+    if ($action === 'database') {
+        $cfg = load_config();
+        if (! empty($cfg['db']['provisioned'])) {
+            $_SESSION['step'] = 3;
+            redirect('app');
+        }
+    }
+
     html_open();
     html_steps($step, $steps);
 
