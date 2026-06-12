@@ -532,9 +532,12 @@ install_php() {
         fi
 
         # ── Extension imagick : apt d'abord, PECL en fallback ────────────────
+        # --no-install-recommends sur le paquet générique : chez sury, il tire
+        # la dernière branche PHP et recommande libapache2-mod-php → apache2,
+        # qui squatte le port 80 et empêche Nginx de démarrer.
         if ! php -m 2>/dev/null | grep -qi imagick; then
             if apt-get install -y -qq "php${PHP_VERSION}-imagick" >> "$LOG_FILE" 2>&1 \
-            || apt-get install -y -qq php-imagick >> "$LOG_FILE" 2>&1; then
+            || apt-get install -y -qq --no-install-recommends php-imagick >> "$LOG_FILE" 2>&1; then
                 log "Extension imagick installée (apt)"
             else
                 update_progress 21 "Compilation extension imagick... ⏳ Cela peut prendre 5 à 10 min"
@@ -608,6 +611,18 @@ install_services() {
     }
     systemctl enable redis-server >> "$LOG_FILE" 2>&1
     systemctl is-active --quiet redis-server || systemctl start redis-server >> "$LOG_FILE" 2>&1
+
+    # ── Apache2 : éviction systématique avant Nginx ──────────────────────────
+    # Apache peut arriver en recommandation des paquets PHP génériques (sury)
+    # ou être préinstallé sur certaines images cloud. Il squatte le port 80
+    # et empêche Nginx de démarrer. Garde-fou quel que soit le vecteur.
+    if dpkg -l apache2 2>/dev/null | grep -q '^ii'; then
+        warn "Apache2 détecté — retrait (conflit de port 80 avec Nginx)."
+        systemctl stop apache2 >> "$LOG_FILE" 2>&1 || true
+        systemctl disable apache2 >> "$LOG_FILE" 2>&1 || true
+        apt-get purge -y -qq 'apache2*' 'libapache2-mod-php*' >> "$LOG_FILE" 2>&1 || true
+        log "Apache2 retiré"
+    fi
 
     # Nginx
     command -v nginx &>/dev/null || {
