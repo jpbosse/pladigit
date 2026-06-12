@@ -152,8 +152,16 @@ function api_run(): void
         return;
     }
 
-    // Écrire le runner depuis le JSON — source de vérité unique
-    write_runner();
+    // Écrire le .env depuis config.json — seule source de vérité
+    write_env();
+
+    // Le runner est désormais un fichier FIXE et VERSIONNÉ (refonte point 4) :
+    // il lit config.json à l'exécution, plus aucune génération de code.
+    if (! file_exists(INSTALL_DIR.'/runner.php')) {
+        echo json_encode(['ok' => false, 'error' => 'runner.php introuvable — dépôt incomplet.']);
+
+        return;
+    }
 
     // Nettoyer les fichiers précédents
     @unlink(LOG_FILE);
@@ -379,9 +387,10 @@ function validate_admin(array $p): array
 }
 
 // =============================================================================
-// RUNNER — script PHP exécuté en arrière-plan
 // =============================================================================
-function write_runner(): void
+// ENV — écrit par le wizard avant le lancement du runner versionné
+// =============================================================================
+function write_env(): void
 {
     $cfg = load_config();
     $db = $cfg['db'] ?? [];
@@ -389,10 +398,6 @@ function write_runner(): void
     $smtp = $cfg['smtp'] ?? [];
     $admin = $cfg['admin'] ?? [];
     $collabora = $cfg['collabora'] ?? [];
-    $collaboraMode = $collabora['mode'] ?? 'skip';
-    $collaboraUrl = $collabora['url'] ?? '';
-    $security = $cfg['security'] ?? [];
-    $gpgPassphrase = addslashes($security['gpg_passphrase'] ?? '');
 
     $composerJson = json_decode(file_get_contents(PLADIGIT_ROOT.'/composer.json'), true);
     $appVersion = $composerJson['version'] ?? '0.0.0';
@@ -406,251 +411,6 @@ function write_runner(): void
     // Écriture directe du .env depuis le wizard (fiable, pas d'échappement)
     file_put_contents(PLADIGIT_ROOT.'/.env', $envContent);
     chmod(PLADIGIT_ROOT.'/.env', 0640);
-
-    $envEscaped = addslashes($envContent);
-
-    $root = addslashes(PLADIGIT_ROOT);
-    $done = addslashes(DONE_FILE);
-    $fail = addslashes(FAIL_FILE);
-    $lock = addslashes(LOCK_FILE);
-    $appUrl = addslashes($app['url'] ?? '');
-    $appName = addslashes($app['name'] ?? 'Pladigit');
-    $admEmail = addslashes($admin['email'] ?? '');
-    $dbNm = addslashes($db['name'] ?? 'pladigit');
-    $dbUsr = addslashes($db['app_user'] ?? 'pladigit');
-    $appPwd = addslashes($db['app_password']);
-    $rootPwd = addslashes($db['root_password']);
-    $dbHost = addslashes($db['host']);
-    $dbPort = addslashes($db['port']);
-    $dbName = addslashes($db['name']);
-    $appUser = addslashes($db['app_user']);
-    $rootUser = addslashes($db['root_user']);
-
-    $script = <<<RUNNER
-<?php
-/**
- * Pladigit Install Runner — exécuté en arrière-plan par le wizard
- */
-set_time_limit(0);
-ini_set('display_errors', 0);
-
-function ilog(string \$msg): void {
-    \$line = '[' . date('H:i:s') . '] ' . trim(\$msg) . "\n";
-    file_put_contents('{$done}' === '' ? '/tmp/install.log' : dirname('{$done}') . '/install.log', \$line, FILE_APPEND);
-}
-
-function fail(string \$msg): void {
-    ilog('✗ ERREUR : ' . \$msg);
-    file_put_contents('{$fail}', \$msg);
-    exit(1);
-}
-
-\$logFile = dirname('{$done}') . '/install.log';
-
-try {
-    // 0. Preflight — vérifier l'environnement AVANT toute écriture
-    ilog('Vérification de l\'environnement (preflight)...');
-    \$missingExt = [];
-    foreach (['pdo_mysql', 'redis', 'mbstring', 'openssl', 'json', 'curl'] as \$ext) {
-        if (!extension_loaded(\$ext)) {
-            \$missingExt[] = \$ext;
-        }
-    }
-    if (\$missingExt) {
-        fail('Extensions PHP manquantes : ' . implode(', ', \$missingExt));
-    }
-    try {
-        \$r = new Redis();
-        \$r->connect('127.0.0.1', 6379, 2.0);
-        \$r->ping();
-        \$r->close();
-    } catch (\Throwable \$e) {
-        fail('Redis injoignable sur 127.0.0.1:6379 — ' . \$e->getMessage());
-    }
-    foreach (['{$root}/storage', '{$root}/bootstrap/cache', '{$root}'] as \$dir) {
-        if (!is_writable(\$dir)) {
-            fail('Répertoire non accessible en écriture : ' . \$dir);
-        }
-    }
-    ilog('✓ Preflight OK');
-
-    // 1. Créer la base et l'utilisateur MySQL
-    ilog('Connexion à MySQL...');
-    \$pdo = new PDO(
-        'mysql:host={$dbHost};port={$dbPort};charset=utf8mb4',
-        '{$rootUser}', '{$rootPwd}',
-        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
-    );
-    ilog('✓ Connexion MySQL OK');
-
-    ilog('Création de la base de données...');
-    \$pdo->exec("CREATE DATABASE IF NOT EXISTS `{$dbName}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-    ilog('✓ Base de données créée');
-
-    ilog("Création de l'utilisateur MySQL {$appUser}...");
-    // CREATE USER IF NOT EXISTS puis ALTER USER pour forcer le bon mot de passe
-    // même si l'utilisateur existait déjà d'une installation précédente
-    \$pdo->exec("CREATE USER IF NOT EXISTS '{$appUser}'@'localhost' IDENTIFIED BY '{$appPwd}'");
-    \$pdo->exec("ALTER USER '{$appUser}'@'localhost' IDENTIFIED BY '{$appPwd}'");
-    \$pdo->exec("GRANT ALL PRIVILEGES ON *.* TO '{$appUser}'@'localhost' WITH GRANT OPTION");
-    \$pdo->exec("FLUSH PRIVILEGES");
-    ilog('✓ Utilisateur MySQL créé');
-
-    // 2. Vérifier le .env (écrit directement par le wizard)
-    ilog('Vérification de la configuration...');
-    if (!file_exists('{$root}/.env') || filesize('{$root}/.env') < 50) {
-        fail('.env absent ou vide.');
-    }
-    ilog('✓ Configuration présente');
-
-    // 2b. Vider le cache de configuration pour forcer la lecture du nouveau .env
-    // (un cache résiduel d'une installation précédente masquerait DB_PASSWORD)
-    shell_exec('cd {$root} && php artisan config:clear 2>&1');
-    shell_exec('cd {$root} && php artisan cache:clear 2>&1');
-    ilog('✓ Cache vidé');
-
-    // 3. Migrations de base (jobs, cache, users) — racine de migrations/
-    ilog('Création des tables de base...');
-    \$outBase = shell_exec('cd {$root} && php artisan migrate --path=database/migrations --force 2>&1');
-    ilog(\$outBase ?? '');
-
-    // 3b. Migrations platform (organizations, platform_settings, etc.)
-    ilog('Création des tables plateforme...');
-    \$out = shell_exec('cd {$root} && php artisan migrate --path=database/migrations/platform --force 2>&1');
-    ilog(\$out ?? '');
-    if (empty(\$out) || str_contains((string)\$out, 'ERROR') || str_contains((string)\$out, 'SQLSTATE')) {
-        fail('Migrations platform échouées : ' . (\$out ?? 'aucune sortie'));
-    }
-    ilog('✓ Tables plateforme créées');
-
-    // 4. Optimisation
-    ilog('Optimisation du cache...');
-    shell_exec('cd {$root} && php artisan config:cache 2>&1');
-    shell_exec('cd {$root} && php artisan route:cache 2>&1');
-    shell_exec('cd {$root} && php artisan view:cache 2>&1');
-    ilog('✓ Cache généré');
-
-    // 5. Storage link
-    ilog('Liens symboliques storage...');
-    shell_exec('cd {$root} && php artisan storage:link 2>&1');
-    ilog('✓ Storage configuré');
-
-    // 6. Workers : posés par install.sh (root). Le wizard ne configure pas Supervisor.
-    ilog('Workers : configurés par install.sh (étape système).');
-
-    // 6bis. Migrations tenant (initialise les bases existantes)
-    ilog('Migrations tenant...');
-    shell_exec('cd {$root} && php artisan migrate:tenants --force 2>&1');
-    ilog('✓ Migrations tenant appliquées');
-
-    // 7. Édition de documents : choix enregistré pour install.sh (qui provisionne en root).
-    //    Le wizard n'installe RIEN qui exige root — il note seulement le choix.
-    \$collaboraMode = '{$collaboraMode}';
-    if (\$collaboraMode === 'local') {
-        ilog('Collabora : à installer en root après le wizard avec la commande :');
-        ilog('  sudo bash install.sh --add-module collabora');
-    } elseif (\$collaboraMode === 'external') {
-        ilog('Collabora externe : configuré via le .env (aucune installation locale).');
-    } else {
-        ilog('Édition de documents : aucun fournisseur (activable plus tard).');
-    }
-
-    file_put_contents('{$lock}', date('d/m/Y H:i:s'));
-    ilog('✓ Installation sécurisée');
-
-    // 8. Page de succès dans public/
-
-    \$successHtml = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Pladigit install&#233;</title>'
-        . '<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:system-ui,sans-serif;background:#F4F6F9;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:1rem}.card{background:#fff;border-radius:10px;padding:2.5rem;max-width:560px;width:100%;box-shadow:0 4px 16px rgba(0,0,0,.08)}.icon{font-size:3rem;text-align:center;margin-bottom:1rem}.title{font-size:1.4rem;font-weight:700;color:#1E3A5F;text-align:center;margin-bottom:.5rem}.sub{font-size:.875rem;color:#6B7A8D;text-align:center;margin-bottom:1.5rem}.box{background:#F4F6F9;border-radius:8px;padding:1.25rem;margin-bottom:1rem}.bt{font-size:.72rem;font-weight:700;color:#1E3A5F;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.75rem}.row{display:flex;justify-content:space-between;padding:.4rem 0;font-size:.85rem;border-bottom:1px solid #e5e7eb}.row:last-child{border:none}.lbl{font-weight:600;color:#1E3A5F}code{background:#e5e7eb;padding:.1rem .3rem;border-radius:3px;font-size:.78rem}.btn{display:block;background:#1E3A5F;color:#fff;padding:.875rem;border-radius:6px;text-decoration:none;font-weight:700;font-size:.95rem;text-align:center;margin-top:1.25rem}.ok{background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:.75rem;font-size:.82rem;color:#16A34A;margin-bottom:1.25rem}</style>'
-        . '</head><body><div class="card">'
-        . '<div class="icon">&#x1F389;</div>'
-        . '<div class="title">Pladigit est install&#233; !</div>'
-        . '<p class="sub">Votre plateforme est pr&#234;te. Notez ces informations.</p>'
-        . '<div class="ok">&#x2705; Installation reussie le ' . date('d/m/Y') . ' &#224; ' . date('H:i') . '</div>'
-        . '<div class="box"><div class="bt">Super Administrateur</div>'
-        . '<div class="row"><span class="lbl">URL</span><span>' . '{$appUrl}' . '/super-admin</span></div>'
-        . '<div class="row"><span class="lbl">Email</span><span><code>' . '{$admEmail}' . '</code></span></div>'
-        . '<div class="row"><span class="lbl">Mot de passe</span><span><em>Celui que vous avez defini</em></span></div>'
-        . '</div>'
-        . '<div class="box"><div class="bt">Base de donnees</div>'
-        . '<div class="row"><span class="lbl">Base</span><span><code>' . '{$dbNm}' . '</code></span></div>'
-        . '<div class="row"><span class="lbl">Utilisateur</span><span><code>' . '{$dbUsr}' . '</code></span></div>'
-        . '</div>'
-        . '<div class="box" style="background:#fffbeb;border:1px solid #fde68a;"><div class="bt" style="color:#92400e;">&#x26A0; S&#233;curit&#233; — Mots de passe</div><p style="font-size:.82rem;color:#78350f;line-height:1.5;">Plusieurs mots de passe ont &#233;t&#233; saisis durant l\'installation (MySQL, Super Admin, GPG...). <strong>Stockez-les imm&#233;diatement</strong> dans un gestionnaire de mots de passe : <strong>Bitwarden</strong>, KeePass, Vaultwarden ou similaire. Ne les notez jamais en clair par email ou SMS.</p></div>'
-        . '<a id="btn-acc" href="' . '{$appUrl}' . '/super-admin" class="btn">Acc&#233;der &#224; Pladigit &#x2192;</a>'
-        . '<p id="hs" style="text-align:center;font-size:.8rem;color:#6B7A8D;margin-top:.75rem">En attente de l&#39;application&hellip;</p>'
-        . '<div style="text-align:center;margin-top:1rem;padding:.75rem;background:#F4F6F9;border-radius:6px">'
-        . '<div style="font-size:.72rem;color:#6B7A8D;margin-bottom:.35rem">Ou copiez-collez ce lien dans votre navigateur :</div>'
-        . '<code style="font-size:.85rem;color:#1E3A5F;word-break:break-all;user-select:all">' . '{$appUrl}' . '/super-admin</code>'
-        . '</div>'
-        . '<script>(function(){var u="' . '{$appUrl}' . '",s=document.getElementById("hs"),t=0;function chk(){t++;fetch(u+"/health/ping",{cache:"no-store"}).then(function(r){if(r.ok){s.style.color="#16A34A";s.textContent="\u2713 Application pr\u00eate";}else next();}).catch(next);}function next(){if(t>=60){s.textContent="Si la page ne r\u00e9pond pas, patientez une minute puis cliquez sur le bouton.";return;}setTimeout(chk,3000);}setTimeout(chk,2000);})();<\/script>'
-        . '</div></body></html>';
-    file_put_contents('{$root}/public/install-success.html', \$successHtml);
-    ilog('✓ Page de succes generee');
-
-
-    // 8bis. Chiffrement GPG — sauvegardes + copie .env
-    ilog('Configuration du chiffrement GPG...');
-    \$gpgPassphrase = '{$gpgPassphrase}';
-    if (!empty(\$gpgPassphrase)) {
-        // Vérifier que gpg est disponible
-        exec('which gpg 2>/dev/null', \$gpgOut, \$gpgCode);
-        if (\$gpgCode !== 0) {
-            shell_exec('apt-get install -y -qq gnupg 2>/dev/null');
-        }
-
-        // Activer GPG dans platform_settings via artisan
-        \$gpgPassEscaped = addslashes(\$gpgPassphrase);
-        \$out = shell_exec('cd {$root} && php artisan tinker --execute="'
-            . 'try {'
-            . '\\\$ps = App\\\\Models\\\\Platform\\\\PlatformSettings::firstOrCreate([]);'
-            . '\\\$ps->backup_gpg_enabled = true;'
-            . '\\\$ps->backup_gpg_passphrase_enc = Illuminate\\\\Support\\\\Facades\\\\Crypt::encryptString(addslashes(\\"' . \$gpgPassEscaped . '\\"));'
-            . '\\\$ps->save();'
-            . 'echo \\"OK\\";'
-            . '} catch(\\\\Throwable \\\$e) { echo \\"ERR:\\" . \\\$e->getMessage(); }"'
-            . ' 2>&1');
-        if (str_contains((string)\$out, 'OK')) {
-            ilog('✓ Chiffrement GPG activé en base');
-        } else {
-            ilog('⚠ GPG base : ' . trim((string)\$out));
-        }
-
-        // Chiffrer la copie du .env
-        \$envFile = '{$root}/.env';
-        \$envBackup = '/root/.pladigit_env_backup.gpg';
-        \$cmd = sprintf(
-            'gpg --batch --yes --symmetric --cipher-algo AES256 --passphrase %s --output %s %s 2>&1',
-            escapeshellarg(\$gpgPassphrase),
-            escapeshellarg(\$envBackup),
-            escapeshellarg(\$envFile)
-        );
-        exec(\$cmd, \$gpgResult, \$gpgExit);
-        if (\$gpgExit === 0 && file_exists(\$envBackup)) {
-            ilog('✓ Copie chiffrée du .env créée : ' . \$envBackup);
-        } else {
-            ilog('⚠ Copie .env GPG échouée — à refaire manuellement (voir docs/deploy/secrets.md)');
-        }
-    } else {
-        ilog('⚠ Passphrase GPG absente — chiffrement non activé');
-    }
-
-    // 9. Fichier DONE
-    file_put_contents('{$done}', date('d/m/Y H:i:s'));
-    ilog('✓ Installation terminee avec succes !');
-
-    // 9. Nettoyage dans 60s
-    \$cleanup = "#!/bin/bash\nsleep 600 && rm -rf " . dirname('{$done}') . "\n";
-    file_put_contents('/tmp/pladigit-cleanup.sh', \$cleanup);
-    chmod('/tmp/pladigit-cleanup.sh', 0755);
-    shell_exec('nohup /tmp/pladigit-cleanup.sh > /dev/null 2>&1 &');
-
-} catch (\Throwable \$ex) {
-    fail(\$ex->getMessage());
-}
-RUNNER;
-
-    file_put_contents(INSTALL_DIR.'/runner.php', $script);
 }
 
 /**
