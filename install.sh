@@ -350,6 +350,23 @@ Lancer l'installation ?" \
 # ── Écrire config.json pour le wizard ────────────────────────────────────────
 write_wizard_config() {
     mkdir -p "${PLADIGIT_DIR}/install"
+
+    # Section db uniquement si le provisionnement MySQL a réellement eu lieu
+    # (chemin réinstallation : install_mysql est sauté, le wizard garde alors
+    # sa page base de données pour une saisie manuelle).
+    local db_block=""
+    if [[ -n "${DB_APP_PASSWORD:-}" ]]; then
+        db_block=",
+    \"db\": {
+        \"host\": \"127.0.0.1\",
+        \"port\": \"3306\",
+        \"name\": \"${DB_NAME:-pladigit}\",
+        \"app_user\": \"${DB_APP_USER:-pladigit}\",
+        \"app_password\": \"${DB_APP_PASSWORD}\",
+        \"provisioned\": true
+    }"
+    fi
+
     cat > "${PLADIGIT_DIR}/install/config.json" << CONFIG
 {
     "install": {
@@ -360,7 +377,7 @@ write_wizard_config() {
         "ssl_mode": "${SSL_MODE:-none}",
         "version": "${INSTALL_VERSION}",
         "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    }
+    }${db_block}
 }
 CONFIG
     chown www-data:www-data "${PLADIGIT_DIR}/install/config.json" 2>/dev/null || true
@@ -587,15 +604,27 @@ install_mysql() {
     systemctl is-active --quiet mysql || systemctl start mysql >> "$LOG_FILE" 2>&1 \
         || die "Impossible de démarrer MySQL."
 
+    # ── Provisionnement base + utilisateur applicatif ─────────────────────────
+    # root reste en auth_socket (durci par défaut Ubuntu) : l'accès admin passe
+    # par `sudo mysql`, sans mot de passe à gérer. Le wizard n'a plus besoin
+    # d'AUCUN accès root — sa page MySQL disparaît du flux standard.
     local mysql_cmd="mysql -u root"
     [[ -n "${MYSQL_ROOT_PASSWORD}" ]] && mysql_cmd="mysql -u root -p${MYSQL_ROOT_PASSWORD}"
 
-    if [[ -z "${MYSQL_ROOT_PASSWORD}" ]]; then
-        ${mysql_cmd} -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;" \
-            >> "$LOG_FILE" 2>&1 || warn "ALTER USER root ignoré — déjà configuré."
-    fi
+    DB_NAME="pladigit"
+    DB_APP_USER="pladigit"
+    DB_APP_PASSWORD="$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | cut -c1-24)"
+    [[ ${#DB_APP_PASSWORD} -ge 16 ]] || die "Génération du mot de passe applicatif échouée."
 
-    log "Authentification MySQL configurée"
+    ${mysql_cmd} >> "$LOG_FILE" 2>&1 <<SQL || die "Impossible de provisionner la base de données."
+CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER IF NOT EXISTS '${DB_APP_USER}'@'localhost' IDENTIFIED BY '${DB_APP_PASSWORD}';
+ALTER USER '${DB_APP_USER}'@'localhost' IDENTIFIED BY '${DB_APP_PASSWORD}';
+GRANT ALL PRIVILEGES ON *.* TO '${DB_APP_USER}'@'localhost' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+SQL
+
+    log "Base '${DB_NAME}' et utilisateur '${DB_APP_USER}' provisionnés (mot de passe généré)"
     step_done "MySQL 8"
     update_progress 42 "MySQL 8 ✅"
 }
