@@ -134,6 +134,7 @@ Route::prefix('super-admin')
         Route::get('backup/checksum', [BackupController::class, 'checksum'])->name('backup.checksum');
         Route::get('backup/test', [BackupController::class, 'testBackup'])->name('backup.test');
         Route::get('backup/inspect', [BackupController::class, 'inspectArchive'])->name('backup.inspect');
+        Route::get('backup/check-path', [BackupController::class, 'checkPath'])->name('backup.check-path');
 
         Route::get('security/totp', [SecurityController::class, 'totpSetup'])->name('security.totp');
         Route::post('security/totp', [SecurityController::class, 'totpConfirm'])->name('security.totp.confirm');
@@ -255,10 +256,8 @@ Route::middleware('tenant')->group(function () {
             Route::get('settings/security', [SettingsController::class, 'security'])->name('settings.security');
             Route::put('settings/security', [SettingsController::class, 'updateSecurity'])->name('settings.security.update');
             Route::get('settings/backup', [SettingsController::class, 'backup'])->name('settings.backup');
-            Route::put('settings/backup', [SettingsController::class, 'updateBackup'])->name('settings.backup.update');
-            Route::post('settings/backup/run', [SettingsController::class, 'runBackup'])->name('settings.backup.run');
             Route::get('settings/backup/status', [SettingsController::class, 'backupStatus'])->name('settings.backup.status');
-            Route::get('settings/backup/test-sftp', [SettingsController::class, 'testBackupSftp'])->name('settings.backup.test-sftp');
+            Route::get('settings/backup/checksum', [SettingsController::class, 'backupChecksum'])->name('settings.backup.checksum');
 
             // DataGrid — gestion des grilles
             Route::middleware('module:datagrid')->group(function () {
