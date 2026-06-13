@@ -141,9 +141,15 @@ class BackupService
 
         $encryptedPath = $archivePath.'.gpg';
 
+        $gnupgHome = storage_path('.gnupg');
+        if (! is_dir($gnupgHome)) {
+            mkdir($gnupgHome, 0700, true);
+        }
+
         $cmd = sprintf(
-            'gpg --batch --yes --symmetric --cipher-algo AES256 '
+            'GNUPGHOME=%s gpg --batch --yes --symmetric --cipher-algo AES256 '
             .'--passphrase %s --output %s %s 2>/dev/null',
+            escapeshellarg($gnupgHome),
             escapeshellarg($passphrase),
             escapeshellarg($encryptedPath),
             escapeshellarg($archivePath)
