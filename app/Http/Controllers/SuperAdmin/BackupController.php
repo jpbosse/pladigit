@@ -52,6 +52,52 @@ class BackupController extends Controller
         return back()->with('success', 'Configuration sauvegarde enregistrée.');
     }
 
+    /**
+     * Vérifie que le chemin local de destination existe et est accessible en écriture.
+     * Le crée automatiquement s'il n'existe pas.
+     *
+     * GET /super-admin/backup/check-path
+     */
+    public function checkPath(): JsonResponse
+    {
+        $settings = PlatformSettings::firstOrCreate([]);
+        $path = rtrim((string) ($settings->backup_local_path ?? ''), '/');
+
+        if ($path === '') {
+            return response()->json(['ok' => false, 'message' => 'Aucun chemin configuré.']);
+        }
+
+        // Créer le répertoire s'il n'existe pas
+        if (! is_dir($path)) {
+            if (! mkdir($path, 0750, true) && ! is_dir($path)) {
+                return response()->json([
+                    'ok' => false,
+                    'message' => "Impossible de créer le répertoire : {$path}. Vérifiez les permissions.",
+                ]);
+            }
+
+            return response()->json([
+                'ok' => true,
+                'created' => true,
+                'message' => "Répertoire créé avec succès : {$path}",
+            ]);
+        }
+
+        // Vérifier qu'il est accessible en écriture
+        if (! is_writable($path)) {
+            return response()->json([
+                'ok' => false,
+                'message' => "Le répertoire existe mais n'est pas accessible en écriture : {$path}",
+            ]);
+        }
+
+        return response()->json([
+            'ok' => true,
+            'created' => false,
+            'message' => "Répertoire accessible en écriture : {$path}",
+        ]);
+    }
+
     public function run(): JsonResponse
     {
         $settings = PlatformSettings::firstOrCreate([]);
@@ -130,7 +176,7 @@ class BackupController extends Controller
             return response()->json(['ok' => true, 'archives' => []]);
         }
 
-        // Les archives sont organisées par sous-dossier : backup_complet/{slug}/backup_*.tar.gz
+        // Les archives sont organisées par sous-dossier : {destDir}/{slug}/backup_*.tar.gz
         $files = array_merge(
             glob($destDir.'/*/backup_*.tar.gz') ?: [],
             glob($destDir.'/*/backup_*.tar.gz.gpg') ?: [],
@@ -283,8 +329,14 @@ class BackupController extends Controller
                 $passphrase = Crypt::decryptString((string) $settings->backup_gpg_passphrase_enc);
                 $tmpDecrypted = sys_get_temp_dir().'/pladigit_inspect_'.uniqid().'.tar.gz';
 
+                $gnupgHome = storage_path('.gnupg');
+                if (! is_dir($gnupgHome)) {
+                    mkdir($gnupgHome, 0700, true);
+                }
+
                 $cmd = sprintf(
-                    'gpg --batch --yes --decrypt --passphrase %s --output %s %s 2>/dev/null',
+                    'GNUPGHOME=%s gpg --batch --yes --decrypt --passphrase %s --output %s %s 2>/dev/null',
+                    escapeshellarg($gnupgHome),
                     escapeshellarg($passphrase),
                     escapeshellarg($tmpDecrypted),
                     escapeshellarg($filePath)

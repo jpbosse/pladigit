@@ -3,12 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Jobs\BackupJob;
 use App\Jobs\SyncGedJob;
 use App\Jobs\SyncNasJob;
+use App\Models\Platform\PlatformSettings;
 use App\Models\Tenant\MediaItem;
 use App\Models\Tenant\TenantSettings;
-use App\Services\BackupService;
 use App\Services\Nas\NasManager;
 use App\Services\TenantMailer;
 use App\Services\TenantManager;
@@ -462,74 +461,27 @@ class SettingsController extends Controller
     }
 
     // =========================================================================
-    // Sauvegarde — Configuration + déclenchement manuel
+    // Sauvegarde — Statut uniquement (configuration = Super Admin)
     // =========================================================================
 
+    /**
+     * Affiche le statut de la dernière sauvegarde de cette organisation.
+     * La configuration des sauvegardes est gérée exclusivement par le Super Admin.
+     */
     public function backup(): View
     {
-        $settings = TenantSettings::firstOrCreate([]);
+        $platformSettings = PlatformSettings::firstOrCreate([]);
 
-        return view('admin.settings.backup', compact('settings'));
-    }
-
-    public function updateBackup(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'backup_enabled' => ['boolean'],
-            'backup_schedule' => ['required', 'in:hourly,daily,weekly'],
-            'backup_driver' => ['required', 'in:local,sftp'],
-            'backup_local_path' => ['nullable', 'string', 'max:500'],
-            'backup_sftp_host' => ['nullable', 'string', 'max:255'],
-            'backup_sftp_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
-            'backup_sftp_user' => ['nullable', 'string', 'max:255'],
-            'backup_sftp_password' => ['nullable', 'string', 'max:255'],
-            'backup_sftp_path' => ['nullable', 'string', 'max:500'],
-            'backup_retention_count' => ['required', 'integer', 'min:1', 'max:90'],
-        ]);
-
-        $settings = TenantSettings::firstOrCreate([]);
-        $data = collect($validated)->except('backup_sftp_password')->toArray();
-        $data['backup_enabled'] = $request->boolean('backup_enabled');
-
-        if (filled($request->backup_sftp_password)) {
-            $data['backup_sftp_password_enc'] = Crypt::encryptString($request->backup_sftp_password);
-        }
-
-        $settings->update($data);
-
-        return back()->with('success', 'Configuration sauvegarde enregistrée.');
-    }
-
-    /**
-     * Démarre une sauvegarde manuelle (AJAX POST).
-     * Retourne JSON immédiatement, le job s'exécute en arrière-plan.
-     */
-    public function runBackup(TenantManager $tenantManager): JsonResponse
-    {
-        $org = $tenantManager->currentOrFail();
-        $settings = TenantSettings::firstOrCreate([]);
-
-        if (! $settings->backupIsConfigured()) {
-            return response()->json([
-                'ok' => false,
-                'message' => 'La destination de sauvegarde n\'est pas configurée.',
-            ]);
-        }
-
-        BackupJob::dispatch($org->slug);
-
-        return response()->json([
-            'ok' => true,
-            'message' => 'Sauvegarde lancée en arrière-plan. Revenez dans quelques instants.',
-        ]);
+        return view('admin.settings.backup', compact('platformSettings'));
     }
 
     /**
      * Retourne le statut de la dernière sauvegarde (polling AJAX).
+     * Lit PlatformSettings car c'est là que BackupJob écrit le résultat.
      */
     public function backupStatus(): JsonResponse
     {
-        $settings = TenantSettings::firstOrCreate([]);
+        $settings = PlatformSettings::firstOrCreate([]);
 
         return response()->json([
             'status' => $settings->backup_last_status,
@@ -540,15 +492,53 @@ class SettingsController extends Controller
     }
 
     /**
-     * Teste la connexion SFTP de sauvegarde (AJAX GET).
+     * Vérifie l'intégrité SHA-256 de la dernière archive de cette organisation.
      */
-    public function testBackupSftp(BackupService $backupService): JsonResponse
+    public function backupChecksum(TenantManager $tenantManager): JsonResponse
     {
-        $settings = TenantSettings::firstOrCreate([]);
+        $org = $tenantManager->currentOrFail();
+        $platformSettings = PlatformSettings::firstOrCreate([]);
 
-        $result = $backupService->testSftp($settings);
+        $destDir = rtrim((string) ($platformSettings->backup_local_path ?? ''), '/');
 
-        return response()->json($result);
+        if ($destDir === '') {
+            return response()->json(['ok' => false, 'message' => 'Chemin de sauvegarde non configuré par l\'administrateur.']);
+        }
+
+        // Chercher la dernière archive de cette organisation (sous-dossier ou à plat)
+        $files = array_merge(
+            glob($destDir.'/'.$org->slug.'/backup_*.tar.gz.gpg') ?: [],
+            glob($destDir.'/'.$org->slug.'/backup_*.tar.gz') ?: [],
+            glob($destDir.'/backup_*_'.$org->slug.'.tar.gz.gpg') ?: [],
+            glob($destDir.'/backup_*_'.$org->slug.'.tar.gz') ?: []
+        );
+
+        if (empty($files)) {
+            return response()->json(['ok' => false, 'message' => 'Aucune archive trouvée pour cette organisation.']);
+        }
+
+        rsort($files);
+        $filePath = $files[0]; // la plus récente
+
+        $computed = hash_file('sha256', $filePath);
+        $sha256File = $filePath.'.sha256';
+        $expected = null;
+
+        if (file_exists($sha256File)) {
+            $line = trim((string) file_get_contents($sha256File));
+            $parts = preg_split('/\s+/', $line, 2);
+            $expected = $parts[0] ?? null;
+        }
+
+        $match = ($expected !== null && hash_equals($expected, $computed));
+
+        return response()->json([
+            'ok' => true,
+            'file' => basename($filePath),
+            'computed' => $computed,
+            'expected' => $expected,
+            'match' => $match,
+        ]);
     }
 
     public function testGed(NasManager $nasManager): JsonResponse
