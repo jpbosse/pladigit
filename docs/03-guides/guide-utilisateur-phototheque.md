@@ -1,9 +1,7 @@
-# PLADIGIT
-Plateforme de Digitalisation Interne
+# Guide utilisateur — Module Photothèque
 
-Guide utilisateur
-Module Photothèque
-Pour tous les utilisateurs ayant accès au module MEDIA
+> Ce guide s'adresse à tous les utilisateurs ayant accès au module Photothèque.
+> Dernière mise à jour : juin 2026.
 
 ---
 
@@ -305,4 +303,4 @@ Supprimez la photo depuis l'interface (clic droit → Supprimer). Cela retire la
 
 ---
 
-*Pladigit — contact@pladigit.fr — github.com/jpbosse/pladigit — AGPL-3.0*
+**Dernière mise à jour : juin 2026*

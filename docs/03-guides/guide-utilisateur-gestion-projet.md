@@ -1,11 +1,9 @@
-PLADIGIT
-Plateforme de Digitalisation Interne
+# Guide utilisateur — Module Gestion de projet
 
-Guide utilisateur
-Module Gestion de projet
-Pour les Chefs de projet, Contributeurs et Observateurs
+> Ce guide s'adresse aux chefs de projet, contributeurs et observateurs.
+> Dernière mise à jour : juin 2026.
 
-# Sommaire
+---
 
 # 1. Introduction — à quoi sert ce module ?
 Le module Gestion de projet de Pladigit vous permet de piloter vos projets municipaux de A à Z : suivi des tâches, planning, budget, risques, communication avec les élus. C’est l’équivalent libre et souverain de Microsoft Planner.
@@ -221,4 +219,34 @@ Les modèles permettent de capitaliser sur des structures de projets récurrents
 
 
 
-Pladigit — Pladigit, Soullans (85) — github.com/jpbosse/pladigit — AGPL-3.0
+*Dernière mise à jour : juin 2026*
+---
+
+## Questions fréquentes
+
+**Je ne vois pas le bouton "+ Nouveau projet".**
+Seuls les utilisateurs avec le rôle DGS, Responsable de direction ou Chef de projet
+peuvent créer un projet. Si vous pensez avoir besoin de ce droit, contactez votre
+administrateur.
+
+**Comment savoir si une tâche m'est assignée ?**
+La cloche 🔔 en haut de l'écran vous notifie dès qu'une tâche vous est assignée.
+Vous pouvez aussi filtrer la vue Liste par "Assigné à moi".
+
+**Puis-je voir les projets des autres services ?**
+Cela dépend de votre rôle. Le Maire, le DGS et les Responsables de direction voient
+tous les projets de leur périmètre. Les projets marqués 🔒 Privé ne sont visibles
+que par leurs membres.
+
+**J'ai créé un projet par erreur — comment le supprimer ?**
+Dans la page du projet, cliquer sur **Modifier → Actions → Supprimer le projet**.
+La suppression est définitive. Si des documents GED sont liés au projet, ils ne
+sont pas supprimés — seul le lien est retiré.
+
+**Le diagramme de Gantt ne s'affiche pas correctement.**
+Vérifier que les tâches ont bien des dates de début et d'échéance renseignées.
+Le Gantt n'affiche que les tâches avec des dates.
+
+---
+
+*Dernière mise à jour : juin 2026*

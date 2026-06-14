@@ -1,9 +1,7 @@
-# PLADIGIT
-Plateforme de Digitalisation Interne
+# Guide utilisateur — Module GED (Gestion Électronique de Documents)
 
-Guide utilisateur
-Module GED — Gestion Électronique de Documents
-Pour tous les utilisateurs ayant accès au module GED
+> Ce guide s'adresse à tous les utilisateurs ayant accès au module GED.
+> Dernière mise à jour : juin 2026.
 
 ---
 
@@ -319,4 +317,4 @@ Supprimer le document le retire définitivement de la GED (après délai de corb
 
 ---
 
-*Pladigit — contact@pladigit.fr — github.com/jpbosse/pladigit — AGPL-3.0*
+**Dernière mise à jour : juin 2026*
