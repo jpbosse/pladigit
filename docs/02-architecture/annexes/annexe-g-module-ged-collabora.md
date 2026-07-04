@@ -438,9 +438,9 @@ La recherche est accessible depuis la barre de recherche globale et depuis l'int
 
 | ADR | Décision |
 |-----|----------|
-| [ADR-020](../adr/ADR-020-ged-storage-interface.md) | Abstraction du stockage via `GedStorageInterface` |
-| [ADR-021](../adr/ADR-021-wopi-access-token-ttl-timestamp-absolu.md) | `access_token_ttl` est un timestamp Unix absolu en ms |
-| [ADR-022](../adr/ADR-022-collabora-integre-ged-pas-module-separe.md) | Collabora intégré à GED, pas de module séparé |
+| [ADR-020](../../04-adr/ADR-020-ged-storage-interface.md) | Abstraction du stockage via `GedStorageInterface` |
+| [ADR-021](../../04-adr/ADR-021-wopi-access-token-ttl-timestamp-absolu.md) | `access_token_ttl` est un timestamp Unix absolu en ms |
+| [ADR-022](../../04-adr/ADR-022-collabora-integre-ged-pas-module-separe.md) | Collabora intégré à GED, pas de module séparé |
 
 ---
 

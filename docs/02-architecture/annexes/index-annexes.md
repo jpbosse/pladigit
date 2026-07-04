@@ -8,18 +8,18 @@ Ce document liste toutes les annexes techniques de Pladigit, leur contenu et leu
 
 | Annexe | Titre | Audience | Statut |
 |--------|-------|----------|--------|
-| [A](annexes/annexe-a-personas.md) | Personas et parcours utilisateurs | Concepteurs, contributeurs UX | ✅ À jour |
-| [B](annexes/annexe-b-multitenant.md) | Architecture multi-tenant | Développeurs, déployeurs | ✅ À jour |
-| [C](annexes/annexe-c-matrice-droits.md) | Matrice des droits et rôles | Admins, développeurs | ✅ À jour |
-| [D](annexes/annexe-d-org-structure.md) | Structure organisationnelle | Admins, développeurs | ✅ À jour |
-| [E](annexes/annexe-e-module-phototheque.md) | Module Photothèque | Développeurs | ✅ À jour |
-| [F](annexes/annexe-f-politique-nas.md) | Politique de synchronisation NAS | Déployeurs, admins | ✅ À jour |
-| [G](annexes/annexe-g-module-ged-collabora.md) | Module GED + Collabora Online | Développeurs, déployeurs | ✅ À jour |
-| [K](annexes/annexe-k-cicd.md) | CI/CD et tests automatisés | Développeurs, contributeurs | ✅ À jour |
-| [M](annexes/annexe-m-pra.md) | Plan de Reprise d'Activité (PRA) | Opérateurs, admins | ✅ À jour |
-| [O](annexes/annexe-o-politique-quotas.md) | Politique de quotas de stockage | Admins, super-admins | ✅ À jour |
-| [Q](annexes/annexe-q-succession.md) | Plan de succession et continuité | Repreneur potentiel | ✅ À jour |
-| [T](annexes/annexe-t-gestion-projet.md) | Module Gestion de projet | Développeurs | ✅ À jour |
+| [A](annexe-a-personas.md) | Personas et parcours utilisateurs | Concepteurs, contributeurs UX | ✅ À jour |
+| [B](annexe-b-multitenant.md) | Architecture multi-tenant | Développeurs, déployeurs | ✅ À jour |
+| [C](annexe-c-matrice-droits.md) | Matrice des droits et rôles | Admins, développeurs | ✅ À jour |
+| [D](annexe-d-org-structure.md) | Structure organisationnelle | Admins, développeurs | ✅ À jour |
+| [E](annexe-e-module-phototheque.md) | Module Photothèque | Développeurs | ✅ À jour |
+| [F](annexe-f-politique-nas.md) | Politique de synchronisation NAS | Déployeurs, admins | ✅ À jour |
+| [G](annexe-g-module-ged-collabora.md) | Module GED + Collabora Online | Développeurs, déployeurs | ✅ À jour |
+| [K](annexe-k-cicd.md) | CI/CD et tests automatisés | Développeurs, contributeurs | ✅ À jour |
+| [M](annexe-m-pra.md) | Plan de Reprise d'Activité (PRA) | Opérateurs, admins | ✅ À jour |
+| [O](annexe-o-politique-quotas.md) | Politique de quotas de stockage | Admins, super-admins | ✅ À jour |
+| [Q](annexe-q-succession.md) | Plan de succession et continuité | Repreneur potentiel | ✅ À jour |
+| [T](annexe-t-gestion-projet.md) | Module Gestion de projet | Développeurs | ✅ À jour |
 
 ---
 

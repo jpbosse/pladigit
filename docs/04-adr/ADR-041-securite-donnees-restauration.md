@@ -338,7 +338,7 @@ mkdir /tmp/restore && tar -xzf /tmp/backup.tar.gz -C /tmp/restore
 
 # Étape 3 — Restaurer le .env
 cp /tmp/restore/env.txt /var/www/pladigit/.env
-sudo chown ubuntu:www-data /var/www/pladigit/.env && sudo chmod 640 /var/www/pladigit/.env
+sudo chown www-data:www-data /var/www/pladigit/.env && sudo chmod 640 /var/www/pladigit/.env
 php artisan config:clear && php artisan cache:clear
 
 # Étape 4 — Restaurer les bases MySQL

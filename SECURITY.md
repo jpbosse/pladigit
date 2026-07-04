@@ -51,7 +51,7 @@ Hors périmètre :
 
 ## Mesures de sécurité en place
 
-Pour information, les mesures suivantes sont implémentées dans Pladigit v0.8 :
+Pour information, les mesures suivantes sont implémentées dans Pladigit v0.9 :
 
 - **Mots de passe** : hachage bcrypt coût 12, politique configurable (longueur, complexité, expiration, historique)
 - **Double authentification** : TOTP (algorithme TOTP RFC 6238), secret chiffré AES-256 en base, codes de secours chiffrés

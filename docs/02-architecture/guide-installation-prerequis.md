@@ -26,30 +26,38 @@ $ lsb_release -a
 
 ✓  Résultat attendu : 'Ubuntu 24.04 LTS' ou version supérieure.
 
-## Étape 2 — PHP 8.3 et ses extensions
+## Étape 2 — PHP 8.4 et ses extensions
 
 
-PHP 8.3 est disponible nativement dans Ubuntu 24.04 via le dépôt universe — aucun dépôt externe requis.
+Pladigit fonctionne avec PHP 8.3, 8.4 et 8.5 ; le minimum requis est PHP 8.2 (contrainte `composer.json`). La **version de référence** — celle que cible l'installeur automatique et que fait tourner la production — est **PHP 8.4**.
 
-# Activer le dépôt universe (PHP 8.3 natif Ubuntu 24.04)
-$ sudo add-apt-repository -y universe
+PHP 8.4 n'est le paquet natif d'aucune version LTS d'Ubuntu (24.04 fournit 8.3, 26.04 fournit 8.5). Il s'installe donc depuis le **dépôt APT Sury** (`packages.sury.org`). Attention : ce dépôt APT direct **n'est pas** le PPA Launchpad `ppa:ondrej/php` — c'est justement ce contournement de Launchpad qui évite les instabilités (erreurs 418, timeouts) décrites dans l'ADR-028.
+
+# Ajouter le dépôt APT Sury (fournit PHP 8.4)
+$ sudo apt install -y ca-certificates apt-transport-https curl
+$ sudo curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+$ echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/php.list
 $ sudo apt update
 
-# Installer PHP 8.3 et toutes les extensions requises par Laravel 11
-$ sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-common \
-$   php8.3-mysql php8.3-xml php8.3-xmlrpc php8.3-curl php8.3-gd \apt
-$   php8.3-imagick php8.3-dev php8.3-imap php8.3-mbstring \
-$   php8.3-opcache php8.3-soap php8.3-zip php8.3-intl \
-$   php8.3-redis php8.3-bcmath php8.3-ldap
+# Installer PHP 8.4 et toutes les extensions requises par Pladigit
+$ sudo apt install -y php8.4 php8.4-cli php8.4-fpm php8.4-common \
+$   php8.4-mysql php8.4-xml php8.4-xmlrpc php8.4-curl php8.4-gd \
+$   php8.4-imagick php8.4-dev php8.4-imap php8.4-mbstring \
+$   php8.4-opcache php8.4-soap php8.4-zip php8.4-intl \
+$   php8.4-redis php8.4-bcmath php8.4-ldap
+
+# Faire de php8.4 le « php » par défaut du système
+# (indispensable si le natif Ubuntu — 8.3 ou 8.5 — est présent)
+$ sudo update-alternatives --set php /usr/bin/php8.4
 
 # Vérification
-$ php8.3 --version
-$ php8.3 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath'
+$ php8.4 --version
+$ php8.4 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath'
 
 ✓  Vous devez voir toutes ces extensions listées. Si l'une manque, installez-la séparément avec apt.
 
 
-📄 /etc/php/8.3/cli/php.ini  (et /etc/php/8.3/fpm/php.ini pour la prod)
+📄 /etc/php/8.4/cli/php.ini  (et /etc/php/8.4/fpm/php.ini pour la prod)
 ; Mémoire — Laravel + imports de fichiers volumineux
 memory_limit = 256M
 
@@ -70,15 +78,15 @@ opcache.max_accelerated_files = 10000
 opcache.revalidate_freq = 0   ; 0 = revalidation à chaque requête en dev
 
 # Appliquer la config et vérifier
-$ sudo systemctl restart php8.3-fpm
-$ php8.3 -r "echo ini_get('memory_limit') . PHP_EOL;"
+$ sudo systemctl restart php8.4-fpm
+$ php8.4 -r "echo ini_get('memory_limit') . PHP_EOL;"
 
 ## Étape 3 — Composer 2
 
 
 # Télécharger et vérifier l'installeur officiel
 $ curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php
-$ php8.3 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
+$ php8.4 /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer
 $
 # Vérification
 $ composer --version
@@ -180,7 +188,7 @@ $
 $ node --version    # → v20.x.x
 $ npm --version     # → 10.x.x
 
-✓  Node.js 20 est requis pour Vite (compilateur d'assets de Laravel 11) et pour les scripts docx/pptx si vous en générez.
+✓  Node.js 20 est requis pour Vite (compilateur d'assets de Laravel 12) et pour les scripts docx/pptx si vous en générez.
 
 ## Étape 7 — Git et configuration
 
@@ -277,19 +285,24 @@ X11Forwarding no
 $ sudo systemctl restart sshd
 # Tester la connexion dans un NOUVEAU terminal avant de fermer l'actuel
 
-## Étape 9 — PHP-FPM 8.3 et Nginx (production)
+## Étape 9 — PHP-FPM 8.4 et Nginx (production)
 
 
-$ sudo add-apt-repository -y universe && sudo apt update
-$ sudo apt install -y php8.3-fpm php8.3-cli php8.3-mysql php8.3-redis \
-$   php8.3-xml php8.3-curl php8.3-mbstring php8.3-zip php8.3-intl \
-$   php8.3-bcmath php8.3-ldap php8.3-gd php8.3-imagick php8.3-opcache
+# Dépôt APT Sury pour PHP 8.4 (voir Étape 2 — ce n'est pas le PPA Launchpad)
+$ sudo apt install -y ca-certificates apt-transport-https curl
+$ sudo curl -sSLo /usr/share/keyrings/deb.sury.org-php.gpg https://packages.sury.org/php/apt.gpg
+$ echo "deb [signed-by=/usr/share/keyrings/deb.sury.org-php.gpg] https://packages.sury.org/php/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/php.list
+$ sudo apt update
+$ sudo apt install -y php8.4-fpm php8.4-cli php8.4-mysql php8.4-redis \
+$   php8.4-xml php8.4-curl php8.4-mbstring php8.4-zip php8.4-intl \
+$   php8.4-bcmath php8.4-ldap php8.4-gd php8.4-imagick php8.4-opcache
+$ sudo update-alternatives --set php /usr/bin/php8.4
 $
 $ sudo apt install -y nginx
 $
 # Démarrer les services
-$ sudo systemctl start php8.3-fpm nginx
-$ sudo systemctl enable php8.3-fpm nginx
+$ sudo systemctl start php8.4-fpm nginx
+$ sudo systemctl enable php8.4-fpm nginx
 
 
 📄 /etc/nginx/sites-available/pladigit
@@ -339,7 +352,7 @@ location = /robots.txt  { access_log off; log_not_found off; }
 error_page 404 /index.php;
 
 location ~ .php$ {
-fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
 fastcgi_param SCRIPT_FILENAME $realpath_root$fastcgi_script_name;
 include fastcgi_params;
 fastcgi_read_timeout 120;
@@ -515,7 +528,7 @@ $ sudo chown -R deploy:www-data /var/www/pladigit/bootstrap/cache
 $ sudo chmod -R 775 /var/www/pladigit/storage
 
 # ⚠ Répertoire GED — doit être accessible par www-data (PHP-FPM)
-# Le disk 'local' de Laravel 11 utilise storage/app/private/ (pas storage/app/)
+# Le disk 'local' de Laravel 12 utilise storage/app/private/ (pas storage/app/)
 $ sudo mkdir -p /var/www/pladigit/storage/app/private/ged
 $ sudo chmod 775 /var/www/pladigit/storage/app/private/ged
 $ sudo chown deploy:www-data /var/www/pladigit/storage/app/private/ged
@@ -628,7 +641,7 @@ fi
 
 echo ""
 echo "--- Langages & outils ---"
-check "PHP 8.3"      "php8.3 -r 'echo PHP_VERSION;'"   "8.3"
+check "PHP 8.4"      "php8.4 -r 'echo PHP_VERSION;'"   "8.4"
 check "Composer 2"   "composer --version"               "Composer version 2"
 check "Node.js 20"   "node --version"                   "v20"
 check "npm"          "npm --version"                    "10"
@@ -637,7 +650,7 @@ check "Git"          "git --version"                    "git version 2"
 echo ""
 echo "--- Extensions PHP ---"
 for EXT in pdo_mysql redis mbstring curl zip intl bcmath ldap gd; do
-php8.3 -m | grep -q "^$EXT$"     && echo "  ✓ $EXT"     || echo "  ✗ $EXT MANQUANTE → sudo apt install php8.3-$EXT"
+php8.4 -m | grep -q "^$EXT$"     && echo "  ✓ $EXT"     || echo "  ✗ $EXT MANQUANTE → sudo apt install php8.4-$EXT"
 done
 
 echo ""
@@ -667,7 +680,7 @@ $ chmod +x check_prereqs.sh && ./check_prereqs.sh
 
 ### Environnement de développement local
 - Ubuntu 24.04 LTS à jour
-- PHP 8.3 avec toutes les extensions (mysql, redis, mbstring, curl, zip, intl, bcmath, ldap, gd, imagick, opcache)
+- PHP 8.4 avec toutes les extensions (mysql, redis, mbstring, curl, zip, intl, bcmath, ldap, gd, imagick, opcache)
 - Composer 2 installé globalement
 - MySQL 8 démarré, base pladigit_platform et pladigit_tenant_template créées
 - Utilisateur MySQL 'pladigit' créé avec les bons droits
@@ -679,7 +692,7 @@ $ chmod +x check_prereqs.sh && ./check_prereqs.sh
 - Utilisateur deploy créé, root désactivé
 - UFW : ports 22, 80, 443 autorisés, reste bloqué
 - SSH : authentification par mot de passe désactivée
-- PHP 8.3-FPM configuré avec php.ini production
+- PHP 8.4-FPM configuré avec php.ini production
 - Nginx configuré avec VirtualHost wildcard et headers sécurité
 - MySQL 8 avec mot de passe fort pour l'utilisateur applicatif
 - Redis 7 avec mot de passe et bind localhost

@@ -16,7 +16,7 @@
 
 ## K.4 — Suite de tests complète (Avril 2026 — Phases 1 à 7)
 
-759 tests / 1645 assertions — tous verts. Couverture : auth, 2FA, LDAP, multi-tenant, rôles, photothèque NAS, GED, Collabora WOPI, gestion de projet, audit, notifications.
+886 tests / 1 960 assertions — tous verts. Couverture : auth, 2FA, LDAP, multi-tenant, rôles, photothèque NAS, GED, Collabora WOPI, gestion de projet, audit, notifications.
 
 ## K.5 — Configuration tests (phpunit.xml)
 - Connexion MySQL tenant dédiée pour les tests (pladigit_testing_tenant).

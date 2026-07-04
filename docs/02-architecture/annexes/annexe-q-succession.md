@@ -8,7 +8,7 @@ Ce projet est porté par un développeur unique. Ce plan garantit qu'un tiers pu
 ### Étape 1 — Accéder au code
 - Cloner le dépôt Git. Récupérer le fichier .env depuis le coffre-fort.
 - Lire le README.md principal, puis les README de chaque module dans /docs/.
-- Consulter le journal des décisions architecturales (/docs/adr/).
+- Consulter le journal des décisions architecturales (`docs/04-adr/`).
 
 ### Étape 2 — Comprendre l'architecture
 - Lire les Annexes B (multi-tenant), K (CI/CD) et ce CDC.

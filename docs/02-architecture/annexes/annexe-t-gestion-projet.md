@@ -7,7 +7,7 @@ Architecture complète, fonctionnalités livrées, droits et tests — Mars 2026
 
 # 1. Présentation du module
 Le module Gestion de projet de Pladigit est une alternative complète à Microsoft Planner et Project, conçue spécifiquement pour les collectivités territoriales et associations. Il permet de piloter des projets municipaux de bout en bout : cahier des charges, jalonnement, suivi des tâches, gestion budgétaire, conduite du changement et reporting aux élus.
-Bien que prévu au CDC v2.0 pour la Phase 8 (Juillet–Septembre 2027), l’ensemble du module a été livré en avance lors des sessions de développement de mars 2026, complètement intégré au pipeline CI/CD avec 166 tests dédiés.
+Bien que prévu au CDC v2.0 pour la Phase 8 (Juillet–Septembre 2027), l’ensemble du module a été livré en avance lors des sessions de développement de mars 2026, complètement intégré au pipeline CI/CD avec 214 tests dédiés (422 assertions).
 
 
 # 2. Architecture et décisions techniques
@@ -93,7 +93,7 @@ Toutes les routes sont dans routes/projects.php, protégées par middleware auth
 Tableau de bord de supervision pour Admin/DGS. 4 métriques (total, actifs, en alerte, progression moyenne). Jalons 30 jours (tous projets). Projets en alerte. Grille projets avec barre de progression, prochain jalon, membres. Filtres par statut. Badge rouge dans la sidebar si projets en alerte.
 
 # 11. Couverture de tests
-166 tests dédiés au module Gestion de projet, intégrés au pipeline CI/CD GitHub Actions (--exclude-group ldap,integration) :
+214 tests dédiés (422 assertions) au module Gestion de projet, intégrés au pipeline CI/CD GitHub Actions (--exclude-group ldap,integration) :
 
 # 12. Évolutions prévues
 - Gantt interactif — drag & drop des barres pour modifier les dates (différé post Phase 8)

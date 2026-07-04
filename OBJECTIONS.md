@@ -26,7 +26,7 @@ C'est une vraie question, et elle mérite une réponse directe.
 
 Ce qui compense partiellement ce risque :
 - Le code est public, lisible et vérifiable par n'importe quelle société de services informatiques mandatée
-- 759 tests automatisés verts, analyse statique de code sans erreur, intégration continue bloquante — le code est maintenu à un niveau de qualité comparable aux projets d'équipes professionnelles
+- 886 tests automatisés verts, analyse statique de code sans erreur, intégration continue bloquante — le code est maintenu à un niveau de qualité comparable aux projets d'équipes professionnelles
 - La feuille de route est documentée et réaliste — pas de sur-promesse
 
 Ce que propose Pladigit pour les organisations qui veulent tester sans risque : **une installation pilote gratuite, sans engagement**. Tester sur un périmètre limité (5 agents, 3 mois), évaluer, décider. Si ça ne convient pas, les données restent sur votre serveur — pas dans un nuage tiers.
@@ -35,7 +35,7 @@ Ce que propose Pladigit pour les organisations qui veulent tester sans risque : 
 
 ### Le développeur est retraité — le projet ne va-t-il pas s'essouffler ?
 
-La retraite a précisément libéré le temps nécessaire pour construire ce projet sérieusement. Sept phases livrées en sept mois, 759 tests automatisés, 31 fiches de décision d'architecture — ce n'est pas un projet de week-end.
+La retraite a précisément libéré le temps nécessaire pour construire ce projet sérieusement. Sept phases livrées en sept mois, 886 tests automatisés, 31 fiches de décision d'architecture — ce n'est pas un projet de week-end.
 
 L'objectif à moyen terme est de constituer un réseau de partenaires (centres de gestion, syndicats informatiques, sociétés de services locales) qui prennent le relais sur l'accompagnement et le support. Le plan Partenaire (sur devis) est précisément ce mécanisme : il permet de rémunérer l'accompagnement humain sans créer de dépendance indéfinie à une seule personne.
 
@@ -68,13 +68,13 @@ Si un accord de niveau de service contractualisé est nécessaire, c'est à disc
 
 ## Questions sur la maturité du logiciel
 
-### La version 0.8 — est-ce vraiment utilisable en production ?
+### La version 0.9 — est-ce vraiment utilisable en production ?
 
-La numérotation 0.8 est honnête, pas un signe d'instabilité. Elle signifie que toutes les fonctionnalités prévues ne sont pas encore livrées (messagerie instantanée, agenda partagé) — pas que le code livré est défaillant.
+La numérotation 0.9 est honnête, pas un signe d'instabilité. Elle signifie que toutes les fonctionnalités prévues ne sont pas encore livrées (messagerie instantanée, agenda partagé) — pas que le code livré est défaillant.
 
 Ce qui est livré est couvert par :
-- 759 tests unitaires automatisés — 1 645 vérifications individuelles, toutes au vert
-- PHPStan niveau 5 — outil d'analyse statique du code, zéro erreur de typage
+- 886 tests unitaires automatisés — 1 960 vérifications individuelles, toutes au vert
+- PHPStan niveau 5 — outil d'analyse statique du code, zéro erreur de typage à ce niveau. Montée progressive vers le niveau 8 planifiée par paliers.
 - Intégration continue bloquante — aucune mise à jour possible si un seul test échoue
 - Audit des dépendances — zéro faille de sécurité connue dans les bibliothèques utilisées
 
@@ -84,14 +84,14 @@ Ce qui est livré est couvert par :
 
 ### Pladigit est-il homologué par l'ANSSI ? A-t-il la qualification SecNumCloud ?
 
-Non — et c'est honnête à dire pour un projet en version 0.8.
+Non — et c'est honnête à dire pour un projet en version 0.9.
 
 La qualification SecNumCloud (certification de l'Agence Nationale de la Sécurité des Systèmes d'Information pour les hébergements en nuage) demande un processus long et coûteux, inaccessible à un projet en phase initiale.
 
 En revanche, ce qui est en place :
 - Zéro faille connue dans les dépendances (audit automatique à chaque mise à jour du code)
 - Fail2ban (blocage automatique des adresses réseau malveillantes), pare-feu UFW, connexion à l'annuaire obligatoirement chiffrée, double authentification TOTP — les recommandations de base de l'ANSSI pour les petites collectivités sont toutes implémentées
-- 31 fiches de décision d'architecture publiées — chaque choix de sécurité est tracé et défendable
+- 43 fiches de décision d'architecture publiées — chaque choix de sécurité est tracé et défendable
 - Code source public — auditable par n'importe quelle société mandatée
 
 À titre de comparaison : Microsoft 365 n'est pas non plus qualifié SecNumCloud, et son code source n'est pas auditable. La qualification SecNumCloud est un objectif de feuille de route pour Pladigit, pas un prérequis pour une installation pilote.
@@ -162,7 +162,7 @@ Ce qui reste possible et utile dès maintenant : **installer Pladigit en parall�
 
 C'est exactement le problème que l'assistant d'installation de Pladigit a été conçu pour résoudre.
 
-Une seule commande à saisir sur le serveur installe automatiquement tous les composants nécessaires (PHP 8.3+, base de données MySQL 8, Redis, serveur web Nginx, et Pladigit lui-même) sur un serveur Ubuntu 22.04 ou 24.04. Un assistant web en 8 étapes guide ensuite la configuration (base de données, adresse web, courriel, compte administrateur) — sans aucune ligne de commande supplémentaire.
+Une seule commande à saisir sur le serveur installe automatiquement tous les composants nécessaires (PHP 8.4, base de données MySQL 8, Redis, serveur web Nginx, et Pladigit lui-même) sur un serveur Ubuntu 22.04, 24.04 ou 26.04. Un assistant web en 8 étapes guide ensuite la configuration (base de données, adresse web, courriel, compte administrateur) — sans aucune ligne de commande supplémentaire.
 
 L'installation complète, éditeur Collabora inclus, prend environ **30 minutes**. Elle est documentée et testée.
 
@@ -221,4 +221,4 @@ C'est le contrat proposé. Pas plus, pas moins.
 Code source : [github.com/jpbosse/pladigit](https://github.com/jpbosse/pladigit)
 Démonstration : [pladigit.fr](https://pladigit.fr)
 
-*Licence AGPL-3.0 (code) · CC BY-SA 4.0 (documentation) · Mai 2026*
+*Licence AGPL-3.0 (code) · CC BY-SA 4.0 (documentation) · Juin 2026*

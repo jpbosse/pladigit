@@ -175,7 +175,7 @@ chmod 775 /var/www/pladigit/storage/app/private/ged
 chown deploy:www-data /var/www/pladigit/storage/app/private/ged
 ```
 
-> **Important** : le disk `local` de Laravel 11 pointe sur `storage/app/private/`
+> **Important** : le disk `local` de Laravel 12 pointe sur `storage/app/private/`
 > (et non `storage/app/`). Sans `chmod 775`, PHP-FPM (www-data) ne peut pas
 > lire les fichiers → GetFile retourne 404.
 

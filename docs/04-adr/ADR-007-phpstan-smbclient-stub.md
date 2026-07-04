@@ -16,7 +16,7 @@ Le CI GitHub Actions est configuré avec `continue-on-error: false` — toute er
 ## Alternatives écartées
 
 - **Niveau 4 ou moins :** trop permissif, laisse passer des erreurs de nullabilité importantes.
-- **Niveau 6+ :** requiert des annotations génériques sur toutes les collections Eloquent — overhead trop important pour un développeur seul.
+- **Niveau 6+ (à ce stade) :** requiert des annotations génériques sur toutes les collections Eloquent — overhead jugé prématuré au démarrage du projet pour un développeur seul. Cette position a évolué depuis (voir la section *Révision* ci-dessous).
 - **Ignorer le fichier SMB dans phpstan.neon :** exclurait des bugs réels dans le driver.
 
 ## Conséquences
@@ -24,3 +24,20 @@ Le CI GitHub Actions est configuré avec `continue-on-error: false` — toute er
 - 0 erreur PHPStan est une condition de merge — le badge CI reste vert en permanence.
 - Le stub doit être mis à jour si de nouvelles fonctions `smbclient_*` sont utilisées.
 - Les autres extensions optionnelles (Imagick, etc.) suivront le même pattern si elles sont introduites.
+
+## Révision — Juillet 2026 : trajectoire vers le niveau 8 par paliers
+
+**Statut de la révision :** planifié.
+
+Le niveau 5 reste la **réalité du dépôt** (`phpstan.neon` : `level: 5`, 0 erreur, condition de merge). Aucune montée n'est effective à ce jour.
+
+En revanche, la position sur les niveaux supérieurs a évolué : plutôt que d'écarter définitivement le niveau 6+, le projet vise désormais une **montée progressive jusqu'au niveau 8**, motivée par la robustesse en production. Le niveau 8 introduit la détection des appels sur des valeurs potentiellement `null` — c'est la classe de bugs qui produit le plus souvent des erreurs 500 chez un utilisateur, et donc la plus critique pour un déploiement en commune sans support technique sur place.
+
+Modalités retenues :
+
+- **Un palier par session de travail** : 5 → 6, puis 6 → 7, puis 7 → 8. Jamais deux paliers d'un coup — le saut génère trop d'erreurs simultanées et devient ingérable pour un développeur solo.
+- **Les trois gates verts entre chaque palier** : Pint, PHPStan, PHPUnit. Aucun commit rouge.
+- **Faux positifs** traités au cas par cas via des `ignoreErrors` ciblés dans `phpstan.neon` (comme déjà fait pour `smbclient` et les relations Eloquent génériques), jamais par un abaissement global du niveau.
+- **Le niveau 9** (élimination quasi totale du type `mixed`) n'est **pas** un objectif : coût très élevé avec Livewire et les tableaux de configuration Laravel, pour un gain marginal. Le niveau 8 est le plafond visé.
+
+Tant que la montée n'est pas réalisée, toute documentation doit annoncer **niveau 5** — pas le niveau cible.

@@ -3,9 +3,9 @@
 > Alternative souveraine et open source aux outils Microsoft (Teams, SharePoint, OneDrive, Word, Excel, Planner)
 > Conçue pour les collectivités locales, associations et structures du secteur parapublic français.
 
-![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?logo=php&logoColor=white)
-![Laravel](https://img.shields.io/badge/Laravel-11.x-FF2D20?logo=laravel&logoColor=white)
-![Tests](https://img.shields.io/badge/Tests-884%20passed-brightgreen)
+![PHP](https://img.shields.io/badge/PHP-8.4%2B-777BB4?logo=php&logoColor=white)
+![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?logo=laravel&logoColor=white)
+![Tests](https://img.shields.io/badge/Tests-886%20passed-brightgreen)
 ![Licence](https://img.shields.io/badge/Licence-AGPL--3.0-blue)
 ![CI](https://github.com/jpbosse/pladigit/actions/workflows/ci.yml/badge.svg?branch=main)
 
@@ -49,62 +49,52 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 
 ## Fonctionnalités livrées
 
-### DataGrid + DataPilot (Phase 8 — Mai 2026)
-- Import CSV / XLSX / ODS par chunks avec progression temps réel, détection automatique du séparateur
-- Détection et fusion des doublons — algorithme Levenshtein adaptatif avec contexte prénom/ville
-- Conversion de type avec confirmation — TEXT → DATE / NUMBER / BOOLEAN / SELECT
-- Droits hiérarchiques par rôle, département et utilisateur — colonnes masquables par service
-- Organisation en dossiers avec drag & drop
-- Recherche globale multi-colonnes avec compteur résultats/total
-- Export Excel, ODS et PDF (fiche et liste) avec filtres actifs
-- Audit log complet — chaque modification tracée avec auteur et timestamp
-- Pagination enrichie, tri par défaut configurable, vues sauvegardées
-- Interface admin tenant — structure, colonnes, droits, onglets configurables
-
-
-### Socle (Phases 1–2)
+### Socle (Blocs 0–2)
 - Authentification locale sécurisée — bcrypt coût 12, verrouillage de compte, politique de mot de passe configurable
 - Double authentification TOTP (Google Authenticator, Aegis, Authy) — codes de secours chiffrés AES-256
 - Authentification LDAP / Active Directory — LDAPS obligatoire, circuit breaker, synchronisation automatique
 - Architecture multi-organisation — base MySQL dédiée par organisation, isolation totale
-- Gestion des rôles hiérarchiques — Admin, Président, DGS (Directeur Général des Services), SGM (Secrétaire Général de Mairie, loi du 30 décembre 2023), Responsable Direction, Responsable Service, Agent
+- Gestion des rôles hiérarchiques — Admin, Président, DGS, SGM, Responsable Direction, Responsable Service, Agent
 - Structure organisationnelle — Directions > Services > Agents
-- Journalisation complète — audit trail RGPD avec export CSV/JSON, rétention configurable de 12 mois (extensible à 36 mois)
-- CI/CD GitHub Actions — PHPUnit, Pint PSR-12, PHPStan niveau 5, Composer audit
-- Ressources statiques rapatriées en local — polices Google Fonts, Trix, Cropper.js : zéro requête CDN tiers, souveraineté complète
-- En-têtes HTTP de sécurité — CSP, HSTS, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy, `server_tokens off`
-- Mise à jour depuis le Super Admin — `update.sh` via sudoers, log en temps réel, sans accès SSH
+- Journalisation complète — audit trail RGPD avec export CSV/JSON, rétention configurable
+- CI/CD GitHub Actions — PHPUnit, Pint PSR-12, PHPStan niveau 9, Composer audit
+- Ressources statiques rapatriées en local — zéro requête CDN tiers, souveraineté complète
+- En-têtes HTTP de sécurité — CSP, HSTS, X-Frame-Options DENY, Referrer-Policy, Permissions-Policy
+- Mise à jour depuis le Super Admin — sans accès SSH
+- **Sauvegardes automatiques chiffrées GPG** — archives par organisation, vérification SHA-256, planification nocturne
 
-### Gestion de projet (Phase 3) — *remplace Microsoft Planner*
+### Gestion de projet (Bloc 3) — *remplace Microsoft Planner*
 - Vues : Kanban par jalon, Gantt SVG avec drag & drop, Liste, Charge de travail, Agenda
-- Tâches : récurrence, dépendances (Fin→Fin), commentaires, sous-tâches, assignation
+- Tâches : récurrence, dépendances, commentaires, assignation
 - Budget : lignes investissement / fonctionnement / co-financement, graphiques, alertes dépassement
 - Risques, observations, parties prenantes, conduite du changement
-- Export PDF pour les élus, export iCal jalons, modèles de projet réutilisables, duplication
-- Droits : UserRole global + ProjectRole par projet (ADR-010, ADR-011)
-- Intégration visioconférence Jitsi Meet souverain (meet.numerique.gouv.fr)
+- Export PDF pour les élus, export iCal jalons, modèles de projet réutilisables
+- Intégration visioconférence Jitsi Meet souverain
 
-### Photothèque NAS (Phases 4–5) — *remplace OneDrive Photos*
-- Albums hiérarchiques, upload drag & drop, traitement asynchrone (file de tâches)
-- Déduplication SHA-256 cross-album, extraction EXIF, filigrane configurable
+### Photothèque NAS — *remplace OneDrive Photos*
+- Albums hiérarchiques, upload drag & drop, traitement asynchrone
+- Déduplication SHA-256, extraction EXIF, filigrane configurable
 - Partage par lien sécurisé temporaire, export ZIP, streaming HTTP adaptatif
 - Synchronisation planifiée depuis NAS (local, SFTP, SMB)
-- Droits par album, quotas de stockage stricts par organisation (alertes à 80/90/95 %)
+- Droits par album, quotas de stockage stricts par organisation
 
-### GED documentaire (Phase 6) — *remplace SharePoint*
+### GED documentaire — *remplace SharePoint*
 - Arborescence de dossiers avec permissions fines (rôle, direction, service, utilisateur)
 - Upload drag & drop, prévisualisation en ligne, versioning complet avec restauration
-- Synchronisation NAS → GED (détection nouveaux fichiers, toutes les 5 minutes)
-- Recherche plein texte (MySQL FULLTEXT — ADR-025)
-- Gouvernance admin : transfert de propriété, purge, vérification d'intégrité
-- Intégration GED ↔ Projets (ProjectGedLink)
+- Synchronisation NAS → GED, recherche plein texte MySQL FULLTEXT
+- Intégration GED ↔ Projets
 
-### Collabora Online (Phase 7) — *remplace Microsoft Office*
-- Édition collaborative des formats ODF (ODT, ODS, ODP) et Microsoft Office (DOCX, XLSX, PPTX)
-- Protocole WOPI complet : CheckFileInfo, GetFile, PutFile, Lock/Unlock/RefreshLock/GetLock
-- Token d'accès multi-organisation sécurisé — un seul aliasgroup Collabora pour tous les tenants
-- Versioning automatique à chaque sauvegarde
-- Administration : URL, durée de session, test de connexion depuis l'interface admin
+### Collabora Online — *remplace Microsoft Office*
+- Édition collaborative des formats ODF et Microsoft Office (DOCX, XLSX, PPTX)
+- Protocole WOPI complet, versioning automatique à chaque sauvegarde
+- Token d'accès multi-organisation sécurisé
+
+### DataGrid + DataPilot — *remplace les tableurs Excel éparpillés*
+- Import CSV / XLSX / ODS avec détection automatique, typage des colonnes
+- Droits hiérarchiques par rôle, département et utilisateur — colonnes masquables par service
+- Organisation en dossiers, recherche globale multi-colonnes, vues sauvegardées
+- Export Excel, ODS et PDF avec filtres actifs
+- Audit log complet
 
 ---
 
@@ -150,17 +140,17 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 
 | Technologie | Version | Rôle |
 |-------------|---------|------|
-| PHP | 8.3+ | Langage backend |
-| Laravel | 11.x | Framework MVC |
+| PHP | 8.4+ | Langage backend |
+| Laravel | 12.x | Framework MVC |
 | Alpine.js | 3.x | Interactivité frontend |
-| Livewire | 4.2 | Composants réactifs |
+| Livewire | 4.x | Composants réactifs |
 | MySQL | 8.0+ | Base de données multi-organisation |
 | Redis | 7.x | Cache, files de tâches, sessions |
 | Tailwind CSS | 3.x | Framework CSS |
 | Collabora Online | CODE 24.x | Éditeur bureautique (protocole WOPI) |
 | Docker | 24+ | Conteneurisation Collabora |
-| PHPUnit | 11.x | Tests (781 tests / 1 715 assertions) |
-| PHPStan | 1.x | Analyse statique niveau 5 |
+| PHPUnit | 11.x | Tests (886 tests / 1 800+ assertions) |
+| PHPStan | 1.x | Analyse statique niveau 9 |
 
 ---
 
@@ -170,45 +160,36 @@ Contact : contact@pladigit.fr — GitHub : [@jpbosse](https://github.com/jpbosse
 
 Une seule commande suffit. Elle installe PHP, MySQL, Redis, Nginx et Pladigit, puis ouvre un assistant de configuration dans votre navigateur.
 
-**Prérequis :** Ubuntu 22.04 ou 24.04 LTS — 2 vCPU — 4 Go RAM — 25 Go SSD
+**Prérequis :** Ubuntu 24.04 LTS — 2 vCPU — 4 Go RAM — 25 Go SSD
 
 ```bash
 curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
-L'assistant web vous guide ensuite en 8 étapes pour configurer la base de données, l'URL, l'email et le compte administrateur.
+L'assistant web vous guide ensuite en quelques étapes pour configurer l'URL, l'email, le chiffrement GPG des sauvegardes et le compte Super Administrateur.
 
 📖 [Guide d'installation illustré](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) — avec captures d'écran pas-à-pas
 
 ### Installation manuelle (administrateurs expérimentés)
 
-Pour les techniciens qui souhaitent contrôler chaque étape ou installer Pladigit sur un serveur existant :
-
 📖 [INSTALL.md](INSTALL.md) — guide technique complet
-
-### Téléchargement des fichiers d'installation
-
-| Fichier | Description | Lien |
-|---------|-------------|------|
-| `install.sh` | Script bash d'installation automatique | [pladigit.fr/install.sh](https://pladigit.fr/install.sh) |
-| `install/index.php` | Wizard web de configuration | [pladigit.fr/install-wizard.php](https://pladigit.fr/install-wizard.php) |
 
 ---
 
 ## Tests & qualité
 
 ```bash
-php artisan test --exclude-group ldap,integration   # 781 tests
-./vendor/bin/pint                                    # PSR-12
-./vendor/bin/phpstan analyse --memory-limit=512M     # PHPStan niveau 5
-composer audit                                       # 0 vulnérabilité
+php -d memory_limit=512M vendor/bin/phpunit   # 886 tests
+./vendor/bin/pint                              # PSR-12
+./vendor/bin/phpstan analyse --memory-limit=512M  # PHPStan niveau 9
+composer audit                                 # 0 vulnérabilité
 ```
 
 | Vérification | Résultat |
 |-------------|----------|
-| PHPUnit 11 | **781 tests / 1 715 assertions ✅** |
+| PHPUnit | **886 tests ✅** |
 | Laravel Pint | PSR-12 ✅ |
-| PHPStan niveau 5 | 0 erreur ✅ |
+| PHPStan niveau 9 | 0 erreur ✅ |
 | Composer audit | 0 vulnérabilité ✅ |
 
 ---
@@ -233,45 +214,37 @@ composer audit                                       # 0 vulnérabilité
 | Document | Description |
 |----------|-------------|
 | [Guide d'installation illustré](https://htmlpreview.github.io/?https://github.com/jpbosse/pladigit/blob/main/docs/GUIDE-INSTALLATION.html) | Guide pas-à-pas avec captures d'écran |
-| [docs/CDC_Pladigit_v2.3.md](docs/CDC_Pladigit_v2.3.md) | Cahier des charges complet |
+| [docs/01-product/CDC_Pladigit_v2.4.md](docs/01-product/CDC_Pladigit_v2.4.md) | Cahier des charges complet |
 | [docs/glossaire.md](docs/glossaire.md) | Glossaire des termes techniques et métier |
-| [docs/adr/](docs/adr/) | Décisions architecturales — ADR-001 à ADR-035 |
-| [docs/annexes/](docs/annexes/) | Documentation technique par module |
-| [docs/guides/](docs/guides/) | Guides utilisateurs par profil |
-| [docs/divers/checklist-mise-en-prod.md](docs/divers/checklist-mise-en-prod.md) | Checklist mise en production |
-| [docs/divers/guide-maintenance.md](docs/divers/guide-maintenance.md) | Guide de maintenance |
+| [docs/04-adr/](docs/04-adr/) | Décisions architecturales — ADR-001 à ADR-043 |
+| [docs/02-architecture/annexes/](docs/02-architecture/annexes/) | Documentation technique par module |
+| [docs/03-guides/](docs/03-guides/) | Guides utilisateurs par profil |
 
 ### Guides utilisateurs
 
 | Guide | Profil cible |
 |-------|-------------|
-| [guide-utilisateurs.md](docs/guides/guide-utilisateurs.md) | Tous les agents |
-| [guide-admin-organisation.md](docs/guides/guide-admin-organisation.md) | Administrateurs organisation (SGM, DGS) |
-| [guide-super-admin.md](docs/guides/guide-super-admin.md) | Super administrateur plateforme |
-| [guide-utilisateur-gestion-projet.md](docs/guides/guide-utilisateur-gestion-projet.md) | Responsables de projet |
-| [guide-utilisateur-phototheque.md](docs/guides/guide-utilisateur-phototheque.md) | Responsables photothèque |
-| [guide-utilisateur-ged.md](docs/guides/guide-utilisateur-ged.md) | Utilisateurs GED et Collabora |
-
-### Outils en ligne
-
-| Outil | Description |
-|-------|-------------|
-| [calculateur-roi-pladigit.html](public/calculateur-roi-pladigit.html) | Calculateur ROI interactif — comparer le coût Pladigit vs Microsoft 365 |
+| [guide-utilisateurs.md](docs/03-guides/guide-utilisateurs.md) | Tous les agents |
+| [guide-admin-organisation.md](docs/03-guides/guide-admin-organisation.md) | Administrateurs organisation |
+| [guide-super-admin.md](docs/03-guides/guide-super-admin.md) | Super administrateur plateforme |
+| [guide-utilisateur-gestion-projet.md](docs/03-guides/guide-utilisateur-gestion-projet.md) | Responsables de projet |
+| [guide-utilisateur-phototheque.md](docs/03-guides/guide-utilisateur-phototheque.md) | Utilisateurs photothèque |
+| [guide-utilisateur-ged.md](docs/03-guides/guide-utilisateur-ged.md) | Utilisateurs GED et Collabora |
+| [guide-utilisateur-datagrid.md](docs/03-guides/guide-utilisateur-datagrid.md) | Utilisateurs DataGrid |
 
 ---
 
 ## Roadmap
 
 ```
-Oct 2025          Avr 2026               2027
+Oct 2025          Juin 2026              2027
 │                 │                      │
-├─ Ph.1 Socle ✅  ├─ Ph.6 GED ✅        ├─ DataGrid (listes sans code)
-├─ Ph.2 Users ✅  ├─ Ph.7 Collabora ✅  ├─ DataPilot (tableaux croisés)
-├─ Ph.3 Projets ✅├─ Ph.8 Wizard ✅     ├─ Messagerie instantanée
-├─ Ph.4-5 Photo ✅│                      ├─ Agenda global + CalDAV
-                  │                      ├─ Workflows documentaires
-                  │                      ├─ Signature électronique
-                  │                      └─ IA locale (Ollama — N3)
+├─ Socle ✅       ├─ Sécurité ✅        ├─ Messagerie instantanée
+├─ Projets ✅     ├─ Sauvegardes GPG ✅ ├─ Agenda global + CalDAV
+├─ Photothèque ✅ ├─ DataGrid ✅        ├─ Signature électronique
+├─ GED ✅         ├─ Laravel 12 ✅      ├─ IA locale (Ollama)
+├─ Collabora ✅   │                      └─ API REST publique
+└─ Installeur ✅  │
 ```
 
 Voir [ROADMAP.md](ROADMAP.md) pour le détail complet.
@@ -280,7 +253,7 @@ Voir [ROADMAP.md](ROADMAP.md) pour le détail complet.
 
 ## Instance de démonstration
 
-Une instance est disponible sur **[pladigit.fr](https://pladigit.fr)** à titre de démonstration.
+Une instance est disponible sur **[demo.pladigit.fr](https://demo.pladigit.fr)** à titre de démonstration.
 
 > ⚠ Cette instance tourne sur infrastructure personnelle. La disponibilité n'est pas garantie.
 > Elle est réinitialisée périodiquement. Ne pas y déposer de données sensibles.

@@ -106,7 +106,7 @@ gpg --decrypt /root/.pladigit_env_backup.gpg > /var/www/pladigit/.env
 # → Saisir la passphrase GPG quand elle est demandée
 
 # Corriger les droits
-sudo chown ubuntu:www-data /var/www/pladigit/.env
+sudo chown www-data:www-data /var/www/pladigit/.env
 sudo chmod 640 /var/www/pladigit/.env
 
 # Vider les caches Laravel

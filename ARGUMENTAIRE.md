@@ -1,7 +1,7 @@
 # ARGUMENTAIRE — Pladigit
 ## Plateforme de Digitalisation Interne pour les collectivités françaises
 
-> *Document de référence — Jean-Pierre Bossé — Mai 2026*
+> *Document de référence — Jean-Pierre Bossé — Juin 2026*
 > *À destination des centres de gestion, syndicats informatiques, ADULLACT, collectivités*
 
 ---
@@ -12,7 +12,7 @@ Je suis **Jean-Pierre Bossé**, retraité de la fonction publique territoriale, 
 
 J'ai passé ma carrière dans les collectivités locales. Je connais de l'intérieur les contraintes budgétaires des petites communes, les décisions informatiques difficiles à prendre avec des équipes réduites, les délégués à la protection des données mutualisés qui demandent des audits, les élus qui veulent des rapports lisibles, les secrétaires généraux de mairie (SGM) et directeurs généraux des services (DGS) qui jonglent entre dix outils différents.
 
-À la retraite, j'ai continué à coder — par passion, et parce que je voyais un vrai problème sans solution adaptée. Entre **octobre 2025 et avril 2026**, j'ai construit seul les **7 premières phases de Pladigit** : socle d'authentification, gestion de projet, photothèque connectée au serveur de fichiers, gestion électronique de documents, éditeur collaboratif Collabora Online, et assistant d'installation automatique.
+À la retraite, j'ai continué à coder — par passion, et parce que je voyais un vrai problème sans solution adaptée. Entre **octobre 2025 et juin 2026**, j'ai construit seul les **premières phases de Pladigit** : socle d'authentification, gestion de projet, photothèque connectée au serveur de fichiers, gestion électronique de documents, éditeur collaboratif Collabora Online, et assistant d'installation automatique.
 
 **Ce que je ne suis pas :** un commercial, un éditeur de logiciel, une startup cherchant des investisseurs. Je suis un pair qui partage ce qu'il a construit, et qui cherche des organisations pilotes et des partenaires bénévoles pour faire vivre le projet.
 
@@ -38,15 +38,15 @@ J'ai passé ma carrière dans les collectivités locales. Je connais de l'intér
 | Teams | Messagerie instantanée Pladigit | 🔜 Prévu |
 | Outlook Calendrier | Agenda partagé + protocole CalDAV | 🔜 Prévu |
 
-### Chiffres clés — mai 2026
+### Chiffres clés — juin 2026
 
 | Indicateur | Résultat |
 |-----------|---------|
 | Phases livrées | 7 phases / octobre 2025 → avril 2026 |
-| Tests automatisés | 759 tests unitaires / 1 645 vérifications — tous verts |
-| Analyse statique du code | PHPStan niveau 5 — zéro erreur |
+| Tests automatisés | 886 tests automatisés — tous verts |
+| Analyse statique du code | PHPStan niveau 9 — zéro erreur |
 | Vulnérabilités connues | Audit des dépendances — zéro faille recensée |
-| Décisions d'architecture documentées | 31 registres de décision publiés |
+| Décisions d'architecture documentées | 43 registres de décision publiés |
 | Intégration continue | GitHub Actions — 4 vérifications obligatoires avant toute mise à jour |
 
 ---
@@ -127,7 +127,7 @@ Nextcloud est un excellent outil généraliste. Il n'a pas été conçu pour les
 
 ### Ce que Pladigit ne fait pas encore — à dire clairement
 
-- Pladigit est jeune (version 0.8, démarré en octobre 2025)
+- Pladigit est jeune (version 0.9, démarré en octobre 2025)
 - Il est développé par une seule personne, sans équipe commerciale ni assistance disponible à toute heure
 - La messagerie instantanée et l'agenda partagé ne sont pas encore disponibles (prévus pour 2027)
 - Il n'existe pas encore de références d'usage en collectivité établies sur la durée
@@ -236,8 +236,8 @@ La licence AGPL-3.0 va plus loin que la sécurité. Elle répond directement aux
 
 ### Pour les exigences de l'ANSSI (Agence Nationale de la Sécurité des Systèmes d'Information)
 
-- Pas encore de qualification SecNumCloud (certification de sécurité de l'ANSSI pour les hébergements en nuage) — c'est honnête à dire pour un projet en version 0.8
-- En revanche : zéro faille connue dans les dépendances du code (audit automatique à chaque mise à jour), niveau d'analyse statique PHPStan 5 (aucune erreur de typage dans le code), 31 fiches de décision d'architecture publiées — chaque choix technique est traçable et défendable
+- Pas encore de qualification SecNumCloud (certification de sécurité de l'ANSSI pour les hébergements en nuage) — c'est honnête à dire pour un projet en version 0.9
+- En revanche : zéro faille connue dans les dépendances du code (audit automatique à chaque mise à jour), niveau d'analyse statique PHPStan 9 (aucune erreur de typage dans le code), 43 fiches de décision d'architecture publiées — chaque choix technique est traçable et défendable
 - Fail2ban, pare-feu UFW (outil de gestion des règles réseau), connexion à l'annuaire obligatoirement chiffrée, double authentification TOTP — les recommandations de base de l'ANSSI pour les collectivités sont toutes implémentées
 - *Argument central* : un logiciel propriétaire peut avoir autant de failles — vous n'en saurez simplement rien. Ici, tout est visible et auditable.
 
@@ -269,7 +269,7 @@ Ces deux modules remplaceront progressivement les tableurs Excel éparpillés pa
 | Jalios Digital Workplace | Partiel | Oui | Oui | Oui | Non | Non | Non |
 | **✦ Pladigit** | **Oui** | **Oui** | **Oui** | **Oui** | **Oui** | **Oui** | **Oui** |
 
-*Aucun outil libre français n'est multi-organisation natif + gestion de documents + édition collaborative + gestion de projets + photothèque + installable en 30 minutes à moins de 1 500 €/an. Cette absence de solution existe toujours en mai 2026. Pladigit l'occupe seul.*
+*Aucun outil libre français n'est multi-organisation natif + gestion de documents + édition collaborative + gestion de projets + photothèque + installable en 30 minutes à moins de 1 500 €/an. Cette absence de solution existe toujours en juin 2026. Pladigit l'occupe seul.*
 
 ---
 
@@ -281,7 +281,7 @@ Code source complet sous licence AGPL-3.0. Installation via un script en une seu
 
 ### Plan Partenaire — sur devis
 
-Tout le plan Communautaire, plus : accompagnement à l'installation, configuration des messageries et de l'annuaire des utilisateurs, support direct sous 48 heures, formation initiale en visioconférence d'une heure, suivi des mises à jour. Pour les communes sans informaticien dédié.
+Tout le plan Communautaire, et en plus : accompagnement à l'installation, configuration des messageries et de l'annuaire des utilisateurs, support direct sous 48 heures, formation initiale en visioconférence d'une heure, suivi des mises à jour. Pour les communes sans informaticien dédié.
 
 *Règle fondamentale : les deux plans donnent accès à l'intégralité des fonctionnalités. Ce qui distingue les offres est le niveau d'accompagnement — jamais les fonctionnalités.*
 
@@ -298,4 +298,4 @@ pladigit.fr
 ---
 
 *Pladigit — Reprendre le contrôle de votre numérique.*
-*AGPL-3.0 (code) · CC BY-SA 4.0 (documentation) · Mai 2026*
+*AGPL-3.0 (code) · CC BY-SA 4.0 (documentation) · Juin 2026*

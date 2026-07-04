@@ -28,7 +28,7 @@ Le script prend en charge l'intégralité de l'installation de l'environnement s
 2. **Vérification système** — OS (Ubuntu 22.04/24.04), RAM (≥ 2 Go), disque (≥ 10 Go), connexion internet, ports 80/443
 3. **Extension LVM automatique** — Ubuntu Server alloue ~50 % du volume logique par défaut ; le script étend automatiquement le LVM avant la vérification de l'espace disque
 4. **Mise à jour système** — `apt-get update && upgrade`
-5. **PHP 8.3+** — depuis les dépôts Ubuntu natifs (universe), sans dépôt externe. Compatible PHP 8.3 et 8.4.
+5. **PHP 8.4** (version de référence, `PHP_VERSION="8.4"`) — installé depuis le dépôt APT Sury, puis forcé comme `php` par défaut via `update-alternatives`. Pladigit est compatible 8.3, 8.4 et 8.5 (minimum 8.2). Voir la section *Révision* pour le choix du dépôt.
 6. **MySQL 8** — installation + activation de l'authentification native root
 7. **Redis, Nginx, Supervisor, Node.js 20**
 8. **Clonage du dépôt** + installation des dépendances PHP (Composer) et JS (npm + Vite build)
@@ -58,15 +58,16 @@ La mise à jour (option 1) exécute : `git pull` → `composer install` → `npm
 
 | OS | Support |
 |---|---|
-| Ubuntu 22.04 LTS | ✅ PHP 8.3+ natif (universe) |
-| Ubuntu 24.04 LTS | ✅ PHP 8.3+ natif (universe) |
+| Ubuntu 22.04 LTS | ✅ PHP 8.4 via dépôt Sury (natif : 8.1) |
+| Ubuntu 24.04 LTS | ✅ PHP 8.4 via dépôt Sury (natif : 8.3) |
+| Ubuntu 26.04 LTS | ✅ PHP 8.4 via dépôt Sury (natif : 8.5) |
 | Debian, CentOS, etc. | ❌ Non supporté |
 
 ---
 
 ## Alternatives écartées
 
-**Dépôt PPA Ondrej / packages.sury.org** — ces dépôts externes sont instables depuis les environnements virtualisés (erreur 418, timeouts Launchpad). PHP 8.3 étant disponible nativement dans Ubuntu 24.04 `universe`, l'utilisation d'un dépôt externe n'est pas justifiée.
+**PPA Launchpad `ppa:ondrej/php`** — écarté car instable depuis les environnements virtualisés (erreur 418, timeouts Launchpad). ⚠️ À ne pas confondre avec le dépôt APT `packages.sury.org`, finalement retenu (voir *Révision*) : même mainteneur, mais un dépôt APT direct qui ne passe pas par Launchpad et n'a donc pas ces défauts.
 
 **Docker Compose** — plus portable mais ajoute une couche de complexité hors de portée des administrateurs cibles. Envisagé pour une version future.
 
@@ -82,3 +83,23 @@ La mise à jour (option 1) exécute : `git pull` → `composer install` → `npm
 - Le script est idempotent sur les paquets (vérifie si déjà installés), mais non idempotent sur la configuration Nginx (écrase le vhost existant).
 - La maintenance du script est à la charge du projet — toute mise à jour majeure de PHP ou MySQL peut nécessiter une adaptation.
 - Le wizard `install/index.php` est versionné dans le dépôt git — plus de dépendance à une URL externe pour son téléchargement.
+
+---
+
+## Révision — Juillet 2026 : PHP 8.4 via le dépôt APT Sury
+
+**Statut :** en vigueur (décrit le comportement réel de `install.sh`).
+
+La décision initiale (« PHP natif Ubuntu, sans dépôt externe ») reposait sur l'idée que le natif d'Ubuntu suffisait. Elle ne tient plus une fois la version de référence fixée à **8.4** : aucune version LTS d'Ubuntu ne fournit 8.4 nativement (22.04 → 8.1, 24.04 → 8.3, 26.04 → 8.5). Le recours à un dépôt externe est donc devenu nécessaire.
+
+**Ce que fait `install.sh` :**
+
+1. `PHP_VERSION="8.4"`.
+2. Si `php8.4` est déjà présent, il est réutilisé (aucun dépôt ajouté).
+3. Sinon, ajout du dépôt **APT Sury** (`packages.sury.org`), installation des paquets `php8.4-*`, puis `update-alternatives --set php /usr/bin/php8.4` pour que le natif (8.3 ou 8.5 selon l'OS) ne prenne pas la main sur `composer`/`artisan`.
+
+**Pourquoi ce choix reste cohérent avec le rejet initial :** ce qui avait été écarté, c'était le **PPA Launchpad** `ppa:ondrej/php`, à cause des erreurs 418 et timeouts propres à Launchpad. Le dépôt `packages.sury.org` est un dépôt APT direct du même mainteneur qui **ne passe pas par Launchpad** — il évite donc précisément le problème qui motivait le rejet. Le principe de fond (pas de dépendance à une infrastructure instable) est préservé.
+
+> **Note :** si la motivation réelle du passage à Sury différait de celle décrite ici, compléter ce paragraphe.
+
+**Conséquence :** la ligne « toute mise à jour majeure de PHP peut nécessiter une adaptation » (section *Conséquences*) reste vraie — il suffit d'ajuster `PHP_VERSION` dans `install.sh` ; le dépôt Sury fournit toutes les branches 8.x.

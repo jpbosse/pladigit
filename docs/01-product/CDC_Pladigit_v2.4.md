@@ -23,7 +23,7 @@
 | v2.1 | Mars 2026 | Phase 3 Gestion de projet livrée. |
 | v2.2 | Mars 2026 | Phases 4–5 Photothèque livrées. |
 | v2.3 | Avril 2026 | Phases 6–7 GED + Collabora livrées. Refonte complète du planning en 3 niveaux. Ajout workflows, signature électronique, DataGrid, DataPilot. |
-| v2.4 | Mai 2026 | Script d'installation automatique. Wizard web. PHP 8.3+ natif Ubuntu. SUPER_ADMIN_ALLOWED_IPS auto-détecté. Début Niveau 2 : CSP + headers HTTP, rate limiting, protection Nginx, mise à jour Pladigit. ADR-032 et ADR-035 : rotation AES et audit cross-tenant hors périmètre. |
+| v2.4 | Mai 2026 | Script d'installation automatique. Wizard web. PHP 8.4 via dépôt Sury. SUPER_ADMIN_ALLOWED_IPS auto-détecté. Début Niveau 2 : CSP + headers HTTP, rate limiting, protection Nginx, mise à jour Pladigit. ADR-032 et ADR-035 : rotation AES et audit cross-tenant hors périmètre. |
 
 ---
 
@@ -96,7 +96,7 @@ Le planning v2.4 abandonne la numérotation séquentielle des phases au profit d
 
 ### Niveau 1 — Livré et stable ✅
 
-> Ce qui existe aujourd'hui. Documenté, testé (759 tests / 1645 assertions), déployable.
+> Ce qui existe aujourd'hui. Documenté, testé (886 tests / 1 960 assertions), déployable.
 
 #### Socle technique (octobre–décembre 2025)
 - Architecture multi-tenant — base MySQL dédiée par organisation
@@ -152,7 +152,7 @@ Le planning v2.4 abandonne la numérotation séquentielle des phases au profit d
 #### Installation et déploiement (mai 2026)
 - Script d'installation automatique `install.sh` — une commande pour tout installer sur Ubuntu 22.04/24.04
 - Wizard web d'installation en 8 étapes — sans aucune compétence technique requise
-- PHP 8.3+ natif Ubuntu, sans dépôt externe (fiabilité maximale)
+- PHP 8.4 (via dépôt APT Sury) — compatible 8.3, 8.4 et 8.5, minimum 8.2
 - `SUPER_ADMIN_ALLOWED_IPS` auto-détecté depuis l'IP du client lors de l'installation
 - Mise à jour Pladigit depuis l'interface Super Admin (git pull, migrations, cache, workers)
 - Hook git post-merge — synchronisation automatique de `install.sh` vers `public/`
@@ -266,7 +266,7 @@ Les modules sont activables par organisation via la colonne JSON `enabled_module
 ```
 VPS Ubuntu 24 LTS — hébergeur français (OVH, Scaleway, Infomaniak)
 ├── Nginx + SSL Let's Encrypt wildcard (*.pladigit.fr)
-├── PHP 8.3+-FPM
+├── PHP 8.4-FPM
 ├── MySQL 8 — bases dédiées par tenant
 ├── Redis 7 — cache, queues, sessions
 ├── Supervisor — 2 queue workers
@@ -282,7 +282,7 @@ Minimum sans Collabora : 2 vCPU / 4 Go RAM / 40 Go SSD
 
 ## 8. Décisions architecturales (ADR)
 
-38 ADR documentés dans `docs/adr/` — de ADR-001 (stack frontend) à ADR-038 (source de vérité documentaire). Chaque décision technique importante est tracée avec son contexte, ses alternatives considérées et ses conséquences.
+43 ADR documentés dans `docs/04-adr/` — de ADR-001 (stack frontend) à ADR-043 (GED vs DataGrid, source de vérité). Chaque décision technique importante est tracée avec son contexte, ses alternatives considérées et ses conséquences.
 
 ---
 
@@ -295,10 +295,11 @@ Minimum sans Collabora : 2 vCPU / 4 Go RAM / 40 Go SSD
 | CONTRIBUTING.md | Contributeurs | Racine |
 | SECURITY.md | Chercheurs sécurité | Racine |
 | ROADMAP.md | Élus, contributeurs | Racine |
-| docs/adr/ | Développeurs | 38 ADR |
-| docs/annexes/ | Développeurs | 12 annexes techniques |
-| docs/guides/ | Utilisateurs finaux | 4 guides par rôle |
-| docs/divers/ | Opérateurs | Installation, maintenance, checklist prod |
+| docs/04-adr/ | Développeurs | 43 ADR |
+| docs/02-architecture/annexes/ | Développeurs | 12 annexes techniques |
+| docs/03-guides/ | Utilisateurs finaux | 7 guides par rôle |
+| docs/02-architecture/ | Opérateurs | Installation, maintenance |
+| docs/05-exploitation/ | Opérateurs | Checklist mise en production |
 
 ---
 

@@ -170,7 +170,7 @@ Un modèle définit, pour un type donné :
 - `database/migrations/tenant/2026_04_30_000002_create_ged_document_templates_table.php`
 - `database/migrations/tenant/2026_04_30_000003_add_template_fk_to_ged_documents.php`
 - `database/seeders/GedDocumentTemplateSeeder.php`
-- `docs/adr/ADR-038.md` (ce fichier)
+- `docs/04-adr/ADR-038-source-verite-documentaire.md` (ce fichier)
 
 ### Modifiés
 - `app/Models/Tenant/GedDocument.php` — ajout fillable, casts, relations et helpers

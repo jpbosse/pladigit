@@ -31,7 +31,7 @@ SQLSTATE[HY000] [1045] Access denied for user 'pladigit'@'localhost' (using pass
 
 ```bash
 # Corriger les droits sur le .env
-sudo chown ubuntu:www-data /var/www/pladigit/.env
+sudo chown www-data:www-data /var/www/pladigit/.env
 sudo chmod 640 /var/www/pladigit/.env
 
 # Redémarrer les workers
