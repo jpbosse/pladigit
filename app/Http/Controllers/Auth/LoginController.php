@@ -7,6 +7,7 @@ use App\Models\Tenant\TenantSettings;
 use App\Models\Tenant\User;
 use App\Services\AuditService;
 use App\Services\LdapAuthService;
+use App\Services\TenantManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -25,7 +26,10 @@ use Illuminate\Validation\ValidationException;
  */
 class LoginController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private TenantManager $tenantManager,
+    ) {}
 
     public function showLoginForm()
     {
@@ -149,6 +153,7 @@ class LoginController extends Controller
 
         Auth::login($user, $request->boolean('remember'));
         $request->session()->regenerate();
+        $request->session()->put('tenant_org_id', $this->tenantManager->currentOrFail()->id);
 
         // 2FA
         if ($user->totp_enabled) {

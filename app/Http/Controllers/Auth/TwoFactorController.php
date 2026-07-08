@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tenant\User;
+use App\Services\TenantManager;
 use App\Services\TwoFactorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,7 +18,10 @@ use Illuminate\Support\Facades\Log;
  */
 class TwoFactorController extends Controller
 {
-    public function __construct(private TwoFactorService $twoFactor) {}
+    public function __construct(
+        private TwoFactorService $twoFactor,
+        private TenantManager $tenantManager,
+    ) {}
 
     // ── Activation ────────────────────────────────────────
 
@@ -94,6 +98,7 @@ class TwoFactorController extends Controller
         session()->forget('2fa_user_id');
         Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->put('tenant_org_id', $this->tenantManager->currentOrFail()->id);
 
         return redirect()->intended(route('dashboard'));
     }
