@@ -21,7 +21,7 @@
 - [X] Worker de queue `RUNNING` (les deux process), sans FATAL
 - [X] Le watchdog relance le worker s'il tombe (test : `supervisorctl stop`, attendre 2 min)
 - [X] Le cron Laravel (`schedule:run`) est actif
-- [X] Certificat présent, HTTPS accessible — VPS confirmé (Let's Encrypt valide jusqu'au 30/08/2026, cf. `certbot certificates`) ; **mais voir 1.9 du plan de travail : ne couvre que `pladigit.fr` + `demo.pladigit.fr`, pas de wildcard réel malgré la doc etr lancer à la main**
+- [X] Certificat présent, HTTPS accessible — VPS confirmé (Let's Encrypt valide jusqu'au 30/08/2026, cf. `certbot certificates`) ; **mais voir 1.9 du plan de travail : ne couvre que `pladigit.fr` + `demo.pladigit.fr`, pas de wildcard réel malgré la doc et lancer à la main**
 
 L'installation est à refaire et valider sans intervention humaine sur vm 22.04, 24.04 et 26.04 LTS.
 
