@@ -136,7 +136,7 @@ L'installation est à refaire et valider sans intervention humaine sur vm 22.04,
 
 - [X] Un utilisateur du tenant A **ne voit pas** les données du tenant B
 - [X] Les bases `pladigit_{slug}` sont bien séparées
-- [?] L'accès à un sous-domaine d'un autre tenant est refusé/redirigé - losque je crée une database sur le slut toto que je me déconne et recionnecte dasn le slud gemo : je peux voir https://toto.pladigit.test/datagrid/1
+- [X] L'accès à un sous-domaine d'un autre tenant est refusé/redirigé — **corrigé 2026-07-09** (faille réelle : session partagée entre sous-domaines via `SESSION_DOMAIN` wildcard + collision d'ID entre bases tenant ; corrigé par `GuardTenantSession`, validé en local, VM et VPS production)
 - [ ] Un fichier (média/GED) d'un tenant n'est pas accessible depuis un autre
 - [ ] Les URL d'un tenant ne fuient pas sur un autre
 
@@ -159,8 +159,8 @@ L'installation est à refaire et valider sans intervention humaine sur vm 22.04,
 
 | # | Module | Description du problème | Sévérité |
 |---|--------|-------------------------|----------|
+| 1 | Isolation multi-tenant | Session partagée entre sous-domaines (`SESSION_DOMAIN` wildcard) + collision d'ID entre bases tenant → accès à un autre tenant sans ré-authentification. Corrigé par `GuardTenantSession` (2026-07-09). | 🔴 Critique — résolu |
 |   |        |        icone à changer  |          |
-|   |        |                         |          |
 |   |        |                         |          |
 
 
