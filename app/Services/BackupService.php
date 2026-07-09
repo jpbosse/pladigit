@@ -324,10 +324,16 @@ class BackupService
             throw new \RuntimeException("Copie vers {$destDir} échouée.");
         }
 
+        // copy() applique les permissions par défaut du système (umask, souvent
+        // 644) — une sauvegarde (chiffrée ou non) ne doit être lisible que par
+        // son propriétaire (www-data).
+        chmod($destDir.'/'.$archiveName, 0600);
+
         // Copier aussi le fichier SHA-256
         $checksumPath = $archivePath.'.sha256';
         if (file_exists($checksumPath)) {
             copy($checksumPath, $destDir.'/'.$archiveName.'.sha256');
+            chmod($destDir.'/'.$archiveName.'.sha256', 0600);
         }
     }
 
