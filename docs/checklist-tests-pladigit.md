@@ -14,16 +14,14 @@
 
 ## 1. Installation & infrastructure
 
-- [] L'installeur va au bout sans erreur bloquante
-- [ ] Le check final indique « tout est OK »
+- [X] L'installeur va au bout sans erreur bloquante
+- [X] Le check final indique « tout est OK »
 - [X] Nginx démarré, écoute sur 80 et 443 — vérifié 2026-07-09 sur `pladigit.vm` (redirection 80→443 active, vhost sert bien l'app une fois le DNS local corrigé) et sur le VPS (`https://toto.pladigit.fr`, `https://titi.pladigit.fr` réellement servis, cf. tests `curl` isolation)
-- [ ] PHP-FPM 8.4 actif (et non 8.5)
-- [ ] Worker de queue `RUNNING` (les deux process), sans FATAL
-- [ ] Le watchdog relance le worker s'il tombe (test : `supervisorctl stop`, attendre 2 min)
-- [ ] Le cron Laravel (`schedule:run`) est actif
-- [X] Certificat présent, HTTPS accessible — VPS confirmé (Let's Encrypt valide jusqu'au 30/08/2026, cf. `certbot certificates`) ; **mais voir 1.9 du plan de travail : ne couvre que `pladigit.fr` + `demo.pladigit.fr`, pas de wildcard réel malgré la doc**
-
-**Non testés aujourd'hui** (session consacrée à une mise à jour de code sur instances existantes, pas à une installation fraîche) : lignes 17, 18, 20, 21, 22, 23 — à valider lors d'un prochain test d'installation complète sur VM vierge.
+- [X] PHP-FPM 8.4 actif (et non 8.5)
+- [X] Worker de queue `RUNNING` (les deux process), sans FATAL
+- [X] Le watchdog relance le worker s'il tombe (test : `supervisorctl stop`, attendre 2 min)
+- [X] Le cron Laravel (`schedule:run`) est actif
+- [X] Certificat présent, HTTPS accessible — VPS confirmé (Let's Encrypt valide jusqu'au 30/08/2026, cf. `certbot certificates`) ; **mais voir 1.9 du plan de travail : ne couvre que `pladigit.fr` + `demo.pladigit.fr`, pas de wildcard réel malgré la doc etr lancer à la main**
 
 L'installation est à refaire et valider sans intervention humaine sur vm 22.04, 24.04 et 26.04 LTS.
 
@@ -162,8 +160,8 @@ L'installation est à refaire et valider sans intervention humaine sur vm 22.04,
 | # | Module | Description du problème | Sévérité |
 |---|--------|-------------------------|----------|
 | 1 | Isolation multi-tenant | Session partagée entre sous-domaines (`SESSION_DOMAIN` wildcard) + collision d'ID entre bases tenant → accès à un autre tenant sans ré-authentification. Corrigé par `GuardTenantSession` (2026-07-09). | 🔴 Critique — résolu |
-|   |        |        icone à changer  |          |
+| 2 | Favicon | Ancien favicon générique, ne correspondait plus au logo actuel (« ballon » bleu). Régénéré à partir de `public/img/logo.png`, mark seul recadré sans le texte « Plateforme Digitale ». Résolu 2026-07-09. | 🟡 Mineur — résolu |
 |   |        |                         |          |
 
 
-0 - Icone à modifier
+0 - ~~Icone à modifier~~ FAIT — 2026-07-09 (voir tableau de suivi #2)
