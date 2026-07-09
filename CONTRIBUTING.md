@@ -44,32 +44,24 @@ Les fonctionnalités liées aux collectivités françaises, à la souveraineté 
 
 ### Prérequis
 
-- PHP 8.3+, Composer 2, Node.js 20, MySQL 8, Redis 7
+- PHP 8.4+, Composer 2, Node.js 20, MySQL 8, Redis 7
 - Lire [INSTALL.md](INSTALL.md) pour mettre en place l'environnement de développement local
-- Lire [CLAUDE.md](CLAUDE.md) pour les commandes utiles et l'architecture du projet (fichier de contexte utilisé lors du développement assisté par intelligence artificielle)
 
 ### Mettre en place l'environnement local
 
 ```bash
-# Cloner le dépôt
 git clone https://github.com/jpbosse/pladigit.git
 cd pladigit
 
-# Installer les dépendances PHP
 composer install
-
-# Installer les dépendances JavaScript
 npm install && npm run build
 
-# Copier et configurer l'environnement
 cp .env.example .env
 php artisan key:generate
 
-# Migrations (base plateforme et bases organisation séparées)
 php artisan migrate --path=database/migrations/platform
 php artisan migrate --path=database/migrations
 
-# Lancer les workers de file de tâches
 php artisan queue:work
 ```
 
@@ -86,14 +78,14 @@ git checkout -b fix/description-courte
 git checkout -b feature/description-courte
 
 # 3. Développer + vérifier
-php artisan test --exclude-group ldap,integration
+php -d memory_limit=512M vendor/bin/phpunit
 ./vendor/bin/pint
 ./vendor/bin/phpstan analyse --memory-limit=512M
 
 # 4. Commiter
 git commit -m "fix: description courte du correctif"
 
-# 5. Pousser + ouvrir une demande de contribution vers la branche develop
+# 5. Pousser + ouvrir une PR vers la branche develop
 git push origin fix/description-courte
 ```
 
@@ -115,21 +107,21 @@ git push origin fix/description-courte
 
 **Code :**
 - PSR-12 obligatoire — Pint vérifie et corrige automatiquement
-- PHPStan niveau 5 — 0 erreur tolérée
+- PHPStan niveau 5 — 0 erreur tolérée (montée progressive vers le niveau 8 en cours, par paliers)
 - Tout nouveau code doit avoir des tests PHPUnit correspondants
 - Pas de mocks — les tests utilisent de vraies bases MySQL de test
 
-**Demandes de contribution (Pull Requests) :**
+**Pull Requests :**
 - Cibler la branche `develop`, jamais directement `main`
 - Décrire les changements et pourquoi ils sont nécessaires
-- L'intégration continue (CI) doit être verte avant review
+- Le CI doit être vert avant review
 - Une PR = un sujet
 
 ---
 
 ## Contribuer à la documentation
 
-La documentation est dans `docs/` et à la racine du projet, au format Markdown. Les corrections, compléments et traductions sont les bienvenus via demande de contribution.
+La documentation est dans `docs/` et à la racine du projet, au format Markdown.
 
 ### Structure des documents racine
 
@@ -149,40 +141,49 @@ La documentation est dans `docs/` et à la racine du projet, au format Markdown.
 
 ```
 docs/
-├── README.md                   ← index de la documentation
-├── CDC_Pladigit_v2.3.md        ← cahier des charges complet
-├── glossaire.md                ← glossaire des termes techniques et métier
-├── index-annexes.md            ← index de toutes les annexes
+├── README.md                        ← index de la documentation
+├── glossaire.md                     ← glossaire des termes techniques et métier
+├── plan-de-travail.md               ← suivi du plan de développement
+├── checklist-tests-pladigit.md      ← tests fonctionnels
 │
-├── GUIDE-INSTALLATION.html     ← guide illustré avec captures d'écran
-├── adr/                        ← décisions architecturales (ADR-001 à ADR-031)
-├── annexes/                    ← documentation technique par module
-├── guides/                     ← guides utilisateurs par profil
-└── divers/                     ← installation, maintenance, checklist production
+├── 01-product/
+│   ├── CDC_Pladigit_v2.4.md         ← cahier des charges complet
+│   ├── vision-2030.md               ← vision et principes
+│   ├── charte-choix-technologiques.md
+│   ├── module-system.md
+│   └── ROADMAP.md
+│
+├── 02-architecture/
+│   ├── installation.md              ← cahier des charges installeur
+│   ├── deploy/                      ← guides de déploiement
+│   └── annexes/                     ← documentation technique par module
+│
+├── 03-guides/                       ← guides utilisateurs par profil
+│
+├── 04-adr/                          ← décisions architecturales ADR-001 à ADR-043
+│
+└── 05-exploitation/                 ← checklist production, maintenance
 ```
 
 ---
 
 ## Types de contributions appréciées
 
-Au-delà du code, d'autres formes de contributions ont de la valeur pour le projet :
-
-- **Retours d'usage terrain** : vous avez installé Pladigit dans une collectivité ? Votre retour (ce qui fonctionne, ce qui coince) est précieux
-- **Documentation** : améliorer un guide utilisateur, corriger une imprécision, traduire un document
+Au-delà du code :
+- **Retours d'usage terrain** : vous avez installé Pladigit dans une collectivité ? Votre retour est précieux
+- **Documentation** : améliorer un guide utilisateur, corriger une imprécision
 - **Tests** : signaler un comportement inattendu avec les étapes pour reproduire
-- **Relecture** : corriger les fautes, clarifier les formulations dans les documents
+- **Relecture** : corriger les fautes, clarifier les formulations
 
 ---
 
 ## Soutenir le projet
 
 L'infrastructure de démonstration (VPS OVH, domaine `pladigit.fr`) est financée personnellement.
-Si ce projet vous est utile, vous pouvez contribuer financièrement via [GitHub Sponsors](https://github.com/sponsors/jpbosse).
+Si ce projet vous est utile, vous pouvez contribuer via [GitHub Sponsors](https://github.com/sponsors/jpbosse).
 
 ---
 
 ## Code de conduite
 
-Ce projet adhère au principe simple : **respect et bienveillance**. Les échanges agressifs, irrespectueux ou hors-sujet ne seront pas tolérés.
-
-Voir [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) pour le texte complet.
+Voir [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

@@ -3,6 +3,7 @@
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSuperAdmin;
 use App\Http\Middleware\ForcePwdChange;
+use App\Http\Middleware\GuardTenantSession;
 use App\Http\Middleware\RequireGedPermission;
 use App\Http\Middleware\RequireModule;
 use App\Http\Middleware\ResolveTenant;
@@ -18,8 +19,15 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // ResolveTenant doit être PREPEND (avant tout le reste)
+        // ResolveTenant doit être PREPEND (avant tout le reste) — nécessaire
+        // pour que applySessionLifetime() règle config('session.lifetime')
+        // AVANT que StartSession ne lise cette config.
         $middleware->prependToGroup('web', ResolveTenant::class);
+        // GuardTenantSession doit s'exécuter APRÈS StartSession (accès à la
+        // session requis) — donc ajoutée normalement, jamais prependée.
+        // Corrige la faille d'isolation inter-tenants (cookie de session
+        // partagé entre sous-domaines, cf. ADR isolation session).
+        $middleware->appendToGroup('web', GuardTenantSession::class);
         // Alias personnalisés
         $middleware->alias([
             'tenant' => ResolveTenant::class,

@@ -1,16 +1,16 @@
 # INSTALL.md — Pladigit
 
-> Guide d'installation pour déployer Pladigit en production.  
-> Ubuntu 24.04 LTS — Mai 2026.
+> Guide d'installation pour déployer Pladigit en production.
+> Ubuntu 24.04 LTS — Juin 2026.
 
 ---
 
 ## Deux modes d'installation
 
 | Mode | Public cible | Durée |
-|---|---|---|
-| **[Installation automatique](#installation-automatique)** | Tout administrateur | ~15 min |
-| **[Installation manuelle](#installation-manuelle)** | Administrateurs système expérimentés | ~45 min |
+|------|-------------|-------|
+| **Installation automatique** | Tout administrateur | ~15 min |
+| **Installation manuelle** | Administrateurs système expérimentés | ~45 min |
 
 ---
 
@@ -19,74 +19,93 @@
 ### Prérequis matériels
 
 | Configuration | Usage |
-|---|---|
+|--------------|-------|
 | 2 vCPU / 4 Go RAM / 25 Go SSD | Sans Collabora |
 | 4 vCPU / 8 Go RAM / 75 Go SSD | Avec Collabora |
 | 8 vCPU / 16 Go RAM / 200 Go SSD | Production multi-organisations |
 
-**OS requis :** Ubuntu 22.04 LTS ou 24.04 LTS  
+**OS requis :** Ubuntu 24.04 LTS (recommandé) ou 22.04 LTS
 **Hébergeurs recommandés :** OVH, Scaleway, Infomaniak (hébergeurs français)
 
 ### Étape 1 — Installer Ubuntu Server
 
-Téléchargez Ubuntu Server 24.04 LTS sur [ubuntu.com/download/server](https://ubuntu.com/download/server) et installez-le sur votre serveur ou machine virtuelle.
+Téléchargez Ubuntu Server 24.04 LTS sur [ubuntu.com/download/server](https://ubuntu.com/download/server).
 
-> 💡 Lors de l'installation Ubuntu, choisissez **"Use entire disk"** pour allouer tout l'espace disque. Si vous utilisez LVM, le script d'installation Pladigit étend automatiquement le volume.
+> Lors de l'installation Ubuntu, choisissez **"Use entire disk"** pour allouer tout l'espace disque. Si vous utilisez LVM, le script d'installation Pladigit étend automatiquement le volume.
 
 ### Étape 2 — Lancer l'installation
 
-Connectez-vous à votre serveur via SSH ou ouvrez un terminal, puis copiez-collez cette commande :
+Connectez-vous à votre serveur via SSH, puis exécutez :
 
 ```bash
 curl -fsSL https://pladigit.fr/install.sh | sudo bash
 ```
 
 Le script installe automatiquement :
-- PHP 8.3+ natif Ubuntu (dépôts universe)
+- PHP 8.4 natif Ubuntu (dépôts universe)
 - MySQL 8, Redis, Nginx, Supervisor, Node.js 20
 - Le code source de Pladigit et ses dépendances
+
+> **Note imagick :** si vous observez une erreur PHP imagick sur PHP 8.4/8.5, vérifiez avec `php -m | grep imagick`. Le script tente l'installation mais l'extension peut être indisponible selon la version PHP — elle n'est pas bloquante pour le fonctionnement de Pladigit.
 
 À la fin, le script affiche l'URL de l'assistant de configuration.
 
 ### Étape 3 — Configurer via l'assistant web
 
-Depuis votre ordinateur, ouvrez un navigateur et accédez à l'URL affichée par le script :
+Depuis votre navigateur, accédez à l'URL affichée par le script :
 
 ```
 http://ADRESSE-IP-DU-SERVEUR/install/
 ```
 
-L'assistant vous guide en 8 étapes :
+L'assistant vous guide en quelques étapes :
 
 1. **Vérification** — le système est-il compatible ?
-2. **Base de données** — connexion MySQL et création de l'utilisateur dédié
-3. **Application** — URL et nom de votre organisation
-4. **Email** — configuration SMTP optionnelle
-5. **Collabora** — choix du mode d'installation (Docker local, instance externe, ou plus tard)
+2. **Application** — URL et nom de votre organisation
+3. **Email** — configuration SMTP optionnelle
+4. **Collabora** — choix du mode (Docker local, instance externe, ou plus tard)
+5. **Sécurité** — configuration GPG pour le chiffrement des sauvegardes
 6. **Administrateur** — création du compte Super Admin
-7. **Récapitulatif** — vérification des choix avant lancement
+7. **Récapitulatif** — vérification avant lancement
 8. **Installation** — lancement automatique avec barre de progression
 
-À la fin, une page de confirmation affiche vos identifiants de connexion.
+> ⚠ **Notez vos identifiants et votre passphrase GPG** affichés sur la page de confirmation. Ils ne seront plus affichés ensuite. Conservez la passphrase GPG dans un gestionnaire de mots de passe — sans elle, vos sauvegardes chiffrées sont irrécupérables.
 
-> ⚠️ **Notez vos identifiants** affichés sur la page de confirmation — ils ne seront plus affichés ensuite.
+### Étape 4 — Installer Collabora (optionnel)
+
+Collabora Online (édition collaborative de documents) est un module optionnel qui nécessite Docker. Il ne s'installe pas automatiquement lors de l'installation standard.
+
+Pour l'activer après installation :
+
+```bash
+sudo bash /var/www/pladigit/install.sh --collabora-only https://votre-domaine.fr /var/www/pladigit
+```
 
 ---
 
 ## Post-installation
 
+### Vérifier que l'installeur est verrouillé
+
+Après installation, l'accès à `/install/` doit retourner 403 :
+
+```bash
+curl -sk -o /dev/null -w "%{http_code}\n" https://votre-domaine.fr/install/
+# Doit retourner : 403
+```
+
 ### Créer la première organisation
 
-Connectez-vous sur `http://VOTRE-SERVEUR/super-admin` avec les identifiants définis lors de l'installation.
+Connectez-vous sur `https://votre-domaine.fr/super-admin` avec les identifiants définis lors de l'installation.
 
 1. **Organisations** → **Nouvelle organisation**
-2. Renseignez le slug (ex: `mairie-soullans`)
+2. Renseignez le slug (ex : `mairie-soullans`) — **définitif, impossible à modifier**
 3. Choisissez le plan : `Communautaire`
 4. Validez
 
-L'organisation est accessible sur `http://VOTRE-SERVEUR` (ou sur son sous-domaine si vous avez configuré un domaine).
+L'organisation est accessible sur `https://slug.votre-domaine.fr`.
 
-### Configurer un nom de domaine (optionnel)
+### Configurer un nom de domaine
 
 Si vous disposez d'un nom de domaine, ajoutez dans votre zone DNS :
 
@@ -96,30 +115,28 @@ Si vous disposez d'un nom de domaine, ajoutez dans votre zone DNS :
 www  A    VOTRE-IP
 ```
 
-Puis installez un certificat SSL :
+Pour un certificat wildcard (requis pour les sous-domaines tenant) via OVH :
 
 ```bash
-sudo apt install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d votre-domaine.fr -d www.votre-domaine.fr
-```
-
-Pour un certificat wildcard (requis pour les sous-domaines tenant) :
-
-```bash
-sudo certbot certonly --manual --preferred-challenges dns \
+sudo pip3 install certbot-dns-ovh --break-system-packages
+sudo certbot certonly --dns-ovh --dns-ovh-credentials /etc/ovh.ini \
   -d votre-domaine.fr -d "*.votre-domaine.fr"
 ```
 
 ### Mettre à jour Pladigit
 
+Les mises à jour se font depuis l'interface Super Admin → Mise à jour, sans accès SSH.
+
+En cas de mise à jour manuelle :
+
 ```bash
 cd /var/www/pladigit
-git pull origin main
-composer install --no-dev --optimize-autoloader
-npm ci && npm run build
-php artisan migrate --force
-php artisan migrate --path=database/migrations/platform --force
-php artisan config:cache && php artisan route:cache && php artisan view:cache
+sudo git pull origin main
+sudo -u www-data composer install --no-dev --optimize-autoloader
+sudo -u www-data php artisan migrate --force
+sudo -u www-data php artisan config:cache
+sudo -u www-data php artisan route:cache
+sudo -u www-data php artisan view:cache
 sudo supervisorctl restart pladigit-worker:*
 ```
 
@@ -127,97 +144,84 @@ sudo supervisorctl restart pladigit-worker:*
 
 ## Installation manuelle
 
-> Pour les administrateurs système qui souhaitent contrôler chaque étape ou installer Pladigit sur un serveur existant.
+> Pour les techniciens qui souhaitent contrôler chaque étape ou installer Pladigit sur un serveur existant.
 
 ### Prérequis
 
-Même configuration matérielle que l'installation automatique. OS : Ubuntu 22.04 ou 24.04 LTS.
+Même configuration matérielle que l'installation automatique. OS : Ubuntu 24.04 LTS.
 
-### 1. Connexion SSH
-
-```bash
-ssh ubuntu@VOTRE_IP
-```
-
-### 2. Mise à jour du système
+### 1. Mise à jour du système
 
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
-### 3. PHP 8.3+ (natif Ubuntu)
+### 2. PHP 8.4 (natif Ubuntu)
 
 ```bash
 sudo add-apt-repository -y universe && sudo apt update
 
-sudo apt install -y php8.3 php8.3-cli php8.3-fpm php8.3-common \
-  php8.3-mysql php8.3-xml php8.3-curl php8.3-gd php8.3-imagick \
-  php8.3-mbstring php8.3-opcache php8.3-zip php8.3-intl \
-  php8.3-redis php8.3-bcmath php8.3-ldap
+sudo apt install -y php8.4 php8.4-cli php8.4-fpm php8.4-common \
+  php8.4-mysql php8.4-xml php8.4-curl php8.4-gd \
+  php8.4-mbstring php8.4-opcache php8.4-zip php8.4-intl \
+  php8.4-redis php8.4-bcmath php8.4-ldap
 ```
 
 Vérification :
 
 ```bash
-php8.3 --version
-php8.3 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath|gd'
+php8.4 --version
+php8.4 -m | grep -E 'mysql|redis|mbstring|curl|zip|intl|ldap|bcmath|gd'
 ```
 
-### 4. MySQL 8
+> **Note imagick :** `php8.4-imagick` peut être indisponible selon les dépôts. Tenter l'installation — si elle échoue, Pladigit fonctionne sans.
+
+### 3. MySQL 8
 
 ```bash
 sudo apt install -y mysql-server
 ```
 
-Activer l'authentification native (requis pour PDO) :
+MySQL sur Ubuntu utilise l'authentification par socket pour root — **ne pas modifier cela**. Créer uniquement l'utilisateur applicatif Pladigit :
 
 ```bash
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;"
-```
-
-Créer l'utilisateur Pladigit :
-
-```bash
-sudo mysql -u root
-```
-
-```sql
+sudo mysql << 'EOF'
 CREATE USER 'pladigit'@'localhost' IDENTIFIED BY 'VOTRE_MOT_DE_PASSE_FORT';
 GRANT ALL PRIVILEGES ON *.* TO 'pladigit'@'localhost' WITH GRANT OPTION;
 FLUSH PRIVILEGES;
-EXIT;
+EOF
 ```
 
-> ⚠️ Le `GRANT ALL PRIVILEGES ON *.*` est nécessaire car Pladigit crée dynamiquement une base par organisation.
+> `GRANT ALL PRIVILEGES ON *.*` est nécessaire car Pladigit crée dynamiquement une base par organisation.
 
-### 5. Redis
+### 4. Redis
 
 ```bash
 sudo apt install -y redis-server
 sudo systemctl enable redis-server
 ```
 
-### 6. Composer
+### 5. Composer
 
 ```bash
 curl -sS https://getcomposer.org/installer | sudo php -- --install-dir=/usr/local/bin --filename=composer
 ```
 
-### 7. Node.js 20
+### 6. Node.js 20
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
 ```
 
-### 8. Nginx + Supervisor
+### 7. Nginx + Supervisor
 
 ```bash
 sudo apt install -y nginx supervisor
 sudo systemctl enable nginx supervisor
 ```
 
-### 9. Déploiement de Pladigit
+### 8. Déploiement de Pladigit
 
 ```bash
 sudo git clone https://github.com/jpbosse/pladigit.git /var/www/pladigit
@@ -227,20 +231,7 @@ sudo -u www-data composer install --no-dev --optimize-autoloader
 sudo npm ci && sudo npm run build
 ```
 
-> **⚠ Droits sur le `.env` (critique)**
-> Le `.env` est créé à l'étape suivante. Une fois créé, les workers Supervisor
-> (qui tournent sous `www-data`) doivent pouvoir le lire. Sans cela, les workers
-> crashent silencieusement et les sauvegardes automatiques ne fonctionnent pas.
->
-> Après création du `.env`, appliquer systématiquement :
-> ```bash
-> sudo chown $USER:www-data /var/www/pladigit/.env
-> sudo chmod 640 /var/www/pladigit/.env
-> ```
-> Remplacer `$USER` par l'utilisateur système propriétaire du dépôt
-> (ex: `ubuntu` sur OVH, `deploy` sur un serveur dédié).
-
-### 10. Configuration de l'environnement
+### 9. Configuration de l'environnement
 
 ```bash
 sudo -u www-data cp .env.example .env
@@ -260,9 +251,10 @@ DB_USERNAME=pladigit
 DB_PASSWORD=VOTRE_MOT_DE_PASSE_FORT
 
 SESSION_DOMAIN=.votre-domaine.fr
+QUEUE_CONNECTION=redis
 
 SUPER_ADMIN_EMAIL=votre@email.fr
-SUPER_ADMIN_PASSWORD_HASH=           # voir ci-dessous
+SUPER_ADMIN_ALLOWED_IPS=VOTRE_IP_ADMIN
 
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.votre-fournisseur.fr
@@ -274,20 +266,21 @@ MAIL_FROM_ADDRESS=contact@votre-domaine.fr
 MAIL_FROM_NAME="Pladigit"
 ```
 
-Générer le hash du mot de passe Super Admin :
+> **Droits sur le `.env` (critique)**
+> Les workers Supervisor tournent sous `www-data` et doivent pouvoir lire le `.env` :
+> ```bash
+> sudo chown www-data:www-data /var/www/pladigit/.env
+> sudo chmod 640 /var/www/pladigit/.env
+> ```
 
-```bash
-php -r "echo password_hash('VotreMotDePasse', PASSWORD_BCRYPT);"
-```
-
-### 11. Migrations
+### 10. Migrations
 
 ```bash
 sudo -u www-data php artisan migrate --force
 sudo -u www-data php artisan migrate --path=database/migrations/platform --force
 ```
 
-### 12. Optimisation
+### 11. Optimisation
 
 ```bash
 sudo -u www-data php artisan config:cache
@@ -296,7 +289,7 @@ sudo -u www-data php artisan view:cache
 sudo -u www-data php artisan storage:link
 ```
 
-### 13. Configuration Nginx
+### 12. Configuration Nginx
 
 ```bash
 sudo nano /etc/nginx/sites-available/pladigit
@@ -323,12 +316,18 @@ server {
     charset utf-8;
     client_max_body_size 100M;
 
+    # Bloquer l'accès à l'installeur après installation
+    location ^~ /install/ {
+        deny all;
+        return 403;
+    }
+
     location / {
         try_files $uri $uri/ /index.php?$query_string;
     }
 
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+        fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $realpath_root/index.php;
         fastcgi_param SCRIPT_NAME /index.php;
         include fastcgi_params;
@@ -346,10 +345,10 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl restart nginx
 ```
 
-### 14. Supervisor (queues)
+### 13. Supervisor (queues)
 
 ```bash
-sudo nano /etc/supervisor/conf.d/pladigit.conf
+sudo nano /etc/supervisor/conf.d/pladigit-worker.conf
 ```
 
 ```ini
@@ -381,15 +380,23 @@ sudo supervisorctl start pladigit-worker:*
 ```bash
 sudo -u www-data php /var/www/pladigit/artisan config:clear
 sudo -u www-data php /var/www/pladigit/artisan config:cache
-sudo tail -20 /var/www/pladigit/storage/logs/laravel-$(date +%Y-%m-%d).log
+sudo tail -50 /var/www/pladigit/storage/logs/laravel.log
 ```
 
-### MySQL : Access denied for user root
-
-Sur Ubuntu, MySQL utilise l'authentification par socket par défaut. Exécutez :
+### Workers Supervisor en erreur
 
 ```bash
-sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY ''; FLUSH PRIVILEGES;"
+sudo tail -50 /var/log/pladigit-worker.log
+sudo supervisorctl status
+sudo supervisorctl restart pladigit-worker:*
+```
+
+### MySQL : Access denied
+
+Sur Ubuntu, MySQL utilise l'authentification par socket pour root. Toujours utiliser `sudo mysql` sans mot de passe :
+
+```bash
+sudo mysql -u root pladigit -e "SHOW TABLES;"
 ```
 
 ### Permissions storage
@@ -408,15 +415,30 @@ sudo lvextend -l +100%FREE /dev/mapper/ubuntu--vg-ubuntu--lv
 sudo resize2fs /dev/mapper/ubuntu--vg-ubuntu--lv
 ```
 
+### GNUPG — erreur GPG lors des sauvegardes
+
+Si les sauvegardes GPG échouent avec "code 2", vérifier que le répertoire GNUPG de www-data est accessible :
+
+```bash
+ls -la /var/www/pladigit/storage/.gnupg
+# Si le dossier n'existe pas :
+sudo -u www-data mkdir -p /var/www/pladigit/storage/.gnupg
+sudo chmod 700 /var/www/pladigit/storage/.gnupg
+```
+
 ---
 
 ## OVH — Points d'attention
 
-**SMTP sortant bloqué** — OVH bloque le port SMTP par défaut. Ouvrez un ticket support pour le déblocage ou utilisez le port 587/465.
+**SMTP sortant bloqué** — OVH bloque le port SMTP 25 par défaut. Utiliser le port 587 (TLS) ou 465 (SSL). Si nécessaire, ouvrir un ticket support pour le déblocage.
 
 **Clé SSH obligatoire** — Ubuntu 24.04 sur OVH n'autorise que l'authentification par clé SSH.
 
-**Certificat wildcard** — expire dans 90 jours. Configurez le renouvellement automatique via `certbot-dns-ovh`.
+**Certificat wildcard** — expire dans 90 jours. Configurer le renouvellement automatique via `certbot-dns-ovh` :
+
+```bash
+echo "0 0 1 * * root certbot renew --quiet" | sudo tee /etc/cron.d/certbot-renew
+```
 
 ---
 

@@ -61,7 +61,50 @@ class LoginTest extends TestCase
 
     public function test_isolation_tenant(): void
     {
-        // Un utilisateur d'un tenant ne doit pas accéder à un autre tenant
-        $this->assertTrue(true); // Complété en test d'intégration séparé
+        // Un utilisateur d'un tenant ne doit pas rester authentifié si la
+        // session porte l'org_id d'un AUTRE tenant que celui résolu pour
+        // la requête courante (fuite via cookie de session partagé entre
+        // sous-domaines, cf. GuardTenantSession).
+        $user = User::factory()->create([
+            'password_hash' => Hash::make('MotDePasse!123'),
+            'status' => 'active',
+        ]);
+
+        $this->post(route('login'), [
+            'email' => $user->email,
+            'password' => 'MotDePasse!123',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame(1, session('tenant_org_id'));
+
+        // Simule une session portant l'org_id d'un autre tenant (collision
+        // d'ID entre bases indépendantes, scénario reproduit manuellement).
+        session(['tenant_org_id' => 999]);
+
+        $response = $this->get(route('dashboard'));
+
+        $response->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
+    public function test_session_valide_conserve_acces(): void
+    {
+        // Contrôle négatif : une session dont l'org_id correspond au tenant
+        // résolu ne doit jamais être invalidée par GuardTenantSession.
+        $user = User::factory()->create([
+            'password_hash' => Hash::make('MotDePasse!123'),
+            'status' => 'active',
+        ]);
+
+        $this->post(route('login'), [
+            'email' => $user->email,
+            'password' => 'MotDePasse!123',
+        ]);
+
+        $response = $this->get(route('dashboard'));
+
+        $response->assertOk();
+        $this->assertAuthenticatedAs($user);
     }
 }

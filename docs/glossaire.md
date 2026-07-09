@@ -62,7 +62,7 @@ Outil Linux qui surveille les journaux système et bannit automatiquement les ad
 Protocole LDAP (protocole d'annuaire) sécurisé par TLS. Pladigit n'autorise que les connexions LDAPS — la connexion LDAP non chiffrée est refusée (ADR-005). LDAP (port 389) transmet les identifiants en clair sur le réseau, ce qui est inacceptable en environnement de production.
 
 **SecNumCloud**
-Qualification délivrée par l'ANSSI pour les prestataires de services en nuage (cloud) qui respectent un référentiel de sécurité exigeant. Pladigit ne dispose pas encore de cette qualification (v0.8), mais son hébergement auto-géré en France ou en Europe offre une alternative conforme aux exigences des collectivités.
+Qualification délivrée par l'ANSSI pour les prestataires de services en nuage (cloud) qui respectent un référentiel de sécurité exigeant. Pladigit ne dispose pas encore de cette qualification, mais son hébergement auto-géré en France ou en Europe offre une alternative conforme aux exigences des collectivités.
 
 **TOTP (Time-based One-Time Password)**
 Protocole de double authentification défini par la RFC 6238. Génère un code à 6 chiffres valable 30 secondes, calculé à partir d'un secret partagé et de l'heure courante. Compatible avec Google Authenticator, Aegis, Authy et Microsoft Authenticator. Pladigit utilise TOTP plutôt que SMS pour éviter les vulnérabilités liées aux opérateurs téléphoniques (ADR-017).
@@ -75,7 +75,7 @@ Outil de gestion des règles de pare-feu sous Linux (Ubuntu). Permet de définir
 ## Architecture & technique
 
 **ADR (Architecture Decision Record)**
-Fiche de décision architecturale : document qui enregistre un choix technique important, son contexte, les alternatives considérées et les conséquences. Pladigit dispose de 31 ADR dans `docs/adr/` (ADR-001 à ADR-031). Permet à tout contributeur ou prestataire de comprendre *pourquoi* un choix a été fait, pas seulement *quoi*.
+Fiche de décision architecturale : document qui enregistre un choix technique important, son contexte, les alternatives considérées et les conséquences. Pladigit dispose de 43 ADR dans `docs/04-adr/` (ADR-001 à ADR-043). Permet à tout contributeur ou prestataire de comprendre *pourquoi* un choix a été fait, pas seulement *quoi*.
 
 **Alpine.js**
 Framework JavaScript léger utilisé pour les interactions frontend (modales, drag & drop, upload progressif). Complémentaire à Livewire — Alpine.js gère les interactions purement côté client, Livewire gère les composants réactifs côté serveur.
@@ -135,10 +135,10 @@ Interface PHP définissant le contrat commun pour tous les drivers de stockage G
 Tâche asynchrone exécutée en arrière-plan par un worker. Utilisé pour les traitements longs : upload de photos, import ZIP, synchronisation NAS, export. Évite de bloquer la requête HTTP de l'utilisateur pendant le traitement.
 
 **Laravel**
-Framework PHP MVC utilisé comme socle de Pladigit. Version 11.x. Fournit le routage, l'ORM Eloquent, les migrations de base de données, la gestion des files de tâches, le planificateur de tâches (scheduler) et l'injection de dépendances.
+Framework PHP MVC utilisé comme socle de Pladigit. Version 12.x. Fournit le routage, l'ORM Eloquent, les migrations de base de données, la gestion des files de tâches, le planificateur de tâches (scheduler) et l'injection de dépendances.
 
 **Livewire**
-Framework Laravel permettant de construire des interfaces réactives sans écrire de JavaScript. Les composants Livewire s'exécutent côté serveur et communiquent via AJAX avec le navigateur. Version 4.2 dans Pladigit.
+Framework Laravel permettant de construire des interfaces réactives sans écrire de JavaScript. Les composants Livewire s'exécutent côté serveur et communiquent via AJAX avec le navigateur. Version 4.x dans Pladigit.
 
 **Middleware**
 Code exécuté avant qu'une requête HTTP atteigne le contrôleur. Pladigit utilise notamment `ResolveTenant` (résolution de l'organisation depuis le sous-domaine), `RequireModule` (vérification qu'un module est activé), `CheckRole` (vérification du rôle utilisateur).

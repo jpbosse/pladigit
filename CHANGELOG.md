@@ -9,6 +9,27 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/) — versioning
 
 ---
 
+## [0.9.0] — Juin 2026
+
+### Ajouté
+- **Sauvegardes automatiques chiffrées GPG** — chiffrement symétrique AES-256, GNUPGHOME dédié pour www-data, vérification SHA-256, planification nocturne centralisée Super Admin (ADR-041)
+- **Architecture sauvegarde centralisée** — Super Admin configure et déclenche ; admin tenant consulte le statut et vérifie l'intégrité SHA-256 uniquement
+- **`BackupController::checkPath()`** — création automatique du répertoire de destination avec vérification des droits
+- **Guide Super Admin** — procédure de restauration complète documentée
+
+### Modifié
+- Migration Laravel 12 (0 conflit de dépendances)
+- `BackupService::encryptArchive()` — GNUPGHOME explicite pour www-data, fix code 2 GPG
+- `BackupController::inspectArchive()` — même fix GNUPGHOME
+- Interface admin tenant sauvegarde — simplifiée : statut + SHA-256 uniquement
+- Restructuration arborescence docs/ — suppression doublons, guides réécrits (juin 2026)
+- 884 → 886 tests
+
+### Corrigé
+- GNUPGHOME manquant pour www-data — sauvegardes GPG désormais fonctionnelles en production
+
+---
+
 ## [0.8.3] — Mai 2026
 
 ### Ajouté
