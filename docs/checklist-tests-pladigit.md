@@ -47,7 +47,7 @@ L'installation est à refaire et valider sans intervention humaine sur vm 22.04,
 - [X] Statistiques plateforme (Stats)
 - [P] Tableau de bord sécurité (Security) - mettre la rétention max par default à 12 mois. Tester le chiffrement GPG. Je ne vois pas de workers, ni de clés SSH.
 - [?] Gestion SSL par tenant (Ssl). Dans tests pas de certificat.
-- [?] Sauvegardes (Backup) : déclenchement, présence du fichier, chiffrement GPG. Sauvegarde manuelle - pb verifié les droits chown (www-data à la place de root:root et 644 ou 770). Je peux lire le sauvegarde sans problème y compris en passant par mc.
+- [X] Sauvegardes (Backup) : déclenchement, présence du fichier, chiffrement GPG. **Vérifié 2026-07-09** — chiffrement réel confirmé (`file` → PGP symmetric key encrypted data, AES-256) ; permissions corrigées `644` → `600` (`BackupService::sendLocal`, chmod explicite après `copy()`) ; validé de bout en bout sur VPS : création (`www-data`), permissions, visible et inspectable dans Super Admin (SHA-256 + contenu tar affichés). Le souci initial de lecture « sans problème » venait d'un test sur poste local où le fichier était créé en `deploy` et lu en `www-data` — pas un cas réel de prod (VPS : même identité pour création et lecture). Pour forcer une sauvegarde hors planning (tests) : `pladigit:backup --slug=xxx --force`.
 - [-] Test la sauvegarde : manque explication
 - [-] Test de restauration de sauvegarde : manque explication pour les utilisateurs
 - [-] DataGrid au niveau super-admin : voir datagrid
@@ -161,6 +161,7 @@ L'installation est à refaire et valider sans intervention humaine sur vm 22.04,
 |---|--------|-------------------------|----------|
 | 1 | Isolation multi-tenant | Session partagée entre sous-domaines (`SESSION_DOMAIN` wildcard) + collision d'ID entre bases tenant → accès à un autre tenant sans ré-authentification. Corrigé par `GuardTenantSession` (2026-07-09). | 🔴 Critique — résolu |
 | 2 | Favicon | Ancien favicon générique, ne correspondait plus au logo actuel (« ballon » bleu). Régénéré à partir de `public/img/logo.png`, mark seul recadré sans le texte « Plateforme Digitale ». Résolu 2026-07-09. | 🟡 Mineur — résolu |
+| 3 | Sauvegardes locales | Fichiers `.gpg` créés en `644` au lieu de `600` (`copy()` sans `chmod` explicite dans `BackupService::sendLocal`). Corrigé 2026-07-09, validé en production sur VPS. | 🟠 Modéré — résolu |
 |   |        |                         |          |
 
 
