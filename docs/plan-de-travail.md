@@ -77,7 +77,7 @@
 
 | # | Tâche | Priorité | ADR | Remarque |
 |---|-------|----------|-----|----------|
-| 1.D.1 | Test PHPUnit Feature — isolation cross-tenant | 🔴 | ADR-002 | `tests/Feature/Tenant/TenantIsolationTest.php` |
+| ~~1.D.1~~ | ~~Test PHPUnit Feature — isolation cross-tenant~~ | 🔴 | ADR-002 | **FAIT — 2026-07-09** — `tests/Feature/Auth/LoginTest.php::test_isolation_tenant`. Faille réelle trouvée et corrigée en prod (session partagée entre sous-domaines, cf. `GuardTenantSession`) — pas seulement un test préventif. |
 | 1.D.2 | Test PHPUnit Feature — suppression tenant complète | 🟠 | ADR-037 | Compléter `OrganizationTest.php` |
 | 1.D.3 | Test PHPUnit Feature — validation slug organisation | 🟠 | ADR-002 | Vérifier `OrganizationController::store()` |
 
@@ -90,6 +90,7 @@
 | 1.6 | Test de restauration complète sur VPS de test | 🔴 | ADR-041 §5 | Valider RPO/RTO réels |
 | 1.7 | Test de restauration partielle (un tenant) sur VPS de test | 🔴 | ADR-041 §6 | |
 | 1.8 | Test de restauration d'un fichier GED | 🟠 | ADR-041 §7 | |
+| 1.9 | **Certificats SSL — écart doc/réalité, problèmes récurrents.** Doc annonce un wildcard `*.pladigit.fr` via `certbot-dns-ovh` (DNS-01) ; en prod le certificat est en réalité émis via `authenticator = nginx` (HTTP-01), donc noms explicites seulement (`pladigit.fr`, `demo.pladigit.fr` au 2026-07-09) — aucun nouveau tenant n'est couvert automatiquement. S'ajoute à l'historique déjà chargé sur ce sujet (HSTS à chaque réinstallation, consigne stricte de ne jamais toucher `/etc/letsencrypt` en réinstallation). Nécessite une session dédiée : soit migrer vers un vrai wildcard DNS-01, soit automatiser l'ajout de domaine au certificat à chaque création de tenant — pas les deux approches qui se chevauchent comme actuellement. | 🔴 | ADR-026 | Identifié 2026-07-09, pendant la validation VPS du correctif d'isolation |
 | 1.10 | Checklist sécurité mensuelle | ⚪ | ADR-041 §11 | Remplacée en grande partie par 1.B.5 |
 
 ---
