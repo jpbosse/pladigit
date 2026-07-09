@@ -16,12 +16,14 @@
 
 - [] L'installeur va au bout sans erreur bloquante
 - [ ] Le check final indique « tout est OK »
-- [ ] Nginx démarré, écoute sur 80 et 443
+- [X] Nginx démarré, écoute sur 80 et 443 — vérifié 2026-07-09 sur `pladigit.vm` (redirection 80→443 active, vhost sert bien l'app une fois le DNS local corrigé) et sur le VPS (`https://toto.pladigit.fr`, `https://titi.pladigit.fr` réellement servis, cf. tests `curl` isolation)
 - [ ] PHP-FPM 8.4 actif (et non 8.5)
 - [ ] Worker de queue `RUNNING` (les deux process), sans FATAL
 - [ ] Le watchdog relance le worker s'il tombe (test : `supervisorctl stop`, attendre 2 min)
 - [ ] Le cron Laravel (`schedule:run`) est actif
-- [ ] Certificat (auto-signé en maquette) présent, HTTPS accessible
+- [X] Certificat présent, HTTPS accessible — VPS confirmé (Let's Encrypt valide jusqu'au 30/08/2026, cf. `certbot certificates`) ; **mais voir 1.9 du plan de travail : ne couvre que `pladigit.fr` + `demo.pladigit.fr`, pas de wildcard réel malgré la doc**
+
+**Non testés aujourd'hui** (session consacrée à une mise à jour de code sur instances existantes, pas à une installation fraîche) : lignes 17, 18, 20, 21, 22, 23 — à valider lors d'un prochain test d'installation complète sur VM vierge.
 
 L'installation est à refaire et valider sans intervention humaine sur vm 22.04, 24.04 et 26.04 LTS.
 
